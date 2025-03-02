@@ -1,7 +1,10 @@
 import { Router } from "express";
-import { authenticateUser } from "../../middleware/authenticeUser";
+import {
+  authenticateAdmin,
+  authenticateUser,
+} from "../../middleware/authenticeUser";
 import { AppError, asyncHandler } from "../../utils/error";
-import { Auth } from "../../utils/types";
+import { Auth, OrderStatus } from "../../utils/types";
 import orderService from "./order.service";
 
 export const orderRoutes = Router();
@@ -67,6 +70,44 @@ orderRoutes.get(
         ...order,
         items,
       },
+    });
+  })
+);
+
+orderRoutes.get(
+  "/admin/all",
+
+  asyncHandler(async (req, res) => {
+    const query = req.query;
+    const status = query.status as OrderStatus;
+
+    const data = await orderService.getAdminOrders(status);
+
+    res.json({
+      data,
+    });
+  })
+);
+
+//update order status
+
+orderRoutes.patch(
+  "/:orderId",
+  authenticateAdmin,
+  asyncHandler(async (req, res) => {
+    const id = req.params.orderId;
+
+    if (!id) {
+      throw new AppError("Error");
+    }
+
+    const status = req.body.status as OrderStatus;
+
+    await orderService.updateOrderStatus(parseInt(id), status);
+
+    res.json({
+      message: "Updated",
+      data: id,
     });
   })
 );

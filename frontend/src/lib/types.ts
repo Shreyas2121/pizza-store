@@ -178,3 +178,27 @@ export interface OrderRes extends Order {
   payment: Payment | null;
   items: OrderItemRes[];
 }
+
+export interface ProductWithCategory extends Product {
+  category: Category;
+}
+
+export interface OrdersAdmin extends Order {
+  user: User;
+}
+
+export interface DashCard {
+  label: string;
+  data: {
+    current: string;
+    previous: string;
+    percentage: string;
+    isLow: boolean;
+    icon: {
+      name: string;
+      color: string;
+    };
+  };
+}
+
+export type GroupT = "daily" | "weekly" | "monthly" | "quaterly" | "yearly";

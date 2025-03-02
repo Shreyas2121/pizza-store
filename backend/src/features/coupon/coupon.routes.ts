@@ -8,6 +8,7 @@ export const couponRoutes = Router();
 
 couponRoutes.post(
   "/",
+  authenticateAdmin,
   asyncHandler(async (req, res) => {
     const data = req.body;
 
@@ -19,9 +20,7 @@ couponRoutes.post(
     const [coupon] = await couponService.createCoupon({
       ...data,
       startDate: data.startDate ? new Date(data.startDate) : date,
-      endDate: data.endDate
-        ? new Date(data.endDate)
-        : defaultEndDate
+      endDate: data.endDate ? new Date(data.endDate) : defaultEndDate,
     });
 
     res.json({ data: coupon, message: "Coupon created successfully." });
@@ -30,6 +29,7 @@ couponRoutes.post(
 
 couponRoutes.get(
   "/",
+  authenticateAdmin,
   asyncHandler(async (req, res) => {
     const coupons = await couponService.getCoupons();
 
@@ -81,6 +81,7 @@ couponRoutes.put(
 
 couponRoutes.delete(
   "/:id",
+  authenticateAdmin,
   asyncHandler(async (req, res) => {
     const id = parseInt(req.params.id);
 

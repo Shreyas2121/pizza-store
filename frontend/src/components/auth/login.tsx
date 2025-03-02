@@ -79,7 +79,12 @@ const Login = () => {
               type="button"
               className="text-red-500"
               unstyled
-              onClick={() => openModal(<Register />)}
+              onClick={() =>
+                openModal({
+                  content: <Register />,
+                  title: "Register",
+                })
+              }
             >
               Register
             </Button>

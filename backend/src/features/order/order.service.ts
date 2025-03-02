@@ -60,6 +60,25 @@ class OrderService {
     });
   }
 
+  async getAllUserOrders(userId: number) {
+    return await db.query.ordersTable.findMany({
+      where: eq(ordersTable.userId, userId),
+      orderBy: desc(ordersTable.orderDate),
+      with: {
+        items: {
+          with: {
+            product: true,
+            orderItemCustomizations: {
+              with: {
+                customizationOption: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
   async getOrderDetails(orderId: number) {
     return await db.query.ordersTable.findFirst({
       where: eq(ordersTable.id, orderId),
@@ -85,6 +104,22 @@ class OrderService {
     return await db.query.ordersTable.findFirst({
       where: eq(ordersTable.id, orderId),
     });
+  }
+
+  async getAdminOrders(status: OrderStatus = "pending") {
+    return await db.query.ordersTable.findMany({
+      where: eq(ordersTable.status, status),
+      with: {
+        user: true,
+      },
+    });
+  }
+
+  async updateOrderStatus(orderId: number, status: OrderStatus) {
+    return await db
+      .update(ordersTable)
+      .set({ status })
+      .where(eq(ordersTable.id, orderId));
   }
 }
 

@@ -1,10 +1,14 @@
 import { Router } from "express";
-import { authenticateAdmin } from "../../middleware/authenticeUser";
+import {
+  authenticateAdmin,
+  authenticateUser,
+} from "../../middleware/authenticeUser";
 import { upload } from "../../utils/multer";
 import { AppError, asyncHandler } from "../../utils/error";
 import { filterImage, generateSlug } from "../../utils";
 import productService from "./product.service";
-import { Product } from "../../utils/types";
+import { Auth, Product } from "../../utils/types";
+import orderService from "../order/order.service";
 
 export const productRoutes = Router();
 
@@ -70,5 +74,48 @@ productRoutes.get(
         limit,
       },
     });
+  })
+);
+
+// admin
+productRoutes.get(
+  "/admin",
+  authenticateAdmin,
+  asyncHandler(async (req, res) => {
+    const products = await productService.getProductsA();
+    res.json({ data: products });
+  })
+);
+
+// products by cat
+
+productRoutes.get(
+  "/category/:id",
+  asyncHandler(async (req, res) => {
+    const categoryId = parseInt(req.params.id);
+
+    if (!Number.isInteger(categoryId)) {
+      throw new AppError("ID must be a number", 400);
+    }
+
+    const data = await productService.getProductsByCategory(categoryId);
+
+    res.json({ data });
+  })
+);
+
+// products by group id
+
+productRoutes.get(
+  "/group/:id",
+  asyncHandler(async (req, res) => {
+    const groupId = parseInt(req.params.id);
+
+    if (!Number.isInteger(groupId)) {
+      throw new AppError("ID must be a number", 400);
+    }
+
+    const data = await productService.getProductsByGroupId(groupId);
+    res.json({ data: data.map((d) => d.product) });
   })
 );

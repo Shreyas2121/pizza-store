@@ -3,6 +3,7 @@ import { db } from "../../db";
 import {
   menuItemsMappingTable,
   menuItemsTable,
+  productCustomizationGroupMappingTable,
   productsTable,
 } from "../../db/schema";
 import { AppError } from "../../utils/error";
@@ -118,6 +119,45 @@ class ProductService {
       offset,
       limit,
       orderBy: order,
+    });
+  }
+
+  async getProductsA() {
+    return await db.query.productsTable.findMany({
+      orderBy: desc(productsTable.createdAt),
+      with: {
+        category: {
+          columns: {
+            name: true,
+          },
+        },
+      },
+    });
+  }
+
+  async getProductsByCategory(categoryId: number) {
+    return await db.query.productsTable.findMany({
+      where: eq(productsTable.categoryId, categoryId),
+    });
+  }
+
+  async getProductsByGroupId(groupId: number) {
+    return await db.query.productCustomizationGroupMappingTable.findMany({
+      where: eq(productCustomizationGroupMappingTable.groupId, groupId),
+      with: {
+        product: {
+          columns: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+  }
+
+  async getNoCustomizeProducts() {
+    return await db.query.productsTable.findMany({
+      where: eq(productsTable.hasCustomization, false),
     });
   }
 }

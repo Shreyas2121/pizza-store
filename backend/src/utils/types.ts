@@ -24,6 +24,8 @@ export type PaymentStatus = "pending" | "processing" | "completed" | "failed";
 export type PaymentType = "cash" | "online";
 export type CouponType = "percentage" | "fixed";
 
+export type GroupT = "daily" | "weekly" | "monthly" | "quaterly" | "yearly";
+
 export type DatabaseType = typeof db;
 export type TransactionType = Parameters<
   Parameters<typeof db.transaction>[0]

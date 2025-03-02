@@ -1,5 +1,32 @@
 import { MantineColorsTuple } from "@mantine/core";
-import { Box, MapPin, User } from "lucide-react";
+import {
+  Box,
+  Home,
+  MapPin,
+  ShoppingCart,
+  Sliders,
+  Tag,
+  User,
+} from "lucide-react";
+
+export const orderStatus = [
+  {
+    label: "Pending",
+    value: "pending",
+  },
+  {
+    label: "Preparing",
+    value: "preparing",
+  },
+  {
+    label: "Delivered",
+    value: "delievered",
+  },
+  {
+    label: "Cancelled",
+    value: "cancelled",
+  },
+];
 
 export const myColor: MantineColorsTuple = [
   "#ffe9ec",
@@ -28,6 +55,17 @@ export const QUERY_KEYS = {
   products: {
     allMenu: "all-menu",
     groupC: "group",
+    adminA: "adminA",
+    adminS: "adminS",
+    cat: "products-cat",
+    group: "products-group",
+  },
+  dashboard: {
+    homeCards: "dash-home-cards",
+    homeCharts: "dash-home-charts",
+  },
+  customizations: {
+    admin: "allCustomizationsA",
   },
   cart: {
     addProduct: "add-product",
@@ -41,6 +79,10 @@ export const QUERY_KEYS = {
   order: {
     all: "all",
     single: "single",
+    adminAll: "admin-all-orders",
+  },
+  category: {
+    select: "Select Category",
   },
 };
 
@@ -48,4 +90,37 @@ export const navLinks = [
   { label: "Profile", to: "/profile", icon: User },
   { label: "Address", to: "/address", icon: MapPin },
   { label: "Orders", to: "/orders", icon: Box },
+];
+
+export const sidebarLinks = [
+  {
+    label: "Dashboard",
+    to: "/",
+    icon: Home,
+  },
+  {
+    label: "Customization",
+    to: "/customization",
+    icon: Sliders,
+  },
+  {
+    label: "Products",
+    to: "/products",
+    icon: Box,
+  },
+  {
+    label: "Orders",
+    to: "/orders",
+    icon: ShoppingCart,
+  },
+  {
+    label: "Menu",
+    to: "/menu",
+    icon: Sliders,
+  },
+  {
+    label: "Coupons",
+    to: "/coupons",
+    icon: Tag,
+  },
 ];

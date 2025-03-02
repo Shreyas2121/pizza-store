@@ -38,6 +38,23 @@ class UserService {
       where: eq(usersTable.id, id),
     });
   }
+
+  async getAllUsers() {
+    return await db.query.usersTable.findMany({
+      columns: {
+        id: true,
+      },
+    });
+  }
+
+  async addressExists(userId: number) {
+    return await db.query.addressTable.findFirst({
+      columns: {
+        id: true,
+      },
+      where: eq(addressTable.userId, userId),
+    });
+  }
 }
 
 export default new UserService();

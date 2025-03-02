@@ -47,6 +47,19 @@ class CustomizeService {
       },
     });
   }
+
+  async getAllCustomizationGroups() {
+    return await db.query.customizationGroupsTable.findMany({
+      with: {
+        options: true,
+        mapping: {
+          with: {
+            product: true,
+          },
+        },
+      },
+    });
+  }
 }
 
 export default new CustomizeService();

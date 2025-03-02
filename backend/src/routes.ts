@@ -11,6 +11,7 @@ import { authenticateUser } from "./middleware/authenticeUser";
 import { orderRoutes } from "./features/order/order.routes";
 import { paymentRoutes } from "./features/payments/payment.routes";
 import { couponRoutes } from "./features/coupon/coupon.routes";
+import { dashRoutes } from "./features/dashboard/dashboard.routes";
 
 export const mainRouts = Router();
 
@@ -23,5 +24,6 @@ mainRouts.use("/cart", authenticateUser, cartRoutes);
 mainRouts.use("/order", orderRoutes);
 mainRouts.use("/payments", paymentRoutes);
 mainRouts.use("/coupon", couponRoutes);
+mainRouts.use("/dashboard", dashRoutes);
 
 mainRouts.use("/uploads", static_(path.resolve(__dirname, "../uploads")));

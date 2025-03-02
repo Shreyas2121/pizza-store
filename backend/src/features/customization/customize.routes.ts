@@ -68,3 +68,24 @@ customizationRoutes.get(
     res.json({ data });
   })
 );
+
+// admin all customizations
+
+customizationRoutes.get(
+  "/admin",
+  authenticateAdmin,
+  asyncHandler(async (req, res) => {
+    const data = await customizeService.getAllCustomizationGroups();
+
+    const newData = data.map((group) => {
+      const products = group.mapping.map((m) => m.product);
+      return {
+        ...group,
+        mapping : null,
+        products,
+      };
+    });
+
+    res.json({ data: newData });
+  })
+);
