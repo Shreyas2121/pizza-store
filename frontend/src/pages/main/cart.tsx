@@ -64,7 +64,10 @@ const Cart = () => {
     if (addresses && addresses.length > 0) {
       navigate("/checkout");
     } else {
-      openModal(<AddressForm onSubmit={onSubmit} />);
+      openModal({
+        content: <AddressForm onSubmit={onSubmit} />,
+        title: "",
+      });
     }
   };
 
