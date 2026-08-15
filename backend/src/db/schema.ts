@@ -334,9 +334,6 @@ export const paymentsTable = pgTable("payments", {
   paymentDate: timestamp("payment_date", { withTimezone: true })
     .defaultNow()
     .notNull(),
-  razorpayOrderId: text("razorpay_order_id").unique(),
-  razorpayPaymentId: text("razorpay_payment_id").unique(),
-  razorpaySignature: text("razorpay_signature"),
   createdAt,
   updatedAt,
 });

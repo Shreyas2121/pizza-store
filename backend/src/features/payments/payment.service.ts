@@ -3,13 +3,11 @@ import { db } from "../../db";
 import { paymentsTable } from "../../db/schema";
 
 class PaymentService {
-  async processPayment(razorpayOrderId: any) {
+  async processPayment() {
     const res = await db
       .insert(paymentsTable)
       .values({
         status: "pending",
-        paymentDate: undefined,
-        razorpayOrderId,
       })
       .returning();
 

@@ -10,18 +10,22 @@ import {
   Radio,
   Divider,
 } from "@mantine/core";
-import { CreditCard, Truck } from "lucide-react";
-import { CART_API_HOOKS, COUPON_API_HOOKS, ORDER_API_HOOKS, PAYMENTS_API_HOOKS, USER_API_HOOKS } from "@/hooks";
+import { Truck } from "lucide-react";
+import {
+  CART_API_HOOKS,
+  COUPON_API_HOOKS,
+  ORDER_API_HOOKS,
+  USER_API_HOOKS,
+} from "@/hooks";
 import { Coupon, error, formatPrice, success } from "@/lib";
 
 const Checkout = () => {
   const navigate = useNavigate();
   const { data: addresses, isLoading } = USER_API_HOOKS.useGetAddresses();
-  const { data: cart, isLoading: loadingC } = CART_API_HOOKS.useGetCartCheckout();
+  const { data: cart, isLoading: loadingC } =
+    CART_API_HOOKS.useGetCartCheckout();
   const { data: user, isLoading: loadingU } = USER_API_HOOKS.useGetUser();
   const createOrderM = ORDER_API_HOOKS.useCreateOrder();
-  const paymentM = PAYMENTS_API_HOOKS.useProcessPayment();
-  const validateM = PAYMENTS_API_HOOKS.useValidatePayment();
 
   //Coupon
   const [coupon, setCoupon] = useState<Coupon | null>(null);
@@ -51,9 +55,8 @@ const Checkout = () => {
   }, [cart?.totalPrice, coupon]);
 
   const [selectedAddress, setSelectedAddress] = useState<number | null>(
-    addresses?.[0]?.id || null
+    addresses?.[0]?.id || null,
   );
-  const [paymentMethod, setPaymentMethod] = useState<"COD" | "ONLINE">("COD");
 
   if (isLoading || loadingC || loadingU) return <Loader className="m-auto" />;
 
@@ -74,54 +77,20 @@ const Checkout = () => {
   };
 
   const handlSubmit = async () => {
-    if (paymentMethod === "COD") {
-      createOrderM.mutate(
-        {
-          addressId: selectedAddress,
-          totalPrice: updatedTotal,
-          paymentType: "cash",
-          couponId: coupon ? coupon.id : null,
-          discountAmount: discountAmt,
+    createOrderM.mutate(
+      {
+        addressId: selectedAddress,
+        totalPrice: updatedTotal,
+        paymentType: "cash",
+        couponId: coupon ? coupon.id : null,
+        discountAmount: discountAmt,
+      },
+      {
+        onSuccess: (res) => {
+          handleSuccess(res.message, res.data);
         },
-        {
-          onSuccess: (res) => {
-            handleSuccess(res.message, res.data);
-          },
-        }
-      );
-    } else {
-      const { paymentId, orderId, amount } = await paymentM.mutateAsync({
-        amount: updatedTotal,
-      });
-
-      const options = {
-        key: import.meta.env.VITE_RAZORPAY_ID,
-        amount,
-        order_id: orderId,
-
-        handler: async (response: any) => {
-          await validateM.mutateAsync({
-            ...response,
-            paymentId: paymentId,
-          });
-
-          success("Payment successful");
-          const data = await createOrderM.mutateAsync({
-            addressId: selectedAddress,
-            totalPrice: updatedTotal,
-            paymentType: "online",
-            paymentId,
-            couponId: coupon ? coupon.id : null,
-            discountAmount: discountAmt,
-          });
-
-          handleSuccess(data.message, data.data);
-        },
-      };
-
-      const rz = new (window as any).Razorpay(options);
-      rz.open();
-    }
+      },
+    );
   };
 
   return (
@@ -176,47 +145,22 @@ const Checkout = () => {
           {/* Payment Method */}
           <Card shadow="md" padding="lg" className="border rounded-lg bg-white">
             <Text className="text-lg font-semibold">Payment Method</Text>
-            <Radio.Group
-              value={paymentMethod}
-              onChange={(value) => setPaymentMethod(value as "COD" | "ONLINE")}
-            >
-              <div className="flex flex-col gap-3 mt-2">
-                <Card
-                  padding="sm"
-                  className={`border rounded-lg cursor-pointer transition-all ${
-                    paymentMethod === "COD"
-                      ? "border-red-500 bg-red-50"
-                      : "bg-gray-50"
-                  }`}
-                  onClick={() => setPaymentMethod("COD")}
-                >
-                  <Radio value="COD" label="Cash on Delivery" />
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <Truck size={18} />
-                    <Text className="text-sm">
-                      Pay when you receive the order
-                    </Text>
-                  </div>
-                </Card>
-                <Card
-                  padding="sm"
-                  className={`border rounded-lg cursor-pointer transition-all ${
-                    paymentMethod === "ONLINE"
-                      ? "border-red-500 bg-red-50"
-                      : "bg-gray-50"
-                  }`}
-                  onClick={() => setPaymentMethod("ONLINE")}
-                >
-                  <Radio value="ONLINE" label="Online Payment" />
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <CreditCard size={18} />
-                    <Text className="text-sm">
-                      Pay securely via card or UPI
-                    </Text>
-                  </div>
-                </Card>
-              </div>
-            </Radio.Group>
+            <div className="mt-2">
+              <Card
+                padding="sm"
+                className="border border-red-500 bg-red-50 rounded-lg"
+              >
+                <Text className="font-medium text-gray-900">
+                  Cash on Delivery
+                </Text>
+                <div className="flex items-center gap-2 text-gray-600 mt-1">
+                  <Truck size={18} />
+                  <Text className="text-sm">
+                    Pay when you receive the order
+                  </Text>
+                </div>
+              </Card>
+            </div>
           </Card>
 
           {/* Coupon Input */}
@@ -260,7 +204,7 @@ const Checkout = () => {
                           setApplied(true);
                           success("Coupon applied successfully");
                         },
-                      }
+                      },
                     );
                   }}
                   color="red"

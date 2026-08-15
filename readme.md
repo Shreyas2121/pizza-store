@@ -1,6 +1,6 @@
 # Food Delivery Platform
 
-A full-stack food ordering application built as an end-to-end solution for a modern food delivery experience. It covers product browsing (with customization and coupon application), cart and order management, user profile and address management, payment processing using Razorpay, and an **admin panel** for managing orders, products, and more.
+A full-stack food ordering application built as an end-to-end solution for a modern food delivery experience. It covers product browsing (with customization and coupon application), cart and order management, user profile and address management, Cash on Delivery payment processing, and an **admin panel** for managing orders, products, and more.
 
 ## Table of Contents
 
@@ -26,10 +26,9 @@ This project simulates a modern food ordering app where users can browse food it
   - Place orders with an integrated checkout flow.
   - View detailed order summaries and status.
 
-- **Payment Integration:**
+- **Payment System:**
 
-  - Integrated with Razorpay for secure online payments.
-  - Supports both online payment and cash-on-delivery.
+  - Supports Cash on Delivery (COD) payment flow.
 
 - **User Profile & Address Management:**
 
@@ -99,7 +98,6 @@ The platform includes an **admin dashboard** that provides essential features fo
   - **Node.js & Express** for server logic and routing.
   - **Drizzle ORM** with **PostgreSQL** for database queries and schema management.
   - **Zod** for schema validation and data parsing.
-  - **Razorpay** integration for secure payment processing.
 
 - **Utilities & Tools:**
   - **TypeScript** throughout the stack for type-safe development.

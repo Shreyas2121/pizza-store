@@ -1,18 +1,13 @@
 import { createMutation } from "./useApi";
 
-const useProcessPayment = () => {
+const useProcessCodPayment = () => {
   return createMutation<{
     paymentId: number;
-    orderId: any;
-    amount: number;
-  }>("/payments/initiateRazorpay", "post", [], "data");
-};
-
-const useValidatePayment = () => {
-  return createMutation<string>("/payments/validate", "post", [], "message");
+    paymentType: string;
+    message: string;
+  }>("/payments/process-cod", "post", [], "data");
 };
 
 export const PAYMENTS_API_HOOKS = {
-  useProcessPayment,
-  useValidatePayment,
+  useProcessCodPayment,
 };

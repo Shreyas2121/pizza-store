@@ -21,7 +21,7 @@ export type Role = "admin" | "user";
 export type CustomizationType = "single" | "multiple";
 export type OrderStatus = "pending" | "preparing" | "delievered" | "cancelled";
 export type PaymentStatus = "pending" | "processing" | "completed" | "failed";
-export type PaymentType = "cash" | "online";
+export type PaymentType = "cash";
 export type CouponType = "percentage" | "fixed";
 export type ChatStatus = "open" | "close" | "rejected" | "pending";
 
