@@ -72,7 +72,7 @@ const Login = () => {
           </Button>
 
           <div>
-            Already have an account?{" "}
+            Don't have an account?{" "}
             <Button
               type="button"
               className="text-red-500"

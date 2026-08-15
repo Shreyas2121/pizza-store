@@ -11,7 +11,6 @@ export interface User {
   id: number;
   fname: string;
   lname: string;
-  password: string;
   email: string;
   role: "user" | "admin";
   isActive: boolean;
@@ -134,6 +133,8 @@ export type CustomizationOption = {
   isAvailable: boolean;
   groupId: number;
 };
+
+export type Option = CustomizationOption;
 
 export interface Group extends CustomizationGroup {
   options: CustomizationOption[];

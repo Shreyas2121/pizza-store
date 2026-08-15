@@ -22,7 +22,7 @@ export const orderStatus = [
   },
   {
     label: "Delivered",
-    value: "delievered",
+    value: "delivered",
   },
   {
     label: "Cancelled",

@@ -76,7 +76,7 @@ const Checkout = () => {
     navigate(`/order/${orderId}`);
   };
 
-  const handlSubmit = async () => {
+  const handleSubmit = async () => {
     createOrderM.mutate(
       {
         addressId: selectedAddress,
@@ -246,7 +246,7 @@ const Checkout = () => {
           {/* Proceed Button */}
           <Button
             disabled={createOrderM.isPending}
-            onClick={handlSubmit}
+            onClick={handleSubmit}
             fullWidth
             color="red"
             className="mt-4"

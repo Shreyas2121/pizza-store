@@ -17,7 +17,7 @@ const useChatRequest = () => {
   }>("/chat/request", "post");
 };
 
-const useSyncChatStatus = () => {
+const useSyncChatStatus = (enabled: boolean = true) => {
   const { setChatSession } = useSocketStore();
   return useQuery({
     queryKey: [QUERY_KEYS.support.user],
@@ -28,6 +28,7 @@ const useSyncChatStatus = () => {
         setChatSession(chat.status === "open" ? "open" : null);
       }
     },
+    enabled,
   });
 };
 
@@ -54,7 +55,7 @@ const useGetSupportRequests = (status: ChatStatus) => {
 const useUpdateSupportRequest = () => {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: async (reqBody: any) => {
+    mutationFn: async (reqBody: { chatId: string; status: ChatStatus }) => {
       const { data } = await API.patch(`/chat/request`, reqBody);
       return data as {
         message: string;

@@ -2,7 +2,7 @@ import AdminSidebar from "@/components/admin/sidebar";
 import { useUser } from "@/store/user";
 import { Loader } from "@mantine/core";
 import { Suspense, useEffect } from "react";
-import { Outlet, useNavigate } from "react-router";
+import { Outlet, useNavigate, Navigate } from "react-router";
 import "@mantine/charts/styles.css";
 import { useSocketStore } from "@/store/chat";
 import { showNotification } from "@mantine/notifications";
@@ -12,15 +12,13 @@ const AdminLayout = () => {
   const navigate = useNavigate();
   const { socket } = useSocketStore();
 
-  useEffect(() => {
-    if (!isLoggedIn || user?.role !== "admin") {
-      navigate("/");
-    }
-  }, [isLoggedIn, user, navigate]);
+  if (!isLoggedIn || user?.role !== "admin") {
+    return <Navigate to="/" replace />;
+  }
 
   useEffect(() => {
     if (socket) {
-      socket.on("chatRequest", (data) => {
+      socket.on("chatRequest", () => {
         showNotification({
           title: "New Chat Request",
           message: `New Chat Request`,
@@ -31,8 +29,12 @@ const AdminLayout = () => {
           },
         });
       });
+
+      return () => {
+        socket.off("chatRequest");
+      };
     }
-  }, [socket]);
+  }, [socket, navigate]);
 
   return (
     <div>

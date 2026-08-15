@@ -3,7 +3,7 @@ import { Button, Select } from "@mantine/core";
 import { DatePickerInput } from "@mantine/dates";
 import "@mantine/dates/styles.css";
 import { useState } from "react";
-import { subDays } from "date-fns";
+import dayjs from "dayjs";
 import { GroupT } from "@/lib/types";
 
 const presets = [
@@ -36,13 +36,13 @@ const DatePicker = () => {
         newDates = [today, today];
         break;
       case "last7":
-        newDates = [subDays(today, 6), today];
+        newDates = [dayjs(today).subtract(6, "day").toDate(), today];
         break;
       case "last30":
-        newDates = [subDays(today, 29), today];
+        newDates = [dayjs(today).subtract(29, "day").toDate(), today];
         break;
       case "last3m":
-        newDates = [subDays(today, 90), today];
+        newDates = [dayjs(today).subtract(90, "day").toDate(), today];
         break;
       default:
         newDates = [today, today];

@@ -48,9 +48,7 @@ const ProductForm = () => {
     return file;
   };
 
-  const onSubmit = (data: TProduct) => {
-    console.log("Form submitted:", data);
-  };
+  const onSubmit = (data: TProduct) => {};
 
   return (
     <div className="max-w-3xl p-6 bg-white shadow-md rounded-lg">

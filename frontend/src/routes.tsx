@@ -1,4 +1,4 @@
-import { Route } from "react-router";
+import { Navigate, Route } from "react-router";
 import { Login } from "./components/auth";
 
 import { AdminLayout, MainLayout, ProfileLayout } from "./layouts";
@@ -11,8 +11,9 @@ import {
   OrderDetails,
   Orders,
   Profile,
+  NotFound,
 } from "./pages/main";
-import { Suspense } from "react";
+import { Suspense, useEffect } from "react";
 import { Loader } from "@mantine/core";
 import {
   AdminChat,
@@ -30,9 +31,24 @@ function ProtectedRoutes({ children }: { children: React.ReactNode }) {
   const { openModal } = useAuthModalStore();
   const { isLoggedIn } = useUser();
 
+  useEffect(() => {
+    if (!isLoggedIn) {
+      openModal({ content: <Login />, title: "" });
+    }
+  }, [isLoggedIn, openModal]);
+
   if (!isLoggedIn) {
-    openModal({ content: <Login />, title: "" });
     return null;
+  }
+
+  return <>{children}</>;
+}
+
+function AdminProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { user, isLoggedIn } = useUser();
+
+  if (!isLoggedIn || user?.role !== "admin") {
+    return <Navigate to="/" replace />;
   }
 
   return <>{children}</>;
@@ -52,7 +68,13 @@ export const AppRoutes = () => (
           </ProtectedRoutes>
         }
       />
-      <Route element={<ProfileLayout />}>
+      <Route
+        element={
+          <ProtectedRoutes>
+            <ProfileLayout />
+          </ProtectedRoutes>
+        }
+      >
         <Route path="/profile" element={<Profile />} />
         <Route path="/address" element={<Address />} />
         <Route path="/orders" element={<Orders />} />
@@ -73,7 +95,14 @@ export const AppRoutes = () => (
     />
 
     {/* Admin Routes */}
-    <Route path="/admin" element={<AdminLayout />}>
+    <Route
+      path="/admin"
+      element={
+        <AdminProtectedRoute>
+          <AdminLayout />
+        </AdminProtectedRoute>
+      }
+    >
       <Route index element={<AdminHome />} />
       <Route path="/admin/products" element={<AdminProducts />} />
       <Route path="/admin/product/new" element={<AdminNewProduct />} />
@@ -84,5 +113,8 @@ export const AppRoutes = () => (
       <Route path="/admin/support" element={<AdminSupport />} />
       <Route path="/admin/support/:id" element={<AdminChat />} />
     </Route>
+
+    {/* Catch-all 404 Route */}
+    <Route path="*" element={<NotFound />} />
   </>
 );

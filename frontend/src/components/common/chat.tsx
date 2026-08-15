@@ -50,7 +50,7 @@ const Chat = ({ height = "400px", width = "500px", userId }: Props) => {
     }
   }, [socket]);
 
-  const handleSubmit = (e: any) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!newMessage.trim()) return;
 
@@ -58,11 +58,6 @@ const Chat = ({ height = "400px", width = "500px", userId }: Props) => {
       {
         message: newMessage,
         sessionId: chatSession?.id,
-      },
-      {
-        onSuccess: (res) => {
-          setMessages((prev) => [...prev, res]);
-        },
       }
     );
 

@@ -59,7 +59,7 @@ const AddressForm = ({
         <Select
           placeholder="Select Address Type"
           data={["Home", "Work", "Other"]}
-          onChange={(value: any) => setValue("type", value)}
+          onChange={(value: string | null) => setValue("type", value as any)}
           error={errors.type?.message}
         />
       </div>

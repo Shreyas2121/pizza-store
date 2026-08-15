@@ -1,6 +1,6 @@
 
 import { Group, Product, QUERY_KEYS } from "@/lib";
-import { createQuery } from "./useApi";
+import { createMutation, createQuery } from "./useApi";
 
 interface Res extends Group {
   products: Product[];
@@ -14,6 +14,15 @@ const useGetAllCustomizations = () => {
   );
 };
 
+const useUpdateGroupMapping = () => {
+  return createMutation<{ message: string }>(
+    "/customize/mapping",
+    "post",
+    [[QUERY_KEYS.customizations.admin]]
+  );
+};
+
 export const CUSTOMIZATION_API_HOOKS = {
   useGetAllCustomizations,
+  useUpdateGroupMapping,
 };

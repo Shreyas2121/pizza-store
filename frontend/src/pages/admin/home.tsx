@@ -1,5 +1,5 @@
 import { Button } from "@mantine/core";
-import { format } from "date-fns";
+import dayjs from "dayjs";
 import { useEffect, useMemo } from "react";
 import { BarChart, LineChart } from "@mantine/charts";
 
@@ -28,7 +28,6 @@ const AdminHome = () => {
     if (!socket) return;
 
     socket.on("orderPlaced", (data) => {
-      console.log(data);
       showNotification({
         title: "New Order",
         message: `New Order Placed: ${formatPrice(data.total)}`,
@@ -47,9 +46,9 @@ const AdminHome = () => {
 
   const formattedDates = useMemo(() => {
     return from && to
-      ? `${format(from, "MMM dd, yyyy")} - ${format(to, "MMM dd, yyyy")}`
+      ? `${dayjs(from).format("MMM DD, YYYY")} - ${dayjs(to).format("MMM DD, YYYY")}`
       : "Select Date Range";
-  }, [dates]);
+  }, [from, to]);
 
   if (isLoading || loadingCharts) {
     return <div>Loading...</div>;

@@ -20,7 +20,6 @@ export function createQuery<T>(
     queryKey: key,
     queryFn: async () => {
       const { data } = await API.get(url, { params });
-      console.log(data);
       return dataKey ? data[dataKey] : (data as T);
     },
     ...options,
@@ -68,3 +67,8 @@ export function createMutation<T>(
     },
   });
 }
+
+// React Hook compliant aliases
+export const useCustomQuery = createQuery;
+export const useCustomSuspenseQuery = createSuspenseQuery;
+export const useCustomMutation = createMutation;

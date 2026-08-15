@@ -1,4 +1,5 @@
-import { PRODUCTS_HOOKS } from "@/hooks";
+import { CUSTOMIZATION_API_HOOKS, PRODUCTS_HOOKS } from "@/hooks";
+import { success } from "@/lib";
 import { Button } from "@mantine/core";
 import { useEffect, useMemo, useState } from "react";
 
@@ -12,6 +13,7 @@ const Transfer = ({ groupId }: { groupId: number }) => {
     PRODUCTS_HOOKS.useGetProductsByGroup(groupId);
 
   const { data: products, isLoading: loadingP } = PRODUCTS_HOOKS.useGetProductsA();
+  const updateMappingM = CUSTOMIZATION_API_HOOKS.useUpdateGroupMapping();
 
   const [assigned, setAssigned] = useState<
     {
@@ -53,6 +55,20 @@ const Transfer = ({ groupId }: { groupId: number }) => {
 
   const handleRemoveAll = () => {
     setAssigned([]);
+  };
+
+  const handleUpdate = () => {
+    updateMappingM.mutate(
+      {
+        groupId,
+        productIds: assigned.map((p) => p.id),
+      },
+      {
+        onSuccess: (res) => {
+          success(res.message || "Group mapping updated successfully");
+        },
+      }
+    );
   };
 
   return (
@@ -128,7 +144,11 @@ const Transfer = ({ groupId }: { groupId: number }) => {
           </div>
         </div>
       </div>
-      <Button className="w-full mt-5" onClick={() => {}}>
+      <Button
+        disabled={updateMappingM.isPending}
+        className="w-full mt-5"
+        onClick={handleUpdate}
+      >
         Update
       </Button>
     </div>

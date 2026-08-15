@@ -1,6 +1,6 @@
 import { useParams } from "react-router";
 import { Loader, Badge, Card, Title, Text } from "@mantine/core";
-import { format } from "date-fns"; // optional for date formatting
+import dayjs from "dayjs";
 import { ORDER_API_HOOKS } from "@/hooks";
 import {
   OrderStatus,
@@ -37,7 +37,7 @@ const OrderDetails = () => {
 
   // Format date if it exists
   const orderDate = order.orderDate
-    ? format(new Date(order.orderDate), "PPP p")
+    ? dayjs(order.orderDate).format("MMM DD, YYYY h:mm A")
     : "N/A";
 
   return (

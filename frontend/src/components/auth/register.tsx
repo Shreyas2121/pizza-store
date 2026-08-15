@@ -76,7 +76,7 @@ const Register = () => {
           disabled={registerM.isPending}
           error={errors.password?.message}
           leftSection={<Lock size={16} />}
-          placeholder="Enter "
+          placeholder="Enter your password"
           rightSection={
             showPassword ? (
               <Eye size={16} onClick={() => setShowPassword(false)} />

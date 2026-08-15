@@ -8,7 +8,7 @@ import {
   Select,
   Button,
 } from "@mantine/core";
-import { format } from "date-fns"; // optional for date formatting
+import dayjs from "dayjs";
 import { useEffect, useState } from "react";
 import { ORDER_API_HOOKS } from "@/hooks";
 import { orderStatus, OrderStatus as OT, success } from "@/lib";
@@ -59,7 +59,7 @@ const OrderDetailsA = () => {
 
   // Format date if it exists
   const orderDate = order.orderDate
-    ? format(new Date(order.orderDate), "PPP p")
+    ? dayjs(order.orderDate).format("MMM DD, YYYY h:mm A")
     : "N/A";
 
   return (

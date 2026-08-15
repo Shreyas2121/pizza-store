@@ -41,7 +41,7 @@ const useOrderUpdateStatus = () => {
   const client = useQueryClient();
 
   return useMutation({
-    mutationFn: async (orderData: any) => {
+    mutationFn: async (orderData: { orderId: number; status: OrderStatus }) => {
       const data = await API.patch(`/order/${orderData.orderId}`, {
         status: orderData.status,
       });

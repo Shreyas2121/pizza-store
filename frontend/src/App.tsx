@@ -7,13 +7,13 @@ import { io } from "socket.io-client";
 import { Routes } from "react-router";
 import { AppRoutes } from "./routes";
 import { BASE_URL } from "./lib";
-import { GlobalModal } from "./components/common";
+import { ErrorBoundary, GlobalModal } from "./components/common";
 
 function App() {
   const { setSocket } = useSocketStore();
-  const { user } = useUser();
+  const { user, isLoggedIn } = useUser();
 
-  CHAT_API_HOOKS.useSyncChatStatus();
+  CHAT_API_HOOKS.useSyncChatStatus(isLoggedIn);
 
   useEffect(() => {
     const socket = io(BASE_URL);
@@ -29,10 +29,10 @@ function App() {
   }, [setSocket, user]);
 
   return (
-    <>
+    <ErrorBoundary>
       <GlobalModal />
       <Routes>{AppRoutes()}</Routes>
-    </>
+    </ErrorBoundary>
   );
 }
 

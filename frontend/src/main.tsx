@@ -39,7 +39,11 @@ export const client = new QueryClient({
 
   mutationCache: new MutationCache({
     onError: (err: any) => {
-      error(err.response.data.message);
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        "An unexpected error occurred";
+      error(msg);
     },
   }),
 });

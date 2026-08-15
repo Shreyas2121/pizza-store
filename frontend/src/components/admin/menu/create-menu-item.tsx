@@ -57,7 +57,6 @@ const CreateMenuItem = () => {
     })) || [];
 
   const onSubmit = (data: TMenu) => {
-    console.log("Submitted Menu Item:", data);
     // For now, do nothing further.
   };
 

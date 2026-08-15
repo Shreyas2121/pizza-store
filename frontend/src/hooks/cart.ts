@@ -4,8 +4,14 @@ import { API, Cart, CartRes, QUERY_KEYS } from "@/lib";
 
 const keys = QUERY_KEYS.cart;
 
-const useGetCartCount = () => {
-  return createQuery<number>([keys.cartCount], "/cart/count", "data");
+const useGetCartCount = (enabled: boolean = true) => {
+  return createQuery<number>(
+    [keys.cartCount],
+    "/cart/count",
+    "data",
+    undefined,
+    { enabled }
+  );
 };
 
 const useAddToCart = () => {

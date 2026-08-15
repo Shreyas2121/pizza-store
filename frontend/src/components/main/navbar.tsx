@@ -12,7 +12,7 @@ export default function Navbar() {
   const { isLoggedIn, logout } = useUser();
   const { openModal } = useAuthModalStore();
 
-  const { data } = CART_API_HOOKS.useGetCartCount();
+  const { data } = CART_API_HOOKS.useGetCartCount(isLoggedIn);
 
   return (
     <nav className="bg-white shadow-md p-4 flex justify-between items-center">

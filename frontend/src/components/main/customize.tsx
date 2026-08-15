@@ -1,7 +1,7 @@
 import { Button, Checkbox, Loader, Text } from "@mantine/core";
 import { useEffect, useMemo, useState } from "react";
 import { CART_API_HOOKS, PRODUCTS_HOOKS } from "@/hooks";
-import { Group, success } from "@/lib";
+import { Group, Option, success } from "@/lib";
 
 const Customize = ({
   id,
@@ -14,9 +14,9 @@ const Customize = ({
 }) => {
   const { data, isLoading } = PRODUCTS_HOOKS.useGetProductCustomization(id);
   const addToCartM = CART_API_HOOKS.useAddToCart();
-  const [selectedOptions, setSelectedOptions] = useState<Record<number, any>>(
-    {}
-  );
+  const [selectedOptions, setSelectedOptions] = useState<
+    Record<number, Option | Option[]>
+  >({});
 
   const handleChange = (group: Group, value: string[]) => {
     const selectedIds = value.map(Number); // Convert string values to numbers
@@ -32,7 +32,12 @@ const Customize = ({
 
         if (selectedOption) {
           // If required is false and user selects the same option again → deselect it
-          if (!group.required && prev[group.id]?.id === selectedOption.id) {
+          const currentPrev = prev[group.id];
+          if (
+            !group.required &&
+            !Array.isArray(currentPrev) &&
+            currentPrev?.id === selectedOption.id
+          ) {
             delete updated[group.id]; // Remove selection
           } else {
             updated[group.id] = selectedOption;
@@ -54,25 +59,25 @@ const Customize = ({
   const { values, totalPrice } = useMemo(() => {
     const values = Object.values(selectedOptions)
       .flat()
-      .map((opt: any) => String(opt.id));
+      .map((opt: Option) => String(opt.id));
 
     const totalPrice = Object.values(selectedOptions).reduce((prev, curr) => {
       if (Array.isArray(curr)) {
-        return curr.reduce((prev1, curr) => prev1 + curr.price, prev);
+        return curr.reduce((prev1, currOpt) => prev1 + (currOpt.price || 0), prev);
       } else {
-        return prev + curr.price;
+        return prev + ((curr as Option)?.price || 0);
       }
     }, 0);
 
     return { values, totalPrice: totalPrice + price };
-  }, [selectedOptions]);
+  }, [selectedOptions, price]);
 
   useEffect(() => {
-    const obj: any = {};
+    const obj: Record<number, Option | Option[]> = {};
     if (data) {
       data.forEach((g) => {
         const group = g.group;
-        if (group.required) {
+        if (group.required && group.options.length > 0) {
           obj[group.id] = group.options[0];
         }
       });
@@ -88,10 +93,10 @@ const Customize = ({
   const handleSubmit = async () => {
     const ids: number[] = [];
 
-    Object.values(selectedOptions).forEach((op: any) => {
+    Object.values(selectedOptions).forEach((op: Option | Option[]) => {
       if (Array.isArray(op)) {
         op.forEach((o) => ids.push(o.id));
-      } else {
+      } else if (op) {
         ids.push(op.id);
       }
     });
@@ -119,7 +124,10 @@ const Customize = ({
             const required = group.required;
 
             return (
-              <div className="p-3 shadow-md bg-white border border-orange-500">
+              <div
+                key={group.id}
+                className="p-3 shadow-md bg-white border border-orange-500"
+              >
                 <Checkbox.Group
                   value={values}
                   label={group.name}
@@ -130,6 +138,7 @@ const Customize = ({
                     {group.options.map((opt) => {
                       return (
                         <Checkbox
+                          key={opt.id}
                           value={String(opt.id)}
                           label={`${opt.name} ${
                             opt.price ? `₹${opt.price}` : ""
