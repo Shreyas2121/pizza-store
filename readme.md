@@ -1,105 +1,118 @@
-# Food Delivery Platform
+# PizzaStore — Food Delivery Platform
 
-A full-stack food ordering application built as an end-to-end solution for a modern food delivery experience. It covers product browsing (with customization and coupon application), cart and order management, user profile and address management, Cash on Delivery payment processing, and an **admin panel** for managing orders, products, and more.
+PizzaStore is a full-stack food delivery application with a React storefront, an Express API server, and a PostgreSQL database. It covers product browsing with multi-level customization, cart management, coupon application, Cash on Delivery checkout, real-time order and chat notifications over Socket.IO, and a role-separated admin panel with analytics.
 
-## Table of Contents
+The project is structured as two independent packages (`backend/` and `frontend/`) in a single repository. Each package manages its own dependencies and dev server.
 
-- [Overview](#overview)
-- [Features](#features)
-- [Admin Panel](#admin-panel)
-- [Technology Stack](#technology-stack)
+## Product principles
 
-## Overview
+1. Users browse a menu-driven product catalogue with customizable items.
+2. Cart operations are transactional — price consistency is enforced server-side.
+3. Orders are placed atomically: cart items, customizations, and coupon redemptions resolve in a single database transaction.
+4. Admin operations (product creation, order status updates, coupon management, dashboard analytics) are role-gated.
+5. Real-time communication uses Socket.IO for order placement notifications and live chat support.
+6. All environment-specific values are loaded through validated environment variables.
 
-This project simulates a modern food ordering app where users can browse food items, customize them, add them to a cart, and check out using either cash-on-delivery or online payment via Razorpay. It also includes user profile and address management, coupon application, and a delivery zone check to validate serviceability. An **admin panel** provides tools for managing products, orders, coupons, and more.
+## Chosen stack
 
-## Features
+- React 19 with Vite 6 and TypeScript for the storefront and admin interfaces
+- Mantine 7 component library with Tailwind CSS 3 for styling
+- TanStack Query 5 for server-state management and caching
+- TanStack Table 8 for admin data tables
+- Zustand 5 for transient client state (auth, modals, chat, date filters)
+- React Hook Form with Zod resolvers for form validation
+- Socket.IO Client for real-time events
+- Recharts and Mantine Charts for admin analytics visualizations
+- Node.js with Express 4 for the API server
+- Drizzle ORM 0.38 with PostgreSQL for schema, queries, and migrations
+- Zod for request and environment validation
+- Socket.IO for server-side WebSocket events
+- JSON Web Tokens for stateless authentication
+- bcrypt for password hashing
+- Multer for image uploads
+- Winston for structured file and console logging
 
-- **Product Browsing & Customization:**
+See [architecture.md](docs/architecture.md) for component boundaries and [database-schema.md](docs/database-schema.md) for the full data model.
 
-  - Browse food items by menu or category.
-  - Customize items with various add-ons/options.
+## Documentation map
 
-- **Cart & Order Management:**
+| Document | Purpose |
+| --- | --- |
+| [architecture.md](docs/architecture.md) | System components, dependency rules, data flow, and frontend/backend boundaries |
+| [database-schema.md](docs/database-schema.md) | All tables, columns, relations, constraints, and Drizzle schema conventions |
+| [api-reference.md](docs/api-reference.md) | Complete REST API endpoint reference with request/response shapes |
+| [setup.md](docs/setup.md) | Local development environment setup, database provisioning, and seeding |
 
-  - Add, update, and remove items from the cart.
-  - Place orders with an integrated checkout flow.
-  - View detailed order summaries and status.
+## Application in one workflow
 
-- **Payment System:**
+A user opens the storefront, browses menu categories, selects a product with optional customizations (e.g., toppings, sizes), and adds it to their cart. At checkout, they select a saved delivery address, optionally apply a coupon code, and place the order as Cash on Delivery. The backend atomically creates the order, copies cart items and customizations to order records, clears the cart, and emits a Socket.IO event. The admin panel receives a real-time notification, views the order, and updates its status through the order lifecycle. A live chat system allows users to request support and exchange messages with an admin in real time.
 
-  - Supports Cash on Delivery (COD) payment flow.
+## Development
 
-- **User Profile & Address Management:**
+Prerequisites: Node.js 20+, pnpm, and a running PostgreSQL instance.
 
-  - Manage user profile details.
-  - List and add delivery addresses, with delivery zone validation.
+```text
+# Backend
+cd backend
+cp .env.example .env        # configure database credentials and JWT secret
+pnpm install
+npx drizzle-kit push        # apply schema to database
+pnpm run seed:users         # seed test users
+pnpm run seed:addresses     # seed test addresses
+pnpm run seed:orders        # seed test orders
+pnpm run dev                # start Express on port 3000
 
-- **Coupon Support:**
+# Frontend
+cd frontend
+cp .env.example .env        # set VITE_BACKEND_URL
+pnpm install
+pnpm run dev                # start Vite on port 3150
+```
 
-  - Apply discount coupons during checkout.
+## Repository layout
 
-- **Modern UI:**
-  - Responsive design built using Tailwind CSS and Mantine components.
+```text
+food/
+  backend/
+    src/
+      db/                    Drizzle client and schema definitions
+      features/              Feature modules (routes + services)
+        users/               Registration, login, addresses
+        products/            CRUD, menu filtering, sorting
+        category/            Category management
+        customization/       Groups, options, product mapping
+        menu/                Menu items and product assignments
+        cart/                Add, update, remove, clear (transactional)
+        order/               Order creation, status, admin views
+        payments/            COD payment processing
+        coupon/              CRUD, validation, redemption
+        dashboard/           Revenue, orders, active users analytics
+        chat/                Real-time support sessions and messaging
+      middleware/            JWT auth (user and admin guards)
+      utils/                 Error handling, logging, multer, Zod schemas, types
+      scripts/               Database seeding (users, addresses, orders)
+    drizzle/                 Generated SQL migrations
+    uploads/                 User-uploaded product images
+  frontend/
+    src/
+      components/
+        admin/               Sidebar, dashboard cards, transfer, product forms
+        auth/                Login and register forms
+        common/              Global modal, error boundary, chat, order components
+        main/                Navbar, footer, product cards, menu, customization
+        table/               Reusable data table with pagination and search
+      hooks/                 React Query wrappers per feature domain
+      layouts/               Admin, main, and profile layout shells
+      lib/                   Axios instance, types, constants, Zod schemas, utils
+      pages/
+        admin/               Dashboard, products, orders, customization, menu, support
+        main/                Home, cart, checkout, profile, orders
+      store/                 Zustand stores (user, modal, chat, datepicker)
+      routes.tsx             Route definitions with lazy loading and auth guards
+    public/                  Static assets
+  docs/                      Project documentation
+```
 
-## Admin Panel
+## License
 
-The platform includes an **admin dashboard** that provides essential features for managing the entire food delivery operation:
-
-- **Dashboard Overview:**
-
-  - Quick statistics on revenue, total orders, active users, and average order value.
-  - Visual charts (e.g., line or bar charts) to track revenue and orders over time.
-
-- **Products & Customizations:**
-
-  - Create, update, and delete products.
-  - Manage product categories and associated customization groups/options.
-
-- **Order Management:**
-
-  - View all orders with status, payment type, and total amount.
-  - Update order statuses (e.g., pending, shipped, delivered).
-  - Access detailed order pages, including items, customizations, and assigned coupons.
-
-- **Coupons & Discounts:**
-
-  - Create and manage discount coupons.
-  - Set expiration dates, discount amounts, and usage rules.
-
-- **Menu & Organization:**
-
-  - Control which products are active/inactive.
-  - Organize products into menus for easy user browsing.
-
-- **Analytics & Reports:**
-
-  - Time-series charts for revenue, orders, and user activity.
-  - Compare current vs. previous periods for key metrics.
-
-- **User & Address Data (Optional):**
-
-  - Admins can view user profiles and addresses if needed for support or auditing.
-
-- **Secure Access:**
-  - Admin routes protected with role-based checks or token-based auth.
-
-## Technology Stack
-
-- **Frontend:**
-
-  - **React** for building the user and admin interfaces.
-  - **TanStack Query** for data fetching and caching.
-  - **Zustand** for lightweight state management (e.g., date range pickers, global modals).
-  - **Mantine & Tailwind CSS** for UI components and styling (responsive design, theme-based styling).
-
-- **Backend:**
-
-  - **Node.js & Express** for server logic and routing.
-  - **Drizzle ORM** with **PostgreSQL** for database queries and schema management.
-  - **Zod** for schema validation and data parsing.
-
-- **Utilities & Tools:**
-  - **TypeScript** throughout the stack for type-safe development.
-  - **Async Error Handling** and custom middlewares in Express for robust API endpoints.
-  - **Environment Variables** for sensitive config (e.g., Razorpay keys, DB credentials).
+No license has been selected yet.
