@@ -9,7 +9,7 @@ class UserService {
 
     const existingUser = await this.getUserByEmail(email);
     if (existingUser) {
-      throw new AppError(`User with email ${email} already exists`, 401);
+      throw new AppError(`User with email ${email} already exists`, 409);
     }
 
     const [u] = await db.insert(usersTable).values(user).returning();

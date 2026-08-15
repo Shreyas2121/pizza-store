@@ -281,9 +281,12 @@ class CartService {
 
       updatedPrice = type === "+" ? +updatedPrice : -updatedPrice;
 
-      await tx.update(cartTable).set({
-        totalPrice: sql`${cartTable.totalPrice} + ${updatedPrice} `,
-      });
+      await tx
+        .update(cartTable)
+        .set({
+          totalPrice: sql`${cartTable.totalPrice} + ${updatedPrice}`,
+        })
+        .where(eq(cartTable.id, cartItem.cartId));
     });
   }
 
@@ -292,14 +295,18 @@ class CartService {
       const cartItem = await this.getCartItemById(itemId);
 
       const updatedPrice =
-        cartItem.customizations.reduce((prev, curr) => prev + curr.price, 0) +
-        cartItem.price * cartItem.quantity;
+        (cartItem.price +
+          cartItem.customizations.reduce((prev, curr) => prev + curr.price, 0)) *
+        cartItem.quantity;
 
       await tx.delete(cartItemsTable).where(eq(cartItemsTable.id, itemId));
 
-      await tx.update(cartTable).set({
-        totalPrice: sql`${cartTable.totalPrice} - ${updatedPrice}`,
-      });
+      await tx
+        .update(cartTable)
+        .set({
+          totalPrice: sql`${cartTable.totalPrice} - ${updatedPrice}`,
+        })
+        .where(eq(cartTable.id, cartItem.cartId));
     });
   }
 }

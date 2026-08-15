@@ -15,6 +15,10 @@ export class AppError extends Error {
 export const handleError = (err: unknown, req: Request, res: Response) => {
   console.error(err); // Log the error for debugging
 
+  if (err instanceof ZodError) {
+    return handleValidationError(err, res);
+  }
+
   // Check if the error is an instance of AppError
   if (err instanceof AppError) {
     logger.error(

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authenticateAdmin } from "../../middleware/authenticeUser";
+import { authenticateAdmin } from "../../middleware/authenticateUser";
 import { asyncHandler } from "../../utils/error";
 import categoryService from "./category.service";
 import { cap } from "../../utils";

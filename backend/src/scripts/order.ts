@@ -15,12 +15,10 @@ import { eq } from "drizzle-orm";
 (async function seedOrders() {
   console.log(`Seeding Orders...`);
 
-  function pickRandomeOptions<T>(arr: T[], count: number) {
+  function pickRandomOptions<T>(arr: T[], count: number) {
     if (count >= arr.length) return [...arr];
-
     const picked: T[] = [];
     const used = new Set<number>();
-
     while (picked.length < count) {
       const randIndex = Math.floor(Math.random() * arr.length);
       if (!used.has(randIndex)) {
@@ -139,7 +137,7 @@ import { eq } from "drizzle-orm";
           }
 
           if (pickCount > 0) {
-            const options = pickRandomeOptions(group.options, pickCount);
+            const options = pickRandomOptions(group.options, pickCount);
 
             for (const op of options) {
               groupedPrice += op.price ?? 0;

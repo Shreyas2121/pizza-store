@@ -4,20 +4,20 @@ import { menuItemsMappingTable, menuItemsTable } from "../../db/schema";
 import { AppError } from "../../utils/error";
 
 class MenuItemService {
-  async createenuItem(data: typeof menuItemsTable.$inferInsert) {
-    const existingItem = await this.existingPostion(data.position);
+  async createMenuItem(data: typeof menuItemsTable.$inferInsert) {
+    const existingItem = await this.existingPosition(data.position);
 
     if (existingItem) {
       throw new AppError(
         `Menu item with position ${data.position} already exists`,
-        401
+        409
       );
     }
 
     return await db.insert(menuItemsTable).values(data).returning();
   }
 
-  async existingPostion(position: number) {
+  async existingPosition(position: number) {
     const item = await db.query.menuItemsTable.findFirst({
       where: eq(menuItemsTable.position, position),
     });

@@ -2,15 +2,22 @@ import jwt from "jsonwebtoken";
 import userService from "./user.service";
 import { Router } from "express";
 import { asyncHandler } from "../../utils/error";
-import { env } from "../../utils/zodSchema";
+import {
+  createAddressSchema,
+  env,
+  loginSchema,
+  registerSchema,
+} from "../../utils/zodSchema";
 import bcrypt from "bcrypt";
-import { authenticateUser } from "../../middleware/authenticeUser";
+import { authenticateUser } from "../../middleware/authenticateUser";
+import { validateBody } from "../../middleware/validateBody";
 import { Auth } from "../../utils/types";
 
 export const userRoutes = Router();
 
 userRoutes.post(
   "/register",
+  validateBody(registerSchema),
   asyncHandler(async (req, res) => {
     const data = req.body;
     const hashedPassword = await bcrypt.hash(data.password, 10);
@@ -19,21 +26,26 @@ userRoutes.post(
       password: hashedPassword,
     });
 
+    const { password, ...userWithoutPassword } = user;
+
     const token = jwt.sign(
       {
-        ...user,
+        id: user.id,
+        email: user.email,
+        role: user.role,
       },
       env.JWT_SECRET
     );
 
     res.status(201).json({
-      data: { user, token },
+      data: { user: userWithoutPassword, token },
     });
   })
 );
 
 userRoutes.post(
   "/login",
+  validateBody(loginSchema),
   asyncHandler(async (req, res) => {
     const { email, password } = req.body;
     const user = await userService.getUserByEmail(email);
@@ -49,8 +61,9 @@ userRoutes.post(
       },
       env.JWT_SECRET
     );
+    const { password: userPassword, ...userWithoutPassword } = user;
     res.json({
-      data: { user, token },
+      data: { user: userWithoutPassword, token },
     });
   })
 );
@@ -72,6 +85,7 @@ userRoutes.get(
 userRoutes.post(
   "/address",
   authenticateUser,
+  validateBody(createAddressSchema),
   asyncHandler(async (req: Auth, res) => {
     const data = req.body;
 

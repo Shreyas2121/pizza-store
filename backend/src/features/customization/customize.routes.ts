@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { AppError, asyncHandler } from "../../utils/error";
-import { authenticateAdmin } from "../../middleware/authenticeUser";
+import { authenticateAdmin } from "../../middleware/authenticateUser";
 import customizeService from "./customize.service";
 
 export const customizationRoutes = Router();
@@ -9,7 +9,7 @@ export const customizationRoutes = Router();
 
 customizationRoutes.post(
   "/group",
-  //   authenticateAdmin,
+  authenticateAdmin,
   asyncHandler(async (req, res) => {
     const data = req.body;
     const [group] = await customizeService.createCustomizationGroup(data);
@@ -21,7 +21,7 @@ customizationRoutes.post(
 
 customizationRoutes.post(
   "/option",
-  //   authenticateAdmin,
+  authenticateAdmin,
   asyncHandler(async (req, res) => {
     const data = req.body;
     const [option] = await customizeService.createCustomizationOption(data);
@@ -33,7 +33,7 @@ customizationRoutes.post(
 
 customizationRoutes.post(
   "/mapping",
-  //   authenticateAdmin,
+  authenticateAdmin,
   asyncHandler(async (req, res) => {
     const { productIds, groupId } = req.body;
 

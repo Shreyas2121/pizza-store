@@ -2,19 +2,18 @@ import { Router } from "express";
 import {
   authenticateAdmin,
   authenticateUser,
-} from "../../middleware/authenticeUser";
+} from "../../middleware/authenticateUser";
 import { upload } from "../../utils/multer";
 import { AppError, asyncHandler } from "../../utils/error";
 import { filterImage, generateSlug } from "../../utils";
 import productService from "./product.service";
-import { Auth, Product } from "../../utils/types";
-import orderService from "../order/order.service";
+import { Product } from "../../utils/types";
 
 export const productRoutes = Router();
 
 productRoutes.post(
   "/",
-  //   authenticateAdmin,
+  authenticateAdmin,
   upload.single("image"),
   asyncHandler(async (req, res) => {
     const data = req.body;

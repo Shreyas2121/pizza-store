@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { asyncHandler } from "../../utils/error";
-import { authenticateUser } from "../../middleware/authenticeUser";
+import { authenticateUser } from "../../middleware/authenticateUser";
 import { Auth } from "../../utils/types";
 import paymentService from "./payment.service";
 

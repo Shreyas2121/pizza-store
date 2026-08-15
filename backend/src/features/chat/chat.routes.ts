@@ -2,7 +2,7 @@ import { Router } from "express";
 import {
   authenticateAdmin,
   authenticateUser,
-} from "../../middleware/authenticeUser";
+} from "../../middleware/authenticateUser";
 import { AppError, asyncHandler } from "../../utils/error";
 import { Auth, ChatStatus } from "../../utils/types";
 import chatService from "./chat.service";
@@ -24,7 +24,7 @@ chatRoutes.post(
     const activeChat = await chatService.getActiveChat(userId);
 
     if (activeChat?.status === "open") {
-      throw new AppError("Session exists", 401);
+      throw new AppError("Session exists", 409);
     }
 
     const chatSession = await chatService.createNewChatSession(userId, title);
@@ -113,20 +113,18 @@ chatRoutes.get(
 
     const data = await chatService.getChatMessages(activeChat.id);
 
-    const messages = await Promise.all(
-      data.map((d) => {
-        const type = d.sender.role;
-        return {
-          type,
-          timeStamp: new Date(d.createdAt).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-          id: d.id,
-          message: d.message,
-        };
-      })
-    );
+    const messages = data.map((d) => {
+      const type = d.sender.role;
+      return {
+        type,
+        timeStamp: new Date(d.createdAt).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        id: d.id,
+        message: d.message,
+      };
+    });
 
     res.json({
       data: messages,

@@ -15,7 +15,7 @@ class ProductService {
     if (existingProduct) {
       throw new AppError(
         `Product with slug ${product.slug} already exists`,
-        401
+        409
       );
     }
 

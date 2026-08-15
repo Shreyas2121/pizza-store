@@ -30,7 +30,7 @@ export const upload = multer({
     if (allowedMimeTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new AppError("Invalid file type. Only images are allowed.", 401));
+      cb(new AppError("Invalid file type. Only images are allowed.", 400));
     }
   },
 });

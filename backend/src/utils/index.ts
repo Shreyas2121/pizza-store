@@ -37,7 +37,7 @@ export const formatPeriod = (date: string, group: GroupT) => {
       return format(newDate, "MMM dd");
     case "monthly":
       return format(newDate, "MMM yyyy");
-    case "quaterly":
+    case "quarterly":
       const quarter = Math.ceil((newDate.getMonth() + 1) / 3);
       return `Q${quarter} ${format(newDate, "yyyy")}`;
     case "yearly":

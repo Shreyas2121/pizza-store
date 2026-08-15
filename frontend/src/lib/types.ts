@@ -201,7 +201,7 @@ export interface DashCard {
   };
 }
 
-export type GroupT = "daily" | "weekly" | "monthly" | "quaterly" | "yearly";
+export type GroupT = "daily" | "weekly" | "monthly" | "quarterly" | "yearly";
 
 export interface ChatSession {
   status: ChatStatus;

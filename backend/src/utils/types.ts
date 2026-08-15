@@ -25,7 +25,7 @@ export type PaymentType = "cash";
 export type CouponType = "percentage" | "fixed";
 export type ChatStatus = "open" | "close" | "rejected" | "pending";
 
-export type GroupT = "daily" | "weekly" | "monthly" | "quaterly" | "yearly";
+export type GroupT = "daily" | "weekly" | "monthly" | "quarterly" | "yearly";
 
 export type DatabaseType = typeof db;
 export type TransactionType = Parameters<

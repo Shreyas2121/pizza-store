@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authenticateAdmin } from "../../middleware/authenticeUser";
+import { authenticateAdmin } from "../../middleware/authenticateUser";
 import { upload } from "../../utils/multer";
 import { AppError, asyncHandler } from "../../utils/error";
 import { filterImage, generateSlug } from "../../utils";
@@ -9,7 +9,7 @@ export const menuRoutes = Router();
 
 menuRoutes.post(
   "/",
-  //   authenticateAdmin,
+  authenticateAdmin,
   upload.single("image"),
   asyncHandler(async (req, res) => {
     const data = req.body;
@@ -20,7 +20,7 @@ menuRoutes.post(
     }
 
     const filteredImage = filterImage(image);
-    const [menu] = await menuService.createenuItem({
+    const [menu] = await menuService.createMenuItem({
       ...data,
       image: filteredImage,
       slug: generateSlug(data.name),
@@ -44,6 +44,7 @@ menuRoutes.get(
 
 menuRoutes.post(
   "/mapping",
+  authenticateAdmin,
   asyncHandler(async (req, res) => {
     const { menuItemId, productIds } = req.body;
     await Promise.all(

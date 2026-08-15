@@ -6,8 +6,9 @@ import { Auth, User } from "../utils/types";
 export const authenticateAdmin = asyncHandler((req: Auth, res, next) => {
   let exists = req.header("Authorization")?.startsWith("Bearer ");
 
-  if (!exists)
-    res.status(401).json({ message: "Access denied, no token provided." });
+  if (!exists) {
+    return res.status(401).json({ message: "Access denied, no token provided." });
+  }
 
   const token = req.header("Authorization")?.replace("Bearer ", "") as string;
 
@@ -23,8 +24,9 @@ export const authenticateAdmin = asyncHandler((req: Auth, res, next) => {
 export const authenticateUser = asyncHandler((req: Auth, res, next) => {
   let exists = req.header("Authorization")?.startsWith("Bearer ");
 
-  if (!exists)
-    res.status(401).json({ message: "Access denied, no token provided." });
+  if (!exists) {
+    return res.status(401).json({ message: "Access denied, no token provided." });
+  }
 
   const token = req.header("Authorization")?.replace("Bearer ", "") as string;
 

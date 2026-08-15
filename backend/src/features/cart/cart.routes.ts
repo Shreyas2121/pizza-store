@@ -2,12 +2,15 @@ import { Router } from "express";
 import { AppError, asyncHandler } from "../../utils/error";
 import cartService from "./cart.service";
 import { Auth } from "../../utils/types";
-import { authenticateUser } from "../../middleware/authenticeUser";
+import { authenticateUser } from "../../middleware/authenticateUser";
+import { validateBody } from "../../middleware/validateBody";
+import { addToCartSchema, updateCartItemSchema } from "../../utils/zodSchema";
 
 export const cartRoutes = Router();
 
 cartRoutes.post(
   "/add",
+  validateBody(addToCartSchema),
   asyncHandler(async (req: Auth, res) => {
     const { productId, cIds } = req.body;
 
@@ -21,7 +24,7 @@ cartRoutes.post(
     });
 
     res.status(200).json({ message: "Product added to cart" });
-  })
+  }),
 );
 
 cartRoutes.get(
@@ -30,7 +33,7 @@ cartRoutes.get(
     const userId = req.user!.id;
     const count = await cartService.getCartCount(userId);
     res.status(200).json({ data: count });
-  })
+  }),
 );
 
 cartRoutes.get(
@@ -68,7 +71,7 @@ cartRoutes.get(
         data: cart,
       });
     }
-  })
+  }),
 );
 
 cartRoutes.get(
@@ -86,12 +89,13 @@ cartRoutes.get(
     res.json({
       data: cart,
     });
-  })
+  }),
 );
 
 cartRoutes.patch(
   "/update",
   authenticateUser,
+  validateBody(updateCartItemSchema),
   asyncHandler(async (req: Auth, res) => {
     const userId = req.user!.id;
     const { cartItemId, productId, type } = req.body;
@@ -105,7 +109,7 @@ cartRoutes.patch(
     res.json({
       message: "Updated",
     });
-  })
+  }),
 );
 
 cartRoutes.delete(
@@ -116,7 +120,7 @@ cartRoutes.delete(
     const userId = req.user!.id;
 
     if (!id) {
-      throw new AppError("Error");
+      throw new AppError("Cart item ID is required", 400);
     }
 
     const count = await cartService.getCartCount(userId);
@@ -130,5 +134,5 @@ cartRoutes.delete(
     res.json({
       message: "Deleted",
     });
-  })
+  }),
 );

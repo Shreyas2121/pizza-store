@@ -2,7 +2,9 @@ import { Router } from "express";
 import {
   authenticateAdmin,
   authenticateUser,
-} from "../../middleware/authenticeUser";
+} from "../../middleware/authenticateUser";
+import { validateBody } from "../../middleware/validateBody";
+import { createOrderSchema } from "../../utils/zodSchema";
 import { AppError, asyncHandler } from "../../utils/error";
 import { Auth, OrderStatus } from "../../utils/types";
 import orderService from "./order.service";
@@ -13,6 +15,7 @@ export const orderRoutes = Router();
 orderRoutes.post(
   "/",
   authenticateUser,
+  validateBody(createOrderSchema),
   asyncHandler(async (req: Auth, res) => {
     const userId = req.user!.id;
 
@@ -57,6 +60,21 @@ orderRoutes.get(
 );
 
 orderRoutes.get(
+  "/admin/all",
+  authenticateAdmin,
+  asyncHandler(async (req, res) => {
+    const query = req.query;
+    const status = query.status as OrderStatus;
+
+    const data = await orderService.getAdminOrders(status);
+
+    res.json({
+      data,
+    });
+  })
+);
+
+orderRoutes.get(
   "/:orderId",
   authenticateUser,
   asyncHandler(async (req: Auth, res) => {
@@ -77,21 +95,6 @@ orderRoutes.get(
         ...order,
         items,
       },
-    });
-  })
-);
-
-orderRoutes.get(
-  "/admin/all",
-
-  asyncHandler(async (req, res) => {
-    const query = req.query;
-    const status = query.status as OrderStatus;
-
-    const data = await orderService.getAdminOrders(status);
-
-    res.json({
-      data,
     });
   })
 );
