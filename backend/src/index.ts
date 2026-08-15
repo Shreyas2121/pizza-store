@@ -7,6 +7,8 @@ import { Server } from "socket.io";
 import http from "http";
 import { env } from "./utils/zodSchema";
 
+import path from "path";
+
 const app = express();
 const httpServer = http.createServer(app);
 export const io = new Server(httpServer, {
@@ -31,6 +33,7 @@ io.on("connection", (socket) => {
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cors({ origin: env.FE_URL, credentials: true }));
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 app.use((req, res, next) => {
   logger.info(`${req.method} ${req.url}`);

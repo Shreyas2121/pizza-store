@@ -8,7 +8,7 @@ import {
   loginSchema,
   registerSchema,
 } from "../../utils/zodSchema";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import { authenticateUser } from "../../middleware/authenticateUser";
 import { validateBody } from "../../middleware/validateBody";
 import { Auth } from "../../utils/types";
