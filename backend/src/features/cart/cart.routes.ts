@@ -5,6 +5,7 @@ import { Auth } from "../../utils/types";
 import { authenticateUser } from "../../middleware/authenticateUser";
 import { validateBody } from "../../middleware/validateBody";
 import { addToCartSchema, updateCartCustomizationSchema, updateCartItemSchema } from "../../utils/zodSchema";
+import { parseIntegerParam } from "../../utils/request";
 
 export const cartRoutes = Router();
 
@@ -136,21 +137,17 @@ cartRoutes.delete(
   "/:id",
   authenticateUser,
   asyncHandler(async (req: Auth, res) => {
-    const id = req.params?.id;
+    const id = parseIntegerParam(req.params.id, "Cart item ID");
     const userId = req.user!.id;
 
-    if (!id) {
-      throw new AppError("Cart item ID is required", 400);
-    }
-
-    await cartService.assertCartItemOwner(parseInt(id), userId);
+    await cartService.assertCartItemOwner(id, userId);
 
     const count = await cartService.getCartCount(userId);
 
     if (count === 1) {
       await cartService.clearCart(userId);
     } else {
-      await cartService.deleteCartItem(parseInt(id));
+      await cartService.deleteCartItem(id);
     }
 
     res.json({

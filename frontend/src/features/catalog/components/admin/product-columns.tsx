@@ -1,10 +1,10 @@
-import { ColumnDef } from "@tanstack/react-table";
+import type { DataTableColumnDef } from "@/shared/ui";
 import { Badge } from "@mantine/core";
 import { ProductWithCategory } from "../../model/catalog.types";
 import { BASE_URL } from "@/shared/config";
 import { cap, formatPrice } from "@/shared/lib";
 
-export const ProductsCol: ColumnDef<ProductWithCategory>[] = [
+export const ProductsCol: DataTableColumnDef<ProductWithCategory>[] = [
   {
     header: "Product",
     accessorKey: "name",

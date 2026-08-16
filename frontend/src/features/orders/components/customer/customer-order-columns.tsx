@@ -1,4 +1,4 @@
-import { ColumnDef } from "@tanstack/react-table";
+import type { DataTableColumnDef } from "@/shared/ui";
 import { Button } from "@mantine/core";
 import { Link } from "react-router";
 import { Order } from "../../model/order.types";
@@ -6,7 +6,7 @@ import { formatPrice } from "@/shared/lib";
 import { OrderStatus } from "../order-status";
 
 
-export const customerOrderColumns: ColumnDef<Order>[] = [
+export const customerOrderColumns: DataTableColumnDef<Order>[] = [
   {
     header: "Order ID",
     accessorKey: "id",

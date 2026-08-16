@@ -1,4 +1,4 @@
-import { ColumnDef } from "@tanstack/react-table";
+import type { DataTableColumnDef } from "@/shared/ui";
 import { Badge } from "@mantine/core";
 import { ChatSessionWithUser } from "../../model/support.types";
 import SupportStatusPill from "./support-status-pill";
@@ -20,7 +20,7 @@ export const getPriority = (session: ChatSessionWithUser) => {
   return { label: "Normal", color: "gray" };
 };
 
-export const adminSupportColumns: ColumnDef<ChatSessionWithUser>[] = [
+export const adminSupportColumns: DataTableColumnDef<ChatSessionWithUser>[] = [
   { header: "Priority", id: "priority", enableSorting: false, cell: ({ row }) => { const priority = getPriority(row.original); return <Badge size="sm" variant="outline" color={priority.color}>{priority.label}</Badge>; } },
   { id: "userFullName", header: "Customer", accessorFn: (row) => `${row.user.fname} ${row.user.lname}`, cell: ({ row }) => <div><p className="font-medium">{row.original.user.fname} {row.original.user.lname}</p><p className="text-xs text-ink-muted">{row.original.user.email}</p></div> },
   { accessorKey: "subject", header: "Topic", cell: ({ row }) => <span className="line-clamp-2 min-w-48">{row.original.subject || "General support"}</span> },

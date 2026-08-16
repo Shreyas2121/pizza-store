@@ -1,4 +1,4 @@
-import { ColumnDef } from "@tanstack/react-table";
+import type { DataTableColumnDef } from "@/shared/ui";
 import { ActionIcon, Tooltip } from "@mantine/core";
 import { ArrowRight } from "lucide-react";
 import { Link } from "react-router";
@@ -7,7 +7,7 @@ import { formatPrice } from "@/shared/lib";
 import { OrderStatus } from "../order-status";
 
 
-export const adminOrderColumns: ColumnDef<OrdersAdmin>[] = [
+export const adminOrderColumns: DataTableColumnDef<OrdersAdmin>[] = [
   { header: "Order", accessorKey: "id", cell: ({ row }) => <span className="font-semibold tabular-nums">#{row.original.id}</span> },
   { id: "userFullName", header: "Customer", accessorFn: (row) => `${row.user.fname} ${row.user.lname}`, cell: ({ row }) => <div><p className="font-medium">{row.original.user.fname} {row.original.user.lname}</p><p className="text-xs text-ink-muted">{row.original.user.email}</p></div> },
   { header: "Placed", accessorKey: "orderDate", cell: ({ row }) => <span className="whitespace-nowrap text-ink-muted">{row.original.orderDate ? new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short" }).format(new Date(row.original.orderDate)) : "—"}</span> },

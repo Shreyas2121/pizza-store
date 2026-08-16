@@ -44,7 +44,7 @@ export const asyncHandler = (fn: Fn) => {
 };
 
 export const handleValidationError = (error: ZodError, res: Response) => {
-  const errorMessages = error.errors.map((error) => ({
+  const errorMessages = error.issues.map((error) => ({
     field: error.path[0],
     message: error.message,
   }));

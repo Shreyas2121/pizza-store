@@ -6,6 +6,7 @@ import {
 import { AppError, asyncHandler } from "../../utils/error";
 import couponService from "./coupon.service";
 import orderService from "../order/order.service";
+import { parseIntegerParam, requireRouteParam } from "../../utils/request";
 
 export const couponRoutes = Router();
 
@@ -43,7 +44,7 @@ couponRoutes.get(
 couponRoutes.get(
   "/:id",
   asyncHandler(async (req, res) => {
-    const id = parseInt(req.params.id);
+    const id = parseIntegerParam(req.params.id, "Coupon ID");
 
     const coupon = await couponService.getCouponById(id);
 
@@ -58,7 +59,7 @@ couponRoutes.get(
 couponRoutes.get(
   "/code/:code",
   asyncHandler(async (req, res) => {
-    const code = req.params.code;
+    const code = requireRouteParam(req.params.code, "Coupon code");
 
     const coupon = await couponService.getCouponByCode(code);
 
@@ -74,7 +75,7 @@ couponRoutes.put(
   "/:id",
   authenticateAdmin,
   asyncHandler(async (req, res) => {
-    const id = parseInt(req.params.id);
+    const id = parseIntegerParam(req.params.id, "Coupon ID");
     const data = req.body;
 
     await couponService.updateCoupon(id, data);
@@ -87,7 +88,7 @@ couponRoutes.delete(
   "/:id",
   authenticateAdmin,
   asyncHandler(async (req, res) => {
-    const id = parseInt(req.params.id);
+    const id = parseIntegerParam(req.params.id, "Coupon ID");
 
     await couponService.deleteCoupon(id);
 

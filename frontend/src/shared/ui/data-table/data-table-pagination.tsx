@@ -1,12 +1,13 @@
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
-import { Table } from "@tanstack/react-table";
+import type { ReactTable, RowData } from "@tanstack/react-table";
 import { ActionIcon, Text } from "@mantine/core";
+import type { DataTableFeatures } from "./data-table-features";
 
-interface DataTablePaginationProps<TData> {
-  table: Table<TData>;
+interface DataTablePaginationProps<TData extends RowData> {
+  table: ReactTable<DataTableFeatures, TData>;
 }
 
-export function DataTablePagination<TData>({ table }: DataTablePaginationProps<TData>) {
+export function DataTablePagination<TData extends RowData>({ table }: DataTablePaginationProps<TData>) {
   const filtered = table.getFilteredRowModel().rows.length;
   const pageCount = Math.max(table.getPageCount(), 1);
 
@@ -17,7 +18,7 @@ export function DataTablePagination<TData>({ table }: DataTablePaginationProps<T
       </Text>
       <div className="flex items-center gap-2">
         <Text size="sm" fw={600} className="mr-2 tabular-nums">
-          Page {table.getState().pagination.pageIndex + 1} of {pageCount}
+          Page {table.state.pagination.pageIndex + 1} of {pageCount}
         </Text>
         <ActionIcon
           variant="default"

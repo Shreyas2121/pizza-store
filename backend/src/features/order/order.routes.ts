@@ -9,6 +9,7 @@ import { AppError, asyncHandler } from "../../utils/error";
 import { Auth, OrderStatus } from "../../utils/types";
 import orderService from "./order.service";
 import { io } from "../..";
+import { parseIntegerParam } from "../../utils/request";
 
 export const orderRoutes = Router();
 
@@ -78,7 +79,7 @@ orderRoutes.get(
   "/:orderId",
   authenticateUser,
   asyncHandler(async (req: Auth, res) => {
-    const orderId = parseInt(req.params.orderId);
+    const orderId = parseIntegerParam(req.params.orderId, "Order ID");
     const order = await orderService.getOrderDetails(orderId);
 
     if (!order) throw new AppError("Order not found.");
@@ -108,15 +109,11 @@ orderRoutes.patch(
   "/:orderId",
   authenticateAdmin,
   asyncHandler(async (req, res) => {
-    const id = req.params.orderId;
-
-    if (!id) {
-      throw new AppError("Error");
-    }
+    const id = parseIntegerParam(req.params.orderId, "Order ID");
 
     const status = req.body.status as OrderStatus;
 
-    await orderService.updateOrderStatus(parseInt(id), status);
+    await orderService.updateOrderStatus(id, status);
 
     res.json({
       message: "Updated",

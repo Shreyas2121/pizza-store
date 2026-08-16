@@ -1,6 +1,6 @@
 import { z } from "zod";
 import dotenv from "dotenv";
-dotenv.config();
+dotenv.config({ quiet: true });
 
 const envSchema = z.object({
   PORT: z.string().min(4).max(4),
@@ -18,21 +18,21 @@ export const env = envSchema.parse(process.env);
 
 export const userSchema = z.object({
   username: z.string().min(3).max(255),
-  email: z.string().email(),
+  email: z.email(),
   password: z.string().min(6).max(255),
   bio: z.string().max(255).optional(),
-  profilePicture: z.string().url().optional(),
+  profilePicture: z.url().optional(),
 });
 
 export const registerSchema = z.object({
   fname: z.string().min(1, "First name is required"),
   lname: z.string().min(1, "Last name is required"),
-  email: z.string().email("Invalid email format"),
+  email: z.email("Invalid email format"),
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
 export const loginSchema = z.object({
-  email: z.string().email("Invalid email format"),
+  email: z.email("Invalid email format"),
   password: z.string().min(1, "Password is required"),
 });
 

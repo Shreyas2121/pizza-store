@@ -1,22 +1,22 @@
 import {
   flexRender,
-  getCoreRowModel,
-  SortingState,
-  useReactTable,
-  getSortedRowModel,
-  getPaginationRowModel,
-  ColumnFiltersState,
-  getFilteredRowModel,
-  ColumnDef,
+  useTable,
+  type ColumnFiltersState,
+  type RowData,
+  type SortingState,
 } from "@tanstack/react-table";
 import { ReactElement, ReactNode, useState } from "react";
 import DataTableSearch from "./data-table-search";
 import { Table, UnstyledButton } from "@mantine/core";
 import { ArrowDown, ArrowUp, ChevronsUpDown, SearchX } from "lucide-react";
 import { DataTablePagination } from "./data-table-pagination";
+import {
+  dataTableFeatures,
+  type DataTableColumnDef,
+} from "./data-table-features";
 
-interface DataTableProps<TData, TValue> {
-  columns: ColumnDef<TData, TValue>[];
+interface DataTableProps<TData extends RowData> {
+  columns: DataTableColumnDef<TData>[];
   data: TData[];
   keyName?: string;
   text?: string;
@@ -27,7 +27,7 @@ interface DataTableProps<TData, TValue> {
   renderMobileCard?: (item: TData) => ReactNode;
 }
 
-export function DataTable<TData, TValue>({
+export function DataTable<TData extends RowData>({
   columns,
   data,
   keyName,
@@ -37,19 +37,16 @@ export function DataTable<TData, TValue>({
   emptyTitle = "No results found",
   emptyDescription = "Try changing your search or filters.",
   renderMobileCard,
-}: DataTableProps<TData, TValue>) {
+}: DataTableProps<TData>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 
-  const table = useReactTable({
+  const table = useTable({
+    features: dataTableFeatures,
     data,
     columns,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     onSortingChange: setSorting,
-    getSortedRowModel: getSortedRowModel(),
     onColumnFiltersChange: setColumnFilters,
-    getFilteredRowModel: getFilteredRowModel(),
     state: { sorting, columnFilters },
   });
 

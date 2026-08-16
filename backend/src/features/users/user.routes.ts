@@ -11,6 +11,7 @@ import {
 import bcrypt from "bcryptjs";
 import { authenticateUser } from "../../middleware/authenticateUser";
 import { validateBody } from "../../middleware/validateBody";
+import { parseIntegerParam } from "../../utils/request";
 import { Auth } from "../../utils/types";
 
 export const userRoutes = Router();
@@ -48,7 +49,8 @@ userRoutes.patch(
   authenticateUser,
   validateBody(createAddressSchema),
   asyncHandler(async (req: Auth, res) => {
-    const [address] = await userService.updateUserAddress(Number(req.params.addressId), req.user!.id, req.body);
+    const addressId = parseIntegerParam(req.params.addressId, "Address ID");
+    const [address] = await userService.updateUserAddress(addressId, req.user!.id, req.body);
     if (!address) throw new AppError("Address not found.", 404);
     res.json({ data: { address, message: "Address updated." } });
   })
@@ -58,7 +60,8 @@ userRoutes.delete(
   "/address/:addressId",
   authenticateUser,
   asyncHandler(async (req: Auth, res) => {
-    const [deleted] = await userService.deleteUserAddress(Number(req.params.addressId), req.user!.id);
+    const addressId = parseIntegerParam(req.params.addressId, "Address ID");
+    const [deleted] = await userService.deleteUserAddress(addressId, req.user!.id);
     if (!deleted) throw new AppError("Address not found.", 404);
     res.json({ data: { id: deleted.id, message: "Address deleted." } });
   })

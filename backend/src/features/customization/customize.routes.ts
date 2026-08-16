@@ -2,6 +2,7 @@ import { Router } from "express";
 import { AppError, asyncHandler } from "../../utils/error";
 import { authenticateAdmin } from "../../middleware/authenticateUser";
 import customizeService from "./customize.service";
+import { parseIntegerParam } from "../../utils/request";
 
 export const customizationRoutes = Router();
 
@@ -56,15 +57,9 @@ customizationRoutes.post(
 customizationRoutes.get(
   "/product/:id",
   asyncHandler(async (req, res) => {
-    const id = req.params.id;
+    const id = parseIntegerParam(req.params.id, "Product ID");
 
-    if (!Number.isInteger(parseInt(id))) {
-      throw new AppError("ID must be a number", 400);
-    }
-
-    const data = await customizeService.getCustomizationByProductId(
-      parseInt(id)
-    );
+    const data = await customizeService.getCustomizationByProductId(id);
 
     res.json({ data });
   })

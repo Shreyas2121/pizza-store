@@ -8,6 +8,7 @@ import { AppError, asyncHandler } from "../../utils/error";
 import { filterImage, generateSlug } from "../../utils";
 import productService from "./product.service";
 import { Product } from "../../utils/types";
+import { parseIntegerParam } from "../../utils/request";
 
 export const productRoutes = Router();
 
@@ -94,11 +95,7 @@ productRoutes.get(
 productRoutes.get(
   "/category/:id",
   asyncHandler(async (req, res) => {
-    const categoryId = parseInt(req.params.id);
-
-    if (!Number.isInteger(categoryId)) {
-      throw new AppError("ID must be a number", 400);
-    }
+    const categoryId = parseIntegerParam(req.params.id, "Category ID");
 
     const data = await productService.getProductsByCategory(categoryId);
 
@@ -111,11 +108,7 @@ productRoutes.get(
 productRoutes.get(
   "/group/:id",
   asyncHandler(async (req, res) => {
-    const groupId = parseInt(req.params.id);
-
-    if (!Number.isInteger(groupId)) {
-      throw new AppError("ID must be a number", 400);
-    }
+    const groupId = parseIntegerParam(req.params.id, "Group ID");
 
     const data = await productService.getProductsByGroupId(groupId);
     res.json({ data: data.map((d) => d.product) });
