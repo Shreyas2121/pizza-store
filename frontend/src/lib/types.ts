@@ -1,7 +1,7 @@
 export type AddressType = "Home" | "Work" | "Other";
 export type Role = "admin" | "user";
 export type CustomizationType = "single" | "multiple";
-export type OrderStatus = "pending" | "preparing" | "delievered" | "cancelled";
+export type OrderStatus = "pending" | "preparing" | "delivered" | "delievered" | "cancelled";
 export type PaymentStatus = "pending" | "processing" | "completed" | "failed";
 export type PaymentType = "cash";
 export type CouponType = "percentage" | "fixed";

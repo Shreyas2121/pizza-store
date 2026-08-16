@@ -14,8 +14,8 @@ const useCreateOrder = () => {
   ]);
 };
 
-const useGetOrders = (status: OrderStatus) => {
-  return createQuery<Order[]>([QUERY_KEYS.order.all], "/order", "data", {
+const useGetOrders = (status?: OrderStatus) => {
+  return createQuery<Order[]>([QUERY_KEYS.order.all, status ?? "all"], "/order", "data", {
     status,
   });
 };

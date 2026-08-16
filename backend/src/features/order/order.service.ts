@@ -50,12 +50,9 @@ class OrderService {
     });
   }
 
-  async getOrders(userId: number, status: OrderStatus = "pending") {
+  async getOrders(userId: number, status?: OrderStatus) {
     return await db.query.ordersTable.findMany({
-      where: and(
-        eq(ordersTable.status, status),
-        eq(ordersTable.userId, userId)
-      ),
+      where: status ? and(eq(ordersTable.status, status), eq(ordersTable.userId, userId)) : eq(ordersTable.userId, userId),
       orderBy: desc(ordersTable.orderDate),
     });
   }

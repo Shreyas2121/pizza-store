@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 import userService from "./user.service";
 import { Router } from "express";
-import { asyncHandler } from "../../utils/error";
+import { AppError, asyncHandler } from "../../utils/error";
 import {
   createAddressSchema,
   env,
@@ -40,6 +40,27 @@ userRoutes.post(
     res.status(201).json({
       data: { user: userWithoutPassword, token },
     });
+  })
+);
+
+userRoutes.patch(
+  "/address/:addressId",
+  authenticateUser,
+  validateBody(createAddressSchema),
+  asyncHandler(async (req: Auth, res) => {
+    const [address] = await userService.updateUserAddress(Number(req.params.addressId), req.user!.id, req.body);
+    if (!address) throw new AppError("Address not found.", 404);
+    res.json({ data: { address, message: "Address updated." } });
+  })
+);
+
+userRoutes.delete(
+  "/address/:addressId",
+  authenticateUser,
+  asyncHandler(async (req: Auth, res) => {
+    const [deleted] = await userService.deleteUserAddress(Number(req.params.addressId), req.user!.id);
+    if (!deleted) throw new AppError("Address not found.", 404);
+    res.json({ data: { id: deleted.id, message: "Address deleted." } });
   })
 );
 

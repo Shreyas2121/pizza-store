@@ -1,42 +1,20 @@
+import { CheckCircle2, ChefHat, Clock3, XCircle } from "lucide-react";
 import { OrderStatus as OS } from "../../lib/types";
-import { Clock, Loader2, CheckCircle, XCircle } from "lucide-react";
+
+export const getOrderStatusMeta = (status: OS) => {
+  switch (status) {
+    case "preparing": return { label: "Preparing", icon: ChefHat, className: "bg-blue-100 text-blue-800" };
+    case "delivered":
+    case "delievered": return { label: "Delivered", icon: CheckCircle2, className: "bg-basil-soft text-basil" };
+    case "cancelled": return { label: "Cancelled", icon: XCircle, className: "bg-red-100 text-danger" };
+    default: return { label: "Pending", icon: Clock3, className: "bg-amber-100 text-amber-800" };
+  }
+};
 
 const OrderStatus = ({ status }: { status: OS }) => {
-  const formattedStatus = status.charAt(0).toUpperCase() + status.slice(1);
-
-  let IconComponent;
-  let colorClass = "";
-  let animationClass = "";
-
-  switch (status) {
-    case "pending":
-      IconComponent = Clock;
-      colorClass = "text-yellow-500";
-      break;
-    case "preparing":
-      IconComponent = Loader2;
-      colorClass = "text-blue-500";
-      animationClass = "animate-spin";
-      break;
-    case "delievered":
-      IconComponent = CheckCircle;
-      colorClass = "text-green-500";
-      break;
-    case "cancelled":
-      IconComponent = XCircle;
-      colorClass = "text-red-500";
-      break;
-    default:
-      IconComponent = Clock;
-      colorClass = "text-gray-500";
-  }
-
-  return (
-    <div className="flex items-center gap-2">
-      <IconComponent size={20} className={`${colorClass} ${animationClass}`} />
-      <span className="font-semibold text-gray-800">{formattedStatus}</span>
-    </div>
-  );
+  const meta = getOrderStatusMeta(status);
+  const Icon = meta.icon;
+  return <span className={`inline-flex min-h-8 items-center gap-1.5 rounded-pill px-2.5 py-1 text-xs font-bold ${meta.className}`}><Icon size={15} aria-hidden="true" />{meta.label}</span>;
 };
 
 export default OrderStatus;

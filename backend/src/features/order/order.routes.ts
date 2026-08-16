@@ -49,7 +49,7 @@ orderRoutes.get(
 
     const query = req.query;
 
-    const status = query.status ? (query.status as any) : "";
+    const status = query.status ? (query.status as OrderStatus) : undefined;
 
     const orders = await orderService.getOrders(userId, status);
 
@@ -82,6 +82,9 @@ orderRoutes.get(
     const order = await orderService.getOrderDetails(orderId);
 
     if (!order) throw new AppError("Order not found.");
+    if (req.user!.role !== "admin" && order.userId !== req.user!.id) {
+      throw new AppError("Order not found.", 404);
+    }
 
     const items = order.items.map((item) => {
       return {

@@ -22,7 +22,7 @@ export const orderStatus = [
   },
   {
     label: "Delivered",
-    value: "delivered",
+    value: "delievered",
   },
   {
     label: "Cancelled",
@@ -151,8 +151,8 @@ export const QUERY_KEYS = {
 };
 
 export const navLinks = [
-  { label: "Profile", to: "/profile", icon: User },
-  { label: "Address", to: "/address", icon: MapPin },
+  { label: "Account overview", to: "/profile", icon: User },
+  { label: "Saved addresses", to: "/address", icon: MapPin },
   { label: "Orders", to: "/orders", icon: Box },
 ];
 
