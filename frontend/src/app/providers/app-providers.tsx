@@ -5,9 +5,14 @@ import { ModalsProvider } from "@mantine/modals";
 import { Notifications } from "@mantine/notifications";
 import { theme } from "@/shared/config";
 import { QueryProvider } from "./query-provider";
-import React from "react";
+import { setAuthTokenGetter } from "@/shared/api";
+import { useUser } from "@/features/auth";
+
+
+setAuthTokenGetter(() => useUser.getState().token);
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
+
   return (
     <StrictMode>
       <QueryProvider>

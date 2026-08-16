@@ -7,7 +7,8 @@ import { Link, useNavigate } from "react-router";
 import dayjs from "dayjs";
 import { DashboardCard } from "../components/dashboard-card";
 import { DatePicker } from "../components/date-picker";
-import { useDatePicker } from "../model/datepicker.store";
+import { useDatePicker } from "../model/dashboard-date.store";
+
 import {
   useGetDashboardCardsData,
   useGetDashboardChartsData,

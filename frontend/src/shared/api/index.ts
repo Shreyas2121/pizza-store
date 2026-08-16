@@ -1,4 +1,4 @@
-export { apiClient, API } from "./api-client";
+export { apiClient, setAuthTokenGetter, API } from "./api-client";
 export {
   createQuery,
   createSuspenseQuery,

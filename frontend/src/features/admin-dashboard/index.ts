@@ -1,7 +1,8 @@
 export { AdminDashboardPage } from "./pages/admin-dashboard-page";
 export { DashboardCard } from "./components/dashboard-card";
 export { DatePicker } from "./components/date-picker";
-export { useDatePicker } from "./model/datepicker.store";
+export { useDatePicker } from "./model/dashboard-date.store";
+
 
 export {
   dashboardKeys,

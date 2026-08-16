@@ -4,7 +4,8 @@ import "@mantine/dates/styles.css";
 import { useState } from "react";
 import dayjs from "dayjs";
 import { CalendarRange } from "lucide-react";
-import { useDatePicker } from "../model/datepicker.store";
+import { useDatePicker } from "../model/dashboard-date.store";
+
 import { GroupT } from "../model/dashboard.types";
 import { useAuthModalStore } from "@/shared/model";
 

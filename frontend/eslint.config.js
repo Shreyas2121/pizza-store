@@ -25,4 +25,36 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    files: ['src/shared/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@/features/*', '@/app/*'],
+              message: 'Shared modules cannot depend on feature or app modules.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ['src/features/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@/app/*', '@/features/*/*'],
+              message: 'Feature modules cannot depend on app modules or deep feature internals.',
+            },
+          ],
+        },
+      ],
+    },
+  }
 )
