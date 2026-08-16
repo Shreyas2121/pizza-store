@@ -1,230 +1,72 @@
+import { ArrowRight, Banknote, Check, Clock3, Flame, Wheat } from "lucide-react";
+import { Link } from "react-router";
 import { Menu } from "@/components/main";
-import { Button, Card, Badge } from "@mantine/core";
-import {
-  ArrowRight,
-  Flame,
-  ShieldCheck,
-  Sparkles,
-  Truck,
-  Utensils,
-} from "lucide-react";
 
-const Home = () => {
-  return (
-    <div className="space-y-12 sm:space-y-16 pb-12">
-      {/* 1. High-Impact Hero Banner */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-canvas via-surface to-canvas border-b border-border/60 py-12 sm:py-20">
-        <div className="max-w-storefront mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-            {/* Hero Left Content */}
-            <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-pill bg-brand-soft border border-brand/20 text-brand text-xs font-bold uppercase tracking-wider">
-                <Sparkles size={14} />
-                <span>Wood-Fired & Handcrafted Daily</span>
-              </div>
-              <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold text-ink font-serif tracking-tight leading-[1.15]">
-                Artisanal Pizza, Baked to{" "}
-                <span className="text-brand">Perfection</span>
-              </h1>
-              <p className="text-base sm:text-lg text-ink-muted max-w-2xl mx-auto lg:mx-0 leading-relaxed font-sans">
-                Hand-stretched dough fermented for 48 hours, vine-ripened tomato
-                sauce, and creamy 100% real mozzarella cheese. Delivered piping
-                hot to your doorstep.
-              </p>
+const trustPoints = ["Hand-stretched dough", "Made fresh to order", "Cash on delivery"];
 
-              <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-2">
-                <Button
-                  component="a"
-                  href="#menu"
-                  size="lg"
-                  color="brand"
-                  rightSection={<ArrowRight size={18} />}
-                  className="w-full sm:w-auto shadow-subtle hover:shadow-subtle-hover transition-all"
-                >
-                  Browse Menu
-                </Button>
-                <Button
-                  component="a"
-                  href="#promotions"
-                  size="lg"
-                  variant="outline"
-                  color="dark"
-                  className="w-full sm:w-auto"
-                >
-                  View Special Deals
-                </Button>
-              </div>
+const Home = () => (
+  <>
+    <section className="relative isolate min-h-[440px] overflow-hidden bg-ink lg:min-h-[470px]" aria-labelledby="hero-title">
+      <img
+        src="/pizzastore-hero.png"
+        alt="Fresh wood-fired margherita pizza with basil"
+        className="absolute inset-0 -z-20 h-full w-full object-cover object-[64%_center] sm:object-center"
+        fetchPriority="high"
+      />
+      <div className="absolute inset-0 -z-10 bg-gradient-to-r from-ink via-ink/85 to-ink/5 sm:via-ink/65" />
+      <div className="mx-auto flex min-h-[440px] max-w-storefront items-center px-5 py-12 sm:px-8 lg:min-h-[470px] lg:px-12">
+        <div className="max-w-xl text-white">
+          <p className="mb-3 text-sm font-bold uppercase tracking-[0.18em] text-[#F2C36E]">Wood-fired warmth, delivered</p>
+          <h1 id="hero-title" className="max-w-lg font-display text-[2.6rem] leading-[1.04] tracking-tight sm:text-5xl lg:text-[3.5rem]">
+            Your neighborhood pizza night starts here.
+          </h1>
+          <p className="mt-5 max-w-lg text-base leading-7 text-white/80 sm:text-lg">
+            Handcrafted pizzas with blistered crusts, generous toppings, and the comfort of ordering from your sofa.
+          </p>
 
-              {/* Value Micro-Pills */}
-              <div className="pt-6 flex flex-wrap justify-center lg:justify-start gap-4 text-xs font-semibold text-ink-muted border-t border-border/60">
-                <span className="flex items-center gap-1.5">
-                  <Truck size={16} className="text-brand" /> 30-Min Fast
-                  Delivery
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <Flame size={16} className="text-brand" /> Fresh Wood-Fired
-                  Oven
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <ShieldCheck size={16} className="text-basil" /> Cash on
-                  Delivery
-                </span>
-              </div>
-            </div>
-
-            {/* Hero Right Visual */}
-            <div className="lg:col-span-5 flex justify-center">
-              <div className="relative w-full max-w-md aspect-square rounded-panel overflow-hidden border border-border shadow-panel group">
-                <img
-                  src="https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=800&q=80"
-                  alt="Delicious artisanal wood-fired pepperoni pizza"
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-ink/70 via-transparent to-transparent flex items-end p-6">
-                  <div className="text-surface space-y-1">
-                    <Badge color="brand" variant="filled" size="sm">
-                      BESTSELLER
-                    </Badge>
-                    <h3 className="text-lg font-bold font-sans">
-                      Classic Signature Pepperoni
-                    </h3>
-                    <p className="text-xs text-surface/80">
-                      Double pepperoni & smoked mozzarella
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 2. Value Proposition Section: Why PizzaStore */}
-      <section className="max-w-storefront mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center space-y-2 mb-8 sm:mb-12">
-          <span className="text-xs font-bold text-brand uppercase tracking-wider">
-            The PizzaStore Difference
-          </span>
-          <h2 className="text-2xl sm:text-3xl font-bold text-ink font-serif">
-            Why Food Lovers Choose Us
-          </h2>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card
-            shadow="subtle"
-            padding="lg"
-            className="border border-border bg-surface rounded-card hover:border-brand/40 transition-colors space-y-3"
-          >
-            <div className="w-12 h-12 rounded-control bg-brand-soft text-brand flex items-center justify-center">
-              <Utensils size={24} />
-            </div>
-            <h3 className="text-lg font-bold text-ink font-sans">
-              Hand-Stretched Dough
-            </h3>
-            <p className="text-sm text-ink-muted leading-relaxed">
-              Made fresh every morning using Italian Tipo 00 flour and aged 48
-              hours for ideal crust texture.
-            </p>
-          </Card>
-
-          <Card
-            shadow="subtle"
-            padding="lg"
-            className="border border-border bg-surface rounded-card hover:border-brand/40 transition-colors space-y-3"
-          >
-            <div className="w-12 h-12 rounded-control bg-basil/10 text-basil flex items-center justify-center">
-              <Sparkles size={24} />
-            </div>
-            <h3 className="text-lg font-bold text-ink font-sans">
-              100% Real Mozzarella
-            </h3>
-            <p className="text-sm text-ink-muted leading-relaxed">
-              No artificial blends or processed cheese—only rich, creamy
-              mozzarella melted to golden perfection.
-            </p>
-          </Card>
-
-          <Card
-            shadow="subtle"
-            padding="lg"
-            className="border border-border bg-surface rounded-card hover:border-brand/40 transition-colors space-y-3"
-          >
-            <div className="w-12 h-12 rounded-control bg-brand-soft text-brand flex items-center justify-center">
-              <Truck size={24} />
-            </div>
-            <h3 className="text-lg font-bold text-ink font-sans">
-              Piping Hot Delivery
-            </h3>
-            <p className="text-sm text-ink-muted leading-relaxed">
-              Dispatched in thermal insulated bags to ensure your pizza arrives
-              hot, crisp, and ready to enjoy.
-            </p>
-          </Card>
-
-          <Card
-            shadow="subtle"
-            padding="lg"
-            className="border border-border bg-surface rounded-card hover:border-brand/40 transition-colors space-y-3"
-          >
-            <div className="w-12 h-12 rounded-control bg-gold/10 text-gold flex items-center justify-center">
-              <ShieldCheck size={24} />
-            </div>
-            <h3 className="text-lg font-bold text-ink font-sans">
-              Cash on Delivery
-            </h3>
-            <p className="text-sm text-ink-muted leading-relaxed">
-              Simple, hassle-free ordering with zero advance payment needed. Pay
-              when your fresh food arrives.
-            </p>
-          </Card>
-        </div>
-      </section>
-
-      {/* 3. Promotional Offer Banner */}
-      <section
-        id="promotions"
-        className="max-w-storefront mx-auto px-4 sm:px-6 lg:px-8"
-      >
-        <div className="bg-ink text-surface rounded-panel p-8 sm:p-12 shadow-panel relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="space-y-3 max-w-xl text-center md:text-left">
-            <span className="px-3 py-1 rounded-pill bg-brand text-white text-xs font-bold uppercase tracking-wider">
-              LIMITED TIME OFFER
-            </span>
-            <h2 className="text-2xl sm:text-4xl font-bold font-serif leading-tight">
-              Get 20% Off Your First Wood-Fired Pizza Order
-            </h2>
-            <p className="text-sm sm:text-base text-surface-muted/80">
-              Use promo code{" "}
-              <span className="font-mono font-bold text-gold bg-white/10 px-2 py-0.5 rounded">
-                PIZZA20
-              </span>{" "}
-              at checkout to claim your welcome discount.
-            </p>
+          <div className="mt-7 flex flex-col gap-3 min-[420px]:flex-row">
+            <Link to="/#menu" className="primary-button min-h-12 gap-2 px-6 text-base">
+              Order now <ArrowRight size={18} aria-hidden="true" />
+            </Link>
+            <Link to="/#menu" className="inline-flex min-h-12 items-center justify-center rounded-control border border-white/40 bg-white/10 px-6 font-semibold text-white backdrop-blur-sm transition-colors hover:border-white/70 hover:bg-white/15 hover:text-white">
+              View menu
+            </Link>
           </div>
 
-          <Button
-            component="a"
-            href="#menu"
-            size="lg"
-            color="brand"
-            rightSection={<ArrowRight size={18} />}
-            className="shrink-0 shadow-subtle hover:shadow-subtle-hover transition-all"
-          >
-            Order Now & Save
-          </Button>
+          <ul className="mt-7 flex flex-wrap gap-x-5 gap-y-2 text-sm text-white/80" aria-label="Ordering benefits">
+            {trustPoints.map((point) => (
+              <li key={point} className="flex items-center gap-1.5"><Check className="text-[#F2C36E]" size={16} strokeWidth={2.5} aria-hidden="true" />{point}</li>
+            ))}
+          </ul>
         </div>
-      </section>
+      </div>
+    </section>
 
-      {/* 4. Menu & Category Section */}
-      <section
-        id="menu"
-        className="max-w-storefront mx-auto px-4 sm:px-6 lg:px-8 pt-4"
-      >
-        <Menu />
-      </section>
-    </div>
-  );
-};
+    <section id="offers" className="border-b border-border bg-surface" aria-label="Why order from PizzaStore">
+      <div className="mx-auto grid max-w-storefront divide-y divide-border px-5 sm:grid-cols-3 sm:divide-x sm:divide-y-0 sm:px-8 lg:px-12">
+        <div className="flex items-center gap-3 py-5 sm:px-5 sm:first:pl-0">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand-soft text-brand"><Wheat size={20} aria-hidden="true" /></span>
+          <div><p className="font-semibold text-ink">Fresh dough daily</p><p className="text-sm text-ink-muted">Mixed for a light, crisp crust</p></div>
+        </div>
+        <div className="flex items-center gap-3 py-5 sm:px-5">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-basil-soft text-basil"><Flame size={20} aria-hidden="true" /></span>
+          <div><p className="font-semibold text-ink">Made to order</p><p className="text-sm text-ink-muted">Hot from our oven to your door</p></div>
+        </div>
+        <div className="flex items-center gap-3 py-5 sm:px-5 sm:last:pr-0">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-amber-100 text-amber-800"><Banknote size={20} aria-hidden="true" /></span>
+          <div><p className="font-semibold text-ink">Easy payment</p><p className="text-sm text-ink-muted">Cash on delivery available</p></div>
+        </div>
+      </div>
+    </section>
+
+    <Menu />
+
+    <section className="mx-auto max-w-storefront px-5 pb-4 pt-6 sm:px-8 lg:px-12" aria-label="Delivery reassurance">
+      <div className="flex items-center justify-center gap-2 rounded-card border border-border bg-surface-muted px-5 py-4 text-center text-sm font-medium text-ink-muted">
+        <Clock3 size={18} className="text-brand" aria-hidden="true" /> Made fresh after you order—never left waiting under a heat lamp.
+      </div>
+    </section>
+  </>
+);
 
 export default Home;

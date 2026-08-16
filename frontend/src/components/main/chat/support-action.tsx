@@ -31,12 +31,12 @@ const SupportAction = () => {
   return (
     <button
       className="
-        fixed bottom-10 right-10
+        fixed bottom-6 left-6 sm:bottom-8 sm:left-8
         flex items-center space-x-2
         bg-brand text-white
-        px-4 py-2 rounded-full
-        shadow-lg hover:bg-brand-hover
-        transition-colors
+        px-4 py-2.5 rounded-pill
+        shadow-panel hover:bg-brand-hover
+        transition-all duration-200
         z-[999]
       "
       onClick={() => {

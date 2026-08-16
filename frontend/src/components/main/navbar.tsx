@@ -10,6 +10,7 @@ import BrandLockup from "./brand-lockup";
 
 const primaryLinks = [
   { label: "Menu", to: "/#menu" },
+  { label: "Offers", to: "/#offers" },
   { label: "Track order", to: "/orders" },
 ];
 

@@ -1,98 +1,100 @@
-import { Skeleton, Select } from "@mantine/core";
+import { Pagination, Select, Skeleton } from "@mantine/core";
+import { ArrowUpDown, Pizza } from "lucide-react";
 import { useSearchParams } from "react-router";
 import { PRODUCTS_HOOKS } from "@/hooks";
 import ProductCard from "./product-card";
 
-const Products = () => {
+type ProductsProps = {
+  activeCategoryName?: string;
+};
+
+const Products = ({ activeCategoryName }: ProductsProps) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedMenu = searchParams.get("menu");
   const sortBy = searchParams.get("sort") || "default";
-  const page = searchParams.get("page") || "1";
-
+  const page = Math.max(1, Number(searchParams.get("page") || "1") || 1);
   const { data, isLoading } = PRODUCTS_HOOKS.useGetProducts({
     menuSlug: selectedMenu,
-    page,
+    page: String(page),
     sortBy,
   });
 
+  const updateParams = (changes: Record<string, string | null>) => {
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+      Object.entries(changes).forEach(([key, value]) => {
+        if (value) next.set(key, value);
+        else next.delete(key);
+      });
+      return next;
+    });
+  };
+
   if (isLoading) {
     return (
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6 p-4">
-        {[...Array(6)].map((_, i) => (
-          <Skeleton key={i} height={250} radius="md" />
-        ))}
+      <div className="mt-9">
+        <div className="mb-6 flex items-end justify-between gap-4"><div><Skeleton height={28} width={210} mb={8} /><Skeleton height={18} width={150} /></div><Skeleton height={42} width={190} radius="md" /></div>
+        <div className="grid grid-cols-1 gap-5 min-[420px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">{[...Array(8)].map((_, index) => <Skeleton key={index} height={330} radius="lg" />)}</div>
       </div>
     );
   }
 
-  if (!data || data.data.length === 0) {
+  const products = data?.data ?? [];
+  const meta = data?.meta;
+
+  if (products.length === 0) {
     return (
-      <p className="text-center text-gray-500 mt-6">
-        No products available in this category.
-      </p>
+      <div className="empty-state mt-9">
+        <span className="grid h-16 w-16 place-items-center rounded-full bg-brand-soft text-brand"><Pizza size={30} aria-hidden="true" /></span>
+        <h3 className="mt-4 text-section-title-scale">Nothing on this tray yet</h3>
+        <p className="mt-2 max-w-md text-supporting-scale">That selection is currently empty. Browse the full menu to find another favorite.</p>
+        <button type="button" onClick={() => updateParams({ menu: null, page: null })} className="primary-button mt-5">View all pizzas</button>
+      </div>
     );
   }
 
-  const products = data.data;
-  const meta = data.meta;
+  const paginationTotal = meta ? meta.page + (meta.hasNextPage ? 1 : 0) : 1;
 
   return (
-    <div className="mt-6">
-      {/* Header with Sorting (Visible only when products exist) */}
-      <div className="flex items-center justify-between mb-4 px-2">
-        <h2 className="text-xl font-semibold text-gray-800">Products</h2>
+    <div className="mt-9" id="popular">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-sm font-semibold text-brand">{activeCategoryName ? "In this category" : "Customer favorites"}</p>
+          <h3 className="mt-1 text-section-title-scale">{activeCategoryName || "Popular right now"}</h3>
+          <p className="mt-1 text-sm text-ink-muted">{products.length} {products.length === 1 ? "item" : "items"} on this page</p>
+        </div>
         <Select
+          aria-label="Sort menu items"
+          leftSection={<ArrowUpDown size={17} aria-hidden="true" />}
           value={sortBy}
-          onChange={(v) => {
-            setSearchParams((prev) => {
-              const params = Object.fromEntries(prev.entries());
-              return { ...params, sort: v! };
-            });
-          }}
+          onChange={(value) => updateParams({ sort: value === "default" ? null : value, page: null })}
           data={[
-            { value: "default", label: "Sort By: Default" },
-            { value: "price_low", label: "Price: Low to High" },
-            { value: "price_high", label: "Price: High to Low" },
+            { value: "default", label: "Recommended" },
+            { value: "price_low", label: "Price: low to high" },
+            { value: "price_high", label: "Price: high to low" },
           ]}
-          size="sm"
-          className="w-48"
+          className="w-full sm:w-52"
+          allowDeselect={false}
         />
       </div>
 
-      {/* Product Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-        {products.map((p) => (
-          <ProductCard product={p} key={p.id} />
-        ))}
+      <div className="grid grid-cols-1 gap-5 min-[420px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
+        {products.map((product) => <ProductCard product={product} key={product.id} />)}
       </div>
 
-      <div className="mt-6 flex justify-center">
-        <button
-          className="px-4 py-2 bg-gray-200 rounded-md disabled:opacity-50"
-          disabled={page === "1"}
-          onClick={() => {
-            setSearchParams((prev) => {
-              const params = Object.fromEntries(prev.entries());
-              return { ...params, page: String(Number(page) - 1) };
-            });
-          }}
-        >
-          Previous
-        </button>
-        <span className="px-4 py-2 text-gray-700">Page {page}</span>
-        <button
-          disabled={!meta.hasNextPage}
-          onClick={() => {
-            setSearchParams((prev) => {
-              const params = Object.fromEntries(prev.entries());
-              return { ...params, page: String(Number(page) + 1) };
-            });
-          }}
-          className="px-4 py-2 bg-gray-200 rounded-md disabled:opacity-50"
-        >
-          Next
-        </button>
-      </div>
+      {paginationTotal > 1 && (
+        <div className="mt-10 flex flex-col items-center gap-2">
+          <Pagination
+            value={page}
+            total={paginationTotal}
+            onChange={(nextPage) => updateParams({ page: nextPage === 1 ? null : String(nextPage) })}
+            siblings={1}
+            boundaries={1}
+            aria-label="Menu pages"
+          />
+          <p className="text-xs text-ink-muted">Page {page}</p>
+        </div>
+      )}
     </div>
   );
 };
