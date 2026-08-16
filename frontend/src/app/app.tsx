@@ -1,14 +1,14 @@
 import { useEffect } from "react";
-import { CHAT_API_HOOKS } from "./hooks";
+import { CHAT_API_HOOKS } from "@/hooks";
 import { useUser } from "@/features/auth";
-import { useSocketStore } from "./store";
+import { useSocketStore } from "@/store";
 import { io } from "socket.io-client";
 import { Routes } from "react-router";
-import { AppRoutes } from "./routes";
+import { AppRoutes } from "./router/routes";
 import { BASE_URL } from "@/shared/config";
-import { ErrorBoundary, GlobalModal } from "./components/common";
+import { ErrorBoundary, GlobalModal } from "@/shared/ui";
 
-function App() {
+export function App() {
   const { setSocket } = useSocketStore();
   const { user, isLoggedIn } = useUser();
 

@@ -6,7 +6,8 @@ import { chatStatus, ChatStatus } from "../model/support.types";
 import { adminSupportColumns, getPriority, getWaitTime } from "../components/admin/admin-support-columns";
 import SupportStatusPill from "../components/admin/support-status-pill";
 import SupportActions from "../components/admin/support-actions";
-import { DataTable } from "@/components/table";
+import { DataTable } from "@/shared/ui";
+
 import { PageHeader } from "@/components/common";
 
 export const AdminSupportPage = () => {

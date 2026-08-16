@@ -7,7 +7,8 @@ import { useGetAdminOrders } from "../api/order.queries";
 import { OrderStatus as OrderStatusType, orderStatus } from "../model/order.types";
 import { formatPrice } from "@/shared/lib";
 import { PageHeader, OrderStatus as StatusPill } from "@/components/common";
-import { DataTable } from "@/components/table";
+import { DataTable } from "@/shared/ui";
+
 
 export const AdminOrdersPage = () => {
   const [selectedStatus, setSelectedStatus] = useState<OrderStatusType>("pending");

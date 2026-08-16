@@ -1,6 +1,7 @@
 import { orderColumnsAdmin } from "@/components/admin";
 import { PageHeader, OrderStatus as StatusPill } from "@/components/common";
-import { DataTable } from "@/components/table";
+import { DataTable } from "@/shared/ui";
+
 import { ORDER_API_HOOKS } from "@/hooks";
 import { formatPrice, orderStatus, OrderStatus } from "@/lib";
 import { Button, Select, Skeleton } from "@mantine/core";

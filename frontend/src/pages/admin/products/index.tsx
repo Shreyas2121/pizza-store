@@ -1,6 +1,7 @@
 import { ProductsCol } from "@/components/admin";
 import { PageHeader } from "@/components/common";
-import { DataTable } from "@/components/table";
+import { DataTable } from "@/shared/ui";
+
 import { PRODUCTS_HOOKS } from "@/hooks";
 import { BASE_URL, formatPrice } from "@/lib";
 import { Badge, Button, Skeleton } from "@mantine/core";

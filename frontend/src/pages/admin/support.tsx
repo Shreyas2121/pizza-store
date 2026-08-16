@@ -3,7 +3,8 @@ import { Button, Select, Skeleton } from "@mantine/core";
 import { chatStatus, ChatStatus } from "@/lib";
 import { CHAT_API_HOOKS } from "@/hooks";
 import { columns, getPriority, getWaitTime } from "@/components/admin";
-import { DataTable } from "@/components/table";
+import { DataTable } from "@/shared/ui";
+
 import { PageHeader } from "@/components/common";
 import SupportStatus from "@/components/admin/support/support-status";
 import SupportActions from "@/components/admin/support/actions";

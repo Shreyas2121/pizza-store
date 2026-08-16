@@ -6,7 +6,8 @@ import { useGetProductsA } from "../api/product.queries";
 import { BASE_URL } from "@/shared/config";
 import { formatPrice } from "@/shared/lib";
 import { PageHeader } from "@/components/common";
-import { DataTable } from "@/components/table";
+import { DataTable } from "@/shared/ui";
+
 
 export const AdminProductsPage = () => {
   const { data, isLoading, isError } = useGetProductsA();
