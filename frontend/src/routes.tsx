@@ -13,17 +13,17 @@ import {
 import { CartPage as Cart } from "@/features/cart";
 import { CheckoutPage as Checkout } from "@/features/checkout";
 import {
-  OrderDetails,
-  Orders,
-  NotFound,
-} from "./pages/main";
+  CustomerOrdersPage as Orders,
+  CustomerOrderDetailsPage as OrderDetails,
+  AdminOrdersPage as AdminOrders,
+  AdminOrderDetailsPage as AdminOrderDetails,
+} from "@/features/orders";
+import { NotFound } from "./pages/main";
 import { Suspense, useEffect } from "react";
 import { Loader } from "@mantine/core";
 import {
   AdminChat,
   AdminHome,
-  AdminOrderDetails,
-  AdminOrders,
   AdminSupport,
 } from "./pages/admin";
 

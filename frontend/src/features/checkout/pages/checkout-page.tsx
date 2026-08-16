@@ -4,7 +4,7 @@ import { ArrowLeft, Truck, UserRound } from "lucide-react";
 import { Link, useNavigate } from "react-router";
 import { AddressForm, useGetAddresses, useGetUser } from "@/features/account";
 import { useGetCartCheckout } from "@/features/cart";
-import { ORDER_API_HOOKS } from "@/hooks";
+import { useCreateOrder } from "@/features/orders";
 import { error, success } from "@/shared/lib";
 import { Coupon } from "../model/checkout.types";
 import { useValidateCoupon, useRedeemCoupon } from "../api/coupon.mutations";
@@ -17,7 +17,7 @@ export const CheckoutPage = () => {
   const { data: addresses, isLoading: loadingAddresses, isError: addressesError } = useGetAddresses();
   const { data: cart, isLoading: loadingCart, isError: cartError } = useGetCartCheckout();
   const { data: user, isLoading: loadingUser, isError: userError } = useGetUser();
-  const createOrderM = ORDER_API_HOOKS.useCreateOrder();
+  const createOrderM = useCreateOrder();
   const validateCouponM = useValidateCoupon();
   const redeemCouponM = useRedeemCoupon();
   const [coupon, setCoupon] = useState<Coupon | null>(null);

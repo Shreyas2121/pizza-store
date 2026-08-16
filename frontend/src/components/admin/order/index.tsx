@@ -1,1 +1,1 @@
-export { orderColumnsAdmin } from "./columns";
+export { adminOrderColumns as orderColumnsAdmin } from "@/features/orders";

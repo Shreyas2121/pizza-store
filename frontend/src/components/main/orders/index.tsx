@@ -1,1 +1,1 @@
-export { columns } from "./columns";
+export { customerOrderColumns as columns } from "@/features/orders";
