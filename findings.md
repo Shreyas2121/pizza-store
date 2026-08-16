@@ -89,6 +89,8 @@
 
 ## 6. Home/menu discovery experience
 
+**Implementation status: Completed (2026-08-16).** The home route now opens with a concise, brand-led hero using an original PizzaStore food image, two ordering calls to action, and three purchase-confidence points. A compact offer/trust strip follows the hero. The catalogue now uses a horizontally scrollable category rail with an explicit, strongly differentiated “All” state; its mobile treatment becomes sticky beneath the storefront header. Category and sort changes reset pagination, the product heading reflects the active category, and the responsive sort control remains compact. Product loading skeletons mirror the grid, while menu errors and zero-result states provide clear recovery actions. URL-based category, sort, and page state is preserved, and the product grid now scales from one to four columns instead of crowding five cards across.
+
 1. Recompose `src/pages/main/home.tsx` into a real landing page rather than only returning `<Menu />`.
 2. Add a hero section with an appetizing pizza image, a direct headline, one short value proposition, primary "Order now" CTA, secondary "View menu" CTA, and 2–3 trust points such as fresh dough, fast delivery, or cash on delivery.
 3. Keep the hero concise enough that the first menu categories remain partially visible on a common laptop viewport.
