@@ -3,17 +3,27 @@ import { Badge, Button, Drawer } from "@mantine/core";
 import { Leaf, ShoppingCart } from "lucide-react";
 import { BASE_URL, Product, success } from "@/lib";
 import { CART_API_HOOKS } from "@/hooks";
-import { useUser } from "@/store";
+import { useAuthModalStore, useUser } from "@/store";
+import Login from "@/components/auth/login";
 import Customize from "../customize";
 
 const ProductCard = ({ product }: { product: Product }) => {
   const addToCartM = CART_API_HOOKS.useAddToCart();
   const [opened, setOpened] = useState(false);
   const { isLoggedIn } = useUser();
+  const { openModal } = useAuthModalStore();
 
   const close = () => setOpened(false);
 
   const handleAddToCart = () => {
+    if (!isLoggedIn) {
+      openModal({
+        content: <Login />,
+        title: "Sign in to order",
+      });
+      return;
+    }
+
     if (product.hasCustomization) {
       setOpened(true);
     } else {

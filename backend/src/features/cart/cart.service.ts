@@ -263,6 +263,10 @@ class CartService {
   }) {
     const cartItem = await this.getCartItemById(cartItemId);
 
+    if (type === "-" && cartItem.quantity! <= 1) {
+      return await this.deleteCartItem(cartItemId);
+    }
+
     let updatedPrice =
       cartItem.customizations.reduce((prev, curr) => prev + curr.price, 0) +
       cartItem.price;

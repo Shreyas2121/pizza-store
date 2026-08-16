@@ -20,7 +20,8 @@ export function createQuery<T>(
     queryKey: key,
     queryFn: async () => {
       const { data } = await API.get(url, { params });
-      return dataKey ? data[dataKey] : (data as T);
+      const res = dataKey ? data[dataKey] : (data as T);
+      return res ?? null;
     },
     ...options,
   });
@@ -37,7 +38,8 @@ export function createSuspenseQuery<T>(
     queryKey: key,
     queryFn: async () => {
       const { data } = await API.get(url, { params });
-      return dataKey ? data[dataKey] : (data as T);
+      const res = dataKey ? data[dataKey] : (data as T);
+      return res ?? null;
     },
     ...options,
   });

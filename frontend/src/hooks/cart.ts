@@ -17,7 +17,11 @@ const useGetCartCount = (enabled: boolean = true) => {
 const useAddToCart = () => {
   return createMutation<{
     message: string;
-  }>("/cart/add", "post", [[keys.cartCount]]);
+  }>("/cart/add", "post", [
+    [keys.getCart],
+    [keys.cartCount],
+    [keys.cartCheckout],
+  ]);
 };
 
 const useGetCart = () => {
@@ -31,6 +35,7 @@ const useGetCartCheckout = () => {
 const useUpdateCartItemQuantity = () => {
   return createMutation<{ message: string }>("/cart/update", "patch", [
     [keys.getCart],
+    [keys.cartCount],
     [keys.cartCheckout],
   ]);
 };

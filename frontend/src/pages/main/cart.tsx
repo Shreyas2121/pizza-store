@@ -9,7 +9,8 @@ import { Minus, Plus, ShoppingCart, Trash2, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router";
 
 const Cart = () => {
-  const { data: cart } = CART_API_HOOKS.useGetCart();
+  const { data: rawCart } = CART_API_HOOKS.useGetCart();
+  const cart = rawCart || { id: 0, userId: 0, items: [], totalPrice: 0 };
   const { openModal, closeModal } = useAuthModalStore();
   const updateCartM = CART_API_HOOKS.useUpdateCartItemQuantity();
   const removeCartItemM = CART_API_HOOKS.useRemoveCartItem();
