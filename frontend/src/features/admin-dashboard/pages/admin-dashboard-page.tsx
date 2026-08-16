@@ -13,9 +13,11 @@ import {
   useGetDashboardChartsData,
 } from "../api/dashboard.queries";
 import { useGetAdminOrders } from "@/features/orders";
-import { OrderStatus } from "@/components/common";
+import { OrderStatus } from "@/features/orders";
+
 import { formatPrice } from "@/shared/lib";
-import { useSocketStore } from "@/store";
+import { useSocketStore } from "@/features/support";
+
 import { useAuthModalStore } from "@/shared/model";
 
 export const AdminDashboardPage = () => {

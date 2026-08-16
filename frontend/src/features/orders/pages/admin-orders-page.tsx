@@ -6,7 +6,9 @@ import { adminOrderColumns } from "../components/admin/admin-order-columns";
 import { useGetAdminOrders } from "../api/order.queries";
 import { OrderStatus as OrderStatusType, orderStatus } from "../model/order.types";
 import { formatPrice } from "@/shared/lib";
-import { PageHeader, OrderStatus as StatusPill } from "@/components/common";
+import { PageHeader } from "@/shared/ui";
+import { OrderStatus as StatusPill } from "../components/order-status";
+
 import { DataTable } from "@/shared/ui";
 
 

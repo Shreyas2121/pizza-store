@@ -3,7 +3,8 @@ import { Button } from "@mantine/core";
 import { Link } from "react-router";
 import { Order } from "../../model/order.types";
 import { formatPrice } from "@/shared/lib";
-import { OrderStatus } from "@/components/common";
+import { OrderStatus } from "../order-status";
+
 
 export const customerOrderColumns: ColumnDef<Order>[] = [
   {

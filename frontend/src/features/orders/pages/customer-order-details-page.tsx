@@ -3,7 +3,12 @@ import { ArrowLeft, Check, ChefHat, Clock3, CreditCard, PackageCheck, ReceiptTex
 import { Link, useParams } from "react-router";
 import { useGetOrder } from "../api/order.queries";
 import { formatPrice } from "@/shared/lib";
-import { OrderAddress, OrderCoupon, OrderItems, OrderStatus, PageHeader } from "@/components/common";
+import { PageHeader } from "@/shared/ui";
+import { OrderAddress } from "../components/order-address";
+import { OrderCoupon } from "../components/order-coupon";
+import { OrderItems } from "../components/order-items";
+import { OrderStatus } from "../components/order-status";
+
 
 export const CustomerOrderDetailsPage = () => {
   const { id } = useParams();

@@ -8,7 +8,8 @@ import SupportStatusPill from "../components/admin/support-status-pill";
 import SupportActions from "../components/admin/support-actions";
 import { DataTable } from "@/shared/ui";
 
-import { PageHeader } from "@/components/common";
+import { PageHeader } from "@/shared/ui";
+
 
 export const AdminSupportPage = () => {
   const [statusFilter, setStatusFilter] = useState<ChatStatus>("pending");

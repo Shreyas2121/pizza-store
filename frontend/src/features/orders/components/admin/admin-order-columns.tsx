@@ -4,7 +4,8 @@ import { ArrowRight } from "lucide-react";
 import { Link } from "react-router";
 import { OrdersAdmin } from "../../model/order.types";
 import { formatPrice } from "@/shared/lib";
-import { OrderStatus } from "@/components/common";
+import { OrderStatus } from "../order-status";
+
 
 export const adminOrderColumns: ColumnDef<OrdersAdmin>[] = [
   { header: "Order", accessorKey: "id", cell: ({ row }) => <span className="font-semibold tabular-nums">#{row.original.id}</span> },

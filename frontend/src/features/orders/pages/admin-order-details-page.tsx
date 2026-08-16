@@ -6,7 +6,12 @@ import { ArrowLeft, Clock3, Save } from "lucide-react";
 import { useGetOrder, useOrderUpdateStatus } from "../api/order.queries";
 import { OrderStatus as OT, orderStatus } from "../model/order.types";
 import { formatPrice, success } from "@/shared/lib";
-import { OrderAddress, OrderCoupon, OrderItems, OrderStatus, PageHeader } from "@/components/common";
+import { PageHeader } from "@/shared/ui";
+import { OrderAddress } from "../components/order-address";
+import { OrderCoupon } from "../components/order-coupon";
+import { OrderItems } from "../components/order-items";
+import { OrderStatus } from "../components/order-status";
+
 
 const nextAction: Record<string, string> = { pending: "Confirm the kitchen can begin this order.", preparing: "Mark delivered after handoff is complete.", delivered: "No fulfilment action required.", delievered: "No fulfilment action required.", cancelled: "This order is closed and cannot progress." };
 

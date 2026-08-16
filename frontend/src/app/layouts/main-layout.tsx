@@ -1,4 +1,5 @@
-import { Footer, Navbar } from "@/components/main";
+import { StorefrontFooter } from "./components/storefront-footer";
+import { StorefrontNavbar } from "./components/storefront-navbar";
 import { SupportAction } from "@/features/support";
 import { Outlet } from "react-router";
 
@@ -11,12 +12,12 @@ export const MainLayout = () => {
       >
         Skip to content
       </a>
-      <Navbar />
+      <StorefrontNavbar />
       <SupportAction />
       <main id="main-content" className="flex-1">
         <Outlet />
       </main>
-      <Footer />
+      <StorefrontFooter />
     </div>
   );
 };

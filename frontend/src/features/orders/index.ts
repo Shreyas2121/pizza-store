@@ -1,4 +1,9 @@
+export { OrderAddress } from "./components/order-address";
+export { OrderCoupon } from "./components/order-coupon";
+export { OrderItems } from "./components/order-items";
+export { OrderStatus, getOrderStatusMeta } from "./components/order-status";
 export { CustomerOrdersPage } from "./pages/customer-orders-page";
+
 export { CustomerOrderDetailsPage } from "./pages/customer-order-details-page";
 export { AdminOrdersPage } from "./pages/admin-orders-page";
 export { AdminOrderDetailsPage } from "./pages/admin-order-details-page";
@@ -21,6 +26,7 @@ export type {
   OrderItemRes,
   OrderRes,
   OrdersAdmin,
-  OrderStatus,
+  OrderStatus as OrderStatusType,
 } from "./model/order.types";
+
 export { orderStatus } from "./model/order.types";

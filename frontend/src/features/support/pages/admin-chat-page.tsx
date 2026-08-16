@@ -1,5 +1,6 @@
 import { useParams } from "react-router";
-import { Chat } from "@/components/common";
+import { Chat } from "../components/chat";
+
 
 export const AdminChatPage = () => {
   const params = useParams();

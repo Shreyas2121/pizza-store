@@ -4,7 +4,8 @@ import ProductAssignment from "../components/admin/product-assignment";
 import { useGetAllCustomizations } from "../api/customization.queries";
 import { formatPrice } from "@/shared/lib";
 import { useAuthModalStore } from "@/shared/model";
-import { PageHeader } from "@/components/common";
+import { PageHeader } from "@/shared/ui";
+
 
 export const AdminCustomizationsPage = () => {
   const { data: groups, isLoading, isError } = useGetAllCustomizations();

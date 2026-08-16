@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { API, createMutation, createQuery } from "@/shared/api";
-import { useSocketStore } from "@/store";
+import { useSocketStore } from "../model/support.store";
+
 import {
   ChatSession,
   ChatSessionWithUser,

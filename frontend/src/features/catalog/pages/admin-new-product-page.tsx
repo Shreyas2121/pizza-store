@@ -1,5 +1,6 @@
 import ProductForm from "../components/admin/product-form";
-import { PageHeader } from "@/components/common";
+import { PageHeader } from "@/shared/ui";
+
 
 export const AdminNewProductPage = () => {
   return (

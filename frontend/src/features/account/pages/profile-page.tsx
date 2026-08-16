@@ -1,7 +1,8 @@
 import { Skeleton } from "@mantine/core";
 import { CalendarDays, Mail, ShieldCheck, UserRound } from "lucide-react";
 import { useGetUser } from "../api/profile.queries";
-import { PageHeader } from "@/components/common";
+import { PageHeader } from "@/shared/ui";
+
 
 export const ProfilePage = () => {
   const { data: user, isLoading, isError } = useGetUser();

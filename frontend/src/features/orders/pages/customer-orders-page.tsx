@@ -4,7 +4,9 @@ import { Link, useSearchParams } from "react-router";
 import { useGetOrders } from "../api/order.queries";
 import { OrderStatus as OrderStatusType } from "../model/order.types";
 import { formatPrice } from "@/shared/lib";
-import { OrderStatus, PageHeader } from "@/components/common";
+import { PageHeader } from "@/shared/ui";
+import { OrderStatus } from "../components/order-status";
+
 
 type Filter = "all" | OrderStatusType;
 const filters: { label: string; value: Filter }[] = [

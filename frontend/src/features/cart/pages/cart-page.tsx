@@ -5,7 +5,8 @@ import { ArrowRight, ShoppingCart } from "lucide-react";
 import { useNavigate } from "react-router";
 import { AddressForm, useGetAddresses } from "@/features/account";
 import { CustomizationDrawer } from "@/features/catalog";
-import { EmptyState, PageHeader } from "@/components/common";
+import { EmptyState, PageHeader } from "@/shared/ui";
+
 import { useAuthModalStore } from "@/shared/model";
 import { success } from "@/shared/lib";
 import { ItemRes } from "../model/cart.types";

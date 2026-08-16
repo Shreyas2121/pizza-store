@@ -5,7 +5,8 @@ import { ProductsCol } from "../components/admin/product-columns";
 import { useGetProductsA } from "../api/product.queries";
 import { BASE_URL } from "@/shared/config";
 import { formatPrice } from "@/shared/lib";
-import { PageHeader } from "@/components/common";
+import { PageHeader } from "@/shared/ui";
+
 import { DataTable } from "@/shared/ui";
 
 

@@ -1,31 +1,32 @@
+import { lazy } from "react";
 import { Route } from "react-router";
 import { AdminLayout, MainLayout, ProfileLayout } from "../layouts";
 import { ProtectedRoutes } from "./guards/protected-route";
 import { AdminProtectedRoute } from "./guards/admin-route";
-import { ProfilePage as Profile, AddressesPage as Address } from "@/features/account";
-import {
-  HomePage as Home,
-  AdminProductsPage as AdminProducts,
-  AdminNewProductPage as AdminNewProduct,
-  AdminCustomizationsPage as AdminCustomization,
-  AdminMenuPage as AdminMenu,
-} from "@/features/catalog";
-import { CartPage as Cart } from "@/features/cart";
-import { CheckoutPage as Checkout } from "@/features/checkout";
-import {
-  CustomerOrdersPage as Orders,
-  CustomerOrderDetailsPage as OrderDetails,
-  AdminOrdersPage as AdminOrders,
-  AdminOrderDetailsPage as AdminOrderDetails,
-} from "@/features/orders";
-import {
-  AdminSupportPage as AdminSupport,
-  AdminChatPage as AdminChat,
-} from "@/features/support";
-import { AdminDashboardPage as AdminHome } from "@/features/admin-dashboard";
-import { NotFound } from "@/pages/main";
-import { Suspense } from "react";
-import { Loader } from "@mantine/core";
+import { NotFoundPage as NotFound } from "./not-found-page";
+
+
+const Home = lazy(() => import("@/features/catalog").then((m) => ({ default: m.HomePage })));
+const AdminProducts = lazy(() => import("@/features/catalog").then((m) => ({ default: m.AdminProductsPage })));
+const AdminNewProduct = lazy(() => import("@/features/catalog").then((m) => ({ default: m.AdminNewProductPage })));
+const AdminCustomization = lazy(() => import("@/features/catalog").then((m) => ({ default: m.AdminCustomizationsPage })));
+const AdminMenu = lazy(() => import("@/features/catalog").then((m) => ({ default: m.AdminMenuPage })));
+
+const Profile = lazy(() => import("@/features/account").then((m) => ({ default: m.ProfilePage })));
+const Address = lazy(() => import("@/features/account").then((m) => ({ default: m.AddressesPage })));
+
+const Cart = lazy(() => import("@/features/cart").then((m) => ({ default: m.CartPage })));
+const Checkout = lazy(() => import("@/features/checkout").then((m) => ({ default: m.CheckoutPage })));
+
+const Orders = lazy(() => import("@/features/orders").then((m) => ({ default: m.CustomerOrdersPage })));
+const OrderDetails = lazy(() => import("@/features/orders").then((m) => ({ default: m.CustomerOrderDetailsPage })));
+const AdminOrders = lazy(() => import("@/features/orders").then((m) => ({ default: m.AdminOrdersPage })));
+const AdminOrderDetails = lazy(() => import("@/features/orders").then((m) => ({ default: m.AdminOrderDetailsPage })));
+
+const AdminSupport = lazy(() => import("@/features/support").then((m) => ({ default: m.AdminSupportPage })));
+const AdminChat = lazy(() => import("@/features/support").then((m) => ({ default: m.AdminChatPage })));
+
+const AdminHome = lazy(() => import("@/features/admin-dashboard").then((m) => ({ default: m.AdminDashboardPage })));
 
 export const AppRoutes = () => (
   <>
@@ -35,9 +36,7 @@ export const AppRoutes = () => (
         path="/cart"
         element={
           <ProtectedRoutes>
-            <Suspense fallback={<Loader className="m-auto" />}>
-              <Cart />
-            </Suspense>
+            <Cart />
           </ProtectedRoutes>
         }
       />
@@ -45,9 +44,7 @@ export const AppRoutes = () => (
         path="/checkout"
         element={
           <ProtectedRoutes>
-            <Suspense fallback={<Loader className="m-auto" />}>
-              <Checkout />
-            </Suspense>
+            <Checkout />
           </ProtectedRoutes>
         }
       />

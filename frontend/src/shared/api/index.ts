@@ -1,2 +1,9 @@
-export * from "./api-client";
-export * from "./query-helpers";
+export { apiClient, API } from "./api-client";
+export {
+  createQuery,
+  createSuspenseQuery,
+  createMutation,
+  useCustomQuery,
+  useCustomSuspenseQuery,
+  useCustomMutation,
+} from "./query-helpers";

@@ -1,18 +1,19 @@
-import { useEffect } from "react";
-import { CHAT_API_HOOKS } from "@/hooks";
+import { Suspense, useEffect } from "react";
 import { useUser } from "@/features/auth";
-import { useSocketStore } from "@/store";
+import { useSocketStore, useSyncChatStatus } from "@/features/support";
 import { io } from "socket.io-client";
 import { Routes } from "react-router";
 import { AppRoutes } from "./router/routes";
 import { BASE_URL } from "@/shared/config";
 import { ErrorBoundary, GlobalModal } from "@/shared/ui";
+import { Loader } from "@mantine/core";
 
 export function App() {
   const { setSocket } = useSocketStore();
   const { user, isLoggedIn } = useUser();
 
-  CHAT_API_HOOKS.useSyncChatStatus(isLoggedIn);
+  useSyncChatStatus(isLoggedIn);
+
 
   useEffect(() => {
     const socket = io(BASE_URL);
@@ -30,7 +31,9 @@ export function App() {
   return (
     <ErrorBoundary>
       <GlobalModal />
-      <Routes>{AppRoutes()}</Routes>
+      <Suspense fallback={<Loader className="m-auto my-12" />}>
+        <Routes>{AppRoutes()}</Routes>
+      </Suspense>
     </ErrorBoundary>
   );
 }

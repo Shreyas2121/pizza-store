@@ -6,7 +6,8 @@ import AddressForm from "../components/address-form";
 import { useGetAddresses, useDeleteAddress } from "../api/address.queries";
 import { Address } from "../model/account.types";
 import { success } from "@/shared/lib";
-import { PageHeader } from "@/components/common";
+import { PageHeader } from "@/shared/ui";
+
 
 export const AddressesPage = () => {
   const { data: addresses, isLoading, isError } = useGetAddresses();

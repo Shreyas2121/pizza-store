@@ -1,1 +1,1 @@
-export * from "./modal.store";
+export { useAuthModalStore, type ModalOptions } from "./modal.store";

@@ -4,7 +4,8 @@ import MenuForm from "../components/admin/menu-form";
 import { useGetMenuItems } from "../api/menu.queries";
 import { BASE_URL } from "@/shared/config";
 import { useAuthModalStore } from "@/shared/model";
-import { PageHeader } from "@/components/common";
+import { PageHeader } from "@/shared/ui";
+
 
 export const AdminMenuPage = () => {
   const { data: menuItems, isLoading, isError } = useGetMenuItems();

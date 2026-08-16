@@ -11,9 +11,10 @@ import { useChatRequest } from "../api/chat.queries";
 import { ChatSession } from "../model/support.types";
 import { useUser } from "@/features/auth";
 import { useAuthModalStore } from "@/shared/model";
-import { useSocketStore } from "@/store";
+import { useSocketStore } from "../model/support.store";
 import { success } from "@/shared/lib";
-import { Chat } from "@/components/common";
+import { Chat } from "./chat";
+
 
 const chatRequestSchema = z.object({
   title: z

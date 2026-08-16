@@ -1,5 +1,7 @@
 export { SupportAction, ChatRequestForm } from "./components/chat-widget";
+export { Chat } from "./components/chat";
 export { SupportStatusPill } from "./components/admin/support-status-pill";
+
 export { SupportActions } from "./components/admin/support-actions";
 export {
   adminSupportColumns,
@@ -24,6 +26,7 @@ export {
   useUpdateSupportRequest,
 } from "./api/chat.queries";
 
+export { useSocketStore } from "./model/support.store";
 export type {
   ChatStatus,
   ChatSession,
@@ -31,3 +34,4 @@ export type {
   Message,
 } from "./model/support.types";
 export { chatStatus } from "./model/support.types";
+
