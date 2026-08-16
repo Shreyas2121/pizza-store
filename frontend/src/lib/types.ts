@@ -33,6 +33,7 @@ import type {
   ChatSessionWithUser,
   Message,
 } from "@/features/support";
+import type { DashCard, GroupT } from "@/features/admin-dashboard";
 
 export type {
   User,
@@ -67,20 +68,6 @@ export type {
   ChatSession,
   ChatSessionWithUser,
   Message,
+  DashCard,
+  GroupT,
 };
-
-export interface DashCard {
-  label: string;
-  data: {
-    current: string;
-    previous: string;
-    percentage: string;
-    isLow: boolean;
-    icon: {
-      name: string;
-      color: string;
-    };
-  };
-}
-
-export type GroupT = "daily" | "weekly" | "monthly" | "quarterly" | "yearly";

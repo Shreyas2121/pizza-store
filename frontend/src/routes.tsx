@@ -22,12 +22,10 @@ import {
   AdminSupportPage as AdminSupport,
   AdminChatPage as AdminChat,
 } from "@/features/support";
+import { AdminDashboardPage as AdminHome } from "@/features/admin-dashboard";
 import { NotFound } from "./pages/main";
 import { Suspense, useEffect } from "react";
 import { Loader } from "@mantine/core";
-import {
-  AdminHome,
-} from "./pages/admin";
 
 function ProtectedRoutes({ children }: { children: React.ReactNode }) {
   const { openModal } = useAuthModalStore();

@@ -1,17 +1,10 @@
 import { MantineColorsTuple } from "@mantine/core";
-import {
-  Box,
-  Home,
-  MapPin,
-  ShoppingCart,
-  Sliders,
-  User,
-  MessageCircleQuestionIcon,
-} from "lucide-react";
+import { Box, MapPin, User } from "lucide-react";
 import { orderStatus } from "@/features/orders";
 import { chatStatus } from "@/features/support";
+import { sidebarLinks } from "@/features/admin-navigation";
 
-export { orderStatus, chatStatus };
+export { orderStatus, chatStatus, sidebarLinks };
 
 export const brandColor: MantineColorsTuple = [
   "#FDF2F0",
@@ -115,37 +108,4 @@ export const navLinks = [
   { label: "Account overview", to: "/profile", icon: User },
   { label: "Saved addresses", to: "/address", icon: MapPin },
   { label: "Orders", to: "/orders", icon: Box },
-];
-
-export const sidebarLinks = [
-  {
-    label: "Dashboard",
-    to: "/admin",
-    icon: Home,
-  },
-  {
-    label: "Customization",
-    to: "/admin/customization",
-    icon: Sliders,
-  },
-  {
-    label: "Products",
-    to: "/admin/products",
-    icon: Box,
-  },
-  {
-    label: "Orders",
-    to: "/admin/orders",
-    icon: ShoppingCart,
-  },
-  {
-    label: "Menu",
-    to: "/admin/menu",
-    icon: Sliders,
-  },
-  {
-    label: "Support",
-    to: "/admin/support",
-    icon: MessageCircleQuestionIcon,
-  },
 ];

@@ -3,8 +3,7 @@ import { Avatar, Menu as AccountMenu, Skeleton, UnstyledButton } from "@mantine/
 import { showNotification } from "@mantine/notifications";
 import { Bell, ChevronDown, LogOut, Menu, Store } from "lucide-react";
 import { Link, Navigate, Outlet, useLocation, useNavigate } from "react-router";
-import "@mantine/charts/styles.css";
-import AdminSidebar from "@/components/admin/sidebar";
+import { AdminSidebar } from "@/features/admin-navigation";
 import { useUser } from "@/features/auth";
 import { useSocketStore } from "@/store";
 

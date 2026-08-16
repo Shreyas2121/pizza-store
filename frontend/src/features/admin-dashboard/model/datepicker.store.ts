@@ -1,0 +1,22 @@
+import { create } from "zustand";
+import { GroupT } from "./dashboard.types";
+
+interface DatePickerState {
+  dates: [Date | null, Date | null];
+  setDates: (dates: [Date | null, Date | null]) => void;
+  group: GroupT;
+  setGroup: (group: GroupT) => void;
+}
+
+export const useDatePicker = create<DatePickerState>((set) => {
+  const to = new Date();
+  const from = new Date();
+  from.setMonth(from.getMonth() - 5);
+
+  return {
+    dates: [from, to],
+    setDates: (dates: [Date | null, Date | null]) => set({ dates }),
+    group: "monthly",
+    setGroup: (group: GroupT) => set({ group }),
+  };
+});
