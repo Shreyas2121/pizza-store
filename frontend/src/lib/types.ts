@@ -1,59 +1,37 @@
 import type { User, Role } from "@/features/auth";
-export type { User, Role };
+import type { Address, AddressType } from "@/features/account";
+import type {
+  Category,
+  Product,
+  MenuItem,
+  CustomizationGroup,
+  CustomizationOption,
+  Option,
+  Group,
+  ProductWithCategory,
+  CustomizationType,
+} from "@/features/catalog";
+export type {
+  User,
+  Role,
+  Address,
+  AddressType,
+  Category,
+  Product,
+  MenuItem,
+  CustomizationGroup,
+  CustomizationOption,
+  Option,
+  Group,
+  ProductWithCategory,
+  CustomizationType,
+};
 
-export type AddressType = "Home" | "Work" | "Other";
-export type CustomizationType = "single" | "multiple";
 export type OrderStatus = "pending" | "preparing" | "delivered" | "delievered" | "cancelled";
 export type PaymentStatus = "pending" | "processing" | "completed" | "failed";
 export type PaymentType = "cash";
 export type CouponType = "percentage" | "fixed";
 export type ChatStatus = "open" | "close" | "rejected" | "pending";
-
-export type Address = {
-  type: AddressType;
-  id: number;
-  createdAt: Date;
-  updatedAt: Date;
-  userId: number;
-  street: string;
-  city: string;
-  state: string;
-  pincode: string;
-  phone: string;
-};
-
-export type Category = {
-  id: number;
-  name: string;
-  featured: boolean | null;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-};
-
-export type Product = {
-  id: number;
-  name: string;
-  description: string | null;
-  slug: string;
-  veg: boolean | null;
-  hasCustomization: boolean;
-  isAvailable: boolean;
-  price: number;
-  image: string;
-  categoryId: number;
-};
-
-export type MenuItem = {
-  id: number;
-  name: string;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-  slug: string;
-  image: string;
-  position: number;
-};
 
 export type Cart = {
   id: number;
@@ -106,31 +84,6 @@ export type Payment = {
   paymentDate: Date;
 };
 
-export type CustomizationGroup = {
-  type: CustomizationType;
-  id: number;
-  name: string;
-  createdAt: Date;
-  updatedAt: Date;
-  required: boolean;
-};
-
-export type CustomizationOption = {
-  id: number;
-  name: string;
-  createdAt: Date;
-  updatedAt: Date;
-  price: number | null;
-  isAvailable: boolean;
-  groupId: number;
-};
-
-export type Option = CustomizationOption;
-
-export interface Group extends CustomizationGroup {
-  options: CustomizationOption[];
-}
-
 export interface ItemRes extends CartItem {
   product: Product;
   customizations: {
@@ -169,10 +122,6 @@ export interface OrderRes extends Order {
   coupon: Coupon | null;
   payment: Payment | null;
   items: OrderItemRes[];
-}
-
-export interface ProductWithCategory extends Product {
-  category: Category;
 }
 
 export interface OrdersAdmin extends Order {

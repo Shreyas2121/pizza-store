@@ -1,1 +1,1 @@
-export { default as ProfileSidebar } from "./profile-sidebar";
+export { ProfileSidebar } from "@/features/account";

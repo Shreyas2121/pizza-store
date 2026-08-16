@@ -1,3 +1,3 @@
-export { default as Menu } from "./menu";
-export { default as ProductCard } from "./product-card";
-export { default as Products } from "./products";
+export { MenuCategoryRail as Menu } from "@/features/catalog";
+export { ProductCard } from "@/features/catalog";
+export { ProductGrid as Products } from "@/features/catalog";

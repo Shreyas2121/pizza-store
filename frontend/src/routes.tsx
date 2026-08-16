@@ -2,27 +2,28 @@ import { Navigate, Route } from "react-router";
 import { Login, useUser } from "@/features/auth";
 import { useAuthModalStore } from "@/shared/model";
 import { AdminLayout, MainLayout, ProfileLayout } from "./layouts";
+import { ProfilePage as Profile, AddressesPage as Address } from "@/features/account";
 import {
-  Address,
+  HomePage as Home,
+  AdminProductsPage as AdminProducts,
+  AdminNewProductPage as AdminNewProduct,
+  AdminCustomizationsPage as AdminCustomization,
+  AdminMenuPage as AdminMenu,
+} from "@/features/catalog";
+import {
   Cart,
   Checkout,
-  Home,
   OrderDetails,
   Orders,
-  Profile,
   NotFound,
 } from "./pages/main";
 import { Suspense, useEffect } from "react";
 import { Loader } from "@mantine/core";
 import {
   AdminChat,
-  AdminCustomization,
   AdminHome,
-  AdminMenu,
-  AdminNewProduct,
   AdminOrderDetails,
   AdminOrders,
-  AdminProducts,
   AdminSupport,
 } from "./pages/admin";
 

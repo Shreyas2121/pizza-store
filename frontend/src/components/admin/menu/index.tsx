@@ -1,1 +1,1 @@
-export { default as CreateMenuItem } from "./create-menu-item";
+export { MenuForm as CreateMenuItem } from "@/features/catalog";

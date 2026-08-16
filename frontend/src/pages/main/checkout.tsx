@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Badge, Button, Drawer, Radio, Skeleton, TextInput } from "@mantine/core";
 import { ArrowLeft, BadgePercent, Check, ChevronRight, CircleDollarSign, LockKeyhole, MapPin, Plus, Truck, UserRound } from "lucide-react";
 import { Link, useNavigate } from "react-router";
-import { AddressForm } from "@/components/main";
+import { AddressForm } from "@/features/account";
 import { CART_API_HOOKS, COUPON_API_HOOKS, ORDER_API_HOOKS, USER_API_HOOKS } from "@/hooks";
 import { BASE_URL, Coupon, error, formatPrice, success } from "@/lib";
 
