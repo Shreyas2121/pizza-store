@@ -94,7 +94,7 @@ const Register = () => {
           leftSection={<Lock size={16} />}
           placeholder="Confirm your password"
         />
-        <Button disabled={registerM.isPending} type="submit" fullWidth mt="md">
+        <Button loading={registerM.isPending} type="submit" fullWidth mt="md">
           Register
         </Button>
         <div>

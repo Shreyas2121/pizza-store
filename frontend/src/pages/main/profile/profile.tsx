@@ -6,7 +6,7 @@ const Profile = () => {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-pink-50 to-pink-100">
+      <div className="flex justify-center items-center py-12 bg-canvas">
         <Loader size="lg" />
       </div>
     );
@@ -14,8 +14,8 @@ const Profile = () => {
 
   if (!user) {
     return (
-      <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-pink-50 to-pink-100">
-        <Text size="xl" color="dimmed">
+      <div className="flex justify-center items-center py-12 bg-canvas">
+        <Text size="xl" c="dimmed">
           No user data found.
         </Text>
       </div>
@@ -23,12 +23,12 @@ const Profile = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-50 to-pink-100 p-6">
+    <div className="flex items-center justify-center bg-canvas p-6">
       <Card
-        shadow="xl"
-        radius="md"
+        shadow="sm"
+        radius="lg"
         withBorder
-        className="max-w-sm w-full bg-white px-6 py-8 relative"
+        className="max-w-sm w-full bg-surface border-border px-6 py-8 relative"
       >
         {/* Avatar or user icon at the top */}
         <div className="flex items-center justify-center mb-4">
@@ -37,16 +37,16 @@ const Profile = () => {
             alt="User Profile Picture"
             radius="xl"
             size="lg"
-            className="shadow"
+            className="shadow-sm"
           />
         </div>
 
         {/* Title */}
-        <Title order={2} className="mb-4 text-center">
+        <Title order={2} className="mb-4 text-center text-ink font-display">
           My Profile
         </Title>
 
-        <div className="space-y-2 text-center">
+        <div className="space-y-2 text-center text-ink">
           <Text>
             <span className="font-semibold">Name:</span> {user.fname}{" "}
             {user.lname}
@@ -63,7 +63,7 @@ const Profile = () => {
 
         <Button
           className="mt-6"
-          color="red"
+          color="brand"
           fullWidth
           radius="md"
           // onClick={() => {/* open a modal or navigate to edit profile */}}

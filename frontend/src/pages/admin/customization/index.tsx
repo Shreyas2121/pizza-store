@@ -14,9 +14,9 @@ const Customization = () => {
     });
   };
 
-  const handleEditGroup = (groupId: number) => {};
+  const handleEditGroup = (_groupId: number) => {};
 
-  const handleDeleteGroup = (groupId: number) => {};
+  const handleDeleteGroup = (_groupId: number) => {};
 
   if (isLoading) {
     return <Loader />;

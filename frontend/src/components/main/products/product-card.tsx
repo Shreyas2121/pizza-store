@@ -45,8 +45,8 @@ const ProductCard = ({ product }: { product: Product }) => {
           {/* Veg/Non-Veg Badge */}
           {product.veg !== null && (
             <Badge
-              color={product.veg ? "green" : "red"}
-              className="absolute top-2 left-2 text-xs px-2 py-1 rounded-lg bg-opacity-90"
+              color={product.veg ? "basil" : "red"}
+              className="absolute top-2 left-2 text-xs px-2 py-1 rounded-lg bg-opacity-90 font-medium"
             >
               <Leaf size={14} className="inline-block mr-1" />
               {product.veg ? "Veg" : "Non-Veg"}
@@ -56,21 +56,21 @@ const ProductCard = ({ product }: { product: Product }) => {
 
         {/* Product Info */}
         <div className="mt-3 flex-1">
-          <h3 className="text-lg font-semibold text-gray-900">
+          <h3 className="text-lg font-semibold text-ink font-sans">
             {product.name}
           </h3>
 
           {/* Description */}
           {product.description && (
-            <p className="text-gray-600 text-sm mt-1 line-clamp-2">
+            <p className="text-ink-muted text-sm mt-1 line-clamp-2">
               {product.description}
             </p>
           )}
         </div>
 
         {/* Price and Add to Cart */}
-        <div className="mt-auto flex justify-between items-center">
-          <span className="text-orange-500 font-bold text-lg">
+        <div className="mt-auto flex justify-between items-center pt-2">
+          <span className="text-brand font-bold text-lg">
             ₹{product.price}
           </span>
 
@@ -79,7 +79,7 @@ const ProductCard = ({ product }: { product: Product }) => {
               {product.isAvailable ? (
                 <Button
                   variant="filled"
-                  color="orange"
+                  color="brand"
                   size="xs"
                   onClick={handleAddToCart}
                   leftSection={<ShoppingCart size={16} />}
@@ -87,7 +87,7 @@ const ProductCard = ({ product }: { product: Product }) => {
                   Add to Cart
                 </Button>
               ) : (
-                <span className="text-gray-600 text-sm">Not Available</span>
+                <span className="text-ink-muted text-sm">Not Available</span>
               )}
             </>
           )}

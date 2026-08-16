@@ -1,5 +1,161 @@
-@layer {
-  @tailwind base;
-}
+@tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  body {
+    background-color: #F8F4EC;
+    color: #201A17;
+    font-family: 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+    transition: color 0.15s ease-in-out;
+  }
+
+  a:hover {
+    color: #A92F20;
+  }
+
+  ::selection {
+    background-color: #F9E4DE;
+    color: #201A17;
+  }
+
+  /* Accessible Focus Rings */
+  :focus-visible {
+    outline: 2px solid #C83E2B;
+    outline-offset: 2px;
+  }
+
+  /* Reduced Motion */
+  @media (prefers-reduced-motion: reduce) {
+    *, ::before, ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  /* Layout & Container Utility Classes */
+  .page-shell {
+    @apply max-w-storefront mx-auto px-5 sm:px-8 lg:px-12 py-6 sm:py-8 lg:py-10 min-h-[calc(100vh-4rem)];
+  }
+
+  .form-shell {
+    @apply max-w-form mx-auto px-4 sm:px-6 py-6 min-h-[calc(100vh-4rem)];
+  }
+
+  .admin-shell {
+    @apply max-w-admin mx-auto px-4 sm:px-6 lg:px-8 py-6 min-h-[calc(100vh-4rem)];
+  }
+
+  .section-rhythm {
+    @apply py-12 lg:py-20;
+  }
+
+  /* Section heading helper */
+  .section-heading {
+    @apply font-display text-display sm:text-display-md lg:text-display-lg text-ink font-normal tracking-tight mb-2;
+  }
+
+  /* Responsive Type Scale Utility Classes */
+  .text-display-scale {
+    @apply font-display text-display sm:text-display-md lg:text-display-lg font-normal tracking-tight;
+  }
+
+  .text-page-title-scale {
+    @apply font-sans text-page-title lg:text-page-title-lg font-bold tracking-tight text-ink;
+  }
+
+  .text-section-title-scale {
+    @apply font-sans text-section-title font-semibold tracking-tight text-ink;
+  }
+
+  .text-card-title-scale {
+    @apply font-sans text-card-title font-semibold text-ink;
+  }
+
+  .text-body-scale {
+    @apply font-sans text-body text-ink;
+  }
+
+  .text-supporting-scale {
+    @apply font-sans text-supporting text-ink-muted;
+  }
+
+  .text-micro-scale {
+    @apply font-sans text-micro text-ink-muted;
+  }
+
+  /* Surface Cards */
+  .surface-card {
+    @apply bg-surface border border-border rounded-card p-5 sm:p-6 shadow-subtle hover:shadow-subtle-hover transition-all duration-200;
+  }
+
+  .admin-surface {
+    @apply bg-surface border border-border rounded-card p-4 sm:p-5 shadow-none;
+  }
+
+  /* Buttons & Action Controls */
+  .primary-button {
+    @apply inline-flex items-center justify-center font-medium bg-brand text-white hover:bg-brand-hover active:bg-brand-hover/90 rounded-control px-5 py-2.5 shadow-subtle transition-all duration-150 disabled:opacity-50 disabled:pointer-events-none;
+  }
+
+  .secondary-button {
+    @apply inline-flex items-center justify-center font-medium bg-surface text-ink border border-border hover:bg-surface-muted rounded-control px-5 py-2.5 transition-all duration-150 disabled:opacity-50 disabled:pointer-events-none;
+  }
+
+  .tertiary-button {
+    @apply inline-flex items-center justify-center font-medium text-ink-muted hover:text-ink hover:bg-surface-muted rounded-control px-4 py-2 transition-colors duration-150;
+  }
+
+  .destructive-button {
+    @apply inline-flex items-center justify-center font-medium bg-red-50 text-danger border border-red-200 hover:bg-red-100 rounded-control px-4 py-2 transition-colors duration-150 disabled:opacity-50 disabled:pointer-events-none;
+  }
+
+  .icon-button {
+    @apply inline-flex items-center justify-center p-2.5 min-w-[40px] min-h-[40px] rounded-control text-ink-muted hover:text-ink hover:bg-surface-muted transition-colors duration-150;
+  }
+
+  /* Semantic Status Pills */
+  .status-pill {
+    @apply inline-flex items-center px-2.5 py-1 rounded-pill text-xs font-semibold tracking-wide uppercase;
+  }
+
+  .status-pill-brand {
+    @apply bg-brand-soft text-brand;
+  }
+
+  .status-pill-basil {
+    @apply bg-basil-soft text-basil;
+  }
+
+  .status-pill-gold {
+    @apply bg-amber-100 text-amber-800;
+  }
+
+  .status-pill-danger {
+    @apply bg-red-100 text-danger;
+  }
+
+  .status-pill-info {
+    @apply bg-blue-100 text-blue-800;
+  }
+
+  /* Reusable Empty State container */
+  .empty-state {
+    @apply flex flex-col items-center justify-center text-center p-10 bg-surface rounded-card border border-dashed border-border my-6;
+  }
+}

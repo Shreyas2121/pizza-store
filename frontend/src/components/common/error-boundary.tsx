@@ -58,7 +58,7 @@ export class ErrorBoundary extends Component<Props, State> {
             </Text>
             <Button
               onClick={this.handleReset}
-              color="orange"
+              color="brand"
               fullWidth
               leftSection={<RefreshCw size={16} />}
             >

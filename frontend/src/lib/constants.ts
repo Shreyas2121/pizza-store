@@ -52,18 +52,50 @@ export const chatStatus: {
   },
 ];
 
-export const myColor: MantineColorsTuple = [
-  "#ffe9ec",
-  "#ffd3d6",
-  "#f6a6ac",
-  "#ef757e",
-  "#e84c58",
-  "#e5323f",
-  "#e42332",
-  "#cb1425",
-  "#b60c20",
-  "#a00019",
+export const brandColor: MantineColorsTuple = [
+  "#FDF2F0",
+  "#F9E4DE",
+  "#F3C5BA",
+  "#E99D8F",
+  "#DD6E5D",
+  "#D44A37",
+  "#C83E2B",
+  "#A92F20",
+  "#872316",
+  "#64180D",
 ];
+
+export const basilColor: MantineColorsTuple = [
+  "#F2F8F4",
+  "#E4F0E7",
+  "#C3DEC9",
+  "#9BC3A4",
+  "#6F9E7B",
+  "#4D835B",
+  "#39734E",
+  "#2D5C3E",
+  "#21442E",
+  "#162E1F",
+];
+
+// Alias for backwards compatibility with existing Mantine components using myColor
+export const myColor = brandColor;
+
+export const designTokens = {
+  canvas: "#F8F4EC",
+  surface: "#FFFDF8",
+  surfaceMuted: "#F1EADF",
+  ink: "#201A17",
+  inkMuted: "#6F665F",
+  border: "#E5DACE",
+  brand: "#C83E2B",
+  brandHover: "#A92F20",
+  brandSoft: "#F9E4DE",
+  basil: "#39734E",
+  basilSoft: "#E4F0E7",
+  gold: "#D69A2D",
+  danger: "#B42318",
+};
 
 export const BASE_URL = import.meta.env.VITE_BACKEND_URL;
 

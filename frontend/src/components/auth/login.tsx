@@ -67,7 +67,7 @@ const Login = () => {
             }
             visible={showPassword}
           />
-          <Button type="submit" fullWidth mt="md">
+          <Button type="submit" fullWidth mt="md" loading={loginM.isPending}>
             Login
           </Button>
 

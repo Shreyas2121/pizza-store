@@ -126,7 +126,7 @@ const Customize = ({
             return (
               <div
                 key={group.id}
-                className="p-3 shadow-md bg-white border border-orange-500"
+                className="p-3.5 shadow-sm bg-surface border border-border rounded-lg"
               >
                 <Checkbox.Group
                   value={values}
@@ -143,6 +143,7 @@ const Customize = ({
                           label={`${opt.name} ${
                             opt.price ? `₹${opt.price}` : ""
                           }`}
+                          color="brand"
                         />
                       );
                     })}
@@ -153,11 +154,11 @@ const Customize = ({
           })}
         </>
       )}
-      <div className="flex justify-between items-center p-3 mt-4 bg-gray-100 border border-gray-300 rounded-md">
-        <Text size="lg">Total: ₹{totalPrice}</Text>
+      <div className="flex justify-between items-center p-3.5 mt-4 bg-surface-muted border border-border rounded-lg">
+        <Text size="lg" className="font-semibold text-ink">Total: ₹{totalPrice}</Text>
         <Button
-          disabled={addToCartM.isPending}
-          color="orange"
+          loading={addToCartM.isPending}
+          color="brand"
           onClick={handleSubmit}
         >
           Add to Cart

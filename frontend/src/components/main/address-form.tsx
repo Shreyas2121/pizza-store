@@ -114,7 +114,12 @@ const AddressForm = ({
       </div>
 
       {/* Submit Button */}
-      <Button type="submit" fullWidth color="red">
+      <Button
+        type="submit"
+        fullWidth
+        color="brand"
+        loading={createAddressM.isPending}
+      >
         Save Address
       </Button>
     </form>

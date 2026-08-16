@@ -22,7 +22,6 @@ const ProductForm = () => {
     control,
     handleSubmit,
     formState: { errors },
-    reset,
   } = useForm<TProduct>({
     resolver: zodResolver(productSchema),
     defaultValues: {
@@ -48,7 +47,7 @@ const ProductForm = () => {
     return file;
   };
 
-  const onSubmit = (data: TProduct) => {};
+  const onSubmit = (_data: TProduct) => {};
 
   return (
     <div className="max-w-3xl p-6 bg-white shadow-md rounded-lg">
@@ -182,7 +181,7 @@ const ProductForm = () => {
         </div>
 
         {/* Buttons */}
-        <Button mt={10} type="submit">
+        <Button mt={10} type="submit" color="brand">
           Save Product
         </Button>
       </form>

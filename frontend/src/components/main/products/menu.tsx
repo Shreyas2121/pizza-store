@@ -28,7 +28,7 @@ const Menu = () => {
   const search = searchParams.get("menu");
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div id="menu" className="container mx-auto scroll-mt-28 px-4 py-8">
       <h1 className="text-3xl font-extrabold text-gray-900 mb-6 text-center">
         Our Menu
       </h1>
@@ -37,7 +37,8 @@ const Menu = () => {
         {menu?.map((item) => {
           const active = search ? search === item.slug : false;
           return (
-            <div
+            <button
+              type="button"
               key={item.id}
               onClick={() =>
                 setSearchParams((prev) => {
@@ -48,9 +49,13 @@ const Menu = () => {
                   };
                 })
               }
-              className={`bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition
-                ${active && "border border-orange-500"}
-                `}
+              aria-pressed={active}
+              aria-label={`Select ${item.name} menu category`}
+              className={`text-left bg-surface rounded-card border overflow-hidden shadow-subtle hover:shadow-subtle-hover transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand cursor-pointer ${
+                active
+                  ? "border-brand ring-1 ring-brand bg-brand-soft/20"
+                  : "border-border"
+              }`}
             >
               <img
                 src={`${BASE_URL}${item.image}`}
@@ -59,11 +64,11 @@ const Menu = () => {
                 className="w-full h-40 object-cover"
               />
               <div className="p-4 text-center">
-                <h3 className="text-lg font-semibold text-gray-900">
+                <h3 className="text-lg font-semibold text-ink font-sans">
                   {item.name}
                 </h3>
               </div>
-            </div>
+            </button>
           );
         })}
       </div>

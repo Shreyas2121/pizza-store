@@ -145,8 +145,9 @@ const Transfer = ({ groupId }: { groupId: number }) => {
         </div>
       </div>
       <Button
-        disabled={updateMappingM.isPending}
+        loading={updateMappingM.isPending}
         className="w-full mt-5"
+        color="brand"
         onClick={handleUpdate}
       >
         Update

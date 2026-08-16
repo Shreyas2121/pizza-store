@@ -33,9 +33,9 @@ const SupportAction = () => {
       className="
         fixed bottom-10 right-10
         flex items-center space-x-2
-        bg-blue-500 text-white
+        bg-brand text-white
         px-4 py-2 rounded-full
-        shadow-lg hover:bg-blue-600
+        shadow-lg hover:bg-brand-hover
         transition-colors
         z-[999]
       "

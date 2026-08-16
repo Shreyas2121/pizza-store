@@ -70,28 +70,28 @@ const Chat = ({ height = "400px", width = "500px", userId }: Props) => {
 
   return (
     <div
-      className="shadow-xl rounded-lg overflow-hidden border border-orange-100 flex flex-col"
+      className="shadow-xl rounded-lg overflow-hidden border border-border flex flex-col"
       style={{ width, height }}
     >
       {/* Header */}
-      <div className="bg-gradient-to-r from-orange-500 to-orange-400 px-4 py-4 rounded-t-lg">
+      <div className="bg-brand px-4 py-4 rounded-t-lg">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="text-orange-50">
+            <div className="text-white">
               <h3 className="text-lg font-semibold leading-tight">
                 {!userId
                   ? "Admin Support"
                   : `${chatSession!.user.fname} ${chatSession!.user.lname}`}
               </h3>
-              <span className="text-sm flex items-center gap-1">
-                <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-                Online
+              <span className="text-xs text-brand-soft flex items-center gap-1 mt-0.5">
+                <span className="w-2 h-2 bg-basil rounded-full animate-pulse"></span>
+                Support Chat
               </span>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <button className="p-1.5 rounded-full hover:bg-orange-600 transition-colors text-orange-100">
+            <button className="p-1.5 rounded-full hover:bg-brand-hover transition-colors text-brand-soft">
               <Settings className="w-5 h-5" />
             </button>
           </div>
@@ -99,7 +99,7 @@ const Chat = ({ height = "400px", width = "500px", userId }: Props) => {
       </div>
 
       {/* Messages Container */}
-      <div className="flex-1 bg-orange-50 p-4 overflow-y-auto flex flex-col gap-3">
+      <div className="flex-1 bg-canvas p-4 overflow-y-auto flex flex-col gap-3">
         {messages.map((message) => {
           const isOwnMessage = isAdminView
             ? message.type === "admin"
@@ -113,9 +113,9 @@ const Chat = ({ height = "400px", width = "500px", userId }: Props) => {
             >
               <div
                 className={`max-w-[70%] rounded-lg p-3 ${
-                  message.type === "user"
-                    ? "bg-orange-500 text-white rounded-br-none"
-                    : "bg-orange-100 text-orange-900 rounded-bl-none"
+                  isOwnMessage
+                    ? "bg-brand text-white rounded-br-none"
+                    : "bg-surface text-ink border border-border rounded-bl-none shadow-sm"
                 }`}
               >
                 <p className="text-sm">{message.message}</p>
@@ -138,7 +138,7 @@ const Chat = ({ height = "400px", width = "500px", userId }: Props) => {
       {/* Message Input */}
       <form
         onSubmit={handleSubmit}
-        className="border-t border-orange-100 p-4 bg-white"
+        className="border-t border-border p-4 bg-surface"
       >
         <div className="flex gap-2">
           <input
@@ -146,11 +146,11 @@ const Chat = ({ height = "400px", width = "500px", userId }: Props) => {
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             placeholder="Type your message..."
-            className="flex-1 rounded-full px-4 py-2 border border-orange-200 focus:outline-none focus:ring-2 focus:ring-orange-300"
+            className="flex-1 rounded-full px-4 py-2 border border-border focus:outline-none focus:ring-2 focus:ring-brand bg-surface text-ink"
           />
           <button
             type="submit"
-            className="p-2 rounded-full bg-orange-500 text-white hover:bg-orange-600 transition-colors"
+            className="p-2 rounded-full bg-brand text-white hover:bg-brand-hover transition-colors"
           >
             <Send className="w-5 h-5" />
           </button>

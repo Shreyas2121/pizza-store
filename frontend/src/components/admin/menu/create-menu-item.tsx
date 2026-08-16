@@ -26,7 +26,6 @@ const CreateMenuItem = () => {
     control,
     handleSubmit,
     formState: { errors },
-    reset,
   } = useForm<TMenu>({
     resolver: zodResolver(menuSchema),
     defaultValues: {
@@ -56,7 +55,7 @@ const CreateMenuItem = () => {
       label: p.name,
     })) || [];
 
-  const onSubmit = (data: TMenu) => {
+  const onSubmit = (_data: TMenu) => {
     // For now, do nothing further.
   };
 
@@ -157,7 +156,7 @@ const CreateMenuItem = () => {
           )}
         />
 
-        <Button type="submit">Create Menu Item</Button>
+        <Button type="submit" color="brand">Create Menu Item</Button>
       </form>
     </div>
   );

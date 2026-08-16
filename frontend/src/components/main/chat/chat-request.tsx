@@ -48,7 +48,7 @@ const ChatRequest = () => {
         {...register("title")}
         error={errors.title?.message}
       />
-      <Button disabled={requestM.isPending} type="submit" mt="md">
+      <Button loading={requestM.isPending} type="submit" mt="md" color="brand">
         Request Chat
       </Button>
     </form>

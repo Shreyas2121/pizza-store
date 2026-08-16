@@ -182,6 +182,7 @@ const Checkout = () => {
                     success("Coupon removed successfully");
                   }}
                   color="red"
+                  variant="light"
                 >
                   Remove
                 </Button>
@@ -207,7 +208,7 @@ const Checkout = () => {
                       },
                     );
                   }}
-                  color="red"
+                  color="brand"
                 >
                   Apply
                 </Button>
@@ -218,40 +219,40 @@ const Checkout = () => {
 
         {/* RIGHT SIDE - Pricing Summary */}
         <Card
-          shadow="lg"
+          shadow="sm"
           padding="lg"
-          className="border rounded-lg bg-white/80 backdrop-blur-md "
+          className="border border-border rounded-card bg-surface"
         >
-          <Text className="text-lg font-semibold mb-2">Order Summary</Text>
+          <Text className="text-lg font-semibold mb-2 text-ink">Order Summary</Text>
           <Divider className="mb-3" />
 
           {/* Subtotal */}
-          <div className="flex justify-between text-gray-600">
+          <div className="flex justify-between text-ink-muted">
             <Text>Subtotal:</Text>
             <Text>{formatPrice(cart.totalPrice)}</Text>
           </div>
 
           {/* Discount */}
-          <div className="flex justify-between text-gray-600 mt-2">
+          <div className="flex justify-between text-ink-muted mt-2">
             <Text>Discount:</Text>
             <Text>{formatPrice(discountAmt)}</Text>
           </div>
 
           {/* Final Price */}
-          <div className="flex justify-between font-semibold text-lg mt-2">
+          <div className="flex justify-between font-semibold text-lg mt-2 text-ink">
             <Text>Total:</Text>
             <Text>{formatPrice(updatedTotal)}</Text>
           </div>
 
           {/* Proceed Button */}
           <Button
-            disabled={createOrderM.isPending}
+            loading={createOrderM.isPending}
             onClick={handleSubmit}
             fullWidth
-            color="red"
+            color="brand"
             className="mt-4"
           >
-            Proceed to Order
+            Place Order
           </Button>
         </Card>
       </div>

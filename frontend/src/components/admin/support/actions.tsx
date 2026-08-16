@@ -19,7 +19,7 @@ const SupportActions = ({
             <Button
               onClick={() => {
                 updateM.mutate(
-                  { status: "open", chatId: chatSession.id },
+                  { status: "open", chatId: String(chatSession.id) },
                   {
                     onSuccess: (res) => {
                       success("Success");
@@ -30,23 +30,25 @@ const SupportActions = ({
                   }
                 );
               }}
-              disabled={updateM.isPending}
-              color="blue"
+              loading={updateM.isPending}
+              color="brand"
             >
               Approve
             </Button>
             <Button
               onClick={() => {
                 updateM.mutate(
-                  { status: "rejected", chatId: chatSession.id },
+                  { status: "rejected", chatId: String(chatSession.id) },
                   {
-                    onSuccess: (res) => {
+                    onSuccess: () => {
                       success("Success");
                     },
                   }
                 );
               }}
-              disabled={updateM.isPending}
+              loading={updateM.isPending}
+              color="red"
+              variant="light"
             >
               Reject
             </Button>
