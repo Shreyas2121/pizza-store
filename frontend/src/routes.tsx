@@ -11,8 +11,8 @@ import {
   AdminMenuPage as AdminMenu,
 } from "@/features/catalog";
 import { CartPage as Cart } from "@/features/cart";
+import { CheckoutPage as Checkout } from "@/features/checkout";
 import {
-  Checkout,
   OrderDetails,
   Orders,
   NotFound,

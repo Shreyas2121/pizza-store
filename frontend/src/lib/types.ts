@@ -12,6 +12,13 @@ import type {
   CustomizationType,
 } from "@/features/catalog";
 import type { Cart, CartItem, ItemRes, CartRes } from "@/features/cart";
+import type {
+  Coupon,
+  Payment,
+  PaymentType,
+  PaymentStatus,
+  CouponType,
+} from "@/features/checkout";
 
 export type {
   User,
@@ -31,12 +38,14 @@ export type {
   CartItem,
   ItemRes,
   CartRes,
+  Coupon,
+  Payment,
+  PaymentType,
+  PaymentStatus,
+  CouponType,
 };
 
 export type OrderStatus = "pending" | "preparing" | "delivered" | "delievered" | "cancelled";
-export type PaymentStatus = "pending" | "processing" | "completed" | "failed";
-export type PaymentType = "cash";
-export type CouponType = "percentage" | "fixed";
 export type ChatStatus = "open" | "close" | "rejected" | "pending";
 
 export type Order = {
@@ -62,29 +71,6 @@ export type OrderItem = {
   productId: number;
   quantity: number;
   orderId: number;
-};
-
-export type Payment = {
-  status: PaymentStatus;
-  id: number;
-  createdAt: Date;
-  updatedAt: Date;
-  paymentDate: Date;
-};
-
-export type Coupon = {
-  id: number;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-  code: string;
-  discountType: CouponType;
-  discountValue: number;
-  minOrderValue: number;
-  startDate: Date;
-  endDate: Date;
-  redemptionCount: number;
-  maxRedemptions: number;
 };
 
 export interface OrderItemRes extends OrderItem {
