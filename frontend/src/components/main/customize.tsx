@@ -1,17 +1,30 @@
 import { Button, Checkbox, Radio, Skeleton } from "@mantine/core";
 import { AlertCircle, RotateCcw, ShoppingCart } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CART_API_HOOKS, PRODUCTS_HOOKS } from "@/hooks";
-import { formatPrice, Group, Product, success } from "@/lib";
+import { formatPrice, Group, ItemRes, Product, success } from "@/lib";
 
 type Selection = Record<number, number | number[]>;
 
-const Customize = ({ product, close }: { product: Product; close: () => void }) => {
+const Customize = ({ product, close, cartItem }: { product: Product; close: () => void; cartItem?: ItemRes }) => {
   const { data, isLoading, isError, refetch } = PRODUCTS_HOOKS.useGetProductCustomization(product.id);
   const addToCartM = CART_API_HOOKS.useAddToCart();
+  const updateCustomizationsM = CART_API_HOOKS.useUpdateCartItemCustomizations();
   const [selection, setSelection] = useState<Selection>({});
 
   const groups = useMemo(() => (data ?? []).map((entry) => entry.group), [data]);
+
+  useEffect(() => {
+    if (!cartItem || groups.length === 0) return;
+    const existingIds = cartItem.customizations.map((customization) => customization.optionId);
+    const initial: Selection = {};
+    groups.forEach((group) => {
+      const matches = group.options.filter((option) => existingIds.includes(option.id)).map((option) => option.id);
+      if (group.type === "multiple") initial[group.id] = matches;
+      else if (matches[0]) initial[group.id] = matches[0];
+    });
+    setSelection(initial);
+  }, [cartItem, groups]);
 
   const selectedIds = useMemo(
     () => Object.values(selection).flatMap((value) => Array.isArray(value) ? value : [value]),
@@ -43,11 +56,13 @@ const Customize = ({ product, close }: { product: Product; close: () => void }) 
   };
 
   const handleSubmit = () => {
-    if (incompleteGroups.length > 0 || addToCartM.isPending) return;
-    addToCartM.mutate(
-      { productId: product.id, cIds: selectedIds },
+    if (incompleteGroups.length > 0 || addToCartM.isPending || updateCustomizationsM.isPending) return;
+    const mutation = cartItem ? updateCustomizationsM : addToCartM;
+    const payload = cartItem ? { cartItemId: cartItem.id, cIds: selectedIds } : { productId: product.id, cIds: selectedIds };
+    mutation.mutate(
+      payload as never,
       {
-        onSuccess: (response) => {
+        onSuccess: (response: { message: string }) => {
           success(response.message);
           close();
         },
@@ -157,8 +172,8 @@ const Customize = ({ product, close }: { product: Product; close: () => void }) 
         )}
         <div className="flex items-center justify-between gap-4">
           <div><p className="text-xs text-ink-muted">Total</p><p className="text-xl font-bold tabular-nums text-ink">{formatPrice(product.price + extrasTotal)}</p></div>
-          <Button size="md" loading={addToCartM.isPending} disabled={incompleteGroups.length > 0} onClick={handleSubmit} leftSection={<ShoppingCart size={18} />}>
-            Add to cart
+          <Button size="md" loading={addToCartM.isPending || updateCustomizationsM.isPending} disabled={incompleteGroups.length > 0} onClick={handleSubmit} leftSection={<ShoppingCart size={18} />}>
+            {cartItem ? "Update item" : "Add to cart"}
           </Button>
         </div>
       </div>

@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createMutation, createQuery, createSuspenseQuery } from "./useApi";
-import { API, Cart, CartRes, QUERY_KEYS } from "@/lib";
+import { API, CartRes, QUERY_KEYS } from "@/lib";
 
 const keys = QUERY_KEYS.cart;
 
@@ -29,7 +29,7 @@ const useGetCart = () => {
 };
 
 const useGetCartCheckout = () => {
-  return createQuery<Cart>([keys.cartCheckout], "/cart/checkout", "data");
+  return createQuery<CartRes>([keys.cartCheckout], "/cart/checkout", "data");
 };
 
 const useUpdateCartItemQuantity = () => {
@@ -39,6 +39,11 @@ const useUpdateCartItemQuantity = () => {
     [keys.cartCheckout],
   ]);
 };
+
+const useUpdateCartItemCustomizations = () => createMutation<{ message: string }>("/cart/customize", "patch", [
+  [keys.getCart],
+  [keys.cartCheckout],
+]);
 
 const useRemoveCartItem = () => {
   const client = useQueryClient();
@@ -69,5 +74,6 @@ export const CART_API_HOOKS = {
   useGetCart,
   useGetCartCheckout,
   useUpdateCartItemQuantity,
+  useUpdateCartItemCustomizations,
   useRemoveCartItem,
 };

@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "../../db";
 import { chatMessagesTable, chatSessionsTable } from "../../db/schema";
 import { ChatStatus } from "../../utils/types";
@@ -11,7 +11,7 @@ class ChatService {
       },
       where: and(
         eq(chatSessionsTable.userId, userId),
-        eq(chatSessionsTable.status, "open")
+        inArray(chatSessionsTable.status, ["open", "pending"])
       ),
     });
   }

@@ -1,7 +1,9 @@
-import { MessageCircle } from "lucide-react";
-import ChatRequest from "./chat-request";
 import { useEffect } from "react";
+import { Hourglass, MessageCircle } from "lucide-react";
 import { showNotification } from "@mantine/notifications";
+import { useMediaQuery } from "@mantine/hooks";
+import { useLocation } from "react-router";
+import ChatRequest from "./chat-request";
 import { useAuthModalStore, useSocketStore, useUser } from "@/store";
 import { ChatSession } from "@/lib";
 import { Chat } from "@/components/common";
@@ -10,59 +12,41 @@ const SupportAction = () => {
   const { openModal } = useAuthModalStore();
   const { chatSession, socket, setChatSession } = useSocketStore();
   const { isLoggedIn } = useUser();
+  const location = useLocation();
+  const isMobile = useMediaQuery("(max-width: 639px)");
+  const aboveCommerceBar = location.pathname === "/cart";
 
   useEffect(() => {
     if (!socket) return;
-
     const handleStatusChange = (updatedData: string) => {
       const updatedSession = JSON.parse(updatedData) as ChatSession;
-      if (updatedSession.status === "rejected") {
-        showNotification({
-          message: "Your chat request has been rejected.",
-          color: "red",
-        });
-      }
-      setChatSession(updatedSession.status === "open" ? "open" : null);
+      if (updatedSession.status === "rejected") showNotification({ message: "Your support request could not be accepted.", color: "red" });
+      setChatSession(updatedSession.status === "open" || updatedSession.status === "pending" ? updatedSession.status : null);
     };
-
     socket.on("chatStatusChange", handleStatusChange);
-    return () => {
-      socket.off("chatStatusChange", handleStatusChange);
-    };
+    return () => { socket.off("chatStatusChange", handleStatusChange); };
   }, [socket, setChatSession]);
 
-  if (!isLoggedIn || chatSession === "pending") return null;
+  if (!isLoggedIn) return null;
+  const pending = chatSession === "pending";
 
   return (
     <button
       type="button"
-      aria-label={chatSession === "open" ? "Open support chat" : "Request support"}
-      className="
-        fixed bottom-[max(1.5rem,env(safe-area-inset-bottom))] left-6 sm:bottom-[max(2rem,env(safe-area-inset-bottom))] sm:left-8
-        flex items-center space-x-2
-        bg-brand text-white
-        px-4 py-2.5 rounded-pill
-        shadow-panel hover:bg-brand-hover
-        transition-all duration-200
-        z-40
-      "
+      disabled={pending}
+      aria-label={pending ? "Support request pending" : chatSession === "open" ? "Open support chat" : "Request support"}
+      style={{ bottom: aboveCommerceBar ? "calc(max(1rem, env(safe-area-inset-bottom)) + 5.25rem)" : "max(1.5rem, env(safe-area-inset-bottom))" }}
+      className="fixed left-4 z-40 flex min-h-11 items-center gap-2 rounded-pill bg-brand px-4 font-semibold text-white shadow-panel transition-colors hover:bg-brand-hover disabled:bg-ink-muted disabled:opacity-90 sm:left-8"
       onClick={() => {
         if (chatSession === "open") {
-          openModal({
-            content: <Chat height="100%" width="100%" />,
-            title: "",
-          });
+          openModal({ content: <Chat height={isMobile ? "calc(100dvh - 60px)" : "620px"} />, title: "", options: { size: 480, padding: 0, radius: "lg", fullScreen: isMobile } });
         } else {
-          openModal({
-            content: <ChatRequest />,
-            title: "",
-            options: { size: 440, padding: "lg", radius: "lg" },
-          });
+          openModal({ content: <ChatRequest />, title: "", options: { size: 440, padding: "lg", radius: "lg" } });
         }
       }}
     >
-      <MessageCircle size={20} />
-      <span>{chatSession === "open" ? "Chat" : "Support"}</span>
+      {pending ? <Hourglass size={18} /> : <MessageCircle size={19} />}
+      <span>{pending ? "Support requested" : chatSession === "open" ? "Support chat" : "Support"}</span>
     </button>
   );
 };

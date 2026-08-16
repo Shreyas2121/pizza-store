@@ -252,16 +252,25 @@ class CartService {
     return cartItem;
   }
 
+  async assertCartItemOwner(cartItemId: number, userId: number) {
+    const cart = await this.getExistingCart(userId);
+    const item = await this.getCartItemById(cartItemId);
+    if (!cart || item.cartId !== cart.id) throw new AppError("Cart item not found", 404);
+    return item;
+  }
+
   async updateCartItemByType({
     cartItemId,
     productId,
     type,
+    userId,
   }: {
     cartItemId: number;
     productId: number;
     type: "+" | "-";
+    userId: number;
   }) {
-    const cartItem = await this.getCartItemById(cartItemId);
+    const cartItem = await this.assertCartItemOwner(cartItemId, userId);
 
     if (type === "-" && cartItem.quantity! <= 1) {
       return await this.deleteCartItem(cartItemId);
@@ -291,6 +300,28 @@ class CartService {
           totalPrice: sql`${cartTable.totalPrice} + ${updatedPrice}`,
         })
         .where(eq(cartTable.id, cartItem.cartId));
+    });
+  }
+
+  async updateCartItemCustomizations(cartItemId: number, userId: number, cIds: number[]) {
+    const cart = await this.getExistingCart(userId);
+    const cartItem = await this.getCartItemById(cartItemId);
+    if (!cart || cartItem.cartId !== cart.id) throw new AppError("Cart item not found", 404);
+
+    const uniqueIds = [...new Set(cIds)];
+    const options = await Promise.all(uniqueIds.map((id) => customizeService.getCustomizationOptionById(id)));
+    if (options.some((option) => !option || !option.isAvailable)) throw new AppError("One or more customization options are unavailable", 400);
+
+    const oldExtras = cartItem.customizations.reduce((sum, option) => sum + option.price, 0);
+    const newExtras = options.reduce((sum, option) => sum + (option?.price ?? 0), 0);
+    const priceDifference = (newExtras - oldExtras) * cartItem.quantity;
+
+    await db.transaction(async (tx) => {
+      await tx.delete(cartItemCustomizationsTable).where(eq(cartItemCustomizationsTable.cartItemId, cartItemId));
+      if (options.length > 0) {
+        await tx.insert(cartItemCustomizationsTable).values(options.map((option) => ({ cartItemId, customizationOptionId: option!.id, price: option!.price ?? 0 })));
+      }
+      await tx.update(cartTable).set({ totalPrice: sql`${cartTable.totalPrice} + ${priceDifference}` }).where(eq(cartTable.id, cart.id));
     });
   }
 

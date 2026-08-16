@@ -1,12 +1,13 @@
-import { AddressForm } from "@/components/main";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Button, Drawer, Tooltip } from "@mantine/core";
+import { notifications } from "@mantine/notifications";
+import { ArrowRight, Minus, Plus, Settings2, ShoppingCart, Trash2 } from "lucide-react";
+import { useNavigate } from "react-router";
+import { AddressForm, Customize } from "@/components/main";
 import { EmptyState, PageHeader } from "@/components/common";
 import { CART_API_HOOKS, USER_API_HOOKS } from "@/hooks";
 import { BASE_URL, formatPrice, ItemRes, success } from "@/lib";
 import { useAuthModalStore } from "@/store";
-import { Button, Card, Divider, Text, Tooltip } from "@mantine/core";
-import { modals } from "@mantine/modals";
-import { Minus, Plus, ShoppingCart, Trash2, ArrowRight } from "lucide-react";
-import { useNavigate } from "react-router";
 
 const Cart = () => {
   const { data: rawCart } = CART_API_HOOKS.useGetCart();
@@ -14,237 +15,109 @@ const Cart = () => {
   const { openModal, closeModal } = useAuthModalStore();
   const updateCartM = CART_API_HOOKS.useUpdateCartItemQuantity();
   const removeCartItemM = CART_API_HOOKS.useRemoveCartItem();
-
-  const { data: addresses } = USER_API_HOOKS.useGetAddresses();
-
+  const { data: addresses, isLoading: addressesLoading } = USER_API_HOOKS.useGetAddresses();
+  const [editingItem, setEditingItem] = useState<ItemRes | null>(null);
+  const [pendingRemoval, setPendingRemoval] = useState<Set<number>>(new Set());
+  const removalTimers = useRef(new Map<number, ReturnType<typeof setTimeout>>());
   const navigate = useNavigate();
 
-  const onSubmit = () => {
-    closeModal();
-    navigate("/checkout");
-  };
-
-  const handleDelete = (id: number) => {
-    modals.openConfirmModal({
-      title: "Remove item from cart?",
-      children: (
-        <Text size="sm" c="dimmed">
-          Are you sure you want to remove this item from your cart?
-        </Text>
-      ),
-      labels: { confirm: "Remove Item", cancel: "Keep Item" },
-      confirmProps: { color: "red" },
-      onConfirm: () => {
-        removeCartItemM.mutate(id, {
-          onSuccess: (res) => {
-            success(res.message);
-          },
-        });
-      },
+  useEffect(() => () => {
+    removalTimers.current.forEach((timer, itemId) => {
+      clearTimeout(timer);
+      notifications.hide(`remove-cart-${itemId}`);
     });
+  }, []);
+
+  const visibleItems = cart.items.filter((item) => !pendingRemoval.has(item.id));
+  const itemCount = visibleItems.reduce((total, item) => total + item.quantity, 0);
+  const subtotal = useMemo(() => {
+    const hiddenTotal = cart.items.filter((item) => pendingRemoval.has(item.id)).reduce((total, item) => total + (item.price + item.customizations.reduce((sum, option) => sum + option.price, 0)) * item.quantity, 0);
+    return Math.max(0, cart.totalPrice - hiddenTotal);
+  }, [cart.items, cart.totalPrice, pendingRemoval]);
+
+  const finishAddress = () => { closeModal(); navigate("/checkout"); };
+  const checkout = () => {
+    if (addressesLoading || itemCount === 0) return;
+    if (addresses?.length) navigate("/checkout");
+    else openModal({ content: <AddressForm onSubmit={finishAddress} />, title: "", options: { size: 560, padding: "lg", radius: "lg" } });
   };
 
-  const handleQuantity = (item: ItemRes, type: "+" | "-") => {
-    if (item.quantity === 1 && type === "-") {
-      handleDelete(item.id);
-      return;
-    }
-
-    updateCartM.mutate(
-      {
-        productId: item.productId,
-        cartItemId: item.id,
-        type,
-      },
-      {
-        onSuccess: (data) => {
-          success(data.message);
-        },
-      }
-    );
+  const undoRemoval = (itemId: number, notificationId: string) => {
+    const timer = removalTimers.current.get(itemId);
+    if (timer) clearTimeout(timer);
+    removalTimers.current.delete(itemId);
+    setPendingRemoval((current) => { const next = new Set(current); next.delete(itemId); return next; });
+    notifications.hide(notificationId);
   };
 
-  const handleClick = () => {
-    if (addresses && addresses.length > 0) {
-      navigate("/checkout");
-    } else {
-      openModal({
-        content: <AddressForm onSubmit={onSubmit} />,
-        title: "",
-        options: { size: 560, padding: "lg", radius: "lg" },
-      });
-    }
+  const removeWithUndo = (item: ItemRes) => {
+    if (pendingRemoval.has(item.id)) return;
+    setPendingRemoval((current) => new Set(current).add(item.id));
+    const notificationId = `remove-cart-${item.id}`;
+    notifications.show({
+      id: notificationId,
+      title: "Item removed",
+      message: <div className="flex items-center justify-between gap-4"><span>{item.product.name} was removed from your cart.</span><button type="button" className="min-h-9 font-bold text-brand" onClick={() => undoRemoval(item.id, notificationId)}>Undo</button></div>,
+      color: "brand",
+      autoClose: 5000,
+      withCloseButton: false,
+    });
+    removalTimers.current.set(item.id, setTimeout(() => {
+      removalTimers.current.delete(item.id);
+      removeCartItemM.mutate(item.id, { onError: () => setPendingRemoval((current) => { const next = new Set(current); next.delete(item.id); return next; }) });
+    }, 5000));
   };
 
-  const hasItems = cart && cart.items && cart.items.length > 0;
+  const changeQuantity = (item: ItemRes, type: "+" | "-") => {
+    if (item.quantity === 1 && type === "-") { removeWithUndo(item); return; }
+    updateCartM.mutate({ productId: item.productId, cartItemId: item.id, type }, { onSuccess: (response) => success(response.message) });
+  };
 
   return (
-    <div className="max-w-storefront mx-auto px-4 sm:px-6 py-6 sm:py-8 min-h-[calc(100vh-4rem)]">
-      <PageHeader
-        eyebrow="Shopping Cart"
-        title="Your Cart"
-        description="Review your artisanal pizza order, adjust options, and proceed to checkout."
-      />
+    <div className={`page-shell ${itemCount > 0 ? "pb-28 lg:pb-10" : ""}`}>
+      <PageHeader eyebrow="Shopping cart" title="Your cart" description={`${itemCount} ${itemCount === 1 ? "item" : "items"} ready for review.`} />
 
-      {hasItems ? (
-        <div className="flex flex-col lg:flex-row gap-8 items-start">
-          {/* Cart Items Section */}
-          <div className="w-full lg:flex-1 space-y-4">
-            {cart.items.map((item) => (
-              <Card
-                key={item.id}
-                shadow="subtle"
-                padding="md"
-                className="border border-border bg-surface rounded-card hover:border-border/80 transition-colors"
-              >
-                <div className="flex flex-col sm:flex-row gap-4 sm:items-center">
-                  {/* Item Row 1: Image & Details */}
-                  <div className="flex gap-4 flex-1 items-start sm:items-center">
-                    <img
-                      className="w-20 h-20 sm:w-24 sm:h-24 rounded-control object-cover border border-border shrink-0"
-                      src={`${BASE_URL}${item.product.image}`}
-                      alt={item.product.name}
-                    />
+      {itemCount > 0 ? (
+        <div className="grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="space-y-4">
+            {visibleItems.map((item) => (
+              <article key={item.id} className="rounded-card border border-border bg-surface p-4 shadow-subtle sm:p-5">
+                <div className="flex gap-4">
+                  <img className="h-20 w-20 shrink-0 rounded-control bg-surface-muted object-cover sm:h-24 sm:w-24" src={`${BASE_URL}${item.product.image}`} alt={item.product.name} />
+                  <div className="min-w-0 flex-1"><h2 className="text-card-title-scale">{item.product.name}</h2><p className="mt-1 font-bold tabular-nums text-brand">{formatPrice(item.price)}</p>{item.customizations.length > 0 && <ul className="mt-2 flex flex-wrap gap-1.5" aria-label="Selected customizations">{item.customizations.map((customization) => <li key={customization.optionId} className="rounded-pill bg-surface-muted px-2.5 py-1 text-xs text-ink-muted">{customization.name}{customization.price > 0 ? ` +${formatPrice(customization.price)}` : ""}</li>)}</ul>}</div>
+                </div>
 
-                    <div className="flex-1 space-y-1">
-                      <h3 className="text-base sm:text-lg font-semibold text-ink font-sans leading-snug">
-                        {item.product.name}
-                      </h3>
-                      <p className="text-sm font-bold text-brand">
-                        {formatPrice(item.price)}
-                      </p>
-
-                      {/* Quiet Customization Chips */}
-                      {item.customizations.length > 0 && (
-                        <div className="pt-1 flex gap-1.5 flex-wrap">
-                          {item.customizations.map((custom) => (
-                            <span
-                              key={custom.optionId}
-                              className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-surface-muted text-ink-muted border border-border/80"
-                            >
-                              {custom.name} (+{formatPrice(custom.price)})
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+                  <div className="inline-flex items-center overflow-hidden rounded-control border border-border bg-surface" aria-label={`Quantity for ${item.product.name}`}>
+                    <Tooltip label="Decrease quantity"><button type="button" className="grid h-11 w-11 place-items-center text-ink-muted hover:bg-surface-muted hover:text-ink disabled:opacity-40" disabled={updateCartM.isPending} onClick={() => changeQuantity(item, "-")} aria-label={`Decrease ${item.product.name} quantity`}><Minus size={16} /></button></Tooltip>
+                    <span className="grid h-11 min-w-11 place-items-center border-x border-border text-sm font-bold tabular-nums text-ink" aria-live="polite">{item.quantity}</span>
+                    <Tooltip label="Increase quantity"><button type="button" className="grid h-11 w-11 place-items-center text-ink-muted hover:bg-surface-muted hover:text-ink disabled:opacity-40" disabled={updateCartM.isPending} onClick={() => changeQuantity(item, "+")} aria-label={`Increase ${item.product.name} quantity`}><Plus size={16} /></button></Tooltip>
                   </div>
-
-                  {/* Item Row 2 (or right column on desktop): Unified Stepper & Low-emphasis Remove */}
-                  <div className="flex items-center justify-between sm:justify-end gap-3 pt-3 sm:pt-0 border-t sm:border-t-0 border-border/60">
-                    {/* Unified Quantity Stepper */}
-                    <div className="inline-flex items-center border border-border rounded-control bg-surface-muted p-0.5">
-                      <Tooltip label="Decrease quantity">
-                        <button
-                          type="button"
-                          className="min-w-[40px] min-h-[40px] flex items-center justify-center rounded-control hover:bg-surface text-ink-muted hover:text-ink transition-colors disabled:opacity-40"
-                          aria-label={`Decrease quantity of ${item.product.name}`}
-                          onClick={() => handleQuantity(item, "-")}
-                        >
-                          <Minus size={16} />
-                        </button>
-                      </Tooltip>
-                      <span className="px-3 text-sm font-semibold text-ink min-w-[36px] text-center">
-                        {item.quantity}
-                      </span>
-                      <Tooltip label="Increase quantity">
-                        <button
-                          type="button"
-                          className="min-w-[40px] min-h-[40px] flex items-center justify-center rounded-control hover:bg-surface text-ink-muted hover:text-ink transition-colors"
-                          aria-label={`Increase quantity of ${item.product.name}`}
-                          onClick={() => handleQuantity(item, "+")}
-                        >
-                          <Plus size={16} />
-                        </button>
-                      </Tooltip>
-                    </div>
-
-                    {/* Low-emphasis Remove Action */}
-                    <Tooltip label="Remove item">
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(item.id)}
-                        className="inline-flex items-center gap-1 text-xs text-ink-muted hover:text-danger px-2.5 py-2 rounded-control hover:bg-red-50 transition-colors"
-                        aria-label={`Remove ${item.product.name} from cart`}
-                      >
-                        <Trash2 size={16} />
-                        <span className="hidden sm:inline">Remove</span>
-                      </button>
-                    </Tooltip>
+                  <div className="flex items-center gap-1">
+                    {item.product.hasCustomization && <button type="button" onClick={() => setEditingItem(item)} className="tertiary-button min-h-11 gap-1.5 text-sm"><Settings2 size={16} /> Edit options</button>}
+                    <button type="button" onClick={() => removeWithUndo(item)} className="tertiary-button min-h-11 gap-1.5 text-sm hover:bg-red-50 hover:text-danger"><Trash2 size={16} /> Remove</button>
                   </div>
                 </div>
-              </Card>
+              </article>
             ))}
           </div>
 
-          {/* Sticky Order Summary Section */}
-          <div className="w-full lg:w-96 shrink-0 lg:sticky lg:top-24">
-            <Card
-              shadow="subtle"
-              padding="lg"
-              className="border border-border bg-surface rounded-card space-y-4"
-            >
-              <h2 className="text-lg font-bold text-ink font-sans">
-                Order Summary
-              </h2>
-              <Divider className="border-border" />
-
-              <div className="space-y-2.5 text-sm">
-                <div className="flex justify-between text-ink-muted">
-                  <span>Subtotal</span>
-                  <span className="font-medium text-ink">
-                    {formatPrice(cart.totalPrice)}
-                  </span>
-                </div>
-                <div className="flex justify-between text-ink-muted">
-                  <span>Delivery Fee</span>
-                  <span className="font-semibold text-basil">FREE</span>
-                </div>
-                <div className="flex justify-between text-ink-muted">
-                  <span>Discount</span>
-                  <span className="font-medium text-ink">₹0.00</span>
-                </div>
-              </div>
-
-              <Divider className="border-border" />
-
-              <div className="flex justify-between items-baseline pt-1">
-                <span className="text-base font-bold text-ink">Total</span>
-                <span className="text-xl font-bold text-brand">
-                  {formatPrice(cart.totalPrice)}
-                </span>
-              </div>
-
-              <Button
-                onClick={handleClick}
-                fullWidth
-                size="md"
-                color="brand"
-                rightSection={<ArrowRight size={18} />}
-                className="mt-4 shadow-subtle hover:shadow-subtle-hover transition-all"
-              >
-                Proceed to Checkout
-              </Button>
-            </Card>
-          </div>
+          <aside className="sticky top-32 hidden rounded-card border border-border bg-surface p-5 shadow-subtle lg:block" aria-labelledby="cart-summary-title">
+            <h2 id="cart-summary-title" className="text-card-title-scale">Order summary</h2>
+            <dl className="mt-5 space-y-3 text-sm"><div className="flex justify-between"><dt className="text-ink-muted">Subtotal</dt><dd className="font-medium tabular-nums text-ink">{formatPrice(subtotal)}</dd></div><div className="flex justify-between"><dt className="text-ink-muted">Delivery fee</dt><dd className="tabular-nums text-ink">{formatPrice(0)}</dd></div><div className="flex justify-between"><dt className="text-ink-muted">Discount</dt><dd className="tabular-nums text-ink">{formatPrice(0)}</dd></div><div className="flex justify-between border-t border-border pt-4 text-base font-bold"><dt>Total</dt><dd className="text-xl tabular-nums text-brand">{formatPrice(subtotal)}</dd></div></dl>
+            <Button fullWidth size="md" mt="lg" onClick={checkout} loading={addressesLoading} rightSection={<ArrowRight size={18} />}>Continue to checkout</Button>
+            <p className="mt-3 text-center text-xs text-ink-muted">You can review delivery and payment before placing the order.</p>
+          </aside>
         </div>
       ) : (
-        <EmptyState
-          icon={ShoppingCart}
-          title="Your cart is waiting"
-          description="Explore our handcrafted wood-fired pizzas, fresh sides, and refreshing beverages to build your meal."
-          action={
-            <Button
-              color="brand"
-              size="md"
-              onClick={() => navigate("/")}
-              rightSection={<ArrowRight size={18} />}
-            >
-              Browse the Menu
-            </Button>
-          }
-        />
+        <EmptyState icon={ShoppingCart} title="Your cart is waiting" description="Explore our handcrafted pizzas and build a meal worth looking forward to." action={<Button onClick={() => navigate("/#menu")} rightSection={<ArrowRight size={18} />}>Browse the menu</Button>} />
       )}
+
+      {itemCount > 0 && <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-8px_24px_rgba(32,26,23,0.1)] backdrop-blur-md lg:hidden"><div className="mx-auto flex max-w-storefront items-center justify-between gap-4"><div><p className="text-xs text-ink-muted">{itemCount} {itemCount === 1 ? "item" : "items"}</p><p className="text-lg font-bold tabular-nums text-ink">{formatPrice(subtotal)}</p></div><Button size="md" onClick={checkout} loading={addressesLoading} rightSection={<ArrowRight size={17} />}>Checkout</Button></div></div>}
+
+      <Drawer opened={!!editingItem} onClose={() => setEditingItem(null)} title="Edit customizations" position="right" size="100%" padding={0} overlayProps={{ backgroundOpacity: 0.4, blur: 2 }} classNames={{ content: "md:max-w-[480px]", header: "border-b border-border px-5 py-4", body: "h-[calc(100dvh-73px)] overflow-hidden" }}>
+        {editingItem && <Customize product={editingItem.product} cartItem={editingItem} close={() => setEditingItem(null)} />}
+      </Drawer>
     </div>
   );
 };

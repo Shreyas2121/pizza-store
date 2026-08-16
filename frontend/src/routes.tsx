@@ -69,6 +69,16 @@ export const AppRoutes = () => (
         }
       />
       <Route
+        path="/checkout"
+        element={
+          <ProtectedRoutes>
+            <Suspense fallback={<Loader className="m-auto" />}>
+              <Checkout />
+            </Suspense>
+          </ProtectedRoutes>
+        }
+      />
+      <Route
         element={
           <ProtectedRoutes>
             <ProfileLayout />
@@ -81,18 +91,6 @@ export const AppRoutes = () => (
         <Route path="/order/:id" element={<OrderDetails />} />
       </Route>
     </Route>
-
-    {/* Checkout */}
-    <Route
-      path="/checkout"
-      element={
-        <ProtectedRoutes>
-          <Suspense fallback={<Loader className="m-auto" />}>
-            <Checkout />
-          </Suspense>
-        </ProtectedRoutes>
-      }
-    />
 
     {/* Admin Routes */}
     <Route

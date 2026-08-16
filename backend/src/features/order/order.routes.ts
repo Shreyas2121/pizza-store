@@ -25,7 +25,7 @@ orderRoutes.post(
       ...data,
       userId,
       status: "pending",
-      discountAmount: 0,
+      discountAmount: data.discountAmount ?? 0,
     });
 
     io.emit("orderPlaced", {

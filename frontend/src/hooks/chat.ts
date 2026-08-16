@@ -25,8 +25,8 @@ const useSyncChatStatus = (enabled: boolean = true) => {
       const { data } = await API.get("/chat/active");
       const chat = data.data as ChatSession | undefined;
       if (chat) {
-        setChatSession(chat.status === "open" ? "open" : null);
-      }
+        setChatSession(chat.status === "open" || chat.status === "pending" ? chat.status : null);
+      } else setChatSession(null);
     },
     enabled,
   });

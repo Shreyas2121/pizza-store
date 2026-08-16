@@ -64,6 +64,11 @@ export const updateCartItemSchema = z.object({
   type: z.enum(["+", "-"]),
 });
 
+export const updateCartCustomizationSchema = z.object({
+  cartItemId: z.number().int().positive("Cart item ID is required"),
+  cIds: z.array(z.number().int().positive()).default([]),
+});
+
 export const createCouponSchema = z.object({
   code: z.string().min(1, "Coupon code is required"),
   discountType: z.enum(["percentage", "fixed"]),

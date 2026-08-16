@@ -4,7 +4,7 @@ import cartService from "./cart.service";
 import { Auth } from "../../utils/types";
 import { authenticateUser } from "../../middleware/authenticateUser";
 import { validateBody } from "../../middleware/validateBody";
-import { addToCartSchema, updateCartItemSchema } from "../../utils/zodSchema";
+import { addToCartSchema, updateCartCustomizationSchema, updateCartItemSchema } from "../../utils/zodSchema";
 
 export const cartRoutes = Router();
 
@@ -80,15 +80,24 @@ cartRoutes.get(
   asyncHandler(async (req: Auth, res) => {
     const userId = req.user!.id;
 
-    const cart = await cartService.getExistingCart(userId);
+    const cart = await cartService.getCart(userId);
 
     if (!cart) {
       throw new AppError("No Cart Found.");
     }
 
-    res.json({
-      data: cart,
-    });
+    const data = cart ? {
+      ...cart,
+      items: cart.items.map((item) => ({
+        ...item,
+        customizations: item.customizations.map((customization) => ({
+          optionId: customization.customizationOptionId,
+          price: customization.price,
+          name: customization.customizationOption.name,
+        })),
+      })),
+    } : null;
+    res.json({ data });
   }),
 );
 
@@ -104,12 +113,23 @@ cartRoutes.patch(
       cartItemId,
       productId,
       type,
+      userId,
     });
 
     res.json({
       message: "Updated",
     });
   }),
+);
+
+cartRoutes.patch(
+  "/customize",
+  authenticateUser,
+  validateBody(updateCartCustomizationSchema),
+  asyncHandler(async (req: Auth, res) => {
+    await cartService.updateCartItemCustomizations(req.body.cartItemId, req.user!.id, req.body.cIds);
+    res.json({ message: "Customizations updated" });
+  })
 );
 
 cartRoutes.delete(
@@ -122,6 +142,8 @@ cartRoutes.delete(
     if (!id) {
       throw new AppError("Cart item ID is required", 400);
     }
+
+    await cartService.assertCartItemOwner(parseInt(id), userId);
 
     const count = await cartService.getCartCount(userId);
 

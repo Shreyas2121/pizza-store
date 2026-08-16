@@ -43,6 +43,7 @@ chatRoutes.get(
   asyncHandler(async (req: Auth, res) => {
     let userId: number;
     if (req.query.userId) {
+      if (req.user!.role !== "admin") throw new AppError("Unauthorized", 403);
       userId = parseInt(req.query.userId as string);
     } else {
       userId = req.user!.id;
@@ -77,6 +78,7 @@ chatRoutes.patch(
     const chatSessionId = req.body.chatId as string;
     const status = req.body.status as ChatStatus;
 
+    const previousChatSession = await chatService.getActiveChatBySessionId(parseInt(chatSessionId));
     const [updatedChatSession] = await chatService.updateChatStatus(
       parseInt(chatSessionId),
       status
@@ -88,7 +90,7 @@ chatRoutes.patch(
       message: "Chat status updated",
       data: {
         updatedChatSession,
-        oldStatus: status,
+          oldStatus: previousChatSession?.status ?? status,
       },
     });
   })
@@ -100,6 +102,7 @@ chatRoutes.get(
   asyncHandler(async (req: Auth, res) => {
     let userId: number;
     if (req.query.userId) {
+      if (req.user!.role !== "admin") throw new AppError("Unauthorized", 403);
       userId = parseInt(req.query.userId as string);
     } else {
       userId = req.user!.id;
@@ -117,10 +120,7 @@ chatRoutes.get(
       const type = d.sender.role;
       return {
         type,
-        timeStamp: new Date(d.createdAt).toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
+        timestamp: new Date(d.createdAt).toISOString(),
         id: d.id,
         message: d.message,
       };
@@ -143,6 +143,9 @@ chatRoutes.post(
     const session = await chatService.getActiveChatBySessionId(data.sessionId);
 
     if (!session) throw new AppError("Session not found", 404);
+    if (req.user!.role !== "admin" && session.userId !== userId) {
+      throw new AppError("Unauthorized", 403);
+    }
 
   const [messageData] = await chatService.sendMessage({
       ...data,
@@ -152,10 +155,7 @@ chatRoutes.post(
 
     const message = {
       id: messageData.id,
-      timestamp: new Date(messageData.createdAt).toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
+      timestamp: new Date(messageData.createdAt).toISOString(),
       type: user?.role,
       message: messageData.message,
     };
