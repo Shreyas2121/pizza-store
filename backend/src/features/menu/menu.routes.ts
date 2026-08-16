@@ -22,6 +22,7 @@ menuRoutes.post(
     const filteredImage = filterImage(image);
     const [menu] = await menuService.createMenuItem({
       ...data,
+      position: Number(data.position),
       image: filteredImage,
       slug: generateSlug(data.name),
     });

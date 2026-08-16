@@ -1,5 +1,5 @@
 import { Group, Product, ProductWithCategory, QUERY_KEYS } from "@/lib";
-import { createQuery } from "./useApi";
+import { createMutation, createQuery } from "./useApi";
 
 const useGetProducts = ({
   menuSlug,
@@ -53,6 +53,12 @@ const useGetProductsA = () => {
   );
 };
 
+const useCreateProduct = () =>
+  createMutation<{ data: Product }>("/product", "post", [
+    [QUERY_KEYS.products.adminA],
+    [QUERY_KEYS.products.allMenu],
+  ]);
+
 const useGetProductByCat = (categoryId: number | null) => {
   return createQuery<Product[]>(
     [QUERY_KEYS.products.cat, categoryId],
@@ -88,4 +94,5 @@ export const PRODUCTS_HOOKS = {
   useGetProducts,
   useGetProductsA,
   useGetProductsByGroup,
+  useCreateProduct,
 };

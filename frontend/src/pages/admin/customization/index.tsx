@@ -1,84 +1,58 @@
 import { Transfer } from "@/components/admin";
+import { PageHeader } from "@/components/common";
 import { CUSTOMIZATION_API_HOOKS } from "@/hooks";
+import { formatPrice } from "@/lib";
 import { useAuthModalStore } from "@/store";
-import { Loader } from "@mantine/core";
+import { Accordion, Badge, Button, Skeleton } from "@mantine/core";
+import { Boxes, PackagePlus, SlidersHorizontal } from "lucide-react";
 
 const Customization = () => {
-  const { data: customizations, isLoading } = CUSTOMIZATION_API_HOOKS.useGetAllCustomizations();
+  const { data: groups, isLoading, isError } = CUSTOMIZATION_API_HOOKS.useGetAllCustomizations();
   const { openModal } = useAuthModalStore();
 
-  const handleManageProducts = (groupId: number) => {
-    openModal({
-      content: <Transfer groupId={groupId} />,
-      title: "Transfer Products",
-    });
-  };
-
-  const handleEditGroup = (_groupId: number) => {};
-
-  const handleDeleteGroup = (_groupId: number) => {};
-
-  if (isLoading) {
-    return <Loader />;
-  }
-
   return (
-    <div className="container mx-auto px-4 py-6">
-      <h1 className="text-3xl font-bold mb-6">Customization</h1>
-      <div className="space-y-4">
-        {customizations?.map((group) => (
-          <div
-            key={group.id}
-            className="border rounded p-4 shadow hover:shadow-lg transition"
-          >
-            {/* Group Header */}
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-xl font-semibold">
-                {group.name}{" "}
-                {group.required && (
-                  <span className="text-red-500 text-sm">(required)</span>
-                )}
-              </h2>
-              <div className="space-x-2">
-                <button
-                  className="text-sm px-3 py-1 border border-gray-300 rounded hover:bg-gray-100 transition"
-                  onClick={() => handleEditGroup(group.id)}
-                >
-                  Edit
-                </button>
-                <button
-                  className="text-sm px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition"
-                  onClick={() => handleDeleteGroup(group.id)}
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-            {/* Options List */}
-            <ul className="list-disc ml-5 space-y-1 text-gray-700">
-              {group.options?.length > 0 ? (
-                group.options.map((opt) => (
-                  <li key={opt.id}>
-                    {opt.name}
-                    {opt.price && ` ($${opt.price})`}
-                  </li>
-                ))
-              ) : (
-                <li className="italic text-gray-500">No options available</li>
-              )}
-            </ul>
-            {/* Manage Products Button */}
-            <div className="mt-4">
-              <button
-                className="px-4 py-2 bg-brand-500 text-white rounded hover:bg-brand-600 transition"
-                onClick={() => handleManageProducts(group.id)}
-              >
-                Manage Products
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
+    <div>
+      <PageHeader eyebrow="Catalogue" title="Customization groups" description="Review option groups and control which products offer each set of choices." />
+      {isLoading ? <div className="space-y-3">{[1,2,3].map((item) => <Skeleton key={item} h={86} radius="lg" />)}</div> : isError ? (
+        <div className="surface-card p-8 text-center text-danger">Customization groups could not be loaded.</div>
+      ) : groups?.length ? (
+        <Accordion variant="separated" radius="lg" defaultValue={String(groups[0]?.id)}>
+          {groups.map((group) => (
+            <Accordion.Item key={group.id} value={String(group.id)} className="overflow-hidden border-border bg-surface">
+              <Accordion.Control icon={<SlidersHorizontal size={20} className="text-brand" />}>
+                <div className="flex flex-wrap items-center gap-2 pr-3">
+                  <span className="font-semibold text-ink">{group.name}</span>
+                  <Badge size="sm" variant="light" color={group.required ? "brand" : "gray"}>{group.required ? "Required" : "Optional"}</Badge>
+                  <Badge size="sm" variant="outline" color="gray">{group.type === "single" ? "Choose one" : "Choose multiple"}</Badge>
+                  <span className="text-sm text-ink-muted">{group.options.length} options · {group.products.length} products</span>
+                </div>
+              </Accordion.Control>
+              <Accordion.Panel>
+                <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_280px]">
+                  <div>
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">Available options</p>
+                    <div className="divide-y divide-border rounded-xl border border-border">
+                      {group.options.length ? group.options.map((option) => (
+                        <div key={option.id} className="flex min-h-12 items-center justify-between gap-3 px-4 py-2">
+                          <div><p className="font-medium text-ink">{option.name}</p><p className="text-xs text-ink-muted">{option.isAvailable ? "Available" : "Unavailable"}</p></div>
+                          <span className="font-medium tabular-nums text-ink-muted">{option.price ? `+${formatPrice(option.price)}` : "Included"}</span>
+                        </div>
+                      )) : <p className="p-4 text-sm text-ink-muted">No options have been added.</p>}
+                    </div>
+                  </div>
+                  <div className="rounded-xl bg-surface-muted p-4">
+                    <div className="flex items-center gap-2"><Boxes size={18} /><p className="font-semibold">Assigned products</p></div>
+                    <p className="mt-1 text-sm text-ink-muted">{group.products.length ? group.products.slice(0, 4).map((product) => product.name).join(", ") : "No products assigned"}{group.products.length > 4 ? ` and ${group.products.length - 4} more` : ""}</p>
+                    <Button mt="md" fullWidth variant="default" leftSection={<PackagePlus size={16} />} onClick={() => openModal({ title: `Assign products to ${group.name}`, content: <Transfer groupId={group.id} />, options: { size: "xl" } })}>Manage assignments</Button>
+                  </div>
+                </div>
+              </Accordion.Panel>
+            </Accordion.Item>
+          ))}
+        </Accordion>
+      ) : (
+        <div className="surface-card p-10 text-center"><SlidersHorizontal className="mx-auto mb-3 text-ink-muted" /><p className="font-semibold">No customization groups</p><p className="mt-1 text-sm text-ink-muted">Groups will appear here once configured.</p></div>
+      )}
     </div>
   );
 };

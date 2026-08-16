@@ -23,7 +23,7 @@ class DashboardService {
     return (
       await db
         .select({
-          total: sql`SUM(total_price) - SUM(discount_amount) as total_revenue`,
+          total: sql`COALESCE(SUM(total_price), 0) as total_revenue`,
         })
         .from(ordersTable)
         .where(

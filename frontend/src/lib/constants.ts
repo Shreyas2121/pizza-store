@@ -5,7 +5,6 @@ import {
   MapPin,
   ShoppingCart,
   Sliders,
-  Tag,
   User,
   MessageCircleQuestionIcon,
 } from "lucide-react";
@@ -159,37 +158,32 @@ export const navLinks = [
 export const sidebarLinks = [
   {
     label: "Dashboard",
-    to: "/",
+    to: "/admin",
     icon: Home,
   },
   {
     label: "Customization",
-    to: "/customization",
+    to: "/admin/customization",
     icon: Sliders,
   },
   {
     label: "Products",
-    to: "/products",
+    to: "/admin/products",
     icon: Box,
   },
   {
     label: "Orders",
-    to: "/orders",
+    to: "/admin/orders",
     icon: ShoppingCart,
   },
   {
     label: "Menu",
-    to: "/menu",
+    to: "/admin/menu",
     icon: Sliders,
   },
   {
-    label: "Coupons",
-    to: "/coupons",
-    icon: Tag,
-  },
-  {
     label: "Support",
-    to: "/support",
+    to: "/admin/support",
     icon: MessageCircleQuestionIcon,
   },
 ];

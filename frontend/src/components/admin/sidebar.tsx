@@ -1,78 +1,56 @@
-import { NavLink, useLocation } from "react-router";
-import { useState } from "react";
-import { Menu, X } from "lucide-react"; // Assuming you're using lucide-react icons
+import { Avatar, Drawer, Tooltip } from "@mantine/core";
+import { ChevronLeft, ChevronRight, LogOut, Pizza } from "lucide-react";
+import { NavLink, useLocation, useNavigate } from "react-router";
 import { sidebarLinks } from "@/lib";
+import { useUser } from "@/store";
 
-const AdminSidebar = () => {
+type Props = { collapsed: boolean; mobileOpened: boolean; onMobileClose: () => void; onToggleCollapse: () => void };
+
+const AdminSidebar = ({ collapsed, mobileOpened, onMobileClose, onToggleCollapse }: Props) => {
   const location = useLocation();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const navigate = useNavigate();
+  const { user, logout } = useUser();
+  const initials = `${user?.fname?.[0] ?? ""}${user?.lname?.[0] ?? ""}`.toUpperCase();
 
-  const toggleMobileMenu = () => {
-    setIsMobileMenuOpen(!isMobileMenuOpen);
-  };
+  const activeFor = (to: string) => to === "/admin" ? location.pathname === "/admin" : location.pathname.startsWith(to) || (to === "/admin/products" && location.pathname.startsWith("/admin/product"));
+
+  const content = (compact: boolean) => (
+    <div className="flex h-full flex-col">
+      <div className={`flex h-[72px] items-center border-b border-border ${compact ? "justify-center px-2" : "gap-3 px-5"}`}>
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand text-white"><Pizza size={21} /></span>
+        {!compact && <div><p className="font-display text-xl leading-none text-ink">PizzaStore</p><p className="mt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-brand">Admin workspace</p></div>}
+      </div>
+
+      <nav className="flex-1 overflow-y-auto p-3" aria-label="Admin navigation">
+        {!compact && <p className="px-3 pb-2 pt-2 text-[11px] font-bold uppercase tracking-[0.15em] text-ink-muted">Workspace</p>}
+        <ul className="space-y-1">
+          {sidebarLinks.map(({ label, to, icon: Icon }) => {
+            const active = activeFor(to);
+            const link = <NavLink to={to} end={to === "/admin"} onClick={onMobileClose} aria-label={compact ? label : undefined} className={`flex min-h-11 items-center rounded-control text-sm font-semibold transition-colors ${compact ? "justify-center px-2" : "gap-3 px-3"} ${active ? "bg-brand text-white shadow-subtle" : "text-ink-muted hover:bg-surface-muted hover:text-ink"}`}><Icon size={19} className="shrink-0" aria-hidden="true" />{!compact && <span>{label}</span>}</NavLink>;
+            return <li key={to}>{compact ? <Tooltip label={label} position="right" withArrow>{link}</Tooltip> : link}</li>;
+          })}
+        </ul>
+      </nav>
+
+      <div className="border-t border-border p-3">
+        <div className={`flex items-center ${compact ? "justify-center" : "gap-3 rounded-control bg-surface-muted p-3"}`}>
+          <Avatar color="brand" radius="xl" size={compact ? 38 : 40}>{initials}</Avatar>
+          {!compact && <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold text-ink">{user?.fname} {user?.lname}</p><p className="truncate text-xs text-ink-muted">Administrator</p></div>}
+        </div>
+        <Tooltip label="Log out" position="right" disabled={!compact}>
+          <button type="button" onClick={() => { logout(); navigate("/"); }} className={`mt-2 flex min-h-11 w-full items-center rounded-control text-sm font-semibold text-ink-muted hover:bg-red-50 hover:text-danger ${compact ? "justify-center" : "gap-3 px-3"}`} aria-label={compact ? "Log out" : undefined}><LogOut size={18} />{!compact && "Log out"}</button>
+        </Tooltip>
+      </div>
+    </div>
+  );
 
   return (
     <>
-      {/* Mobile menu button - visible only on mobile */}
-      <button
-        onClick={toggleMobileMenu}
-        className="fixed top-4 left-4 z-30 p-2 rounded-md bg-brand-500 text-white md:hidden"
-      >
-        {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-      </button>
-
-      {/* Sidebar - hidden on mobile by default, can be toggled */}
-      <aside
-        className={`w-64 bg-white border-r border-gray-100 p-4 fixed inset-y-0 left-0 z-20 transition-transform duration-300 transform ${
-          isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
-        } md:translate-x-0 md:static md:block`}
-      >
-        {/* Header/logo */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-brand-700">Admin Panel</h2>
-        </div>
-        <nav>
-          <ul className="flex flex-col space-y-2">
-            {sidebarLinks.map(({ label, to, icon: Icon }, idx) => {
-              const newLink = `/admin${to}`;
-              const isActive = location.pathname === newLink;
-
-              return (
-                <li key={idx}>
-                  <NavLink
-                    to={`${newLink}`}
-                    className={
-                      "flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 " +
-                      "text-gray-700 hover:bg-brand-50 hover:text-brand-700 " +
-                      (isActive
-                        ? "bg-brand-100 text-brand-800 font-medium shadow-sm border-l-4 border-brand-500"
-                        : "border-l-4 border-transparent")
-                    }
-                    onClick={() =>
-                      isMobileMenuOpen && setIsMobileMenuOpen(false)
-                    }
-                  >
-                    <Icon
-                      className={`w-5 h-5 ${
-                        isActive ? "text-brand-600" : "text-gray-400"
-                      }`}
-                    />
-                    <span>{label}</span>
-                  </NavLink>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
+      <aside className={`sticky top-0 hidden h-screen shrink-0 border-r border-border bg-surface transition-[width] duration-200 lg:block ${collapsed ? "w-[84px]" : "w-64"}`}>
+        {content(collapsed)}
+        <button type="button" onClick={onToggleCollapse} className="absolute -right-3 top-24 grid h-7 w-7 place-items-center rounded-full border border-border bg-surface text-ink-muted shadow-subtle hover:text-brand" aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}>{collapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}</button>
       </aside>
-
-      {/* Overlay for mobile - closes menu when clicking outside */}
-      {isMobileMenuOpen && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-10 md:hidden"
-          onClick={toggleMobileMenu}
-        />
-      )}
+      <Drawer opened={mobileOpened} onClose={onMobileClose} position="left" size={280} padding={0} withCloseButton={false} overlayProps={{ backgroundOpacity: 0.4, blur: 2 }} classNames={{ body: "h-full" }}>{content(false)}</Drawer>
     </>
   );
 };

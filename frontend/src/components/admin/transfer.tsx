@@ -1,157 +1,68 @@
 import { CUSTOMIZATION_API_HOOKS, PRODUCTS_HOOKS } from "@/hooks";
 import { success } from "@/lib";
-import { Button } from "@mantine/core";
+import { useAuthModalStore } from "@/store";
+import { ActionIcon, Button, Loader, TextInput } from "@mantine/core";
+import { ArrowLeft, ArrowRight, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
-interface Product {
-  id: number;
-  name: string;
-}
+interface Product { id: number; name: string; }
 
 const Transfer = ({ groupId }: { groupId: number }) => {
-  const { data: groupedProducts, isLoading: loadingG } =
-    PRODUCTS_HOOKS.useGetProductsByGroup(groupId);
-
-  const { data: products, isLoading: loadingP } = PRODUCTS_HOOKS.useGetProductsA();
-  const updateMappingM = CUSTOMIZATION_API_HOOKS.useUpdateGroupMapping();
-
-  const [assigned, setAssigned] = useState<
-    {
-      id: number;
-      name: string;
-    }[]
-  >([]);
-
-  const allProducts = products || [];
-  const assignedProducts = assigned || [];
-
-  const unassignedProducts = useMemo(() => {
-    return allProducts.filter(
-      (p) => !assignedProducts.some((ap) => ap.id === p.id)
-    );
-  }, [allProducts, assignedProducts]);
+  const { data: groupedProducts, isLoading: loadingGroup } = PRODUCTS_HOOKS.useGetProductsByGroup(groupId);
+  const { data: products, isLoading: loadingProducts } = PRODUCTS_HOOKS.useGetProductsA();
+  const updateMapping = CUSTOMIZATION_API_HOOKS.useUpdateGroupMapping();
+  const closeModal = useAuthModalStore((state) => state.closeModal);
+  const [assigned, setAssigned] = useState<Product[]>([]);
+  const [initialIds, setInitialIds] = useState<number[]>([]);
+  const [availableSearch, setAvailableSearch] = useState("");
+  const [assignedSearch, setAssignedSearch] = useState("");
 
   useEffect(() => {
     if (groupedProducts) {
       setAssigned(groupedProducts);
+      setInitialIds(groupedProducts.map((product) => product.id).sort((a, b) => a - b));
     }
   }, [groupedProducts]);
 
-  if (loadingG || loadingP) {
-    return <div className="p-4">Loading...</div>;
-  }
+  const available = useMemo(() => (products ?? []).filter((product) => !assigned.some((item) => item.id === product.id) && product.name.toLowerCase().includes(availableSearch.toLowerCase())), [products, assigned, availableSearch]);
+  const filteredAssigned = assigned.filter((product) => product.name.toLowerCase().includes(assignedSearch.toLowerCase()));
+  const currentIds = assigned.map((product) => product.id).sort((a, b) => a - b);
+  const hasChanges = currentIds.join(",") !== initialIds.join(",");
 
-  const handleAdd = (product: Product) => {
-    setAssigned((prev) => [...prev, product]);
-  };
+  if (loadingGroup || loadingProducts) return <div className="grid min-h-64 place-items-center"><Loader /></div>;
 
-  const handleRemove = (product: Product) => {
-    setAssigned((prev) => prev.filter((ap) => ap.id !== product.id));
-  };
-
-  const handleAddAll = () => {
-    setAssigned(allProducts);
-  };
-
-  const handleRemoveAll = () => {
-    setAssigned([]);
-  };
-
-  const handleUpdate = () => {
-    updateMappingM.mutate(
-      {
-        groupId,
-        productIds: assigned.map((p) => p.id),
-      },
-      {
-        onSuccess: (res) => {
-          success(res.message || "Group mapping updated successfully");
-        },
-      }
-    );
-  };
+  const ProductList = ({ items, destination }: { items: Product[]; destination: "assigned" | "available" }) => (
+    <div className="h-72 overflow-y-auto rounded-xl border border-border bg-surface">
+      {items.length ? items.map((product) => (
+        <div key={product.id} className="flex min-h-12 items-center justify-between gap-3 border-b border-border px-3 py-2 last:border-0">
+          <span className="truncate text-sm font-medium">{product.name}</span>
+          <ActionIcon variant="subtle" color={destination === "assigned" ? "brand" : "gray"} size={36} aria-label={`${destination === "assigned" ? "Assign" : "Remove"} ${product.name}`} onClick={() => destination === "assigned" ? setAssigned((current) => [...current, product]) : setAssigned((current) => current.filter((item) => item.id !== product.id))}>
+            {destination === "assigned" ? <ArrowRight size={16} /> : <ArrowLeft size={16} />}
+          </ActionIcon>
+        </div>
+      )) : <p className="p-5 text-center text-sm text-ink-muted">No products in this list.</p>}
+    </div>
+  );
 
   return (
-    <div className="p-4">
-      <h2 className="text-xl font-semibold mb-6">
-        Transfer Products to Group {groupId}
-      </h2>
-      <div className="grid grid-cols-2 gap-8">
-        {/* Unassigned Products */}
-        <div className="border rounded p-4">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-medium text-lg">Available Products</h3>
-            <Button variant="default" size="xs" onClick={handleAddAll}>
-              Add All
-            </Button>
-          </div>
-          <div className="h-80 overflow-y-auto">
-            {unassignedProducts.length ? (
-              <ul className="space-y-2">
-                {unassignedProducts.map((product) => (
-                  <li
-                    key={product.id}
-                    className="flex items-center justify-between"
-                  >
-                    <span>{product.name}</span>
-                    <Button
-                      variant="filled"
-                      color="blue"
-                      size="xs"
-                      onClick={() => handleAdd(product)}
-                    >
-                      Add
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-gray-500">No available products.</p>
-            )}
-          </div>
-        </div>
-        {/* Assigned Products */}
-        <div className="border rounded p-4">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-medium text-lg">Assigned Products</h3>
-            <Button variant="default" size="xs" onClick={handleRemoveAll}>
-              Remove All
-            </Button>
-          </div>
-          <div className="h-80 overflow-y-auto">
-            {assignedProducts.length ? (
-              <ul className="space-y-2">
-                {assignedProducts.map((product) => (
-                  <li
-                    key={product.id}
-                    className="flex items-center justify-between"
-                  >
-                    <span>{product.name}</span>
-                    <Button
-                      variant="filled"
-                      color="red"
-                      size="xs"
-                      onClick={() => handleRemove(product)}
-                    >
-                      Remove
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-gray-500">No products assigned.</p>
-            )}
-          </div>
-        </div>
+    <div className="space-y-5">
+      <div className="rounded-xl bg-brand-soft p-4 text-sm text-ink"><strong>{assigned.length} products assigned.</strong> Move products between the available and assigned lists, then save the final selection.</div>
+      <div className="grid gap-5 md:grid-cols-2">
+        <section>
+          <div className="mb-2 flex items-center justify-between"><div><p className="font-semibold">Available</p><p className="text-xs text-ink-muted">Source · {available.length} shown</p></div><Button size="xs" variant="subtle" disabled={!available.length} onClick={() => setAssigned(products ?? [])}>Assign all</Button></div>
+          <TextInput mb="sm" aria-label="Search available products" placeholder="Search available" leftSection={<Search size={15} />} value={availableSearch} onChange={(event) => setAvailableSearch(event.currentTarget.value)} />
+          <ProductList items={available} destination="assigned" />
+        </section>
+        <section>
+          <div className="mb-2 flex items-center justify-between"><div><p className="font-semibold">Assigned</p><p className="text-xs text-ink-muted">Destination · {assigned.length} selected</p></div><Button size="xs" variant="subtle" color="red" disabled={!assigned.length} onClick={() => setAssigned([])}>Remove all</Button></div>
+          <TextInput mb="sm" aria-label="Search assigned products" placeholder="Search assigned" leftSection={<Search size={15} />} value={assignedSearch} onChange={(event) => setAssignedSearch(event.currentTarget.value)} />
+          <ProductList items={filteredAssigned} destination="available" />
+        </section>
       </div>
-      <Button
-        loading={updateMappingM.isPending}
-        className="w-full mt-5"
-        color="brand"
-        onClick={handleUpdate}
-      >
-        Update
-      </Button>
+      <div className="sticky -bottom-4 -mx-4 flex items-center justify-between gap-3 border-t border-border bg-surface/95 p-4 backdrop-blur">
+        <span className="text-sm text-ink-muted">{hasChanges ? "Unsaved assignment changes" : "Assignments are up to date"}</span>
+        <div className="flex gap-3"><Button variant="default" onClick={closeModal}>Cancel</Button><Button color="brand" disabled={!hasChanges} loading={updateMapping.isPending} onClick={() => updateMapping.mutate({ groupId, productIds: assigned.map((product) => product.id) }, { onSuccess: (response) => { success(response.message || "Assignments updated."); setInitialIds(currentIds); closeModal(); } })}>Save assignments</Button></div>
+      </div>
     </div>
   );
 };

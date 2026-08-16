@@ -37,16 +37,17 @@ customizationRoutes.post(
   asyncHandler(async (req, res) => {
     const { productIds, groupId } = req.body;
 
-    await Promise.all(
-      productIds.map((id: number) => {
-        return customizeService.createProductCustomizationGroupMapping({
-          productId: id,
-          groupId,
-        });
-      })
+    if (!Number.isInteger(groupId) || !Array.isArray(productIds)) {
+      throw new AppError("A valid group and product list are required", 400);
+    }
+
+    const uniqueProductIds = [...new Set(productIds)].filter(Number.isInteger) as number[];
+    await customizeService.replaceProductCustomizationGroupMappings(
+      groupId,
+      uniqueProductIds
     );
 
-    res.status(201).json({ message: "Mapping created successfully." });
+    res.status(200).json({ message: "Product assignments updated." });
   })
 );
 

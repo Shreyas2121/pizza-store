@@ -1,51 +1,15 @@
 import OrderStatus from "@/components/common/order-status";
-import { OrdersAdmin } from "@/lib/types";
-import { formatPrice } from "@/lib/utils";
-import { Button } from "@mantine/core";
+import { formatPrice, OrdersAdmin } from "@/lib";
+import { ActionIcon, Tooltip } from "@mantine/core";
 import { ColumnDef } from "@tanstack/react-table";
+import { ArrowRight } from "lucide-react";
 import { Link } from "react-router";
 
 export const orderColumnsAdmin: ColumnDef<OrdersAdmin>[] = [
-  {
-    header: "Order ID",
-    accessorKey: "id",
-  },
-  {
-    header: "Username",
-    accessorKey: "user.id",
-    cell: ({ row }) => {
-      const fname = row.original.user.fname;
-      const lname = row.original.user.lname;
-      return `${fname} ${lname}`;
-    },
-  },
-  {
-    header: "Order Date",
-    accessorKey: "orderDate",
-    cell: ({ row }) => {
-      const date = row.original.orderDate!;
-      return new Date(date).toDateString();
-    },
-  },
-  {
-    header: "Total Amount",
-    accessorKey: "totalAmount",
-    cell: ({ row }) => `${formatPrice(row.original.totalPrice)}`,
-  },
-  {
-    header: "Status",
-    accessorKey: "status",
-    cell: ({ row }) => <OrderStatus status={row.original.status} />,
-  },
-  {
-    header: "Actions",
-    accessorKey: "id",
-    cell: ({ row }) => {
-      return (
-        <Link to={`/admin/order/${row.original.id}`}>
-          <Button>View Details</Button>
-        </Link>
-      );
-    },
-  },
+  { header: "Order", accessorKey: "id", cell: ({ row }) => <span className="font-semibold tabular-nums">#{row.original.id}</span> },
+  { id: "userFullName", header: "Customer", accessorFn: (row) => `${row.user.fname} ${row.user.lname}`, cell: ({ row }) => <div><p className="font-medium">{row.original.user.fname} {row.original.user.lname}</p><p className="text-xs text-ink-muted">{row.original.user.email}</p></div> },
+  { header: "Placed", accessorKey: "orderDate", cell: ({ row }) => <span className="whitespace-nowrap text-ink-muted">{row.original.orderDate ? new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short" }).format(new Date(row.original.orderDate)) : "—"}</span> },
+  { header: "Total", accessorKey: "totalPrice", cell: ({ row }) => <span className="font-semibold tabular-nums">{formatPrice(row.original.totalPrice)}</span> },
+  { header: "Status", accessorKey: "status", cell: ({ row }) => <OrderStatus status={row.original.status} /> },
+  { id: "actions", header: "", enableSorting: false, cell: ({ row }) => <Tooltip label="View order"><ActionIcon component={Link} to={`/admin/order/${row.original.id}`} variant="subtle" color="brand" size={40} aria-label={`View order ${row.original.id}`}><ArrowRight size={17} /></ActionIcon></Tooltip> },
 ];

@@ -18,7 +18,10 @@ const useUpdateGroupMapping = () => {
   return createMutation<{ message: string }>(
     "/customize/mapping",
     "post",
-    [[QUERY_KEYS.customizations.admin]]
+    [
+      [QUERY_KEYS.customizations.admin],
+      [QUERY_KEYS.products.group],
+    ]
   );
 };
 

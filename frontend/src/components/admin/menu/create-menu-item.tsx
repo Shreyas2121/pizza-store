@@ -1,164 +1,81 @@
-import { CATEGORY_API_HOOKS, PRODUCTS_HOOKS } from "@/hooks";
-import { menuSchema, TMenu } from "@/lib/zodSchema";
+import { CATEGORY_API_HOOKS, MENU_API_HOOKS, PRODUCTS_HOOKS } from "@/hooks";
+import { menuSchema, success, TMenu } from "@/lib";
+import { useAuthModalStore } from "@/store";
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  MultiSelect,
-  NumberInput,
-  Select,
-  Text,
-  TextInput,
-  FileInput,
-  Button,
-} from "@mantine/core";
-import { Upload } from "lucide-react";
+import { Button, FileInput, MultiSelect, NumberInput, Paper, Select, Text, TextInput } from "@mantine/core";
+import { ImagePlus, Save } from "lucide-react";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 
 const CreateMenuItem = () => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const { data: categories } = CATEGORY_API_HOOKS.useGetCategoriesSelect();
-
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
-
+  const { data: categories } = CATEGORY_API_HOOKS.useGetCategoriesSelect();
   const { data: products } = PRODUCTS_HOOKS.useGetProductByCat(selectedCategory);
-
-  const {
-    control,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<TMenu>({
+  const createMenu = MENU_API_HOOKS.useCreateMenuItem();
+  const createMapping = MENU_API_HOOKS.useCreateMenuMapping();
+  const closeModal = useAuthModalStore((state) => state.closeModal);
+  const { control, handleSubmit, formState: { errors } } = useForm<TMenu>({
     resolver: zodResolver(menuSchema),
-    defaultValues: {
-      name: "",
-      image: undefined,
-      position: 1,
-      productIds: [],
-    },
+    defaultValues: { name: "", image: undefined, position: 1, productIds: [] },
   });
 
-  const handleImageChange = (file: File | null) => {
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    } else {
-      setImagePreview(null);
-    }
-    return file;
-  };
+  const productOptions = products?.map((product) => ({ value: String(product.id), label: product.name })) ?? [];
+  const isSaving = createMenu.isPending || createMapping.isPending;
 
-  const productOptions =
-    products?.map((p) => ({
-      value: p.id.toString(),
-      label: p.name,
-    })) || [];
-
-  const onSubmit = (_data: TMenu) => {
-    // For now, do nothing further.
+  const onSubmit = (data: TMenu) => {
+    const payload = new FormData();
+    payload.append("name", data.name.trim());
+    payload.append("position", String(data.position));
+    payload.append("image", data.image);
+    createMenu.mutate(payload, {
+      onSuccess: (response) => {
+        createMapping.mutate({ menuItemId: response.data.id, productIds: data.productIds }, {
+          onSuccess: () => {
+            success("Menu section created and products assigned.");
+            closeModal();
+          },
+        });
+      },
+    });
   };
 
   return (
-    <div className="max-w-xl mx-auto p-6 bg-white shadow rounded-lg">
-      <h2 className="text-2xl font-bold mb-6 text-center">Create Menu Item</h2>
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        {/* Product Name */}
-        <Controller
-          name="name"
-          control={control}
-          render={({ field }) => (
-            <TextInput
-              label="Menu Item Name"
-              placeholder="Enter menu item name"
-              withAsterisk
-              error={errors.name?.message}
-              {...field}
-            />
-          )}
-        />
-
-        {/* Position */}
-        <Controller
-          name="position"
-          control={control}
-          render={({ field }) => (
-            <NumberInput
-              label="Position"
-              placeholder="Enter position"
-              withAsterisk
-              error={errors.position?.message}
-              value={field.value}
-              onChange={(val) => field.onChange(val)}
-            />
-          )}
-        />
-
-        {/* Image */}
-        <Controller
-          name="image"
-          control={control}
-          render={({ field }) => (
-            <>
-              <FileInput
-                label="Product Image"
-                placeholder="Upload image"
-                leftSection={<Upload size={16} />}
-                withAsterisk
-                accept="image/png,image/jpeg,image/gif"
-                error={errors.image?.message}
-                value={field.value as File | null}
-                onChange={(file) => {
-                  const processedFile = handleImageChange(file);
-                  field.onChange(processedFile);
-                }}
-                description="Upload a JPEG, PNG, or GIF under 5MB"
-              />
-
-              {imagePreview && (
-                <div className="mt-2">
-                  <p className="text-sm mb-1">Preview:</p>
-                  <img
-                    src={imagePreview}
-                    alt="Preview"
-                    className="w-full max-h-40 rounded-md object-contain border border-gray-300"
-                  />
-                </div>
-              )}
-            </>
-          )}
-        />
-
-        {/* Category Filter for Products */}
-        <div>
-          <Text className="mb-1 font-medium">Filter Products by Category</Text>
-          <Select
-            placeholder="Select a category"
-            data={categories}
-            value={selectedCategory?.toString() || ""}
-            onChange={(val) => setSelectedCategory(val ? Number(val) : null)}
-          />
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+      <Paper withBorder radius="lg" p="md">
+        <Text fw={700}>Section details</Text>
+        <Text size="sm" c="dimmed" mb="md">Controls the section label, order, and image in menu discovery.</Text>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Controller name="name" control={control} render={({ field }) => <TextInput label="Section name" placeholder="e.g. Pizzas" withAsterisk error={errors.name?.message} {...field} />} />
+          <Controller name="position" control={control} render={({ field }) => <NumberInput label="Display position" min={1} withAsterisk error={errors.position?.message} value={field.value} onChange={field.onChange} />} />
         </div>
+      </Paper>
 
-        {/* MultiSelect for Products */}
-        <Controller
-          name="productIds"
-          control={control}
-          render={({ field }) => (
-            <MultiSelect
-              label="Select Products"
-              placeholder="Choose products to associate"
-              data={productOptions}
-              error={errors.productIds?.message}
-              value={field.value.map(String)}
-              onChange={(vals) => field.onChange(vals.map(Number))}
-            />
-          )}
-        />
+      <Paper withBorder radius="lg" p="md">
+        <Text fw={700}>Section image</Text>
+        <Text size="sm" c="dimmed" mb="md">Use a square or landscape food image, up to 5 MB.</Text>
+        <div className="grid gap-4 sm:grid-cols-[1fr_160px]">
+          <Controller name="image" control={control} render={({ field }) => <FileInput label="Upload image" placeholder="Choose an image" leftSection={<ImagePlus size={16} />} accept="image/png,image/jpeg,image/gif" withAsterisk error={errors.image?.message} value={field.value as File | null} onChange={(file) => { field.onChange(file); setImagePreview(file ? URL.createObjectURL(file) : null); }} />} />
+          <div className="aspect-square overflow-hidden rounded-xl border border-dashed border-border bg-surface-muted">
+            {imagePreview ? <img src={imagePreview} alt="Menu section preview" className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-xs text-ink-muted">Preview</div>}
+          </div>
+        </div>
+      </Paper>
 
-        <Button type="submit" color="brand">Create Menu Item</Button>
-      </form>
-    </div>
+      <Paper withBorder radius="lg" p="md">
+        <Text fw={700}>Assign products</Text>
+        <Text size="sm" c="dimmed" mb="md">Choose a category first, then select the products this section should contain.</Text>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Select label="Product category" placeholder="Choose category" searchable clearable data={categories ?? []} value={selectedCategory?.toString() ?? null} onChange={(value) => setSelectedCategory(value ? Number(value) : null)} />
+          <Controller name="productIds" control={control} render={({ field }) => <MultiSelect label="Products" placeholder={selectedCategory ? "Select products" : "Choose a category first"} disabled={!selectedCategory} searchable data={productOptions} error={errors.productIds?.message} value={field.value.map(String)} onChange={(values) => field.onChange(values.map(Number))} />} />
+        </div>
+      </Paper>
+
+      <div className="sticky -bottom-4 -mx-4 flex justify-end gap-3 border-t border-border bg-surface/95 p-4 backdrop-blur">
+        <Button type="button" variant="default" onClick={closeModal}>Cancel</Button>
+        <Button type="submit" color="brand" loading={isSaving} leftSection={<Save size={16} />}>Create section</Button>
+      </div>
+    </form>
   );
 };
 

@@ -27,6 +27,9 @@ productRoutes.post(
 
     const [product] = await productService.createProduct({
       ...data,
+      price: Number(data.price),
+      categoryId: Number(data.categoryId),
+      veg: data.veg === "true" || data.veg === true,
       image: filteredImage,
       slug: generateSlug(data.name),
     });

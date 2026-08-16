@@ -1,73 +1,49 @@
-
 import { CreateMenuItem } from "@/components/admin";
+import { PageHeader } from "@/components/common";
 import { MENU_API_HOOKS } from "@/hooks";
 import { BASE_URL } from "@/lib";
 import { useAuthModalStore } from "@/store";
-import { Button, Card, Loader, Text } from "@mantine/core";
-import { Edit, Trash } from "lucide-react";
+import { Badge, Button, Skeleton } from "@mantine/core";
+import { ImageOff, Plus } from "lucide-react";
 
 const Menu = () => {
-  const { data: menuItems, isLoading } = MENU_API_HOOKS.useGetMenuItems();
+  const { data: menuItems, isLoading, isError } = MENU_API_HOOKS.useGetMenuItems();
   const { openModal } = useAuthModalStore();
 
-  if (isLoading) {
-    return <Loader />;
-  }
-
   return (
-    <div className="p-4">
-      <div className="flex items-center justify-between mb-8">
-        <Text className="text-2xl font-semibold mb-4">Menu Items</Text>{" "}
-        <Button
-          onClick={() =>
-            openModal({
-              content: <CreateMenuItem />,
-              title: "Create New Menu Item",
-            })
-          }
-          size="sm"
-          variant="primary"
-        >
-          Add New Item
-        </Button>
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        {menuItems!.map((item) => (
-          <Card
-            key={item.id}
-            shadow="sm"
-            radius="md"
-            className="p-4 flex flex-col items-center"
-          >
-            <img
-              src={`${BASE_URL}${item.image}`}
-              alt={item.name}
-              className="w-24 h-24 object-cover rounded mb-4 border"
-            />
-            <Text className="font-semibold text-lg mb-1">{item.name}</Text>
-            <Text className="text-sm text-gray-500 mb-4">
-              Position: {item.position}
-            </Text>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="xs"
-                leftSection={<Edit size={14} />}
-              >
-                Edit
-              </Button>
-              <Button
-                variant="outline"
-                size="xs"
-                color="red"
-                leftSection={<Trash size={14} />}
-              >
-                Delete
-              </Button>
-            </div>
-          </Card>
-        ))}
-      </div>
+    <div>
+      <PageHeader
+        eyebrow="Catalogue"
+        title="Menu sections"
+        description="Control the order and grouping customers use to browse the catalogue."
+        action={<Button color="brand" leftSection={<Plus size={16} />} onClick={() => openModal({ title: "Create menu section", content: <CreateMenuItem />, options: { size: "xl" } })}>Add section</Button>}
+      />
+
+      {isLoading ? (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{[1,2,3,4].map((item) => <Skeleton key={item} h={160} radius="lg" />)}</div>
+      ) : isError ? (
+        <div className="surface-card p-8 text-center text-danger">Menu sections could not be loaded.</div>
+      ) : menuItems?.length ? (
+        <div className="overflow-hidden rounded-2xl border border-border bg-surface">
+          <div className="hidden grid-cols-[72px_minmax(0,1fr)_120px_120px] items-center gap-4 bg-surface-muted px-5 py-3 text-xs font-semibold uppercase tracking-wide text-ink-muted sm:grid">
+            <span>Image</span><span>Section</span><span>Position</span><span>Status</span>
+          </div>
+          <div className="divide-y divide-border">
+            {menuItems.map((item) => (
+              <div key={item.id} className="grid grid-cols-[64px_minmax(0,1fr)] items-center gap-4 p-4 sm:grid-cols-[72px_minmax(0,1fr)_120px_120px] sm:px-5">
+                <div className="h-14 w-14 overflow-hidden rounded-xl bg-surface-muted">
+                  {item.image ? <img src={`${BASE_URL}${item.image}`} alt="" className="h-full w-full object-cover" /> : <ImageOff className="m-auto mt-4 text-ink-muted" size={22} />}
+                </div>
+                <div><p className="font-semibold text-ink">{item.name}</p><p className="text-sm text-ink-muted">/{item.slug}</p></div>
+                <div className="col-start-2 text-sm tabular-nums sm:col-auto"><span className="sm:hidden text-ink-muted">Position: </span>{item.position}</div>
+                <div className="col-start-2 sm:col-auto"><Badge color={item.isActive ? "basil" : "gray"} variant="light">{item.isActive ? "Active" : "Inactive"}</Badge></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="surface-card flex flex-col items-center p-10 text-center"><ImageOff className="mb-3 text-ink-muted" /><p className="font-semibold">No menu sections yet</p><p className="mt-1 text-sm text-ink-muted">Create the first section to organize the storefront.</p></div>
+      )}
     </div>
   );
 };

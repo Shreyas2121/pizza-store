@@ -25,6 +25,20 @@ class CustomizeService {
     return await db.insert(productCustomizationGroupMappingTable).values(data);
   }
 
+  async replaceProductCustomizationGroupMappings(groupId: number, productIds: number[]) {
+    return await db.transaction(async (tx) => {
+      await tx
+        .delete(productCustomizationGroupMappingTable)
+        .where(eq(productCustomizationGroupMappingTable.groupId, groupId));
+
+      if (productIds.length) {
+        await tx.insert(productCustomizationGroupMappingTable).values(
+          productIds.map((productId) => ({ productId, groupId }))
+        );
+      }
+    });
+  }
+
   async getCustomizationOptionById(id: number) {
     return await db.query.customizationOptionsTable.findFirst({
       where: eq(customizationOptionsTable.id, id),

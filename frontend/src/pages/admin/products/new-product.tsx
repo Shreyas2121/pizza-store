@@ -1,11 +1,10 @@
 import { ProductForm } from "@/components/admin";
+import { PageHeader } from "@/components/common";
 
 const NewProduct = () => {
   return (
-    <div>
-      <h2 className="text-2xl font-semibold text-gray-800 mb-4">
-        Add New Product
-      </h2>
+    <div className="mx-auto max-w-4xl">
+      <PageHeader title="Add product" description="Create a catalogue item with customer-facing details, price, dietary information, and imagery." />
       <ProductForm />
     </div>
   );

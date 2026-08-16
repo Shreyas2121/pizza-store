@@ -1,27 +1,34 @@
-import { Input } from "@mantine/core";
-import { Search } from "lucide-react";
+import { ActionIcon, TextInput } from "@mantine/core";
+import { Search, X } from "lucide-react";
 import React from "react";
 
 interface Props {
   value: string;
   placeholder: string;
+  label?: string;
   onChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
-const SearchField = ({ placeholder, value, onChange }: Props) => {
-  return (
-    <div className="flex gap-3 items-center">
-      <div className="relative">
-        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-        <Input
-          className="pl-[2rem]"
-          placeholder={placeholder}
-          value={value}
-          onChange={onChange}
-        />
-      </div>
-    </div>
-  );
-};
+const SearchField = ({ placeholder, value, onChange, label = "Search" }: Props) => (
+  <TextInput
+    label={label}
+    leftSection={<Search aria-hidden="true" size={16} />}
+    placeholder={placeholder}
+    value={value}
+    onChange={onChange}
+    rightSection={value ? (
+      <ActionIcon
+        variant="subtle"
+        color="gray"
+        size={32}
+        aria-label={`Clear ${label.toLowerCase()}`}
+        onClick={() => onChange({ target: { value: "" } } as unknown as React.ChangeEvent<HTMLInputElement>)}
+      >
+        <X size={15} />
+      </ActionIcon>
+    ) : undefined}
+    className="w-full sm:max-w-sm"
+  />
+);
 
 export default SearchField;

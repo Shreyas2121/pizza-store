@@ -1,191 +1,94 @@
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  TextInput,
-  Textarea,
-  NumberInput,
-  Switch,
-  Select,
-  FileInput,
-  Button,
-} from "@mantine/core";
-import { Upload, X, Check } from "lucide-react";
+import { TextInput, Textarea, NumberInput, Switch, Select, FileInput, Button, Paper, Text } from "@mantine/core";
+import { ImagePlus, Save, X } from "lucide-react";
 import { useState } from "react";
-import { CATEGORY_API_HOOKS } from "@/hooks";
-import { productSchema, TProduct } from "@/lib";
+import { CATEGORY_API_HOOKS, PRODUCTS_HOOKS } from "@/hooks";
+import { productSchema, success, TProduct } from "@/lib";
+import { Link, useNavigate } from "react-router";
 
 const ProductForm = () => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const { data: categories } = CATEGORY_API_HOOKS.useGetCategoriesSelect();
-
-  const {
-    control,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<TProduct>({
+  const createProduct = PRODUCTS_HOOKS.useCreateProduct();
+  const navigate = useNavigate();
+  const { control, handleSubmit, formState: { errors } } = useForm<TProduct>({
     resolver: zodResolver(productSchema),
-    defaultValues: {
-      name: "",
-      description: "",
-      price: undefined,
-      isVeg: false,
-      categoryId: undefined,
-      image: undefined,
-    },
+    defaultValues: { name: "", description: "", price: undefined, isVeg: false, categoryId: undefined, image: undefined },
   });
 
   const handleImageChange = (file: File | null) => {
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    } else {
-      setImagePreview(null);
-    }
+    setImagePreview(file ? URL.createObjectURL(file) : null);
     return file;
   };
 
-  const onSubmit = (_data: TProduct) => {};
+  const onSubmit = (data: TProduct) => {
+    const payload = new FormData();
+    payload.append("name", data.name.trim());
+    payload.append("description", data.description ?? "");
+    payload.append("price", String(data.price));
+    payload.append("categoryId", String(data.categoryId));
+    payload.append("veg", String(data.isVeg));
+    payload.append("image", data.image);
+    createProduct.mutate(payload, {
+      onSuccess: () => {
+        success("Product created successfully.");
+        navigate("/admin/products");
+      },
+    });
+  };
 
   return (
-    <div className="max-w-3xl p-6 bg-white shadow-md rounded-lg">
-      <form onSubmit={handleSubmit(onSubmit)}>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Left Column */}
-          <div className="space-y-4">
-            <Controller
-              name="name"
-              control={control}
-              render={({ field }) => (
-                <TextInput
-                  label="Product Name"
-                  placeholder="Enter product name"
-                  withAsterisk
-                  error={errors.name?.message}
-                  {...field}
-                />
-              )}
-            />
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 pb-24">
+      <Paper withBorder radius="lg" p="lg">
+        <Text fw={700} size="lg">Product details</Text>
+        <Text size="sm" c="dimmed" mb="lg">The name, category, and description customers see in the catalogue.</Text>
+        <div className="grid gap-5 md:grid-cols-2">
+          <Controller name="name" control={control} render={({ field }) => (
+            <TextInput label="Product name" placeholder="e.g. Margherita pizza" withAsterisk error={errors.name?.message} {...field} />
+          )} />
+          <Controller name="categoryId" control={control} render={({ field }) => (
+            <Select searchable data={categories ?? []} label="Category" placeholder="Choose a category" withAsterisk error={errors.categoryId?.message} value={field.value?.toString() ?? null} onChange={(value) => field.onChange(value ? Number(value) : undefined)} />
+          )} />
+          <Controller name="description" control={control} render={({ field }) => (
+            <Textarea className="md:col-span-2" label="Description" placeholder="Describe the flavour, ingredients, and portion." autosize minRows={4} error={errors.description?.message} {...field} />
+          )} />
+        </div>
+      </Paper>
 
-            <Controller
-              name="price"
-              control={control}
-              render={({ field }) => (
-                <NumberInput
-                  label="Price"
-                  placeholder="0.00"
-                  min={0}
-                  step={0.01}
-                  withAsterisk
-                  error={errors.price?.message}
-                  value={field.value}
-                  onChange={(val) => field.onChange(val)}
-                />
-              )}
-            />
+      <Paper withBorder radius="lg" p="lg">
+        <Text fw={700} size="lg">Pricing and dietary information</Text>
+        <Text size="sm" c="dimmed" mb="lg">Set the base price and the dietary mark shown to customers.</Text>
+        <div className="grid gap-5 md:grid-cols-2 md:items-end">
+          <Controller name="price" control={control} render={({ field }) => (
+            <NumberInput label="Base price" prefix="₹ " min={1} decimalScale={2} withAsterisk error={errors.price?.message} value={field.value} onChange={field.onChange} />
+          )} />
+          <Controller name="isVeg" control={control} render={({ field }) => (
+            <Switch label="Vegetarian product" description="Shows the green vegetarian mark in the menu." checked={field.value} onChange={(event) => field.onChange(event.currentTarget.checked)} color="basil" />
+          )} />
+        </div>
+      </Paper>
 
-            <Controller
-              name="categoryId"
-              control={control}
-              render={({ field }) => (
-                <Select
-                  data={categories as any}
-                  label="Category"
-                  placeholder="Select a category"
-                  withAsterisk
-                  error={errors.categoryId?.message}
-                  value={field.value?.toString()}
-                  onChange={(val) => field.onChange(Number(val))}
-                />
-              )}
-            />
-
-            <Controller
-              name="isVeg"
-              control={control}
-              render={({ field }) => (
-                <Switch
-                  label="Vegetarian"
-                  checked={field.value}
-                  onChange={(event) =>
-                    field.onChange(event.currentTarget.checked)
-                  }
-                  color="green"
-                  size="md"
-                  thumbIcon={
-                    field.value ? (
-                      <Check size={14} color="white" strokeWidth={3} />
-                    ) : (
-                      <X size={14} color="white" strokeWidth={3} />
-                    )
-                  }
-                />
-              )}
-            />
-          </div>
-
-          {/* Right Column */}
-          <div className="space-y-4">
-            <Controller
-              name="description"
-              control={control}
-              render={({ field }) => (
-                <Textarea
-                  label="Description"
-                  placeholder="Enter product description"
-                  autosize
-                  minRows={3}
-                  maxRows={5}
-                  error={errors.description?.message}
-                  {...field}
-                />
-              )}
-            />
-
-            <Controller
-              name="image"
-              control={control}
-              render={({ field }) => (
-                <>
-                  <FileInput
-                    label="Product Image"
-                    placeholder="Upload image"
-                    leftSection={<Upload size={16} />}
-                    withAsterisk
-                    accept="image/png,image/jpeg,image/gif"
-                    error={errors.image?.message}
-                    value={field.value as File | null}
-                    onChange={(file) => {
-                      const processedFile = handleImageChange(file);
-                      field.onChange(processedFile);
-                    }}
-                    description="Upload a JPEG, PNG, or GIF under 5MB"
-                  />
-
-                  {imagePreview && (
-                    <div className="mt-2">
-                      <p className="text-sm mb-1">Preview:</p>
-                      <img
-                        src={imagePreview}
-                        alt="Preview"
-                        className="w-full max-h-40 rounded-md object-contain border border-gray-300"
-                      />
-                    </div>
-                  )}
-                </>
-              )}
-            />
+      <Paper withBorder radius="lg" p="lg">
+        <Text fw={700} size="lg">Product image</Text>
+        <Text size="sm" c="dimmed" mb="lg">Use a bright landscape image. JPEG or PNG, up to 5 MB; 4:3 works best.</Text>
+        <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_240px]">
+          <Controller name="image" control={control} render={({ field }) => (
+            <FileInput label="Upload image" placeholder="Choose an image" leftSection={<ImagePlus size={16} />} withAsterisk accept="image/png,image/jpeg,image/gif" error={errors.image?.message} value={field.value as File | null} onChange={(file) => field.onChange(handleImageChange(file))} clearable />
+          )} />
+          <div className="aspect-[4/3] overflow-hidden rounded-xl border border-dashed border-border bg-surface-muted">
+            {imagePreview ? <img src={imagePreview} alt="New product preview" className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-sm text-ink-muted">Image preview</div>}
           </div>
         </div>
+      </Paper>
 
-        {/* Buttons */}
-        <Button mt={10} type="submit" color="brand">
-          Save Product
-        </Button>
-      </form>
-    </div>
+      <div className="sticky bottom-0 z-20 -mx-1 border-t border-border bg-surface/95 p-3 backdrop-blur">
+        <div className="mx-auto flex max-w-4xl justify-end gap-3">
+          <Button component={Link} to="/admin/products" variant="default" leftSection={<X size={16} />}>Cancel</Button>
+          <Button type="submit" color="brand" loading={createProduct.isPending} leftSection={<Save size={16} />}>Save product</Button>
+        </div>
+      </div>
+    </form>
   );
 };
 
