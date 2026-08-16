@@ -1,9 +1,9 @@
-import { Badge, Button, Skeleton } from "@mantine/core";
+import { Badge, Button } from "@mantine/core";
 import { ArrowLeft, Check, ChefHat, Clock3, CreditCard, PackageCheck, ReceiptText } from "lucide-react";
 import { Link, useParams } from "react-router";
 import { useGetOrder } from "../api/order.queries";
 import { formatPrice } from "@/shared/lib";
-import { PageHeader } from "@/shared/ui";
+import { DetailsPageSkeleton, PageHeader } from "@/shared/ui";
 import { OrderAddress } from "../components/order-address";
 import { OrderCoupon } from "../components/order-coupon";
 import { OrderItems } from "../components/order-items";
@@ -15,7 +15,7 @@ export const CustomerOrderDetailsPage = () => {
   const orderId = Number(id);
   const { data: order, isLoading, isError } = useGetOrder(orderId);
 
-  if (isLoading) return <div className="space-y-5"><Skeleton height={90} radius="lg" /><Skeleton height={170} radius="lg" /><div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]"><Skeleton height={320} radius="lg" /><Skeleton height={320} radius="lg" /></div></div>;
+  if (isLoading) return <DetailsPageSkeleton />;
 
   if (isError || !order) {
     return <div className="empty-state m-0"><ReceiptText size={36} className="text-brand" /><h2 className="mt-3 text-section-title-scale">Order unavailable</h2><p className="mt-2 text-supporting-scale">This order could not be found or does not belong to your account.</p><Button component={Link} to="/orders" mt="lg" variant="light" leftSection={<ArrowLeft size={17} />}>Back to orders</Button></div>;

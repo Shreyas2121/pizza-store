@@ -1,5 +1,6 @@
 import { createQuery } from "@/shared/api";
 import { DashCard, GroupT } from "../model/dashboard.types";
+import { keepPreviousData } from "@tanstack/react-query";
 
 export const dashboardKeys = {
   all: ["dashboard"] as const,
@@ -13,7 +14,8 @@ export const useGetDashboardCardsData = (from: Date | null, to: Date | null) => 
     dashboardKeys.cards(from, to),
     "/dashboard",
     "data",
-    { from, to }
+    { from, to },
+    { placeholderData: keepPreviousData }
   );
 };
 
@@ -39,6 +41,7 @@ export const useGetDashboardChartsData = (
       from,
       to,
       group,
-    }
+    },
+    { placeholderData: keepPreviousData }
   );
 };

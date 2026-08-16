@@ -4,6 +4,7 @@ import { BASE_URL } from "@/shared/config";
 import { useSearchParams } from "react-router";
 import ProductGrid from "./product-grid";
 import { useGetMenuItems } from "../../api/menu.queries";
+import { LoadingRegion, ProductCardSkeleton } from "@/shared/ui";
 
 export const MenuCategoryRail = () => {
   const { data: menu, isLoading, error, refetch } = useGetMenuItems();
@@ -23,29 +24,13 @@ export const MenuCategoryRail = () => {
 
   if (isLoading) {
     return (
-      <section
-        id="menu"
-        className="mx-auto max-w-storefront scroll-mt-28 px-5 py-12 sm:px-8 lg:px-12 lg:py-16"
-      >
-        <Skeleton height={34} width={220} mb={10} />
-        <Skeleton height={20} width={340} mb={28} />
-        <div className="flex gap-3 overflow-hidden">
-          {[...Array(6)].map((_, index) => (
-            <Skeleton
-              key={index}
-              height={52}
-              width={132}
-              radius="xl"
-              className="shrink-0"
-            />
-          ))}
-        </div>
-        <div className="mt-8 grid grid-cols-1 gap-5 min-[420px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
-          {[...Array(8)].map((_, index) => (
-            <Skeleton key={index} height={330} radius="lg" />
-          ))}
-        </div>
-      </section>
+      <LoadingRegion label="Loading menu">
+        <section id="menu" className="mx-auto max-w-storefront scroll-mt-28 px-5 py-12 sm:px-8 lg:px-12 lg:py-16">
+          <Skeleton height={34} width={220} mb={10} /><Skeleton height={20} width={340} mb={28} />
+          <div className="flex gap-3 overflow-hidden">{[...Array(6)].map((_, index) => <Skeleton key={index} height={52} width={132} radius="xl" className="shrink-0" />)}</div>
+          <div className="mt-8 grid grid-cols-1 gap-5 min-[420px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">{[...Array(8)].map((_, index) => <ProductCardSkeleton key={index} />)}</div>
+        </section>
+      </LoadingRegion>
     );
   }
 

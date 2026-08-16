@@ -2,9 +2,10 @@ import { useGetProductsByGroup, useGetProductsA } from "../../api/product.querie
 import { useUpdateGroupMapping } from "../../api/customization.queries";
 import { success } from "@/shared/lib";
 import { useAuthModalStore } from "@/shared/model";
-import { ActionIcon, Button, Loader, TextInput } from "@mantine/core";
+import { ActionIcon, Button, TextInput } from "@mantine/core";
 import { ArrowLeft, ArrowRight, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { ListSkeleton } from "@/shared/ui";
 
 interface Product { id: number; name: string; }
 
@@ -30,7 +31,7 @@ export const ProductAssignment = ({ groupId }: { groupId: number }) => {
   const currentIds = assigned.map((product) => product.id).sort((a, b) => a - b);
   const hasChanges = currentIds.join(",") !== initialIds.join(",");
 
-  if (loadingGroup || loadingProducts) return <div className="grid min-h-64 place-items-center"><Loader /></div>;
+  if (loadingGroup || loadingProducts) return <div className="grid gap-5 md:grid-cols-2"><ListSkeleton rows={4} rowHeight={52} /><ListSkeleton rows={4} rowHeight={52} /></div>;
 
   const ProductList = ({ items, destination }: { items: Product[]; destination: "assigned" | "available" }) => (
     <div className="h-72 overflow-y-auto rounded-xl border border-border bg-surface">

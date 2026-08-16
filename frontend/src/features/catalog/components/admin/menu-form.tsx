@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Button, FileInput, MultiSelect, NumberInput, Paper, Select, Text, TextInput } from "@mantine/core";
+import { Button, FileInput, Loader, MultiSelect, NumberInput, Paper, Select, Text, TextInput } from "@mantine/core";
 import { ImagePlus, Save } from "lucide-react";
 import { useGetCategoriesSelect } from "../../api/category.queries";
 import { useGetProductByCat } from "../../api/product.queries";
@@ -13,8 +13,8 @@ import { success } from "@/shared/lib";
 export const MenuForm = () => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
-  const { data: categories } = useGetCategoriesSelect();
-  const { data: products } = useGetProductByCat(selectedCategory);
+  const { data: categories, isLoading: categoriesLoading, isError: categoriesError } = useGetCategoriesSelect();
+  const { data: products, isLoading: productsLoading, isError: productsError } = useGetProductByCat(selectedCategory);
   const createMenu = useCreateMenuItem();
   const createMapping = useCreateMenuMapping();
   const closeModal = useAuthModalStore((state) => state.closeModal);
@@ -69,8 +69,8 @@ export const MenuForm = () => {
         <Text fw={700}>Assign products</Text>
         <Text size="sm" c="dimmed" mb="md">Choose a category first, then select the products this section should contain.</Text>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Select label="Product category" placeholder="Choose category" searchable clearable data={categories ?? []} value={selectedCategory?.toString() ?? null} onChange={(value) => setSelectedCategory(value ? Number(value) : null)} />
-          <Controller name="productIds" control={control} render={({ field }) => <MultiSelect label="Products" placeholder={selectedCategory ? "Select products" : "Choose a category first"} disabled={!selectedCategory} searchable data={productOptions} error={errors.productIds?.message} value={field.value.map(String)} onChange={(values) => field.onChange(values.map(Number))} />} />
+          <Select label="Product category" placeholder={categoriesLoading ? "Loading categories…" : "Choose category"} searchable clearable disabled={categoriesLoading || isSaving} rightSection={categoriesLoading ? <Loader size={16} /> : undefined} error={categoriesError ? "Categories could not be loaded" : undefined} data={categories ?? []} value={selectedCategory?.toString() ?? null} onChange={(value) => setSelectedCategory(value ? Number(value) : null)} />
+          <Controller name="productIds" control={control} render={({ field }) => <MultiSelect label="Products" placeholder={productsLoading ? "Loading products…" : selectedCategory ? "Select products" : "Choose a category first"} disabled={!selectedCategory || productsLoading || isSaving} rightSection={productsLoading ? <Loader size={16} /> : undefined} searchable data={productOptions} error={errors.productIds?.message ?? (productsError ? "Products could not be loaded" : undefined)} value={field.value.map(String)} onChange={(values) => field.onChange(values.map(Number))} />} />
         </div>
       </Paper>
 

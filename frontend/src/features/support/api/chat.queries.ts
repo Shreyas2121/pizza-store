@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { API, createMutation, createQuery } from "@/shared/api";
 import { useSocketStore } from "../model/support.store";
 
@@ -86,7 +86,9 @@ export const useGetSupportRequests = (status?: string) => {
   return createQuery<ChatSessionWithUser[]>(
     [...supportKeys.admin(), status],
     `/chat/all${status ? `?status=${status}` : ""}`,
-    "data"
+    "data",
+    undefined,
+    { placeholderData: keepPreviousData }
   );
 };
 

@@ -1,11 +1,12 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
-import { Avatar, Menu as AccountMenu, Skeleton, UnstyledButton } from "@mantine/core";
+import { Avatar, Menu as AccountMenu, UnstyledButton } from "@mantine/core";
 import { showNotification } from "@mantine/notifications";
 import { Bell, ChevronDown, LogOut, Menu, Store } from "lucide-react";
 import { Link, Navigate, Outlet, useLocation, useNavigate } from "react-router";
 import { AdminSidebar } from "@/features/admin-navigation";
 import { useUser } from "@/features/auth";
 import { useSocketStore } from "@/features/support";
+import { RouteSkeleton } from "@/shared/ui";
 
 
 const pageNames: Record<string, string> = {
@@ -129,14 +130,7 @@ export const AdminLayout = () => {
           </div>
         </header>
         <main className="mx-auto w-full max-w-admin p-4 sm:p-6 lg:p-8">
-          <Suspense
-            fallback={
-              <div className="space-y-5">
-                <Skeleton height={80} radius="lg" />
-                <Skeleton height={320} radius="lg" />
-              </div>
-            }
-          >
+          <Suspense fallback={<RouteSkeleton admin />}>
             <Outlet />
           </Suspense>
         </main>

@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { Link } from "react-router";
-import { Button, Select, Skeleton } from "@mantine/core";
+import { Button, Select } from "@mantine/core";
 import { ArrowRight, RotateCcw } from "lucide-react";
 import { adminOrderColumns } from "../components/admin/admin-order-columns";
 import { useGetAdminOrders } from "../api/order.queries";
 import { OrderStatus as OrderStatusType, orderStatus } from "../model/order.types";
 import { formatPrice } from "@/shared/lib";
-import { PageHeader } from "@/shared/ui";
+import { PageHeader, TableSkeleton } from "@/shared/ui";
 import { OrderStatus as StatusPill } from "../components/order-status";
 
 import { DataTable } from "@/shared/ui";
@@ -14,7 +14,7 @@ import { DataTable } from "@/shared/ui";
 
 export const AdminOrdersPage = () => {
   const [selectedStatus, setSelectedStatus] = useState<OrderStatusType>("pending");
-  const { data: orders, isLoading, isError } = useGetAdminOrders(selectedStatus);
+  const { data: orders, isLoading, isError, isFetching } = useGetAdminOrders(selectedStatus);
   const filter = (
     <div className="flex w-full items-end gap-2 sm:w-auto">
       <Select
@@ -45,7 +45,7 @@ export const AdminOrdersPage = () => {
         description="Find orders by customer, monitor fulfilment state, and open the next required action."
       />
       {isLoading ? (
-        <Skeleton h={420} radius="lg" />
+        <TableSkeleton />
       ) : isError ? (
         <div className="surface-card p-8 text-center text-danger">Orders could not be loaded.</div>
       ) : (
@@ -55,6 +55,7 @@ export const AdminOrdersPage = () => {
           keyName="userFullName"
           text="customers"
           searchLabel="Search customers"
+          isRefreshing={isFetching && !isLoading}
           Component={filter}
           emptyTitle={`No ${selectedStatus === "delievered" ? "delivered" : selectedStatus} orders`}
           renderMobileCard={(order) => (

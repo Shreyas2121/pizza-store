@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router";
-import { Badge, Button, Card, Select, Skeleton, Text } from "@mantine/core";
+import { Badge, Button, Card, Select, Text } from "@mantine/core";
 import dayjs from "dayjs";
 import { ArrowLeft, Clock3, Save } from "lucide-react";
 import { useGetOrder, useOrderUpdateStatus } from "../api/order.queries";
 import { OrderStatus as OT, orderStatus } from "../model/order.types";
 import { formatPrice, success } from "@/shared/lib";
-import { PageHeader } from "@/shared/ui";
+import { DetailsPageSkeleton, PageHeader } from "@/shared/ui";
 import { OrderAddress } from "../components/order-address";
 import { OrderCoupon } from "../components/order-coupon";
 import { OrderItems } from "../components/order-items";
@@ -24,7 +24,7 @@ export const AdminOrderDetailsPage = () => {
   useEffect(() => { if (order) setNewStatus(order.status); }, [order]);
 
 
-  if (isLoading) return <div className="mx-auto max-w-5xl space-y-4"><Skeleton h={90} radius="lg" /><Skeleton h={220} radius="lg" /><Skeleton h={320} radius="lg" /></div>;
+  if (isLoading) return <DetailsPageSkeleton admin />;
   if (isError || !order) return <div className="surface-card p-10 text-center"><p className="font-semibold text-danger">Order details could not be loaded.</p><Button component={Link} to="/admin/orders" variant="default" mt="md">Back to orders</Button></div>;
 
   const isClosed = ["delivered", "delievered", "cancelled"].includes(order.status);

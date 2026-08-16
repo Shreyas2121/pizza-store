@@ -14,6 +14,7 @@ import {
   dataTableFeatures,
   type DataTableColumnDef,
 } from "./data-table-features";
+import { RefreshIndicator } from "../skeletons";
 
 interface DataTableProps<TData extends RowData> {
   columns: DataTableColumnDef<TData>[];
@@ -25,6 +26,7 @@ interface DataTableProps<TData extends RowData> {
   emptyTitle?: string;
   emptyDescription?: string;
   renderMobileCard?: (item: TData) => ReactNode;
+  isRefreshing?: boolean;
 }
 
 export function DataTable<TData extends RowData>({
@@ -37,6 +39,7 @@ export function DataTable<TData extends RowData>({
   emptyTitle = "No results found",
   emptyDescription = "Try changing your search or filters.",
   renderMobileCard,
+  isRefreshing = false,
 }: DataTableProps<TData>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -53,7 +56,8 @@ export function DataTable<TData extends RowData>({
   const rows = table.getRowModel().rows;
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
+    <section className="relative overflow-hidden rounded-2xl border border-border bg-surface shadow-sm" aria-busy={isRefreshing}>
+      <RefreshIndicator active={isRefreshing} label="Refreshing table" />
       {(keyName || Component) && (
         <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-end sm:justify-between">
           {keyName ? (

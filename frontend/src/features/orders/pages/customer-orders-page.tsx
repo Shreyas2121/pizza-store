@@ -1,10 +1,10 @@
-import { Button, Skeleton } from "@mantine/core";
+import { Button } from "@mantine/core";
 import { ArrowRight, Box, ReceiptText } from "lucide-react";
 import { Link, useSearchParams } from "react-router";
 import { useGetOrders } from "../api/order.queries";
 import { OrderStatus as OrderStatusType } from "../model/order.types";
 import { formatPrice } from "@/shared/lib";
-import { PageHeader } from "@/shared/ui";
+import { ListSkeleton, PageHeader, RefreshIndicator } from "@/shared/ui";
 import { OrderStatus } from "../components/order-status";
 
 
@@ -21,7 +21,7 @@ export const CustomerOrdersPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const requested = searchParams.get("status") as Filter | null;
   const selected: Filter = filters.some((filter) => filter.value === requested) ? requested! : "all";
-  const { data: orders, isLoading, isError } = useGetOrders(selected === "all" ? undefined : selected);
+  const { data: orders, isLoading, isError, isFetching } = useGetOrders(selected === "all" ? undefined : selected);
 
   const setFilter = (filter: Filter) => {
     setSearchParams((previous) => {
@@ -39,9 +39,10 @@ export const CustomerOrdersPage = () => {
       <div className="mb-5 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="group" aria-label="Filter orders by status">
         {filters.map((filter) => <button key={filter.value} type="button" aria-pressed={selected === filter.value} onClick={() => setFilter(filter.value)} className={`min-h-10 shrink-0 rounded-pill border px-4 text-sm font-semibold transition-colors ${selected === filter.value ? "border-brand bg-brand text-white" : "border-border bg-surface text-ink-muted hover:border-brand hover:text-ink"}`}>{filter.label}</button>)}
       </div>
+      <RefreshIndicator active={isFetching && !isLoading} label="Refreshing orders" />
 
       {isLoading ? (
-        <div className="space-y-3">{[0, 1, 2].map((item) => <Skeleton key={item} height={92} radius="lg" />)}</div>
+        <ListSkeleton rows={3} rowHeight={92} />
       ) : isError ? (
         <div className="empty-state m-0"><ReceiptText size={34} className="text-brand" /><h2 className="mt-3 text-section-title-scale">Orders unavailable</h2><p className="mt-2 text-supporting-scale">Refresh the page to try again.</p></div>
       ) : !orders?.length ? (

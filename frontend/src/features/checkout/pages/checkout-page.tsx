@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Button, Drawer, Skeleton } from "@mantine/core";
+import { Button, Drawer } from "@mantine/core";
 import { ArrowLeft, Truck, UserRound } from "lucide-react";
 import { Link, useNavigate } from "react-router";
 import { AddressForm, useGetAddresses, useGetUser } from "@/features/account";
@@ -11,6 +11,7 @@ import { useValidateCoupon, useRedeemCoupon } from "../api/coupon.mutations";
 import AddressStep from "../components/address-step";
 import PaymentStep from "../components/payment-step";
 import CheckoutSummary from "../components/checkout-summary";
+import { DetailsPageSkeleton } from "@/shared/ui";
 
 export const CheckoutPage = () => {
   const navigate = useNavigate();
@@ -57,7 +58,7 @@ export const CheckoutPage = () => {
     });
   };
 
-  if (loading) return <div className="page-shell space-y-5"><Skeleton height={90} radius="lg" /><div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]"><div className="space-y-4">{[0, 1, 2].map((item) => <Skeleton key={item} height={190} radius="lg" />)}</div><Skeleton height={480} radius="lg" /></div></div>;
+  if (loading) return <div className="page-shell"><DetailsPageSkeleton /></div>;
 
   if (failed || !cart || !user || itemCount === 0) {
     return <div className="page-shell"><div className="empty-state"><Truck size={36} className="text-brand" /><h1 className="mt-3 text-section-title-scale">Checkout isn’t ready</h1><p className="mt-2 text-supporting-scale">Your cart or account details could not be loaded. Return to your cart and try again.</p><Button component={Link} to="/cart" mt="lg" leftSection={<ArrowLeft size={17} />}>Back to cart</Button></div></div>;

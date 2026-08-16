@@ -8,6 +8,7 @@ import {
 } from "../api/chat.queries";
 import { Message } from "../model/support.types";
 import { useSocketStore } from "../model/support.store";
+import { LoadingRegion } from "@/shared/ui";
 
 interface Props {
   width?: string;
@@ -75,12 +76,14 @@ export const Chat = ({ height = "620px", width = "100%", userId }: Props) => {
 
   if (loadingChat || loadingMessages) {
     return (
-      <div className="flex flex-col gap-3 p-5" style={{ width, height }}>
-        <Skeleton height={64} radius="lg" />
-        <Skeleton height={72} width="72%" radius="lg" />
-        <Skeleton height={72} width="65%" ml="auto" radius="lg" />
-        <Skeleton height={48} radius="xl" className="mt-auto" />
-      </div>
+      <LoadingRegion label="Loading support conversation">
+        <div className="flex flex-col gap-3 p-5" style={{ width, height }}>
+          <Skeleton height={64} radius="lg" />
+          <Skeleton height={72} width="72%" radius="lg" />
+          <Skeleton height={72} width="65%" ml="auto" radius="lg" />
+          <Skeleton height={48} radius="xl" className="mt-auto" />
+        </div>
+      </LoadingRegion>
     );
   }
 

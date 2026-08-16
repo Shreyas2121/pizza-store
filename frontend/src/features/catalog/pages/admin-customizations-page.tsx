@@ -1,10 +1,10 @@
-import { Accordion, Badge, Button, Skeleton } from "@mantine/core";
+import { Accordion, Badge, Button } from "@mantine/core";
 import { Boxes, PackagePlus, SlidersHorizontal } from "lucide-react";
 import ProductAssignment from "../components/admin/product-assignment";
 import { useGetAllCustomizations } from "../api/customization.queries";
 import { formatPrice } from "@/shared/lib";
 import { useAuthModalStore } from "@/shared/model";
-import { PageHeader } from "@/shared/ui";
+import { ListSkeleton, PageHeader } from "@/shared/ui";
 
 
 export const AdminCustomizationsPage = () => {
@@ -14,7 +14,7 @@ export const AdminCustomizationsPage = () => {
   return (
     <div>
       <PageHeader eyebrow="Catalogue" title="Customization groups" description="Review option groups and control which products offer each set of choices." />
-      {isLoading ? <div className="space-y-3">{[1,2,3].map((item) => <Skeleton key={item} h={86} radius="lg" />)}</div> : isError ? (
+      {isLoading ? <ListSkeleton rows={3} rowHeight={86} /> : isError ? (
         <div className="surface-card p-8 text-center text-danger">Customization groups could not be loaded.</div>
       ) : groups?.length ? (
         <Accordion variant="separated" radius="lg" defaultValue={String(groups[0]?.id)}>

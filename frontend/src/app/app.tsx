@@ -4,9 +4,9 @@ import { useSocketStore, useSyncChatStatus } from "@/features/support";
 import { io } from "socket.io-client";
 import { Routes } from "react-router";
 import { AppRoutes } from "./router/routes";
+import { ScrollManager } from "./router/scroll-manager";
 import { BASE_URL } from "@/shared/config";
-import { ErrorBoundary, GlobalModal } from "@/shared/ui";
-import { Loader } from "@mantine/core";
+import { ErrorBoundary, GlobalModal, RouteSkeleton } from "@/shared/ui";
 
 export function App() {
   const { setSocket } = useSocketStore();
@@ -30,8 +30,9 @@ export function App() {
 
   return (
     <ErrorBoundary>
+      <ScrollManager />
       <GlobalModal />
-      <Suspense fallback={<Loader className="m-auto my-12" />}>
+      <Suspense fallback={<RouteSkeleton />}>
         <Routes>{AppRoutes()}</Routes>
       </Suspense>
     </ErrorBoundary>

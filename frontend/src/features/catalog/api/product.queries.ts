@@ -1,6 +1,7 @@
 import { createMutation, createQuery } from "@/shared/api";
 import { Product, ProductWithCategory } from "../model/catalog.types";
 import { catalogKeys } from "../model/catalog.keys";
+import { keepPreviousData } from "@tanstack/react-query";
 
 export const useGetProducts = ({
   menuSlug,
@@ -26,7 +27,8 @@ export const useGetProducts = ({
       menuSlug,
       page,
       sortBy,
-    }
+    },
+    { placeholderData: keepPreviousData }
   );
 };
 

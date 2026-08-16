@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQueryClient } from "@tanstack/react-query";
 import { API, createMutation, createQuery } from "@/shared/api";
 import { cartKeys } from "@/features/cart";
 import { Order, OrderRes, OrdersAdmin, OrderStatus } from "../model/order.types";
@@ -24,7 +24,7 @@ export const useCreateOrder = () => {
 export const useGetOrders = (status?: OrderStatus) => {
   return createQuery<Order[]>(orderKeys.list(status), "/order", "data", {
     status,
-  });
+  }, { placeholderData: keepPreviousData });
 };
 
 export const useGetOrder = (orderId: number) => {
@@ -40,7 +40,8 @@ export const useGetAdminOrders = (status: OrderStatus) => {
     orderKeys.adminAll(status),
     "/order/admin/all",
     "data",
-    { status }
+    { status },
+    { placeholderData: keepPreviousData }
   );
 };
 

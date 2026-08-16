@@ -2,6 +2,8 @@ import { StorefrontFooter } from "./components/storefront-footer";
 import { StorefrontNavbar } from "./components/storefront-navbar";
 import { SupportAction } from "@/features/support";
 import { Outlet } from "react-router";
+import { Suspense } from "react";
+import { RouteSkeleton } from "@/shared/ui";
 
 export const MainLayout = () => {
   return (
@@ -15,7 +17,9 @@ export const MainLayout = () => {
       <StorefrontNavbar />
       <SupportAction />
       <main id="main-content" className="flex-1">
-        <Outlet />
+        <Suspense fallback={<RouteSkeleton />}>
+          <Outlet />
+        </Suspense>
       </main>
       <StorefrontFooter />
     </div>

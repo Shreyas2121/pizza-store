@@ -3,6 +3,8 @@ import { Avatar } from "@mantine/core";
 import { ShieldCheck } from "lucide-react";
 import { ProfileSidebar } from "@/features/account";
 import { useUser } from "@/features/auth";
+import { Suspense } from "react";
+import { ProfileSkeleton } from "@/shared/ui";
 
 export const ProfileLayout = () => {
   const { user } = useUser();
@@ -40,7 +42,9 @@ export const ProfileLayout = () => {
       <div className="mt-6 lg:grid lg:grid-cols-[240px_minmax(0,1fr)] lg:items-start lg:gap-7">
         <ProfileSidebar />
         <div className="mt-5 min-w-0 lg:mt-0">
-          <Outlet />
+          <Suspense fallback={<ProfileSkeleton />}>
+            <Outlet />
+          </Suspense>
         </div>
       </div>
     </div>

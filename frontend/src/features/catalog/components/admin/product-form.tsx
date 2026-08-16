@@ -1,6 +1,6 @@
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { TextInput, Textarea, NumberInput, Switch, Select, FileInput, Button, Paper, Text } from "@mantine/core";
+import { TextInput, Textarea, NumberInput, Switch, Select, FileInput, Button, Loader, Paper, Text } from "@mantine/core";
 import { ImagePlus, Save, X } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
@@ -11,7 +11,7 @@ import { success } from "@/shared/lib";
 
 export const ProductForm = () => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const { data: categories } = useGetCategoriesSelect();
+  const { data: categories, isLoading: categoriesLoading, isError: categoriesError } = useGetCategoriesSelect();
   const createProduct = useCreateProduct();
   const navigate = useNavigate();
   const { control, handleSubmit, formState: { errors } } = useForm<TProduct>({
@@ -50,7 +50,7 @@ export const ProductForm = () => {
             <TextInput label="Product name" placeholder="e.g. Margherita pizza" withAsterisk error={errors.name?.message} {...field} />
           )} />
           <Controller name="categoryId" control={control} render={({ field }) => (
-            <Select searchable data={categories ?? []} label="Category" placeholder="Choose a category" withAsterisk error={errors.categoryId?.message} value={field.value?.toString() ?? null} onChange={(value) => field.onChange(value ? Number(value) : undefined)} />
+            <Select searchable data={categories ?? []} label="Category" placeholder={categoriesLoading ? "Loading categories…" : "Choose a category"} withAsterisk disabled={categoriesLoading || createProduct.isPending} rightSection={categoriesLoading ? <Loader size={16} /> : undefined} error={errors.categoryId?.message ?? (categoriesError ? "Categories could not be loaded" : undefined)} value={field.value?.toString() ?? null} onChange={(value) => field.onChange(value ? Number(value) : undefined)} />
           )} />
           <Controller name="description" control={control} render={({ field }) => (
             <Textarea className="md:col-span-2" label="Description" placeholder="Describe the flavour, ingredients, and portion." autosize minRows={4} error={errors.description?.message} {...field} />

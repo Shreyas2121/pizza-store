@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { Button, Drawer, Skeleton } from "@mantine/core";
+import { Button, Drawer } from "@mantine/core";
 import { modals } from "@mantine/modals";
 import { Building2, Home, MapPin, Pencil, Phone, Plus, Trash2 } from "lucide-react";
 import AddressForm from "../components/address-form";
 import { useGetAddresses, useDeleteAddress } from "../api/address.queries";
 import { Address } from "../model/account.types";
 import { success } from "@/shared/lib";
-import { PageHeader } from "@/shared/ui";
+import { CardGridSkeleton, PageHeader, PageHeaderSkeleton } from "@/shared/ui";
 
 
 export const AddressesPage = () => {
@@ -30,7 +30,7 @@ export const AddressesPage = () => {
     });
   };
 
-  if (isLoading) return <div className="space-y-5"><Skeleton height={82} radius="lg" /><div className="grid gap-4 sm:grid-cols-2">{[0, 1].map((item) => <Skeleton key={item} height={220} radius="lg" />)}</div></div>;
+  if (isLoading) return <><PageHeaderSkeleton /><CardGridSkeleton count={3} height={224} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" label="Loading saved addresses" /></>;
 
   return (
     <section>

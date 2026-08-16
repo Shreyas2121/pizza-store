@@ -5,6 +5,7 @@ import { useGetProductCustomization } from "../../api/customization.queries";
 import { Group, Product } from "../../model/catalog.types";
 import { formatPrice, success } from "@/shared/lib";
 import { useAddToCart, useUpdateCartItemCustomizations, ItemRes } from "@/features/cart";
+import { LoadingRegion } from "@/shared/ui";
 
 type Selection = Record<number, number | number[]>;
 
@@ -74,10 +75,9 @@ export const CustomizationDrawer = ({ product, close, cartItem }: { product: Pro
 
   if (isLoading) {
     return (
-      <div className="space-y-5 p-5" aria-label="Loading customization options">
-        <Skeleton height={72} radius="lg" />
-        {[...Array(3)].map((_, index) => <Skeleton key={index} height={150} radius="lg" />)}
-      </div>
+      <LoadingRegion label="Loading customization options">
+        <div className="space-y-5 p-5"><Skeleton height={72} radius="lg" />{[...Array(3)].map((_, index) => <Skeleton key={index} height={150} radius="lg" />)}</div>
+      </LoadingRegion>
     );
   }
 

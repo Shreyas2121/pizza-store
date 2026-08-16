@@ -3,6 +3,7 @@ import { ArrowUpDown, Pizza } from "lucide-react";
 import { useSearchParams } from "react-router";
 import ProductCard from "./product-card";
 import { useGetProducts } from "../../api/product.queries";
+import { LoadingRegion, ProductCardSkeleton, RefreshIndicator } from "@/shared/ui";
 
 type ProductGridProps = {
   activeCategoryName?: string;
@@ -13,7 +14,7 @@ export const ProductGrid = ({ activeCategoryName }: ProductGridProps) => {
   const selectedMenu = searchParams.get("menu");
   const sortBy = searchParams.get("sort") || "default";
   const page = Math.max(1, Number(searchParams.get("page") || "1") || 1);
-  const { data, isLoading } = useGetProducts({
+  const { data, isLoading, isFetching } = useGetProducts({
     menuSlug: selectedMenu,
     page: String(page),
     sortBy,
@@ -32,10 +33,10 @@ export const ProductGrid = ({ activeCategoryName }: ProductGridProps) => {
 
   if (isLoading) {
     return (
-      <div className="mt-9">
+      <LoadingRegion label="Loading products" className="mt-9">
         <div className="mb-6 flex items-end justify-between gap-4"><div><Skeleton height={28} width={210} mb={8} /><Skeleton height={18} width={150} /></div><Skeleton height={42} width={190} radius="md" /></div>
-        <div className="grid grid-cols-1 gap-5 min-[420px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">{[...Array(8)].map((_, index) => <Skeleton key={index} height={330} radius="lg" />)}</div>
-      </div>
+        <div className="grid grid-cols-1 gap-5 min-[420px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">{[...Array(8)].map((_, index) => <ProductCardSkeleton key={index} />)}</div>
+      </LoadingRegion>
     );
   }
 
@@ -56,7 +57,8 @@ export const ProductGrid = ({ activeCategoryName }: ProductGridProps) => {
   const paginationTotal = meta ? meta.page + (meta.hasNextPage ? 1 : 0) : 1;
 
   return (
-    <div className="mt-9" id="popular">
+    <div className="mt-9" id="popular" aria-busy={isFetching}>
+      <RefreshIndicator active={isFetching && !isLoading} label="Refreshing products" />
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-sm font-semibold text-brand">{activeCategoryName ? "In this category" : "Customer favorites"}</p>

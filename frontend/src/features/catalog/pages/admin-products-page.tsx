@@ -1,22 +1,22 @@
-import { Button, Badge, Skeleton } from "@mantine/core";
+import { Button, Badge } from "@mantine/core";
 import { Plus } from "lucide-react";
 import { Link } from "react-router";
 import { ProductsCol } from "../components/admin/product-columns";
 import { useGetProductsA } from "../api/product.queries";
 import { BASE_URL } from "@/shared/config";
 import { formatPrice } from "@/shared/lib";
-import { PageHeader } from "@/shared/ui";
+import { PageHeader, TableSkeleton } from "@/shared/ui";
 
 import { DataTable } from "@/shared/ui";
 
 
 export const AdminProductsPage = () => {
-  const { data, isLoading, isError } = useGetProductsA();
+  const { data, isLoading, isError, isFetching } = useGetProductsA();
 
   return (
     <div>
       <PageHeader eyebrow="Catalogue" title="Products" description="Review customer-facing products, dietary marks, availability, and customization coverage." action={<Button component={Link} to="/admin/product/new" color="brand" leftSection={<Plus size={16} />}>Create product</Button>} />
-      {isLoading ? <Skeleton h={420} radius="lg" /> : isError ? (
+      {isLoading ? <TableSkeleton /> : isError ? (
         <div className="surface-card p-8 text-center text-danger">Products could not be loaded.</div>
       ) : (
         <DataTable
@@ -25,6 +25,7 @@ export const AdminProductsPage = () => {
           keyName="name"
           text="products"
           searchLabel="Search products"
+          isRefreshing={isFetching && !isLoading}
           emptyTitle="No matching products"
           renderMobileCard={(product) => (
             <div className="flex gap-3">

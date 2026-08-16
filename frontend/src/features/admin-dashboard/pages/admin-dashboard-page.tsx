@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { BarChart, LineChart } from "@mantine/charts";
-import { Button, Skeleton } from "@mantine/core";
+import { Button } from "@mantine/core";
 import { showNotification } from "@mantine/notifications";
 import { ArrowRight, CalendarRange, ClipboardList } from "lucide-react";
 import { Link, useNavigate } from "react-router";
@@ -20,6 +20,7 @@ import { formatPrice } from "@/shared/lib";
 import { useSocketStore } from "@/features/support";
 
 import { useAuthModalStore } from "@/shared/model";
+import { CardGridSkeleton, ChartSkeleton, ListSkeleton, RefreshIndicator } from "@/shared/ui";
 
 export const AdminDashboardPage = () => {
   const navigate = useNavigate();
@@ -85,6 +86,10 @@ export const AdminDashboardPage = () => {
           {formattedDates}
         </Button>
       </div>
+      <RefreshIndicator
+        active={[cardsQuery, chartsQuery, ordersQuery].some((query) => query.isFetching && !query.isLoading)}
+        label="Refreshing dashboard"
+      />
 
       <section aria-labelledby="kpi-title">
         <div className="mb-3 flex items-center justify-between">
@@ -94,11 +99,7 @@ export const AdminDashboardPage = () => {
           <span className="text-xs text-ink-muted">Compared with previous period</span>
         </div>
         {cardsQuery.isLoading ? (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {[0, 1, 2, 3].map((item) => (
-              <Skeleton key={item} height={160} radius="lg" />
-            ))}
-          </div>
+          <CardGridSkeleton />
         ) : cardsQuery.isError ? (
           <div className="rounded-card border border-red-200 bg-red-50 p-5 text-sm text-danger">
             Performance metrics could not be loaded.
@@ -126,7 +127,7 @@ export const AdminDashboardPage = () => {
             </p>
           </div>
           {chartsQuery.isLoading ? (
-            <Skeleton height={320} radius="lg" />
+            <ChartSkeleton />
           ) : chartsQuery.isError || !charts?.revenueOverTime.length ? (
             <div className="flex h-80 items-center justify-center text-sm text-ink-muted">
               No revenue data for this period.
@@ -158,7 +159,7 @@ export const AdminDashboardPage = () => {
             </p>
           </div>
           {chartsQuery.isLoading ? (
-            <Skeleton height={320} radius="lg" />
+            <ChartSkeleton />
           ) : chartsQuery.isError || !charts?.ordersOverTime.length ? (
             <div className="flex h-80 items-center justify-center text-sm text-ink-muted">
               No order data for this period.
@@ -201,11 +202,7 @@ export const AdminDashboardPage = () => {
           </Button>
         </div>
         {ordersQuery.isLoading ? (
-          <div className="space-y-2 p-4">
-            {[0, 1, 2].map((item) => (
-              <Skeleton key={item} height={58} radius="md" />
-            ))}
-          </div>
+          <div className="p-4"><ListSkeleton rows={3} rowHeight={58} /></div>
         ) : ordersQuery.isError ? (
           <p className="p-6 text-sm text-danger">
             The pending order queue could not be loaded.

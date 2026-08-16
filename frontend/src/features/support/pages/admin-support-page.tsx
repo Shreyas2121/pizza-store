@@ -1,19 +1,17 @@
 import { useState } from "react";
-import { Button, Select, Skeleton } from "@mantine/core";
+import { Button, Select } from "@mantine/core";
 import { RotateCcw } from "lucide-react";
 import { useGetSupportRequests } from "../api/chat.queries";
 import { chatStatus, ChatStatus } from "../model/support.types";
 import { adminSupportColumns, getPriority, getWaitTime } from "../components/admin/admin-support-columns";
 import SupportStatusPill from "../components/admin/support-status-pill";
 import SupportActions from "../components/admin/support-actions";
-import { DataTable } from "@/shared/ui";
-
-import { PageHeader } from "@/shared/ui";
+import { DataTable, PageHeader, TableSkeleton } from "@/shared/ui";
 
 
 export const AdminSupportPage = () => {
   const [statusFilter, setStatusFilter] = useState<ChatStatus>("pending");
-  const { data, isLoading, isError } = useGetSupportRequests(statusFilter);
+  const { data, isLoading, isError, isFetching } = useGetSupportRequests(statusFilter);
   const filter = (
     <div className="flex w-full items-end gap-2 sm:w-auto">
       <Select
@@ -44,7 +42,7 @@ export const AdminSupportPage = () => {
         description="Prioritize waiting customers, understand their topic, and continue active conversations."
       />
       {isLoading ? (
-        <Skeleton h={420} radius="lg" />
+        <TableSkeleton />
       ) : isError ? (
         <div className="surface-card p-8 text-center text-danger">
           Support requests could not be loaded.
@@ -56,6 +54,7 @@ export const AdminSupportPage = () => {
           keyName="userFullName"
           text="customers"
           searchLabel="Search customers"
+          isRefreshing={isFetching && !isLoading}
           Component={filter}
           emptyTitle="This queue is clear"
           emptyDescription="There are no support sessions with this status."
