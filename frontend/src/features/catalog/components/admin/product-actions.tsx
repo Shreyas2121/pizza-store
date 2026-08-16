@@ -1,7 +1,7 @@
 import { Button } from "@mantine/core";
 import { Edit, Trash } from "lucide-react";
 
-export const ProductActions = ({ id: _id }: { id: number }) => {
+export const ProductActions = () => {
   return (
     <div className="flex gap-2">
       <Button size="sm" variant="outline" leftSection={<Edit size={16} />}>

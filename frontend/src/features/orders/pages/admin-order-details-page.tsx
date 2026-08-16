@@ -21,7 +21,8 @@ export const AdminOrderDetailsPage = () => {
   const { data: order, isLoading, isError } = useGetOrder(orderId);
   const updateOrder = useOrderUpdateStatus();
   const [newStatus, setNewStatus] = useState<OT>("pending");
-  useEffect(() => { if (order) setNewStatus(order.status); }, [order?.status]);
+  useEffect(() => { if (order) setNewStatus(order.status); }, [order]);
+
 
   if (isLoading) return <div className="mx-auto max-w-5xl space-y-4"><Skeleton h={90} radius="lg" /><Skeleton h={220} radius="lg" /><Skeleton h={320} radius="lg" /></div>;
   if (isError || !order) return <div className="surface-card p-10 text-center"><p className="font-semibold text-danger">Order details could not be loaded.</p><Button component={Link} to="/admin/orders" variant="default" mt="md">Back to orders</Button></div>;

@@ -9,14 +9,16 @@ export const queryClient = new QueryClient({
     },
   },
   mutationCache: new MutationCache({
-    onError: (err: any) => {
+    onError: (err: unknown) => {
+      const errorObj = err as { response?: { data?: { message?: string } }; message?: string };
       const msg =
-        err?.response?.data?.message ||
-        err?.message ||
+        errorObj?.response?.data?.message ||
+        errorObj?.message ||
         "An unexpected error occurred";
       error(msg);
     },
   }),
+
 });
 
 export function QueryProvider({ children }: { children: React.ReactNode }) {

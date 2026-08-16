@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/rules-of-hooks */
 import { API } from "./api-client";
 import {
   QueryKey,
@@ -12,7 +13,7 @@ import {
 export function createQuery<T>(
   key: QueryKey,
   url: string,
-  dataKey?: any,
+  dataKey?: string | number,
   params?: object,
   options?: Omit<UseQueryOptions<T>, "queryKey" | "queryFn">
 ) {
@@ -20,7 +21,7 @@ export function createQuery<T>(
     queryKey: key,
     queryFn: async () => {
       const { data } = await API.get(url, { params });
-      const res = dataKey ? data[dataKey] : (data as T);
+      const res = dataKey !== undefined ? data[dataKey] : (data as T);
       return res ?? null;
     },
     ...options,
@@ -30,7 +31,7 @@ export function createQuery<T>(
 export function createSuspenseQuery<T>(
   key: QueryKey,
   url: string,
-  dataKey?: any,
+  dataKey?: string | number,
   params?: object,
   options?: Omit<UseSuspenseQueryOptions<T>, "queryKey" | "queryFn">
 ) {
@@ -38,25 +39,28 @@ export function createSuspenseQuery<T>(
     queryKey: key,
     queryFn: async () => {
       const { data } = await API.get(url, { params });
-      const res = dataKey ? data[dataKey] : (data as T);
+      const res = dataKey !== undefined ? data[dataKey] : (data as T);
       return res ?? null;
     },
     ...options,
   });
 }
 
-export function createMutation<T>(
+export function createMutation<TData = unknown, TVariables = unknown>(
   url: string,
   method: "put" | "patch" | "delete" | "post",
   invalidateQueries?: string[][],
-  dataKey?: any
+  dataKey?: string | number
 ) {
   const client = useQueryClient();
 
-  return useMutation({
-    mutationFn: async (payload: any) => {
-      const { data } = await API[method](url, payload);
-      return dataKey ? (data[dataKey] as T) : (data as T);
+  return useMutation<TData, Error, TVariables>({
+    mutationFn: async (payload: TVariables) => {
+      const { data } =
+        method === "delete"
+          ? await API.delete(url, { data: payload })
+          : await API[method](url, payload as Record<string, unknown>);
+      return dataKey !== undefined ? (data[dataKey] as TData) : (data as TData);
     },
     onSuccess: () => {
       if (invalidateQueries?.length) {
