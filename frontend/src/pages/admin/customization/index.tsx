@@ -2,7 +2,7 @@ import { Transfer } from "@/components/admin";
 import { PageHeader } from "@/components/common";
 import { CUSTOMIZATION_API_HOOKS } from "@/hooks";
 import { formatPrice } from "@/lib";
-import { useAuthModalStore } from "@/store";
+import { useAuthModalStore } from "@/shared/model";
 import { Accordion, Badge, Button, Skeleton } from "@mantine/core";
 import { Boxes, PackagePlus, SlidersHorizontal } from "lucide-react";
 

@@ -1,22 +1,13 @@
+import type { User, Role } from "@/features/auth";
+export type { User, Role };
+
 export type AddressType = "Home" | "Work" | "Other";
-export type Role = "admin" | "user";
 export type CustomizationType = "single" | "multiple";
 export type OrderStatus = "pending" | "preparing" | "delivered" | "delievered" | "cancelled";
 export type PaymentStatus = "pending" | "processing" | "completed" | "failed";
 export type PaymentType = "cash";
 export type CouponType = "percentage" | "fixed";
 export type ChatStatus = "open" | "close" | "rejected" | "pending";
-
-export interface User {
-  id: number;
-  fname: string;
-  lname: string;
-  email: string;
-  role: "user" | "admin";
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
 
 export type Address = {
   type: AddressType;
@@ -217,10 +208,9 @@ export interface ChatSessionWithUser extends ChatSession {
   user: User;
 }
 
-
 export interface Message {
-  type : Role,
-  timestamp :string,
-  message : string,
-  id : number
+  type: Role;
+  timestamp: string;
+  message: string;
+  id: number;
 }

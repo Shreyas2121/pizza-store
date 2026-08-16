@@ -32,7 +32,7 @@ const Chat = ({ height = "620px", width = "100%", userId }: Props) => {
     const message = newMessage.trim();
     if (!message || !chatSession?.id || sendMessageM.isPending) return;
     sendMessageM.mutate({ message, sessionId: chatSession.id }, {
-      onSuccess: (sent) => {
+      onSuccess: (sent: Message) => {
         setMessages((current) => current.some((item) => item.id === sent.id) ? current : [...current, sent]);
         setNewMessage("");
       },

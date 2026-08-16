@@ -1,8 +1,7 @@
 import { Navigate, Route } from "react-router";
-import { Login } from "./components/auth";
-
+import { Login, useUser } from "@/features/auth";
+import { useAuthModalStore } from "@/shared/model";
 import { AdminLayout, MainLayout, ProfileLayout } from "./layouts";
-import { useAuthModalStore, useUser } from "./store";
 import {
   Address,
   Cart,

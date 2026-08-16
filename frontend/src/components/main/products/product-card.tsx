@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { Button, Drawer } from "@mantine/core";
 import { ImageOff, Settings2, ShoppingCart } from "lucide-react";
-import { BASE_URL, formatPrice, Product, success } from "@/lib";
+import { Product } from "@/lib";
+import { BASE_URL } from "@/shared/config";
+import { formatPrice, success } from "@/shared/lib";
 import { CART_API_HOOKS } from "@/hooks";
-import { useAuthModalStore, useUser } from "@/store";
-import Login from "@/components/auth/login";
+import { useAuthModalStore } from "@/shared/model";
+import { Login, useUser } from "@/features/auth";
 import Customize from "../customize";
 
 const DietaryMark = ({ vegetarian }: { vegetarian: boolean }) => {

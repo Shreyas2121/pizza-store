@@ -1,21 +1,7 @@
-
-import { Address, API, QUERY_KEYS, User } from "@/lib";
-import { createMutation, createQuery } from "./useApi";
+import { Address, QUERY_KEYS } from "@/lib";
+import { API, createMutation, createQuery } from "@/shared/api";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-
-const useLogin = () => {
-  return createMutation<{
-    token: string;
-    user: User;
-  }>("/user/login", "post", [], "data");
-};
-
-const useRegister = () => {
-  return createMutation<{
-    token: string;
-    user: User;
-  }>("/user/register", "post", [], "data");
-};
+import { useLogin, useRegister, useGetUser } from "@/features/auth";
 
 const useGetAddresses = () => {
   return createQuery<Address[]>(
@@ -48,10 +34,6 @@ const useDeleteAddress = () => {
     mutationFn: async (id: number) => (await API.delete(`/user/address/${id}`)).data.data as { message: string; id: number },
     onSuccess: () => client.invalidateQueries({ queryKey: [QUERY_KEYS.user.addressAll] }),
   });
-};
-
-const useGetUser = () => {
-  return createQuery<User>([QUERY_KEYS.user.get], "/user", "data");
 };
 
 export const USER_API_HOOKS = {

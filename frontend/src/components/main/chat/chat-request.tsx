@@ -4,7 +4,8 @@ import * as z from "zod";
 import { Button, Textarea } from "@mantine/core";
 import { MessageCircleQuestion } from "lucide-react";
 import { CHAT_API_HOOKS } from "@/hooks";
-import { useAuthModalStore, useSocketStore } from "@/store";
+import { useSocketStore } from "@/store";
+import { useAuthModalStore } from "@/shared/model";
 import { success } from "@/lib";
 
 const chatRequestSchema = z.object({

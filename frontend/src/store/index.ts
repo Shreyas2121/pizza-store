@@ -1,4 +1,4 @@
 export { useSocketStore } from "./chat";
 export { useDatePicker } from "./datepicker";
-export { useUser } from "./user";
-export { useAuthModalStore } from "./modal";
+export { useUser } from "@/features/auth";
+export { useAuthModalStore } from "@/shared/model";

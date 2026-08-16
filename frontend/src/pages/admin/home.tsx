@@ -9,7 +9,8 @@ import { DashboardCard, DatePicker } from "@/components/admin";
 import { OrderStatus } from "@/components/common";
 import { DASHBOARD_API_HOOKS, ORDER_API_HOOKS } from "@/hooks";
 import { formatPrice } from "@/lib";
-import { useAuthModalStore, useDatePicker, useSocketStore } from "@/store";
+import { useDatePicker, useSocketStore } from "@/store";
+import { useAuthModalStore } from "@/shared/model";
 
 const AdminHome = () => {
   const navigate = useNavigate();

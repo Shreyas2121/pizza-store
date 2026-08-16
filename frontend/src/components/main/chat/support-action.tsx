@@ -4,7 +4,9 @@ import { showNotification } from "@mantine/notifications";
 import { useMediaQuery } from "@mantine/hooks";
 import { useLocation } from "react-router";
 import ChatRequest from "./chat-request";
-import { useAuthModalStore, useSocketStore, useUser } from "@/store";
+import { useUser } from "@/features/auth";
+import { useAuthModalStore } from "@/shared/model";
+import { useSocketStore } from "@/store";
 import { ChatSession } from "@/lib";
 import { Chat } from "@/components/common";
 

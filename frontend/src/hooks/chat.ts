@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createMutation, createQuery } from "./useApi";
+import { API, createMutation, createQuery } from "@/shared/api";
 import {
-  API,
   ChatSession,
   ChatSessionWithUser,
   ChatStatus,
@@ -35,76 +34,91 @@ const useSyncChatStatus = (enabled: boolean = true) => {
 const useGetActiveChat = (userId?: number | undefined) => {
   return createQuery<ChatSessionWithUser | undefined>(
     [QUERY_KEYS.support.adminUserChat, userId],
-    "/chat/active",
+    `/chat/active/${userId}`,
     "data",
-    {
-      userId,
-    }
+    {},
+    { enabled: !!userId }
   );
 };
 
-const useGetSupportRequests = (status: ChatStatus) => {
-  return createQuery<ChatSessionWithUser[]>(
-    [QUERY_KEYS.support.admin, status],
-    "/chat/requests",
+const useGetChatMessages = (chatSessionId: number) => {
+  return createQuery<Message[]>(
+    [QUERY_KEYS.chat.messages, chatSessionId],
+    `/chat/messages/${chatSessionId}`,
     "data",
-    { status }
+    {},
+    { enabled: !!chatSessionId }
   );
-};
-
-const useUpdateSupportRequest = () => {
-  const client = useQueryClient();
-  return useMutation({
-    mutationFn: async (reqBody: { chatId: string; status: ChatStatus }) => {
-      const { data } = await API.patch(`/chat/request`, reqBody);
-      return data as {
-        message: string;
-        data: {
-          updatedChatSession: ChatSession;
-          oldStatus: ChatStatus;
-        };
-      };
-    },
-    onSuccess: (res) => {
-      client.invalidateQueries({
-        queryKey: [
-          QUERY_KEYS.support.admin,
-          res.data.updatedChatSession.status,
-        ],
-      });
-      client.invalidateQueries({
-        queryKey: [QUERY_KEYS.support.admin, res.data.oldStatus],
-      });
-    },
-  });
 };
 
 const useGetExistingMessages = (userId?: number) => {
   return createQuery<Message[]>(
     [QUERY_KEYS.chat.messages, userId],
-    "/chat/messages",
-    "data",
-    {
-      userId,
-    }
+    userId ? `/chat/messages/user/${userId}` : "/chat/messages",
+    "data"
   );
 };
 
 const useSendMessage = () => {
   return createMutation<Message>(
-    "/chat/message",
-    "post",
-    [[QUERY_KEYS.chat.messages]],
+    "/chat/send",
+    "post"
+  );
+};
+
+const useGetAllSupportRequests = () => {
+  return createQuery<ChatSessionWithUser[]>(
+    [QUERY_KEYS.support.admin],
+    "/chat/all",
     "data"
   );
 };
+
+const useGetSupportRequests = (status?: string) => {
+  return createQuery<ChatSessionWithUser[]>(
+    [QUERY_KEYS.support.admin, status],
+    `/chat/all${status ? `?status=${status}` : ""}`,
+    "data"
+  );
+};
+
+const useUpdateSupportStatus = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      chatSessionId,
+      chatId,
+      status,
+    }: {
+      chatSessionId?: number;
+      chatId?: string | number;
+      status: ChatStatus;
+    }) => {
+      const id = chatSessionId ?? chatId;
+      const { data } = await API.patch(`/chat/status/${id}`, {
+        status,
+      });
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.support.admin],
+      });
+    },
+  });
+};
+
+const useUpdateSupportRequest = useUpdateSupportStatus;
 
 export const CHAT_API_HOOKS = {
   useChatRequest,
   useSyncChatStatus,
   useGetActiveChat,
-  useGetSupportRequests,
-  useUpdateSupportRequest,
+  useGetChatMessages,
   useGetExistingMessages,
   useSendMessage,
+  useGetAllSupportRequests,
+  useGetSupportRequests,
+  useUpdateSupportStatus,
+  useUpdateSupportRequest,
 };

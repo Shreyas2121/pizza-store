@@ -2,10 +2,10 @@ import { useEffect, useState } from "react";
 import { Avatar, Button, Drawer, Menu as AccountMenu, Tooltip, UnstyledButton } from "@mantine/core";
 import { ChevronDown, ClipboardList, LayoutDashboard, LogIn, LogOut, MapPin, Menu, Search, ShoppingCart, User } from "lucide-react";
 import { Link, useLocation } from "react-router";
-import Login from "../auth/login";
-import { useAuthModalStore, useUser } from "@/store";
+import { Login, useUser } from "@/features/auth";
+import { useAuthModalStore } from "@/shared/model";
 import { CART_API_HOOKS } from "@/hooks";
-import { success } from "@/lib";
+import { success } from "@/shared/lib";
 import BrandLockup from "./brand-lockup";
 
 const primaryLinks = [

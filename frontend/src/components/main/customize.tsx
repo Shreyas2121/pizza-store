@@ -145,7 +145,7 @@ const Customize = ({ product, close, cartItem }: { product: Product; close: () =
                       </div>
                     </Radio.Group>
                   ) : (
-                    <Checkbox.Group value={Array.isArray(selection[group.id]) ? selection[group.id].map(String) : []} onChange={(values) => setMultiple(group, values)}>
+                    <Checkbox.Group value={(Array.isArray(selection[group.id]) ? (selection[group.id] as number[]) : []).map(String)} onChange={(values) => setMultiple(group, values)}>
                       <div className="mt-4 space-y-2">
                         {group.options.map((option) => (
                           <Checkbox

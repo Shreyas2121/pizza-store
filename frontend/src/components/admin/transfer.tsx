@@ -1,6 +1,6 @@
 import { CUSTOMIZATION_API_HOOKS, PRODUCTS_HOOKS } from "@/hooks";
 import { success } from "@/lib";
-import { useAuthModalStore } from "@/store";
+import { useAuthModalStore } from "@/shared/model";
 import { ActionIcon, Button, Loader, TextInput } from "@mantine/core";
 import { ArrowLeft, ArrowRight, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";

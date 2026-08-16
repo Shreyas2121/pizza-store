@@ -7,7 +7,7 @@ import { AddressForm, Customize } from "@/components/main";
 import { EmptyState, PageHeader } from "@/components/common";
 import { CART_API_HOOKS, USER_API_HOOKS } from "@/hooks";
 import { BASE_URL, formatPrice, ItemRes, success } from "@/lib";
-import { useAuthModalStore } from "@/store";
+import { useAuthModalStore } from "@/shared/model";
 
 const Cart = () => {
   const { data: rawCart } = CART_API_HOOKS.useGetCart();

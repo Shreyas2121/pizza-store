@@ -1,6 +1,6 @@
 import { CATEGORY_API_HOOKS, MENU_API_HOOKS, PRODUCTS_HOOKS } from "@/hooks";
 import { menuSchema, success, TMenu } from "@/lib";
-import { useAuthModalStore } from "@/store";
+import { useAuthModalStore } from "@/shared/model";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button, FileInput, MultiSelect, NumberInput, Paper, Select, Text, TextInput } from "@mantine/core";
 import { ImagePlus, Save } from "lucide-react";

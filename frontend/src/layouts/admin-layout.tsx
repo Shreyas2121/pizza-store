@@ -5,7 +5,8 @@ import { Bell, ChevronDown, LogOut, Menu, Store } from "lucide-react";
 import { Link, Navigate, Outlet, useLocation, useNavigate } from "react-router";
 import "@mantine/charts/styles.css";
 import AdminSidebar from "@/components/admin/sidebar";
-import { useSocketStore, useUser } from "@/store";
+import { useUser } from "@/features/auth";
+import { useSocketStore } from "@/store";
 
 const pageNames: Record<string, string> = {
   "/admin": "Dashboard", "/admin/products": "Products", "/admin/product/new": "New product", "/admin/customization": "Customizations", "/admin/menu": "Menu management", "/admin/orders": "Orders", "/admin/support": "Support queue",

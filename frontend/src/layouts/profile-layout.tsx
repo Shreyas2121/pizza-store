@@ -2,7 +2,7 @@ import { Outlet } from "react-router";
 import { Avatar } from "@mantine/core";
 import { ShieldCheck } from "lucide-react";
 import ProfileSidebar from "../components/main/profile/profile-sidebar";
-import { useUser } from "@/store";
+import { useUser } from "@/features/auth";
 
 const ProfileLayout = () => {
   const { user } = useUser();

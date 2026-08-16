@@ -6,7 +6,7 @@ import { useState } from "react";
 import dayjs from "dayjs";
 import { GroupT } from "@/lib/types";
 import { CalendarRange } from "lucide-react";
-import { useAuthModalStore } from "@/store";
+import { useAuthModalStore } from "@/shared/model";
 
 const presets = [
   { label: "Today", value: "today" },

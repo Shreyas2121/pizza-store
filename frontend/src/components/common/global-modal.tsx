@@ -1,4 +1,4 @@
-import { useAuthModalStore } from "@/store";
+import { useAuthModalStore } from "@/shared/model";
 import { Modal } from "@mantine/core";
 
 const GlobalModal = () => {

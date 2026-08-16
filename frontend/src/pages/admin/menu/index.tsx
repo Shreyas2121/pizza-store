@@ -2,7 +2,7 @@ import { CreateMenuItem } from "@/components/admin";
 import { PageHeader } from "@/components/common";
 import { MENU_API_HOOKS } from "@/hooks";
 import { BASE_URL } from "@/lib";
-import { useAuthModalStore } from "@/store";
+import { useAuthModalStore } from "@/shared/model";
 import { Badge, Button, Skeleton } from "@mantine/core";
 import { ImageOff, Plus } from "lucide-react";
 

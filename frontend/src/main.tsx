@@ -4,7 +4,7 @@ import "./index.css";
 import App from "./App.tsx";
 import "@mantine/core/styles.css";
 import "@mantine/notifications/styles.css";
-import { brandColor, basilColor, myColor } from "./lib/constants.ts";
+import { brandColor, basilColor, myColor } from "@/shared/config";
 import {
   QueryClient,
   MutationCache,
@@ -14,7 +14,7 @@ import {
 import { createTheme, MantineProvider } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
 import { ModalsProvider } from "@mantine/modals";
-import { error } from "./lib/utils.ts";
+import { error } from "@/shared/lib";
 import { BrowserRouter } from "react-router";
 
 const theme = createTheme({

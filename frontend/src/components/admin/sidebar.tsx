@@ -2,7 +2,7 @@ import { Avatar, Drawer, Tooltip } from "@mantine/core";
 import { ChevronLeft, ChevronRight, LogOut, Pizza } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router";
 import { sidebarLinks } from "@/lib";
-import { useUser } from "@/store";
+import { useUser } from "@/features/auth";
 
 type Props = { collapsed: boolean; mobileOpened: boolean; onMobileClose: () => void; onToggleCollapse: () => void };
 
