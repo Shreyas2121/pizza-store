@@ -10,8 +10,8 @@ import {
   AdminCustomizationsPage as AdminCustomization,
   AdminMenuPage as AdminMenu,
 } from "@/features/catalog";
+import { CartPage as Cart } from "@/features/cart";
 import {
-  Cart,
   Checkout,
   OrderDetails,
   Orders,

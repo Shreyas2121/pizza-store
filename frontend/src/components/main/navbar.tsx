@@ -4,7 +4,7 @@ import { ChevronDown, ClipboardList, LayoutDashboard, LogIn, LogOut, MapPin, Men
 import { Link, useLocation } from "react-router";
 import { Login, useUser } from "@/features/auth";
 import { useAuthModalStore } from "@/shared/model";
-import { CART_API_HOOKS } from "@/hooks";
+import { useGetCartCount } from "@/features/cart";
 import { success } from "@/shared/lib";
 import BrandLockup from "./brand-lockup";
 
@@ -19,7 +19,7 @@ export default function Navbar() {
   const { isLoggedIn, logout, user } = useUser();
   const { openModal } = useAuthModalStore();
   const location = useLocation();
-  const { data } = CART_API_HOOKS.useGetCartCount(isLoggedIn);
+  const { data } = useGetCartCount(isLoggedIn);
   const cartCount = data ?? 0;
   const initials = user ? `${user.fname?.[0] ?? ""}${user.lname?.[0] ?? ""}`.toUpperCase() : "";
 

@@ -3,7 +3,8 @@ import { Badge, Button, Drawer, Radio, Skeleton, TextInput } from "@mantine/core
 import { ArrowLeft, BadgePercent, Check, ChevronRight, CircleDollarSign, LockKeyhole, MapPin, Plus, Truck, UserRound } from "lucide-react";
 import { Link, useNavigate } from "react-router";
 import { AddressForm } from "@/features/account";
-import { CART_API_HOOKS, COUPON_API_HOOKS, ORDER_API_HOOKS, USER_API_HOOKS } from "@/hooks";
+import { useGetCartCheckout } from "@/features/cart";
+import { COUPON_API_HOOKS, ORDER_API_HOOKS, USER_API_HOOKS } from "@/hooks";
 import { BASE_URL, Coupon, error, formatPrice, success } from "@/lib";
 
 const StepHeading = ({ number, title, description, icon: Icon }: { number: number; title: string; description: string; icon: typeof UserRound }) => (
@@ -13,7 +14,7 @@ const StepHeading = ({ number, title, description, icon: Icon }: { number: numbe
 const Checkout = () => {
   const navigate = useNavigate();
   const { data: addresses, isLoading: loadingAddresses, isError: addressesError } = USER_API_HOOKS.useGetAddresses();
-  const { data: cart, isLoading: loadingCart, isError: cartError } = CART_API_HOOKS.useGetCartCheckout();
+  const { data: cart, isLoading: loadingCart, isError: cartError } = useGetCartCheckout();
   const { data: user, isLoading: loadingUser, isError: userError } = USER_API_HOOKS.useGetUser();
   const createOrderM = ORDER_API_HOOKS.useCreateOrder();
   const validateCouponM = COUPON_API_HOOKS.useValidateCoupon();

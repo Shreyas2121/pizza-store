@@ -11,6 +11,8 @@ import type {
   ProductWithCategory,
   CustomizationType,
 } from "@/features/catalog";
+import type { Cart, CartItem, ItemRes, CartRes } from "@/features/cart";
+
 export type {
   User,
   Role,
@@ -25,6 +27,10 @@ export type {
   Group,
   ProductWithCategory,
   CustomizationType,
+  Cart,
+  CartItem,
+  ItemRes,
+  CartRes,
 };
 
 export type OrderStatus = "pending" | "preparing" | "delivered" | "delievered" | "cancelled";
@@ -32,24 +38,6 @@ export type PaymentStatus = "pending" | "processing" | "completed" | "failed";
 export type PaymentType = "cash";
 export type CouponType = "percentage" | "fixed";
 export type ChatStatus = "open" | "close" | "rejected" | "pending";
-
-export type Cart = {
-  id: number;
-  createdAt: Date;
-  updatedAt: Date;
-  userId: number;
-  totalPrice: number;
-};
-
-export type CartItem = {
-  id: number;
-  createdAt: Date;
-  updatedAt: Date;
-  cartId: number;
-  price: number;
-  productId: number;
-  quantity: number;
-};
 
 export type Order = {
   status: OrderStatus;
@@ -83,19 +71,6 @@ export type Payment = {
   updatedAt: Date;
   paymentDate: Date;
 };
-
-export interface ItemRes extends CartItem {
-  product: Product;
-  customizations: {
-    optionId: number;
-    price: number;
-    name: string;
-  }[];
-}
-
-export interface CartRes extends Cart {
-  items: ItemRes[];
-}
 
 export type Coupon = {
   id: number;

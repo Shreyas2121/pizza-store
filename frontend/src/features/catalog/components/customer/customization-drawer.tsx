@@ -4,15 +4,14 @@ import { useEffect, useMemo, useState } from "react";
 import { useGetProductCustomization } from "../../api/customization.queries";
 import { Group, Product } from "../../model/catalog.types";
 import { formatPrice, success } from "@/shared/lib";
-import { CART_API_HOOKS } from "@/hooks";
-import { ItemRes } from "@/lib";
+import { useAddToCart, useUpdateCartItemCustomizations, ItemRes } from "@/features/cart";
 
 type Selection = Record<number, number | number[]>;
 
 export const CustomizationDrawer = ({ product, close, cartItem }: { product: Product; close: () => void; cartItem?: ItemRes }) => {
   const { data, isLoading, isError, refetch } = useGetProductCustomization(product.id);
-  const addToCartM = CART_API_HOOKS.useAddToCart();
-  const updateCustomizationsM = CART_API_HOOKS.useUpdateCartItemCustomizations();
+  const addToCartM = useAddToCart();
+  const updateCustomizationsM = useUpdateCartItemCustomizations();
   const [selection, setSelection] = useState<Selection>({});
 
   const groups = useMemo(() => (data ?? []).map((entry) => entry.group), [data]);

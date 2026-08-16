@@ -4,7 +4,7 @@ import { ImageOff, Settings2, ShoppingCart } from "lucide-react";
 import { Product } from "../../model/catalog.types";
 import { BASE_URL } from "@/shared/config";
 import { formatPrice, success } from "@/shared/lib";
-import { CART_API_HOOKS } from "@/hooks";
+import { useAddToCart } from "@/features/cart";
 import { useAuthModalStore } from "@/shared/model";
 import { Login, useUser } from "@/features/auth";
 import CustomizationDrawer from "./customization-drawer";
@@ -24,7 +24,7 @@ const DietaryMark = ({ vegetarian }: { vegetarian: boolean }) => {
 };
 
 export const ProductCard = ({ product }: { product: Product }) => {
-  const addToCartM = CART_API_HOOKS.useAddToCart();
+  const addToCartM = useAddToCart();
   const [opened, setOpened] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
   const { isLoggedIn } = useUser();

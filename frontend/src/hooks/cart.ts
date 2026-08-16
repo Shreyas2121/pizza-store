@@ -1,72 +1,12 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createMutation, createQuery, createSuspenseQuery } from "./useApi";
-import { API, CartRes, QUERY_KEYS } from "@/lib";
-
-const keys = QUERY_KEYS.cart;
-
-const useGetCartCount = (enabled: boolean = true) => {
-  return createQuery<number>(
-    [keys.cartCount],
-    "/cart/count",
-    "data",
-    undefined,
-    { enabled }
-  );
-};
-
-const useAddToCart = () => {
-  return createMutation<{
-    message: string;
-  }>("/cart/add", "post", [
-    [keys.getCart],
-    [keys.cartCount],
-    [keys.cartCheckout],
-  ]);
-};
-
-const useGetCart = () => {
-  return createSuspenseQuery<CartRes>([keys.getCart], "/cart", "data");
-};
-
-const useGetCartCheckout = () => {
-  return createQuery<CartRes>([keys.cartCheckout], "/cart/checkout", "data");
-};
-
-const useUpdateCartItemQuantity = () => {
-  return createMutation<{ message: string }>("/cart/update", "patch", [
-    [keys.getCart],
-    [keys.cartCount],
-    [keys.cartCheckout],
-  ]);
-};
-
-const useUpdateCartItemCustomizations = () => createMutation<{ message: string }>("/cart/customize", "patch", [
-  [keys.getCart],
-  [keys.cartCheckout],
-]);
-
-const useRemoveCartItem = () => {
-  const client = useQueryClient();
-  return useMutation({
-    mutationFn: async (cartItemId: number) => {
-      const { data } = await API.delete(`/cart/${cartItemId}`);
-      return data as {
-        message: string;
-      };
-    },
-    onSuccess: () => {
-      client.invalidateQueries({
-        queryKey: [keys.getCart],
-      });
-      client.invalidateQueries({
-        queryKey: [keys.cartCheckout],
-      });
-      client.invalidateQueries({
-        queryKey: [keys.cartCount],
-      });
-    },
-  });
-};
+import {
+  useGetCartCount,
+  useAddToCart,
+  useGetCart,
+  useGetCartCheckout,
+  useUpdateCartItemQuantity,
+  useUpdateCartItemCustomizations,
+  useRemoveCartItem,
+} from "@/features/cart";
 
 export const CART_API_HOOKS = {
   useGetCartCount,
