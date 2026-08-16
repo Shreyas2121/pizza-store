@@ -2,15 +2,19 @@ import { useAuthModalStore } from "@/store";
 import { Modal } from "@mantine/core";
 
 const GlobalModal = () => {
-  const { opened, content, closeModal, title } = useAuthModalStore();
+  const { opened, content, closeModal, title, options } = useAuthModalStore();
 
   return (
     <Modal
       title={title}
-      closeOnClickOutside={false}
+      closeOnClickOutside={options?.closeOnClickOutside ?? false}
       opened={opened}
       onClose={closeModal}
-      size={"lg"}
+      size={options?.size ?? "lg"}
+      centered={options?.centered ?? true}
+      fullScreen={options?.fullScreen}
+      padding={options?.padding}
+      radius={options?.radius}
     >
       {content}
     </Modal>

@@ -123,6 +123,8 @@
 
 ## 8. Authentication and forms
 
+**Implementation status: Completed (2026-08-16).** Login and registration now share a compact, brand-led authentication experience with welcoming task-specific copy and a clear sign-in/create-account switch. The redundant nested login Card was removed. `GlobalModal` now accepts optional per-use size, padding, radius, centering, outside-click, and full-screen presentation settings while retaining backward-compatible defaults; authentication uses a focused 440 px dialog. Password visibility is handled by Mantine’s accessible button control with explicit labels, registration names collapse to one column on narrow screens, submission loading labels remain stable, and reserved field space prevents validation messages from causing disruptive layout movement. Password-mismatch validation now appears beneath the confirmation field instead of at the form root. The same form grammar was applied to delivery addresses, support requests, and dashboard date selection: clear headings and explanations, associated labels, contextual placeholders, inline errors, responsive one/two-column groups, autocomplete/input-mode hints, disabled pending fields, and specific loading actions. Existing product/menu controls inherit the shared Mantine field defaults, while checkout coupon composition remains grouped with the checkout work in section 9.
+
 1. Restyle login and registration as one coherent auth experience with brand context, welcoming title, concise supporting copy, and clear tab/switch behavior.
 2. Remove the extra Card nested inside the login modal; it creates redundant surfaces and shadows.
 3. Use a narrower auth modal than the global `lg` default. GlobalModal should accept per-use size and presentation options.

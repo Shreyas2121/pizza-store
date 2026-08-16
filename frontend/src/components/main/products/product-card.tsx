@@ -32,7 +32,7 @@ const ProductCard = ({ product }: { product: Product }) => {
     if (!product.isAvailable || addToCartM.isPending) return;
 
     if (!isLoggedIn) {
-      openModal({ content: <Login />, title: "Sign in to order" });
+      openModal({ content: <Login />, title: "", options: { size: 440, padding: "lg", radius: "lg" } });
       return;
     }
 

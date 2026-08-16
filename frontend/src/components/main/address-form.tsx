@@ -1,128 +1,68 @@
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Input, Button, Select, Text } from "@mantine/core";
+import { Button, Select, TextInput } from "@mantine/core";
+import { Home, MapPin, Phone } from "lucide-react";
 import { USER_API_HOOKS } from "@/hooks";
 import { success } from "@/lib";
-// Zod Schema for validation
+
 const addressSchema = z.object({
-  type: z.enum(["Home", "Work", "Other"], { message: "Select a type" }),
-  street: z.string().min(3, "Street is required"),
-  city: z.string().min(2, "City is required"),
-  state: z.string().min(2, "State is required"),
+  type: z.enum(["Home", "Work", "Other"], { message: "Select an address type" }),
+  street: z.string().trim().min(3, "Enter a street address"),
+  city: z.string().trim().min(2, "Enter a city"),
+  state: z.string().trim().min(2, "Enter a state"),
   pincode: z.string().regex(/^\d{6}$/, "Enter a valid 6-digit pincode"),
   phone: z.string().regex(/^\d{10}$/, "Enter a valid 10-digit phone number"),
 });
 
-// Address form type
 type AddressFormValues = z.infer<typeof addressSchema>;
 
-const AddressForm = ({
-  defaultValues,
-  onSubmit: submit,
-}: {
-  defaultValues?: AddressFormValues;
-  onSubmit?: () => void;
-}) => {
+const AddressForm = ({ defaultValues, onSubmit: afterSubmit }: { defaultValues?: AddressFormValues; onSubmit?: () => void }) => {
   const createAddressM = USER_API_HOOKS.useCreateAddress();
-
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    formState: { errors },
-  } = useForm<AddressFormValues>({
+  const { control, register, handleSubmit, formState: { errors } } = useForm<AddressFormValues>({
     resolver: zodResolver(addressSchema),
-    defaultValues: defaultValues || {},
+    defaultValues: defaultValues ?? { type: "Home", street: "", city: "", state: "", pincode: "", phone: "" },
   });
 
   const onSubmit = (data: AddressFormValues) => {
-    // Handle form submission
     createAddressM.mutate(data, {
-      onSuccess: (res) => {
-        success(res.message);
-        if (submit) {
-          submit();
-        }
+      onSuccess: (response) => {
+        success(response.message);
+        afterSubmit?.();
       },
     });
   };
 
   return (
-    <form
-      onSubmit={handleSubmit(onSubmit)}
-      className="space-y-4 bg-white p-6 rounded-lg shadow-md"
-    >
-      {/* Address Type */}
-      <div>
-        <Text className="font-medium">Address Type</Text>
-        <Select
-          placeholder="Select Address Type"
-          data={["Home", "Work", "Other"]}
-          onChange={(value: string | null) => setValue("type", value as any)}
-          error={errors.type?.message}
-        />
+    <div>
+      <div className="mb-6">
+        <span className="grid h-11 w-11 place-items-center rounded-full bg-brand-soft text-brand"><MapPin size={22} aria-hidden="true" /></span>
+        <h2 className="mt-4 text-page-title-scale">Add a delivery address</h2>
+        <p className="mt-2 text-supporting-scale">Use an address where someone can receive your order.</p>
       </div>
 
-      {/* Street */}
-      <div>
-        <Text className="font-medium">Street</Text>
-        <Input {...register("street")} placeholder="Street Address" />
-        {errors.street && (
-          <Text className="text-red-500 text-sm">{errors.street.message}</Text>
-        )}
-      </div>
-
-      {/* City & State */}
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Text className="font-medium">City</Text>
-          <Input {...register("city")} placeholder="City" />
-          {errors.city && (
-            <Text className="text-red-500 text-sm">{errors.city.message}</Text>
-          )}
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-1" noValidate>
+        <div className="min-h-[92px]">
+          <Controller
+            name="type"
+            control={control}
+            render={({ field }) => (
+              <Select label="Address type" withAsterisk leftSection={<Home size={17} aria-hidden="true" />} data={["Home", "Work", "Other"]} value={field.value} onChange={field.onChange} error={errors.type?.message} disabled={createAddressM.isPending} allowDeselect={false} />
+            )}
+          />
         </div>
-
-        <div>
-          <Text className="font-medium">State</Text>
-          <Input {...register("state")} placeholder="State" />
-          {errors.state && (
-            <Text className="text-red-500 text-sm">{errors.state.message}</Text>
-          )}
+        <div className="min-h-[92px]"><TextInput {...register("street")} label="Street address" withAsterisk placeholder="House number, building and street" autoComplete="street-address" error={errors.street?.message} disabled={createAddressM.isPending} /></div>
+        <div className="grid grid-cols-1 gap-x-4 sm:grid-cols-2">
+          <div className="min-h-[92px]"><TextInput {...register("city")} label="City" withAsterisk placeholder="City" autoComplete="address-level2" error={errors.city?.message} disabled={createAddressM.isPending} /></div>
+          <div className="min-h-[92px]"><TextInput {...register("state")} label="State" withAsterisk placeholder="State" autoComplete="address-level1" error={errors.state?.message} disabled={createAddressM.isPending} /></div>
         </div>
-      </div>
-
-      {/* Pincode & Phone */}
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Text className="font-medium">Pincode</Text>
-          <Input {...register("pincode")} placeholder="Pincode" />
-          {errors.pincode && (
-            <Text className="text-red-500 text-sm">
-              {errors.pincode.message}
-            </Text>
-          )}
+        <div className="grid grid-cols-1 gap-x-4 sm:grid-cols-2">
+          <div className="min-h-[92px]"><TextInput {...register("pincode")} label="Pincode" withAsterisk placeholder="6-digit pincode" inputMode="numeric" autoComplete="postal-code" maxLength={6} error={errors.pincode?.message} disabled={createAddressM.isPending} /></div>
+          <div className="min-h-[92px]"><TextInput {...register("phone")} label="Phone number" withAsterisk placeholder="10-digit phone number" inputMode="tel" autoComplete="tel" maxLength={10} leftSection={<Phone size={17} aria-hidden="true" />} error={errors.phone?.message} disabled={createAddressM.isPending} /></div>
         </div>
-
-        <div>
-          <Text className="font-medium">Phone</Text>
-          <Input {...register("phone")} placeholder="Phone Number" />
-          {errors.phone && (
-            <Text className="text-red-500 text-sm">{errors.phone.message}</Text>
-          )}
-        </div>
-      </div>
-
-      {/* Submit Button */}
-      <Button
-        type="submit"
-        fullWidth
-        color="brand"
-        loading={createAddressM.isPending}
-      >
-        Save Address
-      </Button>
-    </form>
+        <Button type="submit" fullWidth size="md" loading={createAddressM.isPending} loaderProps={{ type: "dots" }}>Save address</Button>
+      </form>
+    </div>
   );
 };
 

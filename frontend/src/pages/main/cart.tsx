@@ -71,6 +71,7 @@ const Cart = () => {
       openModal({
         content: <AddressForm onSubmit={onSubmit} />,
         title: "",
+        options: { size: 560, padding: "lg", radius: "lg" },
       });
     }
   };

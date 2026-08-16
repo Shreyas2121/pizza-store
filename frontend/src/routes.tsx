@@ -33,7 +33,7 @@ function ProtectedRoutes({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!isLoggedIn) {
-      openModal({ content: <Login />, title: "" });
+      openModal({ content: <Login />, title: "", options: { size: 440, padding: "lg", radius: "lg" } });
     }
   }, [isLoggedIn, openModal]);
 

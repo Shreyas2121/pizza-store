@@ -36,6 +36,7 @@ const Address = () => {
             openModal({
               content: <AddressForm />,
               title: "",
+              options: { size: 560, padding: "lg", radius: "lg" },
             })
           }
         >
@@ -61,6 +62,7 @@ const Address = () => {
                 openModal({
                   content: <AddressForm />,
                   title: "",
+                  options: { size: 560, padding: "lg", radius: "lg" },
                 })
               }
             >

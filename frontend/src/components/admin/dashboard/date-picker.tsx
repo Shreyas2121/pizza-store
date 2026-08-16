@@ -5,6 +5,8 @@ import "@mantine/dates/styles.css";
 import { useState } from "react";
 import dayjs from "dayjs";
 import { GroupT } from "@/lib/types";
+import { CalendarRange } from "lucide-react";
+import { useAuthModalStore } from "@/store";
 
 const presets = [
   { label: "Today", value: "today" },
@@ -22,6 +24,7 @@ const groupOptions = [
 
 const DatePicker = () => {
   const { dates, setDates, group, setGroup } = useDatePicker();
+  const { closeModal } = useAuthModalStore();
 
   const [localDates, setLocalDates] =
     useState<[Date | null, Date | null]>(dates);
@@ -56,42 +59,52 @@ const DatePicker = () => {
   const handleSubmit = () => {
     setDates(localDates);
     setGroup(localGroup);
+    closeModal();
   };
 
   return (
-    <div className="flex flex-col gap-4 p-4">
+    <div className="flex flex-col gap-5">
+      <div>
+        <span className="grid h-11 w-11 place-items-center rounded-full bg-brand-soft text-brand"><CalendarRange size={22} aria-hidden="true" /></span>
+        <h2 className="mt-4 text-page-title-scale">Dashboard date range</h2>
+        <p className="mt-2 text-supporting-scale">Choose the reporting period and how results should be grouped.</p>
+      </div>
       <DatePickerInput
         type="range"
         value={localDates}
         onChange={setLocalDates}
-        label="Select Date Range"
+        label="Date range"
+        withAsterisk
         placeholder="Pick a date range"
         clearable
       />
 
-      {/* Preset Buttons */}
-      <div className="flex flex-wrap gap-2">
+      <div>
+        <p className="mb-2 text-sm font-medium text-ink">Quick ranges</p>
+        <div className="flex flex-wrap gap-2">
         {presets.map((preset) => (
           <Button
             key={preset.value}
             variant="outline"
+            size="sm"
             onClick={() => handlePresetClick(preset.value)}
           >
             {preset.label}
           </Button>
         ))}
+        </div>
       </div>
 
       {/* Group By Select */}
       <Select
-        label="Group By"
+        label="Group results by"
         value={localGroup}
         onChange={(val) => setLocalGroup(val as GroupT)}
         data={groupOptions}
       />
 
-      <Button disabled={isSubmitDisabled} onClick={handleSubmit}>
-        Submit
+      <Button size="md" disabled={isSubmitDisabled} onClick={handleSubmit}>
+        Apply date range
       </Button>
     </div>
   );

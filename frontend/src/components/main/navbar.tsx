@@ -27,7 +27,7 @@ export default function Navbar() {
 
   const openLogin = () => {
     setMobileOpen(false);
-    openModal({ content: <Login />, title: "Welcome back" });
+    openModal({ content: <Login />, title: "", options: { size: 440, padding: "lg", radius: "lg" } });
   };
 
   const handleLogout = () => {

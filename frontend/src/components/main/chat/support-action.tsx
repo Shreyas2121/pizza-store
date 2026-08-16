@@ -56,6 +56,7 @@ const SupportAction = () => {
           openModal({
             content: <ChatRequest />,
             title: "",
+            options: { size: 440, padding: "lg", radius: "lg" },
           });
         }
       }}

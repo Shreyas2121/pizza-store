@@ -65,6 +65,7 @@ const AdminHome = () => {
             openModal({
               content: <DatePicker />,
               title: "",
+              options: { size: 520, padding: "lg", radius: "lg" },
             })
           }
         >
