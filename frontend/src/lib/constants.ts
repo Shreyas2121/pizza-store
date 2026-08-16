@@ -8,48 +8,10 @@ import {
   User,
   MessageCircleQuestionIcon,
 } from "lucide-react";
-import { ChatStatus } from "./types";
+import { orderStatus } from "@/features/orders";
+import { chatStatus } from "@/features/support";
 
-export const orderStatus = [
-  {
-    label: "Pending",
-    value: "pending",
-  },
-  {
-    label: "Preparing",
-    value: "preparing",
-  },
-  {
-    label: "Delivered",
-    value: "delievered",
-  },
-  {
-    label: "Cancelled",
-    value: "cancelled",
-  },
-];
-
-export const chatStatus: {
-  label: string;
-  value: ChatStatus;
-}[] = [
-  {
-    label: "Pending",
-    value: "pending",
-  },
-  {
-    label: "Open",
-    value: "open",
-  },
-  {
-    label: "Close",
-    value: "close",
-  },
-  {
-    label: "Rejected",
-    value: "rejected",
-  },
-];
+export { orderStatus, chatStatus };
 
 export const brandColor: MantineColorsTuple = [
   "#FDF2F0",

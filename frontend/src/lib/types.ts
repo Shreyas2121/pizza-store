@@ -27,6 +27,12 @@ import type {
   OrdersAdmin,
   OrderStatus,
 } from "@/features/orders";
+import type {
+  ChatStatus,
+  ChatSession,
+  ChatSessionWithUser,
+  Message,
+} from "@/features/support";
 
 export type {
   User,
@@ -57,9 +63,11 @@ export type {
   OrderRes,
   OrdersAdmin,
   OrderStatus,
+  ChatStatus,
+  ChatSession,
+  ChatSessionWithUser,
+  Message,
 };
-
-export type ChatStatus = "open" | "close" | "rejected" | "pending";
 
 export interface DashCard {
   label: string;
@@ -76,23 +84,3 @@ export interface DashCard {
 }
 
 export type GroupT = "daily" | "weekly" | "monthly" | "quarterly" | "yearly";
-
-export interface ChatSession {
-  status: ChatStatus;
-  id: number;
-  createdAt: Date;
-  updatedAt: Date;
-  userId: number;
-  subject: string | null;
-}
-
-export interface ChatSessionWithUser extends ChatSession {
-  user: User;
-}
-
-export interface Message {
-  type: Role;
-  timestamp: string;
-  message: string;
-  id: number;
-}

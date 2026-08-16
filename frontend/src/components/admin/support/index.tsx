@@ -1,3 +1,7 @@
-export { columns, getPriority, getWaitTime } from "./columns";
-export { default as SupportActions } from "./actions";
-export { default as SupportStatus } from "./support-status";
+export {
+  SupportStatusPill as default,
+  SupportActions,
+  adminSupportColumns as columns,
+  getPriority,
+  getWaitTime,
+} from "@/features/support";

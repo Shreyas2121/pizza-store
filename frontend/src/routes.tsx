@@ -18,13 +18,15 @@ import {
   AdminOrdersPage as AdminOrders,
   AdminOrderDetailsPage as AdminOrderDetails,
 } from "@/features/orders";
+import {
+  AdminSupportPage as AdminSupport,
+  AdminChatPage as AdminChat,
+} from "@/features/support";
 import { NotFound } from "./pages/main";
 import { Suspense, useEffect } from "react";
 import { Loader } from "@mantine/core";
 import {
-  AdminChat,
   AdminHome,
-  AdminSupport,
 } from "./pages/admin";
 
 function ProtectedRoutes({ children }: { children: React.ReactNode }) {

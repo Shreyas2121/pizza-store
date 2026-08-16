@@ -1,4 +1,5 @@
-import { Footer, Navbar, SupportAction } from "@/components/main";
+import { Footer, Navbar } from "@/components/main";
+import { SupportAction } from "@/features/support";
 import { Outlet } from "react-router";
 
 const MainLayout = () => {
