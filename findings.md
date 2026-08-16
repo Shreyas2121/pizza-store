@@ -105,6 +105,8 @@
 
 ## 7. Product cards and customization
 
+**Implementation status: Completed (2026-08-16).** Product cards now use a stable 4:3 image area, consistent height, restrained hover/focus treatment, a one-to-four-column responsive grid, and a clear image-to-action hierarchy. Broken images receive a neutral fallback without shifting layout. Vegetarian and non-vegetarian products use the familiar Indian outlined-square-and-dot mark with a text label, unavailable products retain readable details beneath a subdued overlay and disabled “Sold out” action, and signed-out customers always see “Sign in to add.” Prices use `formatPrice`, customization hints remain secondary, and add requests expose stable loading feedback. Catalogue paging uses the shared Mantine pagination control while retaining URL state. The customization drawer is full-width on mobile and capped at 480 px on desktop, with a dedicated scroll region, built-in persistent close affordance, product/base-price header, correctly grouped required/optional choices, radios for single-select groups, checkboxes for multi-select groups, unavailable-option handling, required-choice validation, loading/error/empty states, and a sticky live-total/add footer.
+
 1. Redesign `src/components/main/products/product-card.tsx` around a strong 4:3 or square food image, stable card height, and clear information hierarchy.
 2. Use a responsive grid of 1 column on very narrow screens, 2 on normal mobile/tablet, 3 on medium desktop, and 4 on large desktop. Five columns currently makes food cards too narrow.
 3. Card content order: image; dietary/status badges; name; short description; optional customization hint; price; add action.
