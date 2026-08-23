@@ -3,9 +3,10 @@ import { AlertCircle, RotateCcw, ShoppingCart } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useGetProductCustomization } from "../../api/customization.queries";
 import { Group, Product } from "../../model/catalog.types";
-import { formatPrice, success } from "@/shared/lib";
+import { error, formatPrice, success, warning } from "@/shared/lib";
 import { useAddToCart, useUpdateCartItemCustomizations, ItemRes } from "@/features/cart";
 import { LoadingRegion } from "@/shared/ui";
+import { useStoreStore } from "@/features/store";
 
 type Selection = Record<number, number | number[]>;
 
@@ -14,6 +15,7 @@ export const CustomizationDrawer = ({ product, close, cartItem }: { product: Pro
   const addToCartM = useAddToCart();
   const updateCustomizationsM = useUpdateCartItemCustomizations();
   const [selection, setSelection] = useState<Selection>({});
+  const resolvedStore = useStoreStore((state) => state.resolvedStore);
 
   const groups = useMemo(() => (data ?? []).map((entry) => entry.group), [data]);
 
@@ -60,16 +62,28 @@ export const CustomizationDrawer = ({ product, close, cartItem }: { product: Pro
 
   const handleSubmit = () => {
     if (incompleteGroups.length > 0 || addToCartM.isPending || updateCustomizationsM.isPending) return;
-    const mutation = cartItem ? updateCustomizationsM : addToCartM;
-    const payload = cartItem ? { cartItemId: cartItem.id, cIds: selectedIds } : { productId: product.id, cIds: selectedIds };
-    mutation.mutate(
-      payload as never,
+    if (!cartItem && !resolvedStore) {
+      error("Choose your delivery pincode before adding items.");
+      return;
+    }
+    const callbacks = {
+      onSuccess: (response: { message: string }) => { success(response.message); close(); },
+      onError: () => error("Your customization could not be saved. Please try again."),
+    };
+    if (cartItem) {
+      updateCustomizationsM.mutate({ cartItemId: cartItem.id, cIds: selectedIds }, callbacks);
+      return;
+    }
+    addToCartM.mutate(
+      { productId: product.id, storeId: resolvedStore!.id, cIds: selectedIds },
       {
-        onSuccess: (response: { message: string }) => {
-          success(response.message);
+        onSuccess: (response) => {
+          if (response.data.cartCleared) warning(response.message);
+          else success(response.message);
           close();
         },
-      }
+        onError: callbacks.onError,
+      },
     );
   };
 

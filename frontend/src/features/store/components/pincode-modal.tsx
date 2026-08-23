@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import { Alert, Button, Modal, TextInput } from "@mantine/core";
+import { modals } from "@mantine/modals";
 import { LocateFixed, MapPin, Navigation } from "lucide-react";
 import { useStoreStore } from "../model/store.store";
+import { useUser } from "@/features/auth";
+import { useClearCart, useGetCartOptional } from "@/features/cart";
+import { error, warning } from "@/shared/lib";
 
 const LOCATION_CACHE_KEY = "pincode-suggestion";
 const LOCATION_CACHE_TTL = 24 * 60 * 60 * 1000;
@@ -49,7 +53,12 @@ export function PincodeModal({ opened, onClose }: PincodeModalProps) {
   const userPincode = useStoreStore((state) => state.userPincode);
   const isLoading = useStoreStore((state) => state.isLoading);
   const resolutionError = useStoreStore((state) => state.resolutionError);
-  const setPincode = useStoreStore((state) => state.setPincode);
+  const resolvedStore = useStoreStore((state) => state.resolvedStore);
+  const previewPincode = useStoreStore((state) => state.previewPincode);
+  const setResolvedStore = useStoreStore((state) => state.setResolvedStore);
+  const isLoggedIn = useUser((state) => state.isLoggedIn);
+  const cart = useGetCartOptional(isLoggedIn && opened);
+  const clearCart = useClearCart();
 
   useEffect(() => {
     if (opened) setPincodeInput(userPincode ?? "");
@@ -76,8 +85,38 @@ export function PincodeModal({ opened, onClose }: PincodeModalProps) {
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const store = await setPincode(pincode);
-    if (store) onClose();
+    const store = await previewPincode(pincode);
+    if (!store) return;
+
+    const cartItems = cart.data?.items ?? [];
+    const changesCartStore = cartItems.length > 0
+      && cart.data?.storeId !== null
+      && cart.data?.storeId !== store.id;
+
+    const commitStore = () => {
+      setResolvedStore(store, pincode.trim());
+      onClose();
+    };
+
+    if (!changesCartStore) {
+      commitStore();
+      return;
+    }
+
+    modals.openConfirmModal({
+      title: "Changing your area will clear your cart",
+      children: <p className="text-sm text-ink-muted">Your cart contains items from {cart.data?.store?.name ?? resolvedStore?.name ?? "your current store"}. Continue with {store.name}?</p>,
+      labels: { confirm: "Clear cart and continue", cancel: "Keep current area" },
+      confirmProps: { color: "red" },
+      centered: true,
+      onConfirm: () => clearCart.mutate(cartItems.map((item) => item.id), {
+        onSuccess: () => {
+          commitStore();
+          warning("Your cart has been cleared because you changed your delivery area.");
+        },
+        onError: () => error("Your cart could not be cleared. Your delivery area was not changed."),
+      }),
+    });
   };
 
   return (
@@ -132,7 +171,7 @@ export function PincodeModal({ opened, onClose }: PincodeModalProps) {
           >
             Detect my location
           </Button>
-          <Button type="submit" loading={isLoading} disabled={pincode.length !== 6}>
+          <Button type="submit" loading={isLoading || clearCart.isPending} disabled={pincode.length !== 6 || cart.isLoading}>
             Show available items
           </Button>
         </div>

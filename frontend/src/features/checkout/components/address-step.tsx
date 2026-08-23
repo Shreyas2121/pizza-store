@@ -7,6 +7,7 @@ type AddressStepProps = {
   selectedAddress: number | null;
   onSelectAddress: (id: number) => void;
   onOpenAddDrawer: () => void;
+  servicePincode: string;
 };
 
 export const AddressStep = ({
@@ -14,6 +15,7 @@ export const AddressStep = ({
   selectedAddress,
   onSelectAddress,
   onOpenAddDrawer,
+  servicePincode,
 }: AddressStepProps) => {
   return (
     <section className="rounded-card border border-border bg-surface p-5 shadow-subtle sm:p-6">
@@ -59,16 +61,18 @@ export const AddressStep = ({
           <div className="ml-0 mt-5 grid gap-3 sm:ml-[52px]">
             {addresses.map((address) => {
               const selected = selectedAddress === address.id;
+              const isServed = address.pincode === servicePincode;
               return (
                 <label
                   key={address.id}
-                  className={`relative cursor-pointer rounded-card border p-4 transition-colors ${selected ? "border-brand bg-brand-soft/40 ring-1 ring-brand" : "border-border bg-surface hover:border-brand/50"}`}
+                  className={`relative rounded-card border p-4 transition-colors ${!isServed ? "cursor-not-allowed border-border bg-surface-muted opacity-65" : selected ? "cursor-pointer border-brand bg-brand-soft/40 ring-1 ring-brand" : "cursor-pointer border-border bg-surface hover:border-brand/50"}`}
                 >
                   <div className="flex items-start gap-3">
                     <Radio
                       value={String(address.id)}
                       mt={2}
                       aria-label={`Deliver to ${address.type} address`}
+                      disabled={!isServed}
                     />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-3">
@@ -78,6 +82,7 @@ export const AddressStep = ({
                             <Check size={14} /> Selected
                           </span>
                         )}
+                        {!isServed && <span className="text-xs font-bold text-danger">Outside {servicePincode}</span>}
                       </div>
                       <p className="mt-1 text-sm leading-5 text-ink-muted">
                         {address.street}, {address.city}, {address.state} ·{" "}

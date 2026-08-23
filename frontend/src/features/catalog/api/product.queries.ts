@@ -1,16 +1,17 @@
 import { createMutation, createQuery } from "@/shared/api";
 import { Product, ProductWithCategory } from "../model/catalog.types";
 import { catalogKeys } from "../model/catalog.keys";
-import { keepPreviousData } from "@tanstack/react-query";
 
 export const useGetProducts = ({
   menuSlug,
   page,
   sortBy,
+  storeId,
 }: {
   menuSlug?: string | null;
   page: string;
   sortBy: string;
+  storeId?: number;
 }) => {
   return createQuery<{
     data: Product[];
@@ -20,15 +21,16 @@ export const useGetProducts = ({
       hasNextPage: boolean;
     };
   }>(
-    catalogKeys.products.allMenu(menuSlug, page, sortBy),
+    catalogKeys.products.allMenu(menuSlug, page, sortBy, storeId),
     `/product/menu`,
     undefined,
     {
       menuSlug,
       page,
       sortBy,
+      storeId,
     },
-    { placeholderData: keepPreviousData }
+    { enabled: storeId !== undefined }
   );
 };
 

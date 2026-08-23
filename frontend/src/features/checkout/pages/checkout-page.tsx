@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button, Drawer } from "@mantine/core";
-import { ArrowLeft, Truck, UserRound } from "lucide-react";
+import { ArrowLeft, Clock3, MapPin, Store as StoreIcon, Truck, UserRound } from "lucide-react";
 import { Link, useNavigate } from "react-router";
 import { AddressForm, useGetAddresses, useGetUser } from "@/features/account";
 import { useGetCartCheckout } from "@/features/cart";
@@ -12,6 +12,8 @@ import AddressStep from "../components/address-step";
 import PaymentStep from "../components/payment-step";
 import CheckoutSummary from "../components/checkout-summary";
 import { DetailsPageSkeleton } from "@/shared/ui";
+import { isStoreOpen, useStoreStore } from "@/features/store";
+import axios from "axios";
 
 export const CheckoutPage = () => {
   const navigate = useNavigate();
@@ -25,10 +27,16 @@ export const CheckoutPage = () => {
   const [code, setCode] = useState("");
   const [selectedAddress, setSelectedAddress] = useState<number | null>(null);
   const [addressDrawerOpen, setAddressDrawerOpen] = useState(false);
+  const resolvedStore = useStoreStore((state) => state.resolvedStore);
+  const userPincode = useStoreStore((state) => state.userPincode);
+  const openPincodeModal = useStoreStore((state) => state.openPincodeModal);
 
   useEffect(() => {
-    if (!selectedAddress && addresses?.[0]) setSelectedAddress(addresses[0].id);
-  }, [addresses, selectedAddress]);
+    if (!selectedAddress) {
+      const matchingAddress = addresses?.find((address) => address.pincode === userPincode);
+      if (matchingAddress) setSelectedAddress(matchingAddress.id);
+    }
+  }, [addresses, selectedAddress, userPincode]);
 
   const { discountAmount, total } = useMemo(() => {
     const subtotal = cart?.totalPrice ?? 0;
@@ -39,6 +47,10 @@ export const CheckoutPage = () => {
   const itemCount = cart?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0;
   const loading = loadingAddresses || loadingCart || loadingUser;
   const failed = addressesError || cartError || userError;
+  const selectedAddressDetails = addresses?.find((address) => address.id === selectedAddress);
+  const addressMatchesStore = !!selectedAddressDetails && selectedAddressDetails.pincode === userPincode;
+  const cartMatchesStore = !!resolvedStore && cart?.storeId === resolvedStore.id;
+  const storeOpen = !!resolvedStore && isStoreOpen(resolvedStore.opensAt, resolvedStore.closesAt);
 
   const applyCoupon = () => {
     const normalized = code.trim().toUpperCase();
@@ -48,17 +60,30 @@ export const CheckoutPage = () => {
   };
 
   const placeOrder = () => {
+    if (!resolvedStore || !userPincode) { error("Select your delivery pincode before placing the order."); openPincodeModal(); return; }
+    if (!cartMatchesStore) { error("Your cart belongs to a different store. Review your delivery area."); openPincodeModal(); return; }
+    if (!isStoreOpen(resolvedStore.opensAt, resolvedStore.closesAt)) { error(`This store is currently closed. It opens at ${resolvedStore.opensAt}.`); return; }
     if (!selectedAddress) { error("Select a delivery address"); return; }
+    if (!addressMatchesStore) { error(`Choose an address in pincode ${userPincode}.`); return; }
     createOrderM.mutate({ addressId: selectedAddress, totalPrice: total, paymentType: "cash", couponId: coupon?.id ?? null, discountAmount }, {
       onSuccess: (response) => {
         if (coupon) redeemCouponM.mutate({ code: coupon.code, orderId: response.data });
         success(response.message);
         navigate(`/order/${response.data}`);
       },
+      onError: (cause) => error(
+        axios.isAxiosError<{ message?: string }>(cause)
+          ? cause.response?.data.message ?? "The order could not be placed."
+          : "The order could not be placed. Check store availability and try again.",
+      ),
     });
   };
 
   if (loading) return <div className="page-shell"><DetailsPageSkeleton /></div>;
+
+  if (!resolvedStore || !userPincode) {
+    return <div className="page-shell"><div className="empty-state"><MapPin size={36} className="text-brand" /><h1 className="mt-3 text-section-title-scale">Choose your delivery area</h1><p className="mt-2 text-supporting-scale">Enter your pincode before reviewing checkout.</p><Button mt="lg" onClick={openPincodeModal} leftSection={<MapPin size={17} />}>Enter pincode</Button></div></div>;
+  }
 
   if (failed || !cart || !user || itemCount === 0) {
     return <div className="page-shell"><div className="empty-state"><Truck size={36} className="text-brand" /><h1 className="mt-3 text-section-title-scale">Checkout isn’t ready</h1><p className="mt-2 text-supporting-scale">Your cart or account details could not be loaded. Return to your cart and try again.</p><Button component={Link} to="/cart" mt="lg" leftSection={<ArrowLeft size={17} />}>Back to cart</Button></div></div>;
@@ -67,6 +92,11 @@ export const CheckoutPage = () => {
   return (
     <div className="page-shell">
       <div className="mb-7"><Link to="/cart" className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-ink-muted hover:text-brand"><ArrowLeft size={17} /> Back to cart</Link><h1 className="mt-2 text-page-title-scale">Checkout</h1><p className="mt-2 text-ink-muted">Confirm your details, choose a delivery address, and place your order.</p></div>
+
+      <div className={`mb-5 flex items-start gap-3 rounded-card border p-4 ${storeOpen && cartMatchesStore ? "border-basil/30 bg-basil-soft" : "border-red-200 bg-red-50"}`}>
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-surface text-brand"><StoreIcon size={19} /></span>
+        <div><p className="font-semibold text-ink">Ordering from {resolvedStore.name}</p><p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-ink-muted"><span className="inline-flex items-center gap-1"><MapPin size={14} />Delivery area {userPincode}</span><span className="inline-flex items-center gap-1"><Clock3 size={14} />{resolvedStore.opensAt}–{resolvedStore.closesAt} IST</span></p>{!storeOpen && <p className="mt-2 text-sm font-semibold text-danger">Store is currently closed. Checkout is unavailable until {resolvedStore.opensAt}.</p>}{!cartMatchesStore && <p className="mt-2 text-sm font-semibold text-danger">This cart belongs to a different store.</p>}</div>
+      </div>
 
       <div className="grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_380px]">
         <div className="space-y-4">
@@ -80,6 +110,7 @@ export const CheckoutPage = () => {
             selectedAddress={selectedAddress}
             onSelectAddress={(id) => setSelectedAddress(id)}
             onOpenAddDrawer={() => setAddressDrawerOpen(true)}
+            servicePincode={userPincode}
           />
 
           <PaymentStep />
@@ -94,7 +125,7 @@ export const CheckoutPage = () => {
           total={total}
           validatingCoupon={validateCouponM.isPending}
           placingOrder={createOrderM.isPending}
-          canPlaceOrder={!!selectedAddress}
+          canPlaceOrder={!!selectedAddress && addressMatchesStore && cartMatchesStore && storeOpen}
           onCodeChange={(newCode) => setCode(newCode)}
           onApplyCoupon={applyCoupon}
           onRemoveCoupon={() => { setCoupon(null); setCode(""); }}

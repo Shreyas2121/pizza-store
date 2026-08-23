@@ -14,8 +14,12 @@ interface StoreState {
   isStoreResolved: boolean;
   isLoading: boolean;
   resolutionError: string | null;
+  isPincodeModalOpen: boolean;
   setPincode: (pincode: string) => Promise<Store | null>;
-  setResolvedStore: (store: Store) => void;
+  previewPincode: (pincode: string) => Promise<Store | null>;
+  setResolvedStore: (store: Store, pincode?: string) => void;
+  openPincodeModal: () => void;
+  closePincodeModal: () => void;
   clearStore: () => void;
 }
 
@@ -31,6 +35,11 @@ const getResolutionError = (cause: unknown) => {
   return "We couldn't find a store for that pincode.";
 };
 
+const fetchStore = async (pincode: string) => {
+  const response = await API.post<ResolveStoreResponse>("/stores/resolve", { pincode });
+  return response.data.data;
+};
+
 export const useStoreStore = create<StoreState>()(
   persist(
     (set) => ({
@@ -39,6 +48,7 @@ export const useStoreStore = create<StoreState>()(
       isStoreResolved: false,
       isLoading: false,
       resolutionError: null,
+      isPincodeModalOpen: false,
       setPincode: async (value) => {
         const pincode = value.trim();
         if (!/^\d{6}$/.test(pincode)) {
@@ -50,10 +60,9 @@ export const useStoreStore = create<StoreState>()(
         set({ userPincode: pincode, isLoading: true, resolutionError: null });
 
         try {
-          const response = await API.post<ResolveStoreResponse>("/stores/resolve", { pincode });
+          const store = await fetchStore(pincode);
           if (resolution !== latestResolution) return null;
 
-          const store = response.data.data;
           set({
             resolvedStore: store,
             userPincode: pincode,
@@ -74,12 +83,35 @@ export const useStoreStore = create<StoreState>()(
           return null;
         }
       },
-      setResolvedStore: (store) => set({
+      previewPincode: async (value) => {
+        const pincode = value.trim();
+        if (!/^\d{6}$/.test(pincode)) {
+          set({ resolutionError: "Enter a valid 6-digit pincode." });
+          return null;
+        }
+
+        const resolution = ++latestResolution;
+        set({ isLoading: true, resolutionError: null });
+        try {
+          const store = await fetchStore(pincode);
+          if (resolution !== latestResolution) return null;
+          set({ isLoading: false, resolutionError: null });
+          return store;
+        } catch (cause) {
+          if (resolution !== latestResolution) return null;
+          set({ isLoading: false, resolutionError: getResolutionError(cause) });
+          return null;
+        }
+      },
+      setResolvedStore: (store, pincode) => set({
         resolvedStore: store,
+        ...(pincode ? { userPincode: pincode } : {}),
         isStoreResolved: true,
         isLoading: false,
         resolutionError: null,
       }),
+      openPincodeModal: () => set({ isPincodeModalOpen: true, resolutionError: null }),
+      closePincodeModal: () => set({ isPincodeModalOpen: false }),
       clearStore: () => {
         latestResolution += 1;
         set({
@@ -88,6 +120,7 @@ export const useStoreStore = create<StoreState>()(
           isStoreResolved: false,
           isLoading: false,
           resolutionError: null,
+          isPincodeModalOpen: true,
         });
       },
     }),

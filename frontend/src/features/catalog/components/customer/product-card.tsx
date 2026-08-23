@@ -3,11 +3,12 @@ import { Button, Drawer } from "@mantine/core";
 import { ImageOff, Settings2, ShoppingCart } from "lucide-react";
 import { Product } from "../../model/catalog.types";
 import { BASE_URL } from "@/shared/config";
-import { formatPrice, success } from "@/shared/lib";
+import { error, formatPrice, success, warning } from "@/shared/lib";
 import { useAddToCart } from "@/features/cart";
 import { useAuthModalStore } from "@/shared/model";
 import { Login, useUser } from "@/features/auth";
 import CustomizationDrawer from "./customization-drawer";
+import { useStoreStore } from "@/features/store";
 
 const DietaryMark = ({ vegetarian }: { vegetarian: boolean }) => {
   const color = vegetarian ? "#39734E" : "#8B2E1F";
@@ -29,9 +30,16 @@ export const ProductCard = ({ product }: { product: Product }) => {
   const [imageFailed, setImageFailed] = useState(false);
   const { isLoggedIn } = useUser();
   const { openModal } = useAuthModalStore();
+  const resolvedStore = useStoreStore((state) => state.resolvedStore);
+  const openPincodeModal = useStoreStore((state) => state.openPincodeModal);
 
   const handleAddToCart = () => {
     if (!product.isAvailable || addToCartM.isPending) return;
+
+    if (!resolvedStore) {
+      openPincodeModal();
+      return;
+    }
 
     if (!isLoggedIn) {
       openModal({ content: <Login />, title: "", options: { size: 440, padding: "lg", radius: "lg" } });
@@ -44,8 +52,11 @@ export const ProductCard = ({ product }: { product: Product }) => {
     }
 
     addToCartM.mutate(
-      { productId: product.id, cIds: [] },
-      { onSuccess: (response) => success(response.message) }
+      { productId: product.id, storeId: resolvedStore.id, cIds: [] },
+      {
+        onSuccess: (response) => response.data.cartCleared ? warning(response.message) : success(response.message),
+        onError: () => error("This product could not be added. Refresh the menu and try again."),
+      }
     );
   };
 

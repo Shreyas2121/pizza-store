@@ -8,10 +8,12 @@ export {
   useGetCartCount,
   useAddToCart,
   useGetCart,
+  useGetCartOptional,
   useGetCartCheckout,
   useUpdateCartItemQuantity,
   useUpdateCartItemCustomizations,
   useRemoveCartItem,
+  useClearCart,
 } from "./api/cart.queries";
 
 export type { Cart, CartItem, ItemRes, CartRes } from "./model/cart.types";

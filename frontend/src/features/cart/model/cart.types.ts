@@ -1,4 +1,5 @@
 import type { Product } from "@/features/catalog";
+import type { Store } from "@/features/store";
 
 export type Cart = {
   id: number;
@@ -6,6 +7,7 @@ export type Cart = {
   updatedAt: Date;
   userId: number;
   totalPrice: number;
+  storeId: number | null;
 };
 
 export type CartItem = {
@@ -29,4 +31,5 @@ export interface ItemRes extends CartItem {
 
 export interface CartRes extends Cart {
   items: ItemRes[];
+  store: Store | null;
 }

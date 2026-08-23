@@ -6,6 +6,7 @@ type CartSummaryProps = {
   subtotal: number;
   itemCount: number;
   loading?: boolean;
+  disabled?: boolean;
   onCheckout: () => void;
 };
 
@@ -13,6 +14,7 @@ export const CartSummary = ({
   subtotal,
   itemCount,
   loading,
+  disabled,
   onCheckout,
 }: CartSummaryProps) => {
   return (
@@ -52,6 +54,7 @@ export const CartSummary = ({
           mt="lg"
           onClick={onCheckout}
           loading={loading}
+          disabled={disabled}
           rightSection={<ArrowRight size={18} />}
         >
           Continue to checkout
@@ -76,6 +79,7 @@ export const CartSummary = ({
               size="md"
               onClick={onCheckout}
               loading={loading}
+              disabled={disabled}
               rightSection={<ArrowRight size={17} />}
             >
               Checkout

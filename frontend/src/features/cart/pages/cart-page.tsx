@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Drawer, Button } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { ArrowRight, ShoppingCart } from "lucide-react";
+import { ArrowRight, Clock3, MapPin, ShoppingCart, Store as StoreIcon } from "lucide-react";
 import { useNavigate } from "react-router";
 import { AddressForm, useGetAddresses } from "@/features/account";
 import { CustomizationDrawer } from "@/features/catalog";
 import { EmptyState, PageHeader } from "@/shared/ui";
 
 import { useAuthModalStore } from "@/shared/model";
-import { success } from "@/shared/lib";
+import { error, success } from "@/shared/lib";
+import { useStoreStore } from "@/features/store";
 import { ItemRes } from "../model/cart.types";
 import {
   useGetCart,
@@ -20,7 +21,7 @@ import CartSummary from "../components/cart-summary";
 
 export const CartPage = () => {
   const { data: rawCart } = useGetCart();
-  const cart = rawCart || { id: 0, userId: 0, items: [], totalPrice: 0 };
+  const cart = rawCart || { id: 0, userId: 0, items: [], totalPrice: 0, storeId: null, store: null };
   const { openModal, closeModal } = useAuthModalStore();
   const updateCartM = useUpdateCartItemQuantity();
   const removeCartItemM = useRemoveCartItem();
@@ -29,6 +30,9 @@ export const CartPage = () => {
   const [pendingRemoval, setPendingRemoval] = useState<Set<number>>(new Set());
   const removalTimers = useRef(new Map<number, ReturnType<typeof setTimeout>>());
   const navigate = useNavigate();
+  const resolvedStore = useStoreStore((state) => state.resolvedStore);
+  const isStoreResolved = useStoreStore((state) => state.isStoreResolved);
+  const openPincodeModal = useStoreStore((state) => state.openPincodeModal);
 
   useEffect(() => () => {
     removalTimers.current.forEach((timer, itemId) => {
@@ -39,6 +43,7 @@ export const CartPage = () => {
 
   const visibleItems = cart.items.filter((item) => !pendingRemoval.has(item.id));
   const itemCount = visibleItems.reduce((total, item) => total + item.quantity, 0);
+  const storeMatchesCart = itemCount === 0 || (!!resolvedStore && cart.storeId === resolvedStore.id);
   const subtotal = useMemo(() => {
     const hiddenTotal = cart.items
       .filter((item) => pendingRemoval.has(item.id))
@@ -60,6 +65,8 @@ export const CartPage = () => {
 
   const checkout = () => {
     if (addressesLoading || itemCount === 0) return;
+    if (!isStoreResolved || !resolvedStore) { openPincodeModal(); return; }
+    if (!storeMatchesCart) { error("Choose the delivery area for the store attached to your cart, or clear the cart by changing areas."); openPincodeModal(); return; }
     if (addresses?.length) navigate("/checkout");
     else
       openModal({
@@ -139,6 +146,17 @@ export const CartPage = () => {
         description={`${itemCount} ${itemCount === 1 ? "item" : "items"} ready for review.`}
       />
 
+      {itemCount > 0 && cart.store && (
+        <div className={`mb-5 flex flex-col gap-3 rounded-card border p-4 sm:flex-row sm:items-center sm:justify-between ${storeMatchesCart ? "border-basil/30 bg-basil-soft" : "border-amber-300 bg-amber-50"}`}>
+          <div className="flex items-start gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-surface text-brand"><StoreIcon size={19} /></span><div><p className="font-semibold text-ink">Ordering from {cart.store.name}</p><p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-ink-muted"><span className="inline-flex items-center gap-1"><MapPin size={14} />{cart.store.city}</span><span className="inline-flex items-center gap-1"><Clock3 size={14} />{cart.store.opensAt}–{cart.store.closesAt}</span></p></div></div>
+          {!storeMatchesCart && <Button variant="light" color="yellow" onClick={openPincodeModal}>Review delivery area</Button>}
+        </div>
+      )}
+
+      {!isStoreResolved && itemCount > 0 && (
+        <div className="mb-5 rounded-card border border-brand/25 bg-brand-soft p-4 text-sm text-ink"><p className="font-semibold">Select a delivery pincode before checkout.</p><button type="button" onClick={openPincodeModal} className="mt-2 font-bold text-brand underline underline-offset-4">Enter pincode</button></div>
+      )}
+
       {itemCount > 0 ? (
         <div className="grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_360px]">
           <div className="space-y-4">
@@ -158,6 +176,7 @@ export const CartPage = () => {
             subtotal={subtotal}
             itemCount={itemCount}
             loading={addressesLoading}
+            disabled={!isStoreResolved || !storeMatchesCart}
             onCheckout={checkout}
           />
         </div>

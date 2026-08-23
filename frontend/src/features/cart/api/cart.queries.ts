@@ -22,6 +22,7 @@ export const useGetCartCount = (enabled: boolean = true) => {
 export const useAddToCart = () => {
   return createMutation<{
     message: string;
+    data: { cartCleared: boolean; storeId: number };
   }>("/cart/add", "post", [
     cartKeys.get() as unknown as string[],
     cartKeys.count() as unknown as string[],
@@ -31,6 +32,10 @@ export const useAddToCart = () => {
 
 export const useGetCart = () => {
   return createSuspenseQuery<CartRes>(cartKeys.get(), "/cart", "data");
+};
+
+export const useGetCartOptional = (enabled: boolean = true) => {
+  return createQuery<CartRes | null>(cartKeys.get(), "/cart", "data", undefined, { enabled });
 };
 
 export const useGetCartCheckout = () => {
@@ -61,6 +66,21 @@ export const useRemoveCartItem = () => {
       };
     },
     onSuccess: () => {
+      client.invalidateQueries({ queryKey: cartKeys.get() });
+      client.invalidateQueries({ queryKey: cartKeys.checkout() });
+      client.invalidateQueries({ queryKey: cartKeys.count() });
+    },
+  });
+};
+
+export const useClearCart = () => {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (itemIds: number[]) => {
+      for (const itemId of itemIds) await API.delete(`/cart/${itemId}`);
+    },
+    onSuccess: () => {
+      client.setQueryData(cartKeys.get(), null);
       client.invalidateQueries({ queryKey: cartKeys.get() });
       client.invalidateQueries({ queryKey: cartKeys.checkout() });
       client.invalidateQueries({ queryKey: cartKeys.count() });
