@@ -1,6 +1,7 @@
 import { CalendarDays, Mail, ShieldCheck, UserRound } from "lucide-react";
 import { useGetUser } from "../api/profile.queries";
 import { PageHeader, ProfileSkeleton } from "@/shared/ui";
+import { formatDate } from "@/shared/lib";
 
 
 export const ProfilePage = () => {
@@ -14,7 +15,7 @@ export const ProfilePage = () => {
     return <div className="empty-state m-0"><UserRound size={34} className="text-brand" /><h2 className="mt-3 text-section-title-scale">Account details unavailable</h2><p className="mt-2 text-supporting-scale">Refresh the page to try loading your account again.</p></div>;
   }
 
-  const joinedOn = new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "long", year: "numeric" }).format(new Date(user.createdAt));
+  const joinedOn = formatDate(user.createdAt, { day: "numeric", month: "long", year: "numeric" });
   const details = [
     { label: "Full name", value: `${user.fname} ${user.lname}`, icon: UserRound },
     { label: "Email address", value: user.email, icon: Mail },

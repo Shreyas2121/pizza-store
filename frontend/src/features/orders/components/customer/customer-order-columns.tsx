@@ -2,7 +2,7 @@ import type { DataTableColumnDef } from "@/shared/ui";
 import { Button } from "@mantine/core";
 import { Link } from "react-router";
 import { Order } from "../../model/order.types";
-import { formatPrice } from "@/shared/lib";
+import { formatDate, formatPrice } from "@/shared/lib";
 import { OrderStatus } from "../order-status";
 
 
@@ -15,8 +15,7 @@ export const customerOrderColumns: DataTableColumnDef<Order>[] = [
     header: "Order Date",
     accessorKey: "orderDate",
     cell: ({ row }) => {
-      const date = row.original.orderDate!;
-      return new Date(date).toDateString();
+      return row.original.orderDate ? formatDate(row.original.orderDate) : "Date unavailable";
     },
   },
   {

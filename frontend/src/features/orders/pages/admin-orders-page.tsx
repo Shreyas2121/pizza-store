@@ -5,7 +5,7 @@ import { ArrowRight, RotateCcw } from "lucide-react";
 import { adminOrderColumns } from "../components/admin/admin-order-columns";
 import { useGetAdminOrders } from "../api/order.queries";
 import { OrderStatus as OrderStatusType, orderStatus } from "../model/order.types";
-import { formatPrice } from "@/shared/lib";
+import { formatDate, formatPrice } from "@/shared/lib";
 import { PageHeader, TableSkeleton } from "@/shared/ui";
 import { OrderStatus as StatusPill } from "../components/order-status";
 
@@ -70,7 +70,7 @@ export const AdminOrdersPage = () => {
               <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
                 <div>
                   <p className="font-semibold tabular-nums">{formatPrice(order.totalPrice)}</p>
-                  <p className="text-xs text-ink-muted">{order.orderDate ? new Date(order.orderDate).toLocaleDateString("en-IN", { dateStyle: "medium" }) : "Date unavailable"}</p>
+                  <p className="text-xs text-ink-muted">{order.orderDate ? formatDate(order.orderDate) : "Date unavailable"}</p>
                 </div>
                 <Button component={Link} to={`/admin/order/${order.id}`} variant="subtle" rightSection={<ArrowRight size={15} />}>View order</Button>
               </div>

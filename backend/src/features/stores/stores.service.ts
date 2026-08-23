@@ -20,7 +20,7 @@ import {
 } from "../../db/schema";
 import { AppError } from "../../utils/error";
 import { generateSlug } from "../../utils";
-import { isStoreOpen } from "./store-hours";
+import { formatStoreTime, isStoreOpen } from "./store-hours";
 
 class StoreService {
   async createStore(
@@ -171,7 +171,7 @@ class StoreService {
 
     if (!store) {
       throw new AppError(
-        `Stores in your area are currently closed. Opens at ${activeStores[0].opensAt}`,
+          `Stores in your area are currently closed. Opens at ${formatStoreTime(activeStores[0].opensAt)} IST`,
         409
       );
     }

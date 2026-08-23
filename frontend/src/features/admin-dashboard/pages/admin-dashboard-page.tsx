@@ -4,7 +4,6 @@ import { Button } from "@mantine/core";
 import { showNotification } from "@mantine/notifications";
 import { ArrowRight, CalendarRange, ClipboardList } from "lucide-react";
 import { Link, useNavigate } from "react-router";
-import dayjs from "dayjs";
 import { DashboardCard } from "../components/dashboard-card";
 import { DatePicker } from "../components/date-picker";
 import { useDatePicker } from "../model/dashboard-date.store";
@@ -16,7 +15,7 @@ import {
 import { useGetAdminOrders } from "@/features/orders";
 import { OrderStatus } from "@/features/orders";
 
-import { formatPrice } from "@/shared/lib";
+import { formatDate, formatDateTime, formatPrice } from "@/shared/lib";
 import { useSocketStore } from "@/features/support";
 
 import { useAuthModalStore } from "@/shared/model";
@@ -51,7 +50,7 @@ export const AdminDashboardPage = () => {
   const formattedDates = useMemo(
     () =>
       from && to
-        ? `${dayjs(from).format("D MMM YYYY")} – ${dayjs(to).format("D MMM YYYY")}`
+        ? `${formatDate(from)} – ${formatDate(to)}`
         : "Select date range",
     [from, to]
   );
@@ -227,7 +226,7 @@ export const AdminDashboardPage = () => {
                   <p className="font-semibold text-ink">Order #{order.id}</p>
                   <p className="mt-0.5 text-xs text-ink-muted">
                     {order.orderDate
-                      ? dayjs(order.orderDate).format("D MMM, h:mm A")
+                      ? formatDateTime(order.orderDate, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })
                       : "Date unavailable"}
                   </p>
                 </div>

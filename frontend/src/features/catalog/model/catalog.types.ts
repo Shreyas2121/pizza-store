@@ -5,8 +5,8 @@ export type Category = {
   name: string;
   featured: boolean | null;
   isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type Product = {
@@ -26,8 +26,8 @@ export type MenuItem = {
   id: number;
   name: string;
   isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
   slug: string;
   image: string;
   position: number;
@@ -37,16 +37,16 @@ export type CustomizationGroup = {
   type: CustomizationType;
   id: number;
   name: string;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
   required: boolean;
 };
 
 export type CustomizationOption = {
   id: number;
   name: string;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
   price: number | null;
   isAvailable: boolean;
   groupId: number;

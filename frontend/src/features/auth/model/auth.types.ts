@@ -7,6 +7,6 @@ export interface User {
   email: string;
   role: "user" | "admin";
   isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
 }

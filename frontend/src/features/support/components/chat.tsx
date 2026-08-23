@@ -9,6 +9,7 @@ import {
 import { Message } from "../model/support.types";
 import { useSocketStore } from "../model/support.store";
 import { LoadingRegion } from "@/shared/ui";
+import { formatTime } from "@/shared/lib";
 
 interface Props {
   width?: string;
@@ -65,13 +66,6 @@ export const Chat = ({ height = "620px", width = "100%", userId }: Props) => {
         },
       }
     );
-  };
-
-  const formatTime = (timestamp: string) => {
-    const date = new Date(timestamp);
-    return Number.isNaN(date.getTime())
-      ? ""
-      : new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(date);
   };
 
   if (loadingChat || loadingMessages) {

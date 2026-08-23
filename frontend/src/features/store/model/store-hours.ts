@@ -1,5 +1,7 @@
-const istTimeFormatter = new Intl.DateTimeFormat("en-GB", {
-  timeZone: "Asia/Kolkata",
+import { APP_LOCALE, APP_TIME_ZONE } from "@/shared/lib";
+
+const istTimeFormatter = new Intl.DateTimeFormat(APP_LOCALE, {
+  timeZone: APP_TIME_ZONE,
   hour: "2-digit",
   minute: "2-digit",
   hourCycle: "h23",

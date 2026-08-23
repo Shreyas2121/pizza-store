@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Button, Checkbox, NumberInput, TextInput } from "@mantine/core";
 import { Search } from "lucide-react";
 import type { ProductWithCategory } from "@/features/catalog";
-import { error, formatPrice, success } from "@/shared/lib";
+import { APP_CURRENCY_SYMBOL, error, formatPrice, success } from "@/shared/lib";
 import { useMapStoreProducts } from "../../api/store.queries";
 
 export function AddStoreProducts({ storeId, products, onSaved }: { storeId: number; products: ProductWithCategory[]; onSaved: () => void }) {
@@ -35,7 +35,7 @@ export function AddStoreProducts({ storeId, products, onSaved }: { storeId: numb
             <div key={product.id} className={`rounded-control border p-3 ${checked ? "border-brand bg-brand-soft" : "border-border"}`}>
               <div className="flex items-center justify-between gap-3">
                 <Checkbox label={<span><span className="font-semibold text-ink">{product.name}</span><span className="ml-2 text-xs text-ink-muted">Base {formatPrice(product.price)}</span></span>} checked={checked} onChange={() => toggle(product)} />
-                {checked && <NumberInput aria-label={`Price for ${product.name}`} hideControls prefix="$ " min={0} decimalScale={2} className="w-32" value={prices[product.id] ?? product.price} onChange={(value) => setPrices((current) => ({ ...current, [product.id]: value }))} />}
+                {checked && <NumberInput aria-label={`Price for ${product.name}`} hideControls prefix={`${APP_CURRENCY_SYMBOL} `} min={0} decimalScale={2} className="w-32" value={prices[product.id] ?? product.price} onChange={(value) => setPrices((current) => ({ ...current, [product.id]: value }))} />}
               </div>
             </div>
           );

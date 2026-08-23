@@ -5,7 +5,7 @@ import { Link, useNavigate } from "react-router";
 import { AddressForm, useGetAddresses, useGetUser } from "@/features/account";
 import { useGetCartCheckout } from "@/features/cart";
 import { useCreateOrder } from "@/features/orders";
-import { error, success } from "@/shared/lib";
+import { error, formatClockTime, formatStoreHours, success } from "@/shared/lib";
 import { Coupon } from "../model/checkout.types";
 import { useValidateCoupon, useRedeemCoupon } from "../api/coupon.mutations";
 import AddressStep from "../components/address-step";
@@ -62,7 +62,7 @@ export const CheckoutPage = () => {
   const placeOrder = () => {
     if (!resolvedStore || !userPincode) { error("Select your delivery pincode before placing the order."); openPincodeModal(); return; }
     if (!cartMatchesStore) { error("Your cart belongs to a different store. Review your delivery area."); openPincodeModal(); return; }
-    if (!isStoreOpen(resolvedStore.opensAt, resolvedStore.closesAt)) { error(`This store is currently closed. It opens at ${resolvedStore.opensAt}.`); return; }
+    if (!isStoreOpen(resolvedStore.opensAt, resolvedStore.closesAt)) { error(`This store is currently closed. It opens at ${formatClockTime(resolvedStore.opensAt)}.`); return; }
     if (!selectedAddress) { error("Select a delivery address"); return; }
     if (!addressMatchesStore) { error(`Choose an address in pincode ${userPincode}.`); return; }
     createOrderM.mutate({ addressId: selectedAddress, totalPrice: total, paymentType: "cash", couponId: coupon?.id ?? null, discountAmount }, {
@@ -95,7 +95,7 @@ export const CheckoutPage = () => {
 
       <div className={`mb-5 flex items-start gap-3 rounded-card border p-4 ${storeOpen && cartMatchesStore ? "border-basil/30 bg-basil-soft" : "border-red-200 bg-red-50"}`}>
         <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-surface text-brand"><StoreIcon size={19} /></span>
-        <div><p className="font-semibold text-ink">Ordering from {resolvedStore.name}</p><p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-ink-muted"><span className="inline-flex items-center gap-1"><MapPin size={14} />Delivery area {userPincode}</span><span className="inline-flex items-center gap-1"><Clock3 size={14} />{resolvedStore.opensAt}–{resolvedStore.closesAt} IST</span></p>{!storeOpen && <p className="mt-2 text-sm font-semibold text-danger">Store is currently closed. Checkout is unavailable until {resolvedStore.opensAt}.</p>}{!cartMatchesStore && <p className="mt-2 text-sm font-semibold text-danger">This cart belongs to a different store.</p>}</div>
+        <div><p className="font-semibold text-ink">Ordering from {resolvedStore.name}</p><p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-ink-muted"><span className="inline-flex items-center gap-1"><MapPin size={14} />Delivery area {userPincode}</span><span className="inline-flex items-center gap-1"><Clock3 size={14} />{formatStoreHours(resolvedStore.opensAt, resolvedStore.closesAt)} IST</span></p>{!storeOpen && <p className="mt-2 text-sm font-semibold text-danger">Store is currently closed. Checkout is unavailable until {formatClockTime(resolvedStore.opensAt)}.</p>}{!cartMatchesStore && <p className="mt-2 text-sm font-semibold text-danger">This cart belongs to a different store.</p>}</div>
       </div>
 
       <div className="grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_380px]">

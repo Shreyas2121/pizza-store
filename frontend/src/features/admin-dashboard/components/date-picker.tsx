@@ -76,6 +76,7 @@ export const DatePicker = () => {
       </div>
       <DatePickerInput
         type="range"
+        valueFormat="DD MMM YYYY"
         value={localDates}
         onChange={setLocalDates}
         label="Date range"

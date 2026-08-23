@@ -1,8 +1,11 @@
 import { Link } from "react-router";
 import { Clock3, Mail, MapPin, Phone } from "lucide-react";
 import BrandLockup from "./brand-lockup";
+import { useStoreStore } from "@/features/store";
+import { formatStoreHours } from "@/shared/lib";
 
 export function StorefrontFooter() {
+  const store = useStoreStore((state) => state.resolvedStore);
   return (
     <footer className="mt-16 bg-ink text-surface-muted">
       <div className="mx-auto grid max-w-storefront gap-10 px-5 py-12 sm:grid-cols-2 sm:px-8 lg:grid-cols-[1.35fr_0.8fr_0.9fr_1.1fr] lg:px-12 lg:py-16">
@@ -36,7 +39,7 @@ export function StorefrontFooter() {
         <section aria-labelledby="footer-contact">
           <h2 id="footer-contact" className="text-sm font-bold uppercase tracking-[0.14em] text-white">Contact & hours</h2>
           <ul className="mt-4 space-y-3 text-sm text-surface-muted/75">
-            <li className="flex gap-2.5"><Clock3 className="mt-0.5 shrink-0" size={17} aria-hidden="true" /><span>Open daily<br />11:00 AM–11:00 PM</span></li>
+            <li className="flex gap-2.5"><Clock3 className="mt-0.5 shrink-0" size={17} aria-hidden="true" /><span>{store ? <>Open daily<br />{formatStoreHours(store.opensAt, store.closesAt)} IST</> : "Select a delivery area to view store hours"}</span></li>
             <li><a href="tel:+919876543210" className="flex gap-2.5 hover:text-white"><Phone className="shrink-0" size={17} aria-hidden="true" />+91 98765 43210</a></li>
             <li><a href="mailto:support@pizzastore.com" className="flex gap-2.5 hover:text-white"><Mail className="mt-0.5 shrink-0" size={17} aria-hidden="true" /><span className="break-all">support@pizzastore.com</span></a></li>
             <li className="flex gap-2.5"><MapPin className="mt-0.5 shrink-0" size={17} aria-hidden="true" /><span>Serving your neighborhood</span></li>

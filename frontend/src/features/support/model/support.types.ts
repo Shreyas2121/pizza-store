@@ -27,8 +27,8 @@ export const chatStatus: {
 export interface ChatSession {
   status: ChatStatus;
   id: number;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
   userId: number;
   subject: string | null;
 }

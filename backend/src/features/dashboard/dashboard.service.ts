@@ -156,7 +156,7 @@ class DashboardService {
       {
         label: "Revenue",
         data: renderRes("price", currentRevenue, previousRevenue, {
-          name: "dollar-sign",
+          name: "indian-rupee",
           color: "green",
         }),
       },

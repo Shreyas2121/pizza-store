@@ -4,7 +4,7 @@ import { modals } from "@mantine/modals";
 import { Boxes, Clock3, MapPinned, Pencil, Plus, Power, Store as StoreIcon } from "lucide-react";
 import { Link } from "react-router";
 import { PageHeader, TableSkeleton } from "@/shared/ui";
-import { error, success } from "@/shared/lib";
+import { error, formatStoreHours, success } from "@/shared/lib";
 import { StoreForm } from "../components/admin/store-form";
 import { useAdminStores, useDeactivateStore, useUpdateStore } from "../api/store.queries";
 import type { Store } from "../model/store.types";
@@ -64,7 +64,7 @@ export function AdminStoresPage() {
                 <Badge color={store.isActive ? "basil" : "gray"} variant="light">{store.isActive ? "Active" : "Inactive"}</Badge>
               </div>
               <p className="mt-4 text-sm leading-6 text-ink-muted">{store.address}</p>
-              <div className="mt-3 flex items-center gap-2 text-sm text-ink-muted"><Clock3 size={16} /><span>{store.opensAt}–{store.closesAt}</span></div>
+              <div className="mt-3 flex items-center gap-2 text-sm text-ink-muted"><Clock3 size={16} /><span>{formatStoreHours(store.opensAt, store.closesAt)} IST</span></div>
               <div className="mt-5 grid grid-cols-2 gap-2 border-t border-border pt-4 sm:flex sm:flex-wrap">
                 <Button component={Link} to={`/admin/stores/${store.id}/products`} variant="light" size="sm" leftSection={<Boxes size={15} />}>Products</Button>
                 <Button component={Link} to={`/admin/stores/${store.id}/delivery-zones`} variant="light" size="sm" leftSection={<MapPinned size={15} />}>Delivery zones</Button>

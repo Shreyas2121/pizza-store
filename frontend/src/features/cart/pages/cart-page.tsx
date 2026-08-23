@@ -8,7 +8,7 @@ import { CustomizationDrawer } from "@/features/catalog";
 import { EmptyState, PageHeader } from "@/shared/ui";
 
 import { useAuthModalStore } from "@/shared/model";
-import { error, success } from "@/shared/lib";
+import { error, formatStoreHours, success } from "@/shared/lib";
 import { useStoreStore } from "@/features/store";
 import { ItemRes } from "../model/cart.types";
 import {
@@ -148,7 +148,7 @@ export const CartPage = () => {
 
       {itemCount > 0 && cart.store && (
         <div className={`mb-5 flex flex-col gap-3 rounded-card border p-4 sm:flex-row sm:items-center sm:justify-between ${storeMatchesCart ? "border-basil/30 bg-basil-soft" : "border-amber-300 bg-amber-50"}`}>
-          <div className="flex items-start gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-surface text-brand"><StoreIcon size={19} /></span><div><p className="font-semibold text-ink">Ordering from {cart.store.name}</p><p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-ink-muted"><span className="inline-flex items-center gap-1"><MapPin size={14} />{cart.store.city}</span><span className="inline-flex items-center gap-1"><Clock3 size={14} />{cart.store.opensAt}–{cart.store.closesAt}</span></p></div></div>
+          <div className="flex items-start gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-surface text-brand"><StoreIcon size={19} /></span><div><p className="font-semibold text-ink">Ordering from {cart.store.name}</p><p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-ink-muted"><span className="inline-flex items-center gap-1"><MapPin size={14} />{cart.store.city}</span><span className="inline-flex items-center gap-1"><Clock3 size={14} />{formatStoreHours(cart.store.opensAt, cart.store.closesAt)} IST</span></p></div></div>
           {!storeMatchesCart && <Button variant="light" color="yellow" onClick={openPincodeModal}>Review delivery area</Button>}
         </div>
       )}

@@ -12,7 +12,7 @@ import {
 import { AppError } from "../../utils/error";
 import cartService from "../cart/cart.service";
 import { OrderStatus } from "../../utils/types";
-import { isStoreOpen } from "../stores/store-hours";
+import { formatStoreTime, isStoreOpen } from "../stores/store-hours";
 
 type CreateOrderData = Omit<
   typeof ordersTable.$inferInsert,
@@ -37,7 +37,7 @@ class OrderService {
       }
       if (!isStoreOpen(cart.store.opensAt, cart.store.closesAt)) {
         throw new AppError(
-          `Store is currently closed. Opens at ${cart.store.opensAt}`,
+          `Store is currently closed. Opens at ${formatStoreTime(cart.store.opensAt)} IST`,
           409
         );
       }

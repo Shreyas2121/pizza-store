@@ -3,7 +3,7 @@ import { ArrowRight, Box, ReceiptText } from "lucide-react";
 import { Link, useSearchParams } from "react-router";
 import { useGetOrders } from "../api/order.queries";
 import { OrderStatus as OrderStatusType } from "../model/order.types";
-import { formatPrice } from "@/shared/lib";
+import { formatDate, formatPrice } from "@/shared/lib";
 import { ListSkeleton, PageHeader, RefreshIndicator } from "@/shared/ui";
 import { OrderStatus } from "../components/order-status";
 
@@ -31,8 +31,6 @@ export const CustomerOrdersPage = () => {
     });
   };
 
-  const formatDate = (value: Date | null) => value ? new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", year: "numeric" }).format(new Date(value)) : "Date unavailable";
-
   return (
     <section>
       <PageHeader eyebrow="Account" title="Order history" description="Review every order and follow its current status." />
@@ -52,7 +50,7 @@ export const CustomerOrdersPage = () => {
           <div className="space-y-3 md:hidden">
             {orders.map((order) => (
               <Link key={order.id} to={`/order/${order.id}`} className="block rounded-card border border-border bg-surface p-4 shadow-subtle hover:border-brand">
-                <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-wide text-ink-muted">Order #{order.id}</p><p className="mt-1 text-sm text-ink-muted">{formatDate(order.orderDate)}</p></div><OrderStatus status={order.status} /></div>
+                <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-wide text-ink-muted">Order #{order.id}</p><p className="mt-1 text-sm text-ink-muted">{order.orderDate ? formatDate(order.orderDate) : "Date unavailable"}</p></div><OrderStatus status={order.status} /></div>
                 <div className="mt-4 flex items-end justify-between border-t border-border pt-3"><div><p className="text-xs text-ink-muted">Total</p><p className="font-bold tabular-nums text-ink">{formatPrice(order.totalPrice)}</p></div><span className="inline-flex items-center gap-1 text-sm font-semibold text-brand">View order <ArrowRight size={16} /></span></div>
               </Link>
             ))}
@@ -61,7 +59,7 @@ export const CustomerOrdersPage = () => {
           <div className="hidden overflow-hidden rounded-card border border-border bg-surface shadow-subtle md:block">
             <table className="w-full">
               <thead className="bg-surface-muted text-left text-xs font-bold uppercase tracking-wide text-ink-muted"><tr><th className="px-5 py-3.5">Order</th><th className="px-5 py-3.5">Date</th><th className="px-5 py-3.5">Status</th><th className="px-5 py-3.5 text-right">Total</th><th className="px-5 py-3.5"><span className="sr-only">Action</span></th></tr></thead>
-              <tbody className="divide-y divide-border">{orders.map((order) => <tr key={order.id} className="hover:bg-brand-soft/20"><td className="px-5 py-4 font-semibold text-ink">#{order.id}</td><td className="px-5 py-4 text-sm text-ink-muted">{formatDate(order.orderDate)}</td><td className="px-5 py-4"><OrderStatus status={order.status} /></td><td className="px-5 py-4 text-right font-semibold tabular-nums text-ink">{formatPrice(order.totalPrice)}</td><td className="px-5 py-4 text-right"><Button component={Link} to={`/order/${order.id}`} variant="subtle" size="sm" rightSection={<ArrowRight size={15} />}>Details</Button></td></tr>)}</tbody>
+              <tbody className="divide-y divide-border">{orders.map((order) => <tr key={order.id} className="hover:bg-brand-soft/20"><td className="px-5 py-4 font-semibold text-ink">#{order.id}</td><td className="px-5 py-4 text-sm text-ink-muted">{order.orderDate ? formatDate(order.orderDate) : "Date unavailable"}</td><td className="px-5 py-4"><OrderStatus status={order.status} /></td><td className="px-5 py-4 text-right font-semibold tabular-nums text-ink">{formatPrice(order.totalPrice)}</td><td className="px-5 py-4 text-right"><Button component={Link} to={`/order/${order.id}`} variant="subtle" size="sm" rightSection={<ArrowRight size={15} />}>Details</Button></td></tr>)}</tbody>
             </table>
           </div>
         </>

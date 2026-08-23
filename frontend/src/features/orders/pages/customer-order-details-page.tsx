@@ -2,7 +2,7 @@ import { Badge, Button } from "@mantine/core";
 import { ArrowLeft, Check, ChefHat, Clock3, CreditCard, PackageCheck, ReceiptText } from "lucide-react";
 import { Link, useParams } from "react-router";
 import { useGetOrder } from "../api/order.queries";
-import { formatPrice } from "@/shared/lib";
+import { formatDateTime, formatPrice } from "@/shared/lib";
 import { DetailsPageSkeleton, PageHeader } from "@/shared/ui";
 import { OrderAddress } from "../components/order-address";
 import { OrderCoupon } from "../components/order-coupon";
@@ -21,7 +21,7 @@ export const CustomerOrderDetailsPage = () => {
     return <div className="empty-state m-0"><ReceiptText size={36} className="text-brand" /><h2 className="mt-3 text-section-title-scale">Order unavailable</h2><p className="mt-2 text-supporting-scale">This order could not be found or does not belong to your account.</p><Button component={Link} to="/orders" mt="lg" variant="light" leftSection={<ArrowLeft size={17} />}>Back to orders</Button></div>;
   }
 
-  const placedOn = order.orderDate ? new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "long", year: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(order.orderDate)) : "Date unavailable";
+  const placedOn = order.orderDate ? formatDateTime(order.orderDate, { day: "numeric", month: "long", year: "numeric", hour: "numeric", minute: "2-digit" }) : "Date unavailable";
   const isDelivered = order.status === "delivered" || order.status === "delievered";
   const progress = order.status === "preparing" ? 1 : isDelivered ? 2 : 0;
   const subtotal = order.totalPrice + order.discountAmount;

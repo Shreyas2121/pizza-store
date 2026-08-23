@@ -3,8 +3,8 @@ import type { Store } from "@/features/store";
 
 export type Cart = {
   id: number;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
   userId: number;
   totalPrice: number;
   storeId: number | null;
@@ -12,8 +12,8 @@ export type Cart = {
 
 export type CartItem = {
   id: number;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
   cartId: number;
   price: number;
   productId: number;

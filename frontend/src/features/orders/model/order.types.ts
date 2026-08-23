@@ -15,11 +15,11 @@ export const orderStatus: { label: string; value: OrderStatus }[] = [
 export type Order = {
   status: OrderStatus;
   id: number;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
   userId: number;
   totalPrice: number;
-  orderDate: Date | null;
+  orderDate: string | null;
   discountAmount: number;
   couponId: number | null;
   paymentType: PaymentType;
@@ -29,8 +29,8 @@ export type Order = {
 
 export type OrderItem = {
   id: number;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
   price: number;
   productId: number;
   quantity: number;

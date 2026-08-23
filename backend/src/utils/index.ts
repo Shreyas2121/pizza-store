@@ -1,5 +1,5 @@
-import { format } from "date-fns";
 import { GroupT } from "./types";
+import { APP_CURRENCY, APP_LOCALE, APP_TIME_ZONE } from "../constants";
 
 export const filterImage = (file: Express.Multer.File) => {
   return `/api/v1/${file.path.replace(/\\/g, "/")}`;
@@ -20,32 +20,35 @@ export const cap = (str: string) => {
 };
 
 export const formatPrice = (price: number) => {
-  return new Intl.NumberFormat("en-IN", {
+  return new Intl.NumberFormat(APP_LOCALE, {
     style: "currency",
-    currency: "INR",
+    currency: APP_CURRENCY,
     minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(price);
 };
 
 export const formatNumber = (num: number) => {
-  return new Intl.NumberFormat("en-IN", {
+  return new Intl.NumberFormat(APP_LOCALE, {
     style: "decimal",
   }).format(num);
 };
 
 export const formatPeriod = (date: string, group: GroupT) => {
   const newDate = new Date(date);
+  const dateOptions: Intl.DateTimeFormatOptions = { timeZone: APP_TIME_ZONE };
   switch (group) {
     case "daily":
-      return format(newDate, "MMM dd");
+      return new Intl.DateTimeFormat(APP_LOCALE, { ...dateOptions, month: "short", day: "2-digit" }).format(newDate);
     case "monthly":
-      return format(newDate, "MMM yyyy");
+      return new Intl.DateTimeFormat(APP_LOCALE, { ...dateOptions, month: "short", year: "numeric" }).format(newDate);
     case "quarterly":
-      const quarter = Math.ceil((newDate.getMonth() + 1) / 3);
-      return `Q${quarter} ${format(newDate, "yyyy")}`;
+      const month = Number(new Intl.DateTimeFormat("en", { ...dateOptions, month: "numeric" }).format(newDate));
+      const year = new Intl.DateTimeFormat("en", { ...dateOptions, year: "numeric" }).format(newDate);
+      return `Q${Math.ceil(month / 3)} ${year}`;
     case "yearly":
-      return format(newDate, "yyyy");
+      return new Intl.DateTimeFormat("en", { ...dateOptions, year: "numeric" }).format(newDate);
     default:
-      return format(newDate, "PPP");
+      return new Intl.DateTimeFormat(APP_LOCALE, { ...dateOptions, dateStyle: "medium" }).format(newDate);
   }
 };

@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router";
 import { Badge, Button, Card, Select, Text } from "@mantine/core";
-import dayjs from "dayjs";
 import { ArrowLeft, Clock3, Save } from "lucide-react";
 import { useGetOrder, useOrderUpdateStatus } from "../api/order.queries";
 import { OrderStatus as OT, orderStatus } from "../model/order.types";
-import { formatPrice, success } from "@/shared/lib";
+import { formatDateTime, formatPrice, success } from "@/shared/lib";
 import { DetailsPageSkeleton, PageHeader } from "@/shared/ui";
 import { OrderAddress } from "../components/order-address";
 import { OrderCoupon } from "../components/order-coupon";
@@ -28,7 +27,7 @@ export const AdminOrderDetailsPage = () => {
   if (isError || !order) return <div className="surface-card p-10 text-center"><p className="font-semibold text-danger">Order details could not be loaded.</p><Button component={Link} to="/admin/orders" variant="default" mt="md">Back to orders</Button></div>;
 
   const isClosed = ["delivered", "delievered", "cancelled"].includes(order.status);
-  const orderDate = order.orderDate ? dayjs(order.orderDate).format("D MMM YYYY, h:mm A") : "Date unavailable";
+  const orderDate = order.orderDate ? formatDateTime(order.orderDate) : "Date unavailable";
   return (
     <div className="mx-auto max-w-5xl space-y-5">
       <PageHeader eyebrow="Order detail" title={`Order #${order.id}`} description={`Placed ${orderDate}`} action={<Button component={Link} to="/admin/orders" variant="default" leftSection={<ArrowLeft size={16} />}>Back to orders</Button>} />
@@ -42,7 +41,7 @@ export const AdminOrderDetailsPage = () => {
 
       <Card withBorder radius="lg" padding="lg">
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-end">
-          <div className="flex gap-3"><div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand-soft text-brand"><Clock3 size={18} /></div><div><Text fw={700}>Next action</Text><Text size="sm" c="dimmed">{nextAction[order.status]}</Text><Text size="xs" c="dimmed" mt={4}>Last updated {dayjs(order.updatedAt).format("D MMM YYYY, h:mm A")}</Text></div></div>
+          <div className="flex gap-3"><div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand-soft text-brand"><Clock3 size={18} /></div><div><Text fw={700}>Next action</Text><Text size="sm" c="dimmed">{nextAction[order.status]}</Text><Text size="xs" c="dimmed" mt={4}>Last updated {formatDateTime(order.updatedAt)}</Text></div></div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end"><Select className="flex-1" label="Update fulfilment status" data={orderStatus} value={newStatus} disabled={isClosed} onChange={(value) => value && setNewStatus(value as OT)} /><Button color="brand" leftSection={<Save size={16} />} disabled={isClosed || newStatus === order.status} loading={updateOrder.isPending} onClick={() => updateOrder.mutate({ orderId: order.id, status: newStatus }, { onSuccess: (response) => success(response.message) })}>Save status</Button></div>
         </div>
       </Card>
