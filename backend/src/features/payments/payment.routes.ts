@@ -4,10 +4,39 @@ import { validateBody } from "../../middleware/validateBody";
 import { asyncHandler } from "../../utils/error";
 import { parseIntegerParam } from "../../utils/request";
 import type { Auth } from "../../utils/types";
-import { initiateRazorpayOrderSchema } from "../../utils/zodSchema";
+import {
+  initiateRazorpayOrderSchema,
+  verifyRazorpayPaymentSchema,
+} from "../../utils/zodSchema";
 import paymentService from "./payment.service";
+import { io } from "../..";
 
 export const paymentRoutes = Router();
+
+paymentRoutes.post(
+  "/razorpay/verify",
+  authenticateUser,
+  validateBody(verifyRazorpayPaymentSchema),
+  asyncHandler(async (req: Auth, res) => {
+    const data = await paymentService.verifyRazorpayPayment({
+      userId: req.user!.id,
+      localOrderId: req.body.localOrderId,
+      razorpayOrderId: req.body.razorpay_order_id,
+      razorpayPaymentId: req.body.razorpay_payment_id,
+      razorpaySignature: req.body.razorpay_signature,
+    });
+
+    if (data.finalizedNow) {
+      io.emit("orderPlaced", {
+        orderId: data.localOrderId,
+        status: data.orderStatus,
+        total: data.totalPrice,
+      });
+    }
+
+    res.json({ data, message: "Payment verified successfully" });
+  })
+);
 
 paymentRoutes.post(
   "/razorpay/orders",

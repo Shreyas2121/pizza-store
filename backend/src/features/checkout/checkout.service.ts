@@ -256,6 +256,43 @@ class CheckoutService {
       );
   }
 
+  async consumeCouponReservation(
+    data: { couponId: number; orderId: number; userId: number },
+    tx: TransactionType
+  ) {
+    const [redemption] = await tx
+      .select()
+      .from(couponRedemptionsTable)
+      .where(eq(couponRedemptionsTable.orderId, data.orderId))
+      .for("update")
+      .limit(1);
+
+    if (!redemption) {
+      await this.recordCouponUse(
+        { ...data, status: "consumed" },
+        tx
+      );
+      return true;
+    }
+    if (
+      redemption.couponId !== data.couponId ||
+      redemption.userId !== data.userId
+    ) {
+      throw new AppError("Coupon reservation does not match the order", 500);
+    }
+    if (redemption.status === "consumed") return false;
+
+    await tx
+      .update(couponRedemptionsTable)
+      .set({ status: "consumed", consumedAt: new Date() })
+      .where(eq(couponRedemptionsTable.id, redemption.id));
+    await tx
+      .update(couponsTable)
+      .set({ redemptionCount: sql`${couponsTable.redemptionCount} + 1` })
+      .where(eq(couponsTable.id, data.couponId));
+    return true;
+  }
+
   async restoreCouponReservation(
     data: { couponId: number; orderId: number },
     tx: TransactionType

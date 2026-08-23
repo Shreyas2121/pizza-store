@@ -1,3 +1,4 @@
+import { createHmac, timingSafeEqual } from "crypto";
 import { eq } from "drizzle-orm";
 import { db } from "../../db";
 import { ordersTable, paymentsTable, storesTable } from "../../db/schema";
@@ -8,7 +9,10 @@ import cartService from "../cart/cart.service";
 import checkoutService from "../checkout/checkout.service";
 import { getRazorpayConfig } from "./razorpay.config";
 import { createRazorpayGateway } from "./razorpay.gateway";
-import type { RazorpayOrderSnapshot } from "./razorpay.types";
+import type {
+  RazorpayOrderSnapshot,
+  RazorpayPaymentSnapshot,
+} from "./razorpay.types";
 
 const MIN_RAZORPAY_AMOUNT_PAISE = 100;
 
@@ -17,6 +21,24 @@ interface InitiateRazorpayOrderInput {
   addressId: number;
   couponCode?: string | null;
   clientRequestId: string;
+}
+
+interface VerifyRazorpayPaymentInput {
+  userId: number;
+  localOrderId: number;
+  razorpayOrderId: string;
+  razorpayPaymentId: string;
+  razorpaySignature: string;
+}
+
+interface FinalizeCapturedPaymentInput {
+  localOrderId: number;
+  providerOrderId: string;
+  providerPaymentId: string;
+  amountPaise: number;
+  currency: string;
+  providerStatus: "captured";
+  userId?: number;
 }
 
 interface LocalRazorpayAttempt {
@@ -106,6 +128,254 @@ class PaymentService {
       throw new AppError("Online payment order not found", 404);
     }
     return this.toCheckoutResponse(attempt, getRazorpayConfig()?.keyId ?? null);
+  }
+
+  async verifyRazorpayPayment(data: VerifyRazorpayPaymentInput) {
+    const config = getRazorpayConfig();
+    if (!config) {
+      throw new AppError(
+        "Online payments are temporarily unavailable",
+        503,
+        "PAYMENT_UNAVAILABLE"
+      );
+    }
+
+    const attempt = await this.getAttemptByOrderId(data.localOrderId);
+    if (
+      !attempt ||
+      attempt.userId !== data.userId ||
+      attempt.provider !== "razorpay"
+    ) {
+      throw new AppError("Payment order not found", 404);
+    }
+    if (!attempt.providerOrderId) {
+      throw new AppError(
+        "Payment order is not ready for verification",
+        409,
+        "PAYMENT_ORDER_NOT_READY"
+      );
+    }
+    if (data.razorpayOrderId !== attempt.providerOrderId) {
+      throw new AppError(
+        "Payment order does not match",
+        400,
+        "PAYMENT_ORDER_MISMATCH"
+      );
+    }
+    if (
+      !this.isValidCheckoutSignature(
+        attempt.providerOrderId,
+        data.razorpayPaymentId,
+        data.razorpaySignature,
+        config.keySecret
+      )
+    ) {
+      throw new AppError(
+        "Payment signature is invalid",
+        400,
+        "PAYMENT_SIGNATURE_INVALID"
+      );
+    }
+
+    const gateway = createRazorpayGateway(config);
+    let providerPayment: RazorpayPaymentSnapshot;
+    let providerOrder: RazorpayOrderSnapshot;
+    try {
+      [providerPayment, providerOrder] = await Promise.all([
+        gateway.fetchPayment(data.razorpayPaymentId),
+        gateway.fetchOrder(attempt.providerOrderId),
+      ]);
+    } catch (error) {
+      logger.error("Could not fetch Razorpay state during verification", {
+        localOrderId: attempt.localOrderId,
+        localPaymentId: attempt.localPaymentId,
+        providerOrderId: attempt.providerOrderId,
+        providerPaymentId: data.razorpayPaymentId,
+        error: error instanceof Error ? error.message : "Provider fetch failed",
+      });
+      throw new AppError(
+        "Could not confirm payment status. Please try again",
+        502,
+        "PAYMENT_PROVIDER_UNAVAILABLE",
+        {
+          localOrderId: attempt.localOrderId,
+          localPaymentId: attempt.localPaymentId,
+        }
+      );
+    }
+
+    if (
+      providerPayment.orderId !== attempt.providerOrderId ||
+      providerPayment.amountPaise !== attempt.amountPaise ||
+      providerPayment.currency !== attempt.currency ||
+      providerOrder.id !== attempt.providerOrderId ||
+      providerOrder.amountPaise !== attempt.amountPaise ||
+      providerOrder.currency !== attempt.currency
+    ) {
+      logger.error("Razorpay verification state did not match local payment", {
+        localOrderId: attempt.localOrderId,
+        localPaymentId: attempt.localPaymentId,
+        providerOrderId: attempt.providerOrderId,
+        providerPaymentId: data.razorpayPaymentId,
+      });
+      throw new AppError(
+        "Payment details do not match the order",
+        409,
+        "PAYMENT_PROVIDER_MISMATCH"
+      );
+    }
+    if (
+      providerPayment.status !== "captured" ||
+      providerOrder.status !== "paid"
+    ) {
+      throw new AppError(
+        "Payment has not been captured yet",
+        409,
+        "PAYMENT_NOT_CAPTURED",
+        {
+          localOrderId: attempt.localOrderId,
+          localPaymentId: attempt.localPaymentId,
+          paymentStatus: providerPayment.status,
+          orderStatus: providerOrder.status,
+        }
+      );
+    }
+    if (
+      providerOrder.amountPaidPaise !== attempt.amountPaise ||
+      providerOrder.amountDuePaise !== 0
+    ) {
+      throw new AppError(
+        "Paid amount does not match the order",
+        409,
+        "PAYMENT_PROVIDER_MISMATCH"
+      );
+    }
+
+    return await this.finalizeCapturedPayment({
+      userId: data.userId,
+      localOrderId: attempt.localOrderId,
+      providerOrderId: providerOrder.id,
+      providerPaymentId: providerPayment.id,
+      amountPaise: providerPayment.amountPaise,
+      currency: providerPayment.currency,
+      providerStatus: providerPayment.status,
+    });
+  }
+
+  async finalizeCapturedPayment(data: FinalizeCapturedPaymentInput) {
+    return await db.transaction(async (tx) => {
+      const [record] = await tx
+        .select({ order: ordersTable, payment: paymentsTable })
+        .from(ordersTable)
+        .innerJoin(paymentsTable, eq(ordersTable.paymentId, paymentsTable.id))
+        .where(eq(ordersTable.id, data.localOrderId))
+        .for("update")
+        .limit(1);
+
+      if (
+        !record ||
+        (data.userId !== undefined && record.order.userId !== data.userId) ||
+        record.payment.provider !== "razorpay"
+      ) {
+        throw new AppError("Payment order not found", 404);
+      }
+      if (
+        record.payment.providerOrderId !== data.providerOrderId ||
+        record.payment.amountPaise !== data.amountPaise ||
+        record.payment.currency !== data.currency
+      ) {
+        throw new AppError(
+          "Payment details do not match the order",
+          409,
+          "PAYMENT_PROVIDER_MISMATCH"
+        );
+      }
+
+      if (
+        record.payment.status === "completed" ||
+        record.payment.status === "refunded"
+      ) {
+        if (record.payment.providerPaymentId !== data.providerPaymentId) {
+          throw new AppError(
+            "Order was finalized with a different payment",
+            409,
+            "PAYMENT_ALREADY_COMPLETED"
+          );
+        }
+        return {
+          localOrderId: record.order.id,
+          localPaymentId: record.payment.id,
+          totalPrice: record.order.totalPrice,
+          paymentStatus: record.payment.status,
+          orderStatus: record.order.status,
+          finalizedNow: false,
+        };
+      }
+
+      if (record.order.status !== "awaiting_payment") {
+        throw new AppError(
+          "Order is no longer eligible for payment finalization",
+          409,
+          "PAYMENT_ORDER_NOT_PAYABLE"
+        );
+      }
+
+      const [paymentUsingProviderId] = await tx
+        .select({ id: paymentsTable.id })
+        .from(paymentsTable)
+        .where(eq(paymentsTable.providerPaymentId, data.providerPaymentId))
+        .limit(1);
+      if (
+        paymentUsingProviderId &&
+        paymentUsingProviderId.id !== record.payment.id
+      ) {
+        throw new AppError(
+          "Provider payment is already linked to another order",
+          409,
+          "PAYMENT_PROVIDER_MISMATCH"
+        );
+      }
+
+      const paidAt = new Date();
+      await this.updatePayment(
+        {
+          status: "completed",
+          providerStatus: data.providerStatus,
+          providerPaymentId: data.providerPaymentId,
+          paidAt,
+          paymentDate: paidAt,
+          failedAt: null,
+          failureCode: null,
+          failureDescription: null,
+        },
+        record.payment.id,
+        tx
+      );
+      await tx
+        .update(ordersTable)
+        .set({ status: "pending" })
+        .where(eq(ordersTable.id, record.order.id));
+
+      if (record.order.couponId) {
+        await checkoutService.consumeCouponReservation(
+          {
+            couponId: record.order.couponId,
+            orderId: record.order.id,
+            userId: record.order.userId,
+          },
+          tx
+        );
+      }
+
+      return {
+        localOrderId: record.order.id,
+        localPaymentId: record.payment.id,
+        totalPrice: record.order.totalPrice,
+        paymentStatus: "completed" as const,
+        orderStatus: "pending" as const,
+        finalizedNow: true,
+      };
+    });
   }
 
   private async findOrCreateLocalAttempt(data: InitiateRazorpayOrderInput) {
@@ -490,6 +760,23 @@ class PaymentService {
 
   private buildReceipt(attempt: LocalRazorpayAttempt) {
     return `order_${attempt.localOrderId}_payment_${attempt.localPaymentId}`;
+  }
+
+  private isValidCheckoutSignature(
+    providerOrderId: string,
+    providerPaymentId: string,
+    submittedSignature: string,
+    keySecret: string
+  ) {
+    const expectedSignature = createHmac("sha256", keySecret)
+      .update(`${providerOrderId}|${providerPaymentId}`)
+      .digest();
+    const receivedSignature = Buffer.from(submittedSignature, "hex");
+
+    return (
+      receivedSignature.length === expectedSignature.length &&
+      timingSafeEqual(receivedSignature, expectedSignature)
+    );
   }
 
   private toCheckoutResponse(attempt: LocalRazorpayAttempt, keyId: string | null) {

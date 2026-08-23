@@ -92,6 +92,23 @@ export const initiateRazorpayOrderSchema = z
   })
   .strict();
 
+export const verifyRazorpayPaymentSchema = z
+  .object({
+    localOrderId: z.number().int().positive("Valid local order ID is required"),
+    razorpay_order_id: z
+      .string()
+      .max(100)
+      .regex(/^order_[A-Za-z0-9]+$/, "Invalid Razorpay order ID"),
+    razorpay_payment_id: z
+      .string()
+      .max(100)
+      .regex(/^pay_[A-Za-z0-9]+$/, "Invalid Razorpay payment ID"),
+    razorpay_signature: z
+      .string()
+      .regex(/^[A-Fa-f0-9]{64}$/, "Invalid Razorpay signature"),
+  })
+  .strict();
+
 export const validateCouponSchema = z
   .object({
     code: z

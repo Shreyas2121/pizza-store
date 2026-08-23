@@ -149,6 +149,9 @@ Online payment initiation requires all three Razorpay variables. Use Test Mode
 keys during development. The backend creates Razorpay Orders and returns the
 public key ID; the API key secret and webhook secret remain server-only. Apply
 the payment lifecycle migration before calling the Razorpay payment endpoints.
+Configure automatic capture in the Razorpay Dashboard: verification deliberately
+keeps an order in `awaiting_payment` until Razorpay reports its payment as
+`captured` and its order as `paid`.
 
 ### Access the admin panel
 

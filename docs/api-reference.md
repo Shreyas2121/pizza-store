@@ -547,9 +547,53 @@ stored Razorpay Order is reused; it is never recreated. If a failed attempt used
 a coupon, capacity is locked and reserved again before retrying. Requests made
 while another request is creating the provider order return the current status.
 
-This phase prepares Standard Checkout only. A later endpoint must verify the
-checkout signature and captured provider payment before changing the local
-order from `awaiting_payment` to `pending`.
+### `POST /payments/razorpay/verify` 🔒
+
+Verify the Standard Checkout success callback and finalize a captured online
+payment. The server uses its stored Razorpay Order ID when generating the
+HMAC-SHA256 signature; the submitted order ID must match but is never trusted as
+the signature source.
+
+**Body:**
+```json
+{
+  "localOrderId": 42,
+  "razorpay_order_id": "order_...",
+  "razorpay_payment_id": "pay_...",
+  "razorpay_signature": "64-character hexadecimal signature"
+}
+```
+
+After signature validation, the backend fetches both resources from Razorpay.
+It requires the payment to be `captured`, the provider order to be `paid`, and
+the order association, INR currency, full paid amount, and zero amount due to
+match the stored local payment.
+
+**Response `200`:**
+```json
+{
+  "data": {
+    "localOrderId": 42,
+    "localPaymentId": 17,
+    "totalPrice": 499,
+    "paymentStatus": "completed",
+    "orderStatus": "pending",
+    "finalizedNow": true
+  },
+  "message": "Payment verified successfully"
+}
+```
+
+Finalization locks the local order/payment, records the provider payment ID and
+paid timestamp, consumes the coupon reservation once, and moves fulfillment
+from `awaiting_payment` to `pending` atomically. Repeated verification returns
+the same success with `finalizedNow: false`; only the first commit emits
+`orderPlaced`.
+
+Important error codes include `PAYMENT_SIGNATURE_INVALID`,
+`PAYMENT_ORDER_MISMATCH`, `PAYMENT_PROVIDER_MISMATCH`,
+`PAYMENT_NOT_CAPTURED`, and `PAYMENT_PROVIDER_UNAVAILABLE`. An `authorized`
+payment is not fulfillment-ready.
 
 ---
 
