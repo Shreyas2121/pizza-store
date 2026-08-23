@@ -15,6 +15,13 @@
       "when": 1787469782287,
       "tag": "0001_multi_store",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787490250745,
+      "tag": "0002_reprice_catalogue_in_inr",
+      "breakpoints": true
     }
   ]
 }
