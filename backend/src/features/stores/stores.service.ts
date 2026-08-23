@@ -20,6 +20,7 @@ import {
 } from "../../db/schema";
 import { AppError } from "../../utils/error";
 import { generateSlug } from "../../utils";
+import { isStoreOpen } from "./store-hours";
 
 class StoreService {
   async createStore(
@@ -140,6 +141,42 @@ class StoreService {
     return await db.query.storesTable.findFirst({
       where: eq(storesTable.slug, slug),
     });
+  }
+
+  async resolveStore(pincode: string, date = new Date()) {
+    const zones = await db.query.deliveryZonesTable.findMany({
+      where: eq(deliveryZonesTable.pincode, pincode),
+      orderBy: asc(deliveryZonesTable.storeId),
+      with: {
+        store: true,
+      },
+    });
+
+    if (zones.length === 0) {
+      throw new AppError("We don't deliver to this area yet", 404);
+    }
+
+    const activeStores = zones
+      .map((zone) => zone.store)
+      .filter((store) => store.isActive)
+      .sort((first, second) => first.id - second.id);
+
+    if (activeStores.length === 0) {
+      throw new AppError("We don't deliver to this area yet", 404);
+    }
+
+    const store = activeStores.find((candidate) =>
+      isStoreOpen(candidate.opensAt, candidate.closesAt, date)
+    );
+
+    if (!store) {
+      throw new AppError(
+        `Stores in your area are currently closed. Opens at ${activeStores[0].opensAt}`,
+        409
+      );
+    }
+
+    return store;
   }
 
   async getStoreProducts(storeId: number) {

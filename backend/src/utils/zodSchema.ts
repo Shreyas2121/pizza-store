@@ -113,6 +113,10 @@ const deliveryPincodeSchema = z
   .trim()
   .regex(/^\d{6}$/, "Pincode must contain exactly 6 digits");
 
+export const resolveStoreSchema = z.object({
+  pincode: deliveryPincodeSchema,
+});
+
 export const addDeliveryZonesSchema = z.object({
   pincodes: z
     .array(deliveryPincodeSchema)

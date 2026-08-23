@@ -244,6 +244,22 @@ Create a menu item. Accepts `multipart/form-data`.
 
 ## Stores
 
+### `POST /stores/resolve`
+
+Resolve the active, currently open store serving a six-digit delivery pincode.
+Store operating hours are evaluated in IST, including schedules that cross
+midnight. When multiple stores qualify, the store with the lowest ID is used.
+
+**Body:**
+```json
+{
+  "pincode": "560001"
+}
+```
+
+Returns `404` when the area is unsupported or only has inactive stores, and
+`409` when serving stores exist but are currently closed.
+
 ### `GET /stores/:storeId/products` 🔒🛡️
 
 List the products mapped to a store. Each mapping includes its store-specific

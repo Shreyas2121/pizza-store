@@ -6,6 +6,7 @@ import {
   addDeliveryZonesSchema,
   createStoreSchema,
   mapStoreProductsSchema,
+  resolveStoreSchema,
   updateStoreProductSchema,
   updateStoreSchema,
 } from "../../utils/zodSchema";
@@ -81,6 +82,17 @@ storeRoutes.post(
       data: store,
       message: "Store created successfully",
     });
+  })
+);
+
+// Resolve the active, open store serving a pincode
+storeRoutes.post(
+  "/resolve",
+  asyncHandler(async (req, res) => {
+    const { pincode } = resolveStoreSchema.parse(req.body);
+    const store = await storeService.resolveStore(pincode);
+
+    res.json({ data: store });
   })
 );
 
