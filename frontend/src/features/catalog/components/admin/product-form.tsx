@@ -63,7 +63,7 @@ export const ProductForm = () => {
         <Text size="sm" c="dimmed" mb="lg">Set the base price and the dietary mark shown to customers.</Text>
         <div className="grid gap-5 md:grid-cols-2 md:items-end">
           <Controller name="price" control={control} render={({ field }) => (
-            <NumberInput label="Base price" prefix="₹ " min={1} decimalScale={2} withAsterisk error={errors.price?.message} value={field.value} onChange={field.onChange} />
+            <NumberInput label="Base price" prefix="$ " min={1} decimalScale={2} withAsterisk error={errors.price?.message} value={field.value} onChange={field.onChange} />
           )} />
           <Controller name="isVeg" control={control} render={({ field }) => (
             <Switch label="Vegetarian product" description="Shows the green vegetarian mark in the menu." checked={field.value} onChange={(event) => field.onChange(event.currentTarget.checked)} color="basil" />
