@@ -20,6 +20,9 @@ retain credentials until no unresolved Razorpay payments remain.
 
 ## Test Mode release checklist
 
+Use the [Test Mode credentials guide](./razorpay-test-credentials.md) to create
+the API key pair and the separate webhook secret before starting this checklist.
+
 1. Apply the database migration and deploy the backend with Test Mode
    credentials and `RAZORPAY_ENABLED=false`.
 2. Configure automatic capture and the public HTTPS webhook URL

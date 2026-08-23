@@ -200,6 +200,8 @@ command exits non-zero if any candidate could not be reconciled. The equivalent
 admin API is `POST /api/v1/payments/razorpay/reconcile`.
 See [the Razorpay operations runbook](./razorpay-runbook.md) for staging, live
 rollout, monitoring, alert thresholds, incident rollback, and reconciliation.
+For step-by-step credential creation during development, see the
+[Razorpay Test Mode credentials guide](./razorpay-test-credentials.md).
 
 ### Access the admin panel
 
