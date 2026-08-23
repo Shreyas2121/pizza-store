@@ -4,6 +4,7 @@ import {
   MessageCircleQuestionIcon,
   ShoppingCart,
   Sliders,
+  Store,
 } from "lucide-react";
 
 export const sidebarLinks = [
@@ -21,6 +22,11 @@ export const sidebarLinks = [
     label: "Products",
     to: "/admin/products",
     icon: Box,
+  },
+  {
+    label: "Stores",
+    to: "/admin/stores",
+    icon: Store,
   },
   {
     label: "Orders",

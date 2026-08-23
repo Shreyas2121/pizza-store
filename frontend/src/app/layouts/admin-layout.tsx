@@ -16,6 +16,7 @@ const pageNames: Record<string, string> = {
   "/admin/customization": "Customizations",
   "/admin/menu": "Menu management",
   "/admin/orders": "Orders",
+  "/admin/stores": "Stores",
   "/admin/support": "Support queue",
 };
 
@@ -32,6 +33,8 @@ export const AdminLayout = () => {
       pageNames[location.pathname] ??
       (location.pathname.includes("/order/")
         ? "Order details"
+        : location.pathname.includes("/stores/")
+        ? location.pathname.endsWith("/products") ? "Store products" : "Delivery zones"
         : location.pathname.includes("/support/")
         ? "Support conversation"
         : "Admin"),
