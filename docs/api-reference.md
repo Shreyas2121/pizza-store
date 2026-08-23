@@ -482,6 +482,75 @@ COD payments are created and linked atomically by `POST /order`. The legacy
 `POST /payments/process-cod` endpoint has been removed because it created
 orphan payment rows.
 
+### `POST /payments/razorpay/orders` 🔒
+
+Create or resume an online checkout attempt. The backend locks and validates
+the cart, calculates the amount, snapshots an `awaiting_payment` order, creates
+its linked payment, reserves coupon capacity, and clears the snapshotted cart
+before calling Razorpay. The local state therefore survives provider or browser
+failures.
+
+`clientRequestId` is a UUID generated once by the client for a checkout attempt.
+Repeating it returns the same local attempt and never creates another local
+order. The amount, currency, and Razorpay Order ID in the response are the only
+values that should be passed to Standard Checkout.
+
+**Body:**
+```json
+{
+  "addressId": 1,
+  "couponCode": "SAVE20",
+  "clientRequestId": "524e5b0e-4d86-4e3c-8211-f4fc75c249f8"
+}
+```
+
+`couponCode` is optional or nullable. Online totals below ₹1.00 are rejected.
+
+**Response `200`:**
+```json
+{
+  "data": {
+    "localOrderId": 42,
+    "localPaymentId": 17,
+    "keyId": "rzp_test_...",
+    "razorpayOrderId": "order_...",
+    "amountPaise": 49900,
+    "currency": "INR",
+    "name": "PizzaStore",
+    "description": "Order from PizzaStore - Koramangala",
+    "paymentStatus": "processing",
+    "providerStatus": "created",
+    "checkoutReady": true,
+    "failure": null
+  },
+  "message": "Online payment initialized"
+}
+```
+
+If Razorpay order creation fails, the payment becomes `failed` and any coupon
+reservation is released. The local order stays `awaiting_payment` so it can be
+retried. The `502 PAYMENT_INIT_FAILED` response includes the safe local order
+and payment IDs so the client can link to that recovery path. A concurrent
+duplicate request can temporarily return
+`checkoutReady: false` while the first request owns provider creation; use the
+status endpoint before retrying.
+
+### `GET /payments/razorpay/orders/:localOrderId` 🔒
+
+Return the current user's checkout-safe payment state. It never returns API or
+webhook secrets. Returns `404` for another user's order and for COD orders.
+
+### `POST /payments/razorpay/orders/:localOrderId/retry` 🔒
+
+Retry provider-order creation for a failed or not-yet-claimed local attempt. A
+stored Razorpay Order is reused; it is never recreated. If a failed attempt used
+a coupon, capacity is locked and reserved again before retrying. Requests made
+while another request is creating the provider order return the current status.
+
+This phase prepares Standard Checkout only. A later endpoint must verify the
+checkout signature and captured provider payment before changing the local
+order from `awaiting_payment` to `pending`.
+
 ---
 
 ## Coupons

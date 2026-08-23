@@ -145,6 +145,11 @@ The frontend will start on `http://localhost:3150`. It connects to the backend U
 3. Register a new account or log in with a seeded user.
 4. Browse products, add items to cart, and test the checkout flow.
 
+Online payment initiation requires all three Razorpay variables. Use Test Mode
+keys during development. The backend creates Razorpay Orders and returns the
+public key ID; the API key secret and webhook secret remain server-only. Apply
+the payment lifecycle migration before calling the Razorpay payment endpoints.
+
 ### Access the admin panel
 
 1. Log in with an admin account (created via seeding or by manually setting `role = 'admin'` in the database).

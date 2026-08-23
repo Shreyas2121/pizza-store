@@ -77,6 +77,21 @@ export const createOrderSchema = z.object({
     .optional(),
 }).strict();
 
+export const initiateRazorpayOrderSchema = z
+  .object({
+    addressId: z.number().int().positive("Valid address ID is required"),
+    couponCode: z
+      .string()
+      .trim()
+      .min(1, "Coupon code cannot be empty")
+      .max(100, "Coupon code is too long")
+      .transform((code) => code.toUpperCase())
+      .nullable()
+      .optional(),
+    clientRequestId: z.uuid("A valid client request ID is required"),
+  })
+  .strict();
+
 export const validateCouponSchema = z
   .object({
     code: z

@@ -5,6 +5,9 @@ import {
   couponRedemptionsTable,
   couponsTable,
   deliveryZonesTable,
+  orderItemCustomizationsTable,
+  orderItemsTable,
+  ordersTable,
   productsTable,
   storeProductsTable,
 } from "../../db/schema";
@@ -60,6 +63,14 @@ interface BuildCheckoutQuoteInput {
   userId: number;
   addressId: number;
   couponCode?: string | null;
+}
+
+interface CreateOrderSnapshotInput {
+  userId: number;
+  addressId: number;
+  paymentId: number;
+  paymentType: "cash" | "razorpay";
+  status: "pending" | "awaiting_payment";
 }
 
 class CheckoutService {
@@ -160,6 +171,51 @@ class CheckoutService {
     return paiseToRupees(calculateCartSubtotalPaise(cart));
   }
 
+  async createOrderSnapshot(
+    quote: Awaited<ReturnType<CheckoutService["buildQuote"]>>,
+    data: CreateOrderSnapshotInput,
+    tx: TransactionType
+  ) {
+    const [order] = await tx
+      .insert(ordersTable)
+      .values({
+        userId: data.userId,
+        addressId: data.addressId,
+        storeId: quote.cart.storeId!,
+        couponId: quote.coupon?.id ?? null,
+        discountAmount: quote.discountRupees,
+        totalPrice: quote.totalRupees,
+        paymentType: data.paymentType,
+        paymentId: data.paymentId,
+        status: data.status,
+      })
+      .returning();
+
+    for (const item of quote.cart.items) {
+      const [orderItem] = await tx
+        .insert(orderItemsTable)
+        .values({
+          orderId: order.id,
+          productId: item.productId,
+          quantity: item.quantity,
+          price: item.price,
+        })
+        .returning();
+
+      if (item.customizations.length > 0) {
+        await tx.insert(orderItemCustomizationsTable).values(
+          item.customizations.map((customization) => ({
+            customizationOptionId: customization.customizationOptionId,
+            orderItemId: orderItem.id,
+            price: customization.price,
+          }))
+        );
+      }
+    }
+
+    return order;
+  }
+
   async recordCouponUse(
     data: {
       couponId: number;
@@ -186,6 +242,83 @@ class CheckoutService {
         })
         .where(eq(couponsTable.id, data.couponId));
     }
+  }
+
+  async releaseCouponReservation(orderId: number, tx: TransactionType) {
+    await tx
+      .update(couponRedemptionsTable)
+      .set({ status: "released", releasedAt: new Date() })
+      .where(
+        and(
+          eq(couponRedemptionsTable.orderId, orderId),
+          eq(couponRedemptionsTable.status, "reserved")
+        )
+      );
+  }
+
+  async restoreCouponReservation(
+    data: { couponId: number; orderId: number },
+    tx: TransactionType
+  ) {
+    const [redemption] = await tx
+      .select()
+      .from(couponRedemptionsTable)
+      .where(
+        and(
+          eq(couponRedemptionsTable.orderId, data.orderId),
+          eq(couponRedemptionsTable.couponId, data.couponId)
+        )
+      )
+      .for("update")
+      .limit(1);
+
+    if (!redemption) {
+      throw new AppError("Coupon reservation not found", 409);
+    }
+    if (redemption.status === "reserved") return;
+    if (redemption.status === "consumed") {
+      throw new AppError("Coupon has already been consumed", 409);
+    }
+
+    const [coupon] = await tx
+      .select()
+      .from(couponsTable)
+      .where(eq(couponsTable.id, data.couponId))
+      .for("update")
+      .limit(1);
+
+    if (!coupon || !coupon.isActive) {
+      throw new AppError("Coupon is no longer available", 409);
+    }
+
+    const now = new Date();
+    if (now < coupon.startDate || now > coupon.endDate) {
+      throw new AppError("Coupon is expired or not yet valid", 409);
+    }
+
+    const [usage] = await tx
+      .select({ active: count(couponRedemptionsTable.id) })
+      .from(couponRedemptionsTable)
+      .where(
+        and(
+          eq(couponRedemptionsTable.couponId, coupon.id),
+          inArray(couponRedemptionsTable.status, ["reserved", "consumed"])
+        )
+      );
+    const activeUsage = Math.max(coupon.redemptionCount, Number(usage.active));
+    if (coupon.maxRedemptions >= 0 && activeUsage >= coupon.maxRedemptions) {
+      throw new AppError("Coupon maximum redemption limit reached", 409);
+    }
+
+    await tx
+      .update(couponRedemptionsTable)
+      .set({ status: "reserved", reservedAt: now, releasedAt: null })
+      .where(
+        and(
+          eq(couponRedemptionsTable.orderId, data.orderId),
+          eq(couponRedemptionsTable.status, "released")
+        )
+      );
   }
 
   private async assertProductsAvailable(cart: CheckoutCart, tx: TransactionType) {

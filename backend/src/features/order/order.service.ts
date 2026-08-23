@@ -1,8 +1,6 @@
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "../../db";
 import {
-  orderItemCustomizationsTable,
-  orderItemsTable,
   ordersTable,
 } from "../../db/schema";
 import cartService from "../cart/cart.service";
@@ -30,42 +28,17 @@ class OrderService {
         tx
       );
 
-      const [order] = await tx
-        .insert(ordersTable)
-        .values({
+      const order = await checkoutService.createOrderSnapshot(
+        quote,
+        {
           userId: data.userId,
           addressId: data.addressId,
-          storeId: quote.cart.storeId!,
-          couponId: quote.coupon?.id ?? null,
-          discountAmount: quote.discountRupees,
-          totalPrice: quote.totalRupees,
-          paymentType: "cash",
           paymentId: payment.id,
+          paymentType: "cash",
           status: "pending",
-        })
-        .returning();
-
-      for (const item of quote.cart.items) {
-        const [orderItem] = await tx
-          .insert(orderItemsTable)
-          .values({
-            orderId: order.id,
-            productId: item.productId,
-            quantity: item.quantity,
-            price: item.price,
-          })
-          .returning();
-
-        if (item.customizations.length > 0) {
-          await tx.insert(orderItemCustomizationsTable).values(
-            item.customizations.map((customization) => ({
-              customizationOptionId: customization.customizationOptionId,
-              orderItemId: orderItem.id,
-              price: customization.price,
-            }))
-          );
-        }
-      }
+        },
+        tx
+      );
 
       if (quote.coupon) {
         await checkoutService.recordCouponUse(

@@ -5,7 +5,12 @@ import { ZodError } from "zod";
 import { Fn } from "./types";
 
 export class AppError extends Error {
-  constructor(message: string, public status = 500) {
+  constructor(
+    message: string,
+    public status = 500,
+    public code?: string,
+    public data?: Record<string, unknown>
+  ) {
     super(message);
     this.status = status;
     Error.captureStackTrace(this, this.constructor);
@@ -24,7 +29,11 @@ export const handleError = (err: unknown, req: Request, res: Response) => {
     logger.error(
       `${err.status} - ${err.message} - ${req.originalUrl} - ${req.method} - ${req.ip}`
     );
-    return res.status(err.status).json({ message: err.message });
+    return res.status(err.status).json({
+      message: err.message,
+      ...(err.code ? { code: err.code } : {}),
+      ...(err.data ? { data: err.data } : {}),
+    });
   }
 
   logger.error(
