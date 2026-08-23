@@ -3,6 +3,7 @@ import { authenticateAdmin } from "../../middleware/authenticateUser";
 import { AppError, asyncHandler } from "../../utils/error";
 import { parseIntegerParam, requireRouteParam } from "../../utils/request";
 import {
+  addDeliveryZonesSchema,
   createStoreSchema,
   updateStoreSchema,
 } from "../../utils/zodSchema";
@@ -82,6 +83,53 @@ storeRoutes.post(
 );
 
 // ──────────────────────────────────────────────
+// Delivery zone management
+
+storeRoutes.get(
+  "/:id/delivery-zones",
+  authenticateAdmin,
+  asyncHandler(async (req, res) => {
+    const storeId = parseIntegerParam(req.params.id, "Store ID");
+    const zones = await storeService.getDeliveryZones(storeId);
+
+    res.json({ data: zones });
+  })
+);
+
+storeRoutes.post(
+  "/:id/delivery-zones",
+  authenticateAdmin,
+  asyncHandler(async (req, res) => {
+    const storeId = parseIntegerParam(req.params.id, "Store ID");
+    const { pincodes } = addDeliveryZonesSchema.parse(req.body);
+    const result = await storeService.addDeliveryZones(storeId, pincodes);
+
+    res.status(201).json({
+      data: result.zones,
+      meta: {
+        addedCount: result.addedCount,
+        skippedCount: result.skippedCount,
+      },
+      message: "Delivery zones added successfully",
+    });
+  })
+);
+
+storeRoutes.delete(
+  "/:id/delivery-zones/:zoneId",
+  authenticateAdmin,
+  asyncHandler(async (req, res) => {
+    const storeId = parseIntegerParam(req.params.id, "Store ID");
+    const zoneId = parseIntegerParam(req.params.zoneId, "Delivery zone ID");
+    const zone = await storeService.deleteDeliveryZone(storeId, zoneId);
+
+    res.json({
+      data: zone,
+      message: "Delivery zone removed successfully",
+    });
+  })
+);
+
 // Detail Endpoints
 // ──────────────────────────────────────────────
 

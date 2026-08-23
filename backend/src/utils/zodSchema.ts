@@ -107,3 +107,16 @@ export const createStoreSchema = z.object({
 });
 
 export const updateStoreSchema = createStoreSchema.partial();
+
+const deliveryPincodeSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{6}$/, "Pincode must contain exactly 6 digits");
+
+export const addDeliveryZonesSchema = z.object({
+  pincodes: z
+    .array(deliveryPincodeSchema)
+    .min(1, "At least one pincode is required")
+    .max(100, "A maximum of 100 pincodes can be added at once")
+    .transform((pincodes) => [...new Set(pincodes)]),
+});

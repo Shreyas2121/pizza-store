@@ -1,6 +1,6 @@
 import { and, asc, count, desc, eq, ilike, ne, or } from "drizzle-orm";
 import { db } from "../../db";
-import { storesTable } from "../../db/schema";
+import { deliveryZonesTable, storesTable } from "../../db/schema";
 import { AppError } from "../../utils/error";
 import { generateSlug } from "../../utils";
 
@@ -123,6 +123,63 @@ class StoreService {
     return await db.query.storesTable.findFirst({
       where: eq(storesTable.slug, slug),
     });
+  }
+
+  async getDeliveryZones(storeId: number) {
+    const store = await this.getStoreById(storeId);
+    if (!store) {
+      throw new AppError("Store not found", 404);
+    }
+
+    return await db.query.deliveryZonesTable.findMany({
+      where: eq(deliveryZonesTable.storeId, storeId),
+      orderBy: asc(deliveryZonesTable.pincode),
+    });
+  }
+
+  async addDeliveryZones(storeId: number, pincodes: string[]) {
+    const store = await this.getStoreById(storeId);
+    if (!store) {
+      throw new AppError("Store not found", 404);
+    }
+
+    const uniquePincodes = [...new Set(pincodes.map((pincode) => pincode.trim()))];
+    const zones = await db
+      .insert(deliveryZonesTable)
+      .values(uniquePincodes.map((pincode) => ({ storeId, pincode })))
+      .onConflictDoNothing({
+        target: [deliveryZonesTable.storeId, deliveryZonesTable.pincode],
+      })
+      .returning();
+
+    return {
+      zones,
+      addedCount: zones.length,
+      skippedCount: uniquePincodes.length - zones.length,
+    };
+  }
+
+  async deleteDeliveryZone(storeId: number, zoneId: number) {
+    const store = await this.getStoreById(storeId);
+    if (!store) {
+      throw new AppError("Store not found", 404);
+    }
+
+    const [zone] = await db
+      .delete(deliveryZonesTable)
+      .where(
+        and(
+          eq(deliveryZonesTable.id, zoneId),
+          eq(deliveryZonesTable.storeId, storeId)
+        )
+      )
+      .returning();
+
+    if (!zone) {
+      throw new AppError("Delivery zone not found", 404);
+    }
+
+    return zone;
   }
 
   async updateStore(

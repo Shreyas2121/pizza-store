@@ -242,6 +242,40 @@ Create a menu item. Accepts `multipart/form-data`.
 
 ---
 
+## Stores
+
+### `GET /stores/:storeId/delivery-zones` 🔒🛡️
+
+List the delivery pincodes assigned to a store, ordered by pincode.
+
+### `POST /stores/:storeId/delivery-zones` 🔒🛡️
+
+Add up to 100 delivery pincodes to a store. Existing mappings are skipped.
+
+**Body:**
+```json
+{
+  "pincodes": ["560001", "560002"]
+}
+```
+
+**Response `201`:**
+```json
+{
+  "data": [
+    { "id": 1, "storeId": 2, "pincode": "560001" }
+  ],
+  "meta": { "addedCount": 1, "skippedCount": 1 },
+  "message": "Delivery zones added successfully"
+}
+```
+
+### `DELETE /stores/:storeId/delivery-zones/:zoneId` 🔒🛡️
+
+Remove a delivery zone from the specified store.
+
+---
+
 ## Cart
 
 ### `POST /cart/add` 🔒
