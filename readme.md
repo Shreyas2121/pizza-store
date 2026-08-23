@@ -91,7 +91,7 @@ food/
       middleware/            JWT auth (user and admin guards)
       utils/                 Error handling, logging, multer, Zod schemas, types
       scripts/               Database seeding (users, addresses, orders)
-    drizzle/                 Generated SQL migrations
+    migrations/              Generated SQL migrations
     uploads/                 User-uploaded product images
   frontend/
     src/

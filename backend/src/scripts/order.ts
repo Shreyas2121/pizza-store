@@ -9,6 +9,7 @@ import {
   orderItemsTable,
   ordersTable,
   productsTable,
+  storesTable,
 } from "../db/schema";
 import { eq } from "drizzle-orm";
 
@@ -45,6 +46,16 @@ import { eq } from "drizzle-orm";
   });
 
   const products = await db.query.productsTable.findMany({});
+  const store = await db.query.storesTable.findFirst({
+    where: eq(storesTable.isActive, true),
+    orderBy: storesTable.id,
+  });
+
+  if (!store) {
+    console.error("No active store found. Skipping orders seeding.");
+    process.exit(0);
+  }
+
   const COUNTS = [2, 5, 10, 20, 30];
 
   for (const user of users) {
@@ -66,6 +77,7 @@ import { eq } from "drizzle-orm";
         .values({
           discountAmount: 0,
           userId,
+          storeId: store.id,
           addressId: addressExists.id,
           orderDate: faker.date.between({
             from: "2024-01-01T00:00:00.000Z",

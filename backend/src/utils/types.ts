@@ -13,6 +13,8 @@ import {
   couponsTable,
   customizationGroupsTable,
   customizationOptionsTable,
+  storesTable,
+  storeProductsTable,
 } from "../db/schema";
 import { NextFunction, Request, Response } from "express";
 
@@ -38,6 +40,8 @@ export type User = typeof usersTable.$inferSelect;
 export type Address = typeof addressTable.$inferSelect;
 export type Category = typeof categoriesTable.$inferSelect;
 export type Product = typeof productsTable.$inferSelect;
+export type Store = typeof storesTable.$inferSelect;
+export type StoreProduct = typeof storeProductsTable.$inferSelect;
 export type MenuItem = typeof menuItemsTable.$inferSelect;
 
 export type Cart = typeof cartTable.$inferSelect;

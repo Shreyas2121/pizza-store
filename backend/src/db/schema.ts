@@ -120,7 +120,71 @@ export const productsRelations = relations(productsTable, ({ many, one }) => ({
   menuItems: many(menuItemsTable),
   cartItems: many(cartItemsTable),
   orderItems: many(orderItemsTable),
+  stores: many(storeProductsTable),
 }));
+
+export const storesTable = pgTable("stores", {
+  id,
+  name: text().notNull(),
+  slug: text().unique().notNull(),
+  address: text().notNull(),
+  city: text().notNull(),
+  state: text().notNull(),
+  pincode: text().notNull(),
+  phone: text().notNull(),
+  email: text(),
+  latitude: doublePrecision(),
+  longitude: doublePrecision(),
+  opensAt: text("opens_at").notNull(),
+  closesAt: text("closes_at").notNull(),
+  isActive,
+  createdAt,
+  updatedAt,
+});
+
+export const storesRelations = relations(storesTable, ({ many }) => ({
+  products: many(storeProductsTable),
+  deliveryZones: many(deliveryZonesTable),
+  orders: many(ordersTable),
+  carts: many(cartTable),
+}));
+
+export const storeProductsTable = pgTable(
+  "store_products",
+  {
+    id,
+    storeId: integer("store_id")
+      .references(() => storesTable.id)
+      .notNull(),
+    productId: integer("product_id")
+      .references(() => productsTable.id)
+      .notNull(),
+    price: real().notNull(),
+    isAvailable: boolean("is_available").notNull().default(true),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    unique("store_products_store_id_product_id_unique").on(
+      table.storeId,
+      table.productId
+    ),
+  ]
+);
+
+export const storeProductsRelations = relations(
+  storeProductsTable,
+  ({ one }) => ({
+    store: one(storesTable, {
+      fields: [storeProductsTable.storeId],
+      references: [storesTable.id],
+    }),
+    product: one(productsTable, {
+      fields: [storeProductsTable.productId],
+      references: [productsTable.id],
+    }),
+  })
+);
 
 export const customizationGroupsTable = pgTable("customization_groups", {
   id,
@@ -236,6 +300,7 @@ export const cartTable = pgTable("cart", {
     .references(() => usersTable.id)
     .notNull(),
   totalPrice: doublePrecision("total_price").default(0).notNull(),
+  storeId: integer("store_id").references(() => storesTable.id),
   createdAt,
   updatedAt,
 });
@@ -246,6 +311,10 @@ export const cartTableRelations = relations(cartTable, ({ many, one }) => ({
     references: [usersTable.id],
   }),
   items: many(cartItemsTable),
+  store: one(storesTable, {
+    fields: [cartTable.storeId],
+    references: [storesTable.id],
+  }),
 }));
 
 export const cartItemsTable = pgTable("cart_items", {
@@ -361,6 +430,9 @@ export const ordersTable = pgTable("orders", {
     .notNull(),
   paymentId: integer("payment_id").references(() => paymentsTable.id),
   addressId: integer("address_id").references(() => addressTable.id),
+  storeId: integer("store_id")
+    .references(() => storesTable.id)
+    .notNull(),
   createdAt,
   updatedAt,
 });
@@ -382,6 +454,10 @@ export const orderRelations = relations(ordersTable, ({ many, one }) => ({
   address: one(addressTable, {
     fields: [ordersTable.addressId],
     references: [addressTable.id],
+  }),
+  store: one(storesTable, {
+    fields: [ordersTable.storeId],
+    references: [storesTable.id],
   }),
 }));
 
@@ -444,12 +520,34 @@ export const orderItemCustomizationsRelations = relations(
   })
 );
 
-export const deliveryZonesTable = pgTable("delivery_zones", {
-  id,
-  pincode: text().unique().notNull(),
-  createdAt,
-  updatedAt,
-});
+export const deliveryZonesTable = pgTable(
+  "delivery_zones",
+  {
+    id,
+    storeId: integer("store_id")
+      .references(() => storesTable.id)
+      .notNull(),
+    pincode: text().notNull(),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    unique("delivery_zones_store_id_pincode_unique").on(
+      table.storeId,
+      table.pincode
+    ),
+  ]
+);
+
+export const deliveryZonesRelations = relations(
+  deliveryZonesTable,
+  ({ one }) => ({
+    store: one(storesTable, {
+      fields: [deliveryZonesTable.storeId],
+      references: [storesTable.id],
+    }),
+  })
+);
 
 export const deliveryPrice = pgTable("delivery_price", {
   id,

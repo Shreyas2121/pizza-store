@@ -84,6 +84,36 @@ Relations: one-to-many with products.
 
 Relations: belongs to category; many-to-many with customization groups (via mapping), menu items (via mapping); one-to-many with cart items, order items.
 
+### `stores`
+
+| Column | Type | Constraints | Notes |
+| --- | --- | --- | --- |
+| `id` | integer | PK, generated always | |
+| `name` | text | NOT NULL | Display name |
+| `slug` | text | UNIQUE, NOT NULL | URL-safe identifier |
+| `address`, `city`, `state`, `pincode` | text | NOT NULL | Physical location |
+| `phone` | text | NOT NULL | Store contact number |
+| `email` | text | nullable | Store contact email |
+| `latitude`, `longitude` | double precision | nullable | Reserved for distance-based resolution |
+| `opens_at`, `closes_at` | text | NOT NULL | Local operating times in `HH:mm` format |
+| `is_active` | boolean | NOT NULL, default `true` | |
+| `created_at`, `updated_at` | timestamptz | | |
+
+Relations: one-to-many with store products, delivery zones, carts, and orders.
+
+### `store_products`
+
+| Column | Type | Constraints | Notes |
+| --- | --- | --- | --- |
+| `id` | integer | PK, generated always | |
+| `store_id` | integer | FK → stores, NOT NULL | |
+| `product_id` | integer | FK → products, NOT NULL | |
+| `price` | real | NOT NULL | Store-specific product price |
+| `is_available` | boolean | NOT NULL, default `true` | Store-level availability |
+| `created_at`, `updated_at` | timestamptz | | |
+
+Unique constraint: `(store_id, product_id)`.
+
 ### `customization_groups`
 
 | Column | Type | Constraints | Notes |
@@ -144,6 +174,7 @@ Junction table linking menu items to products.
 | `id` | integer | PK | |
 | `user_id` | integer | FK → users, NOT NULL | |
 | `total_price` | double precision | NOT NULL, default `0` | Denormalized running total |
+| `store_id` | integer | FK → stores, nullable | Cart may exist before store resolution |
 | `created_at`, `updated_at` | timestamptz | | |
 
 Relations: one-to-many with cart items.
@@ -210,6 +241,7 @@ Relations: one-to-many with cart item customizations.
 | `payment_type` | text | NOT NULL, default `"cash"` | `"cash"` only (COD) |
 | `payment_id` | integer | FK → payments, nullable | |
 | `address_id` | integer | FK → addresses, nullable | |
+| `store_id` | integer | FK → stores, NOT NULL | Fulfilling store |
 | `created_at`, `updated_at` | timestamptz | | |
 
 Relations: belongs to user, payment, coupon, address; one-to-many with order items.
@@ -242,8 +274,11 @@ Relations: one-to-many with order item customizations.
 | Column | Type | Constraints |
 | --- | --- | --- |
 | `id` | integer | PK |
-| `pincode` | text | UNIQUE, NOT NULL |
+| `store_id` | integer | FK → stores, NOT NULL |
+| `pincode` | text | NOT NULL |
 | `created_at`, `updated_at` | timestamptz | |
+
+Unique constraint: `(store_id, pincode)`.
 
 ### `delivery_price`
 
@@ -286,6 +321,12 @@ erDiagram
     users ||--o{ chat_sessions : initiates
 
     categories ||--o{ products : contains
+
+    stores ||--o{ store_products : offers
+    products ||--o{ store_products : mapped_to
+    stores ||--o{ delivery_zones : serves
+    stores ||--o{ cart : scopes
+    stores ||--o{ orders : fulfills
 
     products ||--o{ product_customization_group_mapping : has
     customization_groups ||--o{ product_customization_group_mapping : has
