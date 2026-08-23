@@ -41,6 +41,11 @@ JWT_SECRET=your_jwt_secret_here
 
 # Frontend URL (for CORS and Socket.IO)
 FE_URL=http://localhost:3150
+
+# Razorpay (configure all three together when online payments are enabled)
+RAZORPAY_KEY_ID=rzp_test_...
+RAZORPAY_KEY_SECRET=your_test_key_secret
+RAZORPAY_WEBHOOK_SECRET=your_test_webhook_secret
 ```
 
 All variables are validated at startup via Zod. The server will not start if any required variable is missing or invalid.
@@ -58,8 +63,13 @@ All variables are validated at startup via Zod. The server will not start if any
 | `DATABASE_URL` | No* | Full connection URL (alternative to individual DB_* vars) |
 | `JWT_SECRET` | Yes | Secret key for signing JSON Web Tokens |
 | `FE_URL` | Yes | Frontend origin URL for CORS configuration |
+| `RAZORPAY_KEY_ID` | No** | Public Razorpay Test/Live Key ID |
+| `RAZORPAY_KEY_SECRET` | No** | Server-only Razorpay API key secret |
+| `RAZORPAY_WEBHOOK_SECRET` | No** | Server-only secret used to validate webhook signatures |
 
 \* Either `DATABASE_URL` or the individual `DB_*` variables must be provided.
+
+\** Razorpay variables may be omitted while the application is COD-only. If any one is set, all three are required. Use separate Test and Live credentials, and never expose either secret to the frontend.
 
 ### Create the database
 

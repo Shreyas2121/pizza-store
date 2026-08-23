@@ -22,8 +22,22 @@ export type AddressType = "Home" | "Work" | "Other";
 export type Role = "admin" | "user";
 export type CustomizationType = "single" | "multiple";
 export type OrderStatus = "pending" | "preparing" | "delievered" | "cancelled";
-export type PaymentStatus = "pending" | "processing" | "completed" | "failed";
-export type PaymentType = "cash";
+export type PaymentStatus =
+  | "pending"
+  | "processing"
+  | "completed"
+  | "failed"
+  | "refunded";
+export type PaymentType = "cash" | "razorpay";
+export type PaymentProvider = "cod" | "razorpay";
+export type PaymentCurrency = "INR";
+export type RazorpayOrderStatus = "created" | "attempted" | "paid";
+export type RazorpayPaymentStatus =
+  | "created"
+  | "authorized"
+  | "captured"
+  | "refunded"
+  | "failed";
 export type CouponType = "percentage" | "fixed";
 export type ChatStatus = "open" | "close" | "rejected" | "pending";
 

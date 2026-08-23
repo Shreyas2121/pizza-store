@@ -12,6 +12,25 @@ const envSchema = z.object({
   DB_NAME: z.string().optional(),
   JWT_SECRET: z.string(),
   FE_URL: z.string(),
+  RAZORPAY_KEY_ID: z.string().min(1).optional(),
+  RAZORPAY_KEY_SECRET: z.string().min(1).optional(),
+  RAZORPAY_WEBHOOK_SECRET: z.string().min(1).optional(),
+}).superRefine((value, ctx) => {
+  const razorpayValues = [
+    value.RAZORPAY_KEY_ID,
+    value.RAZORPAY_KEY_SECRET,
+    value.RAZORPAY_WEBHOOK_SECRET,
+  ];
+  const configuredValues = razorpayValues.filter(Boolean).length;
+
+  if (configuredValues > 0 && configuredValues < razorpayValues.length) {
+    ctx.addIssue({
+      code: "custom",
+      message:
+        "RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, and RAZORPAY_WEBHOOK_SECRET must be configured together",
+      path: ["RAZORPAY_KEY_ID"],
+    });
+  }
 });
 
 export const env = envSchema.parse(process.env);
