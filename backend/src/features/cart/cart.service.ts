@@ -4,10 +4,12 @@ import {
   cartItemCustomizationsTable,
   cartItemsTable,
   cartTable,
+  productsTable,
+  storeProductsTable,
+  storesTable,
 } from "../../db/schema";
 import { AppError } from "../../utils/error";
 import { TransactionType } from "../../utils/types";
-import productService from "../products/product.service";
 import customizeService from "../customization/customize.service";
 
 class CartService {
@@ -17,34 +19,52 @@ class CartService {
    */
   async addToCart({
     productId,
+    storeId,
     userId,
     cIds = [],
   }: {
     productId: number;
+    storeId: number;
     userId: number;
     cIds: number[];
   }) {
-    await db.transaction(async (tx) => {
-      const product = await productService.getProductById(productId);
+    return await db.transaction(async (tx) => {
+      const storeProduct = await this.getAvailableStoreProduct(
+        storeId,
+        productId,
+        tx
+      );
 
-      if (!product) {
-        throw new AppError("Product not found");
-      }
-
-      if (product.hasCustomization && cIds.length === 0) {
+      if (storeProduct.hasCustomization && cIds.length === 0) {
         throw new AppError("Customization options are required");
       }
 
       let cartId: number;
+      let cartCleared = false;
 
-      const existingCart = await this.getExistingCart(userId);
+      const existingCart = await this.getExistingCart(userId, tx);
 
       if (existingCart) {
         cartId = existingCart.id;
+
+        if (existingCart.storeId !== storeId) {
+          const removedItems = await tx
+            .delete(cartItemsTable)
+            .where(eq(cartItemsTable.cartId, existingCart.id))
+            .returning({ id: cartItemsTable.id });
+          cartCleared = removedItems.length > 0;
+
+          await tx
+            .update(cartTable)
+            .set({ storeId, totalPrice: 0 })
+            .where(eq(cartTable.id, existingCart.id));
+        }
+
         await tx
           .update(cartTable)
           .set({
-            totalPrice: sql`COALESCE(${cartTable.totalPrice}, 0) + ${product.price}`,
+            storeId,
+            totalPrice: sql`COALESCE(${cartTable.totalPrice}, 0) + ${storeProduct.price}`,
           })
           .where(eq(cartTable.id, existingCart.id));
       } else {
@@ -52,14 +72,15 @@ class CartService {
           .insert(cartTable)
           .values({
             userId,
-            totalPrice: product.price,
+            storeId,
+            totalPrice: storeProduct.price,
           })
           .returning();
         cartId = id;
       }
 
       const [cartItem] = await this.addToCartItem(
-        { cartId, productId, price: product.price },
+        { cartId, productId, price: storeProduct.price },
         cIds,
         tx
       );
@@ -70,9 +91,8 @@ class CartService {
             const option = await customizeService.getCustomizationOptionById(
               id
             );
-            if (!option) {
-              tx.rollback();
-              throw new AppError("Invalid customization option");
+            if (!option || !option.isAvailable) {
+              throw new AppError("Invalid or unavailable customization option");
             }
 
             const existingCustomization =
@@ -98,7 +118,50 @@ class CartService {
           })
         );
       }
+
+      return { cartCleared, storeId };
     });
+  }
+
+  async getAvailableStoreProduct(
+    storeId: number,
+    productId: number,
+    tx?: TransactionType
+  ) {
+    const dbT = tx ?? db;
+    const [storeProduct] = await dbT
+      .select({
+        price: storeProductsTable.price,
+        isAvailable: storeProductsTable.isAvailable,
+        productIsAvailable: productsTable.isAvailable,
+        hasCustomization: productsTable.hasCustomization,
+        storeIsActive: storesTable.isActive,
+      })
+      .from(storeProductsTable)
+      .innerJoin(
+        productsTable,
+        eq(storeProductsTable.productId, productsTable.id)
+      )
+      .innerJoin(storesTable, eq(storeProductsTable.storeId, storesTable.id))
+      .where(
+        and(
+          eq(storeProductsTable.storeId, storeId),
+          eq(storeProductsTable.productId, productId)
+        )
+      )
+      .limit(1);
+
+    if (!storeProduct) {
+      throw new AppError("Product is not offered by this store", 404);
+    }
+    if (!storeProduct.storeIsActive) {
+      throw new AppError("Store is no longer active", 409);
+    }
+    if (!storeProduct.productIsAvailable || !storeProduct.isAvailable) {
+      throw new AppError("Product is not available at this store", 409);
+    }
+
+    return storeProduct;
   }
 
   async addToCartItem(
@@ -110,7 +173,8 @@ class CartService {
 
     const existingCartItem = await this.checkProductInCart(
       data.cartId,
-      data.productId
+      data.productId,
+      tx
     );
 
     if (existingCartItem) {
@@ -145,8 +209,9 @@ class CartService {
     }
   }
 
-  async getExistingCart(userId: number) {
-    return await db.query.cartTable.findFirst({
+  async getExistingCart(userId: number, tx?: TransactionType) {
+    const dbT = tx ?? db;
+    return await dbT.query.cartTable.findFirst({
       where: eq(cartTable.userId, userId),
     });
   }
@@ -158,8 +223,13 @@ class CartService {
     await db.update(cartItemsTable).set(data).where(eq(cartItemsTable.id, id));
   }
 
-  async checkProductInCart(cartId: number, productId: number) {
-    return await db.query.cartItemsTable.findFirst({
+  async checkProductInCart(
+    cartId: number,
+    productId: number,
+    tx?: TransactionType
+  ) {
+    const dbT = tx ?? db;
+    return await dbT.query.cartItemsTable.findFirst({
       where: and(
         eq(cartItemsTable.cartId, cartId),
         eq(cartItemsTable.productId, productId)
@@ -218,6 +288,7 @@ class CartService {
     return await db.query.cartTable.findFirst({
       where: eq(cartTable.userId, userId),
       with: {
+        store: true,
         items: {
           with: {
             product: true,
@@ -234,7 +305,7 @@ class CartService {
 
   async clearCart(userId: number, tx?: TransactionType) {
     const dbT = tx ?? db;
-    const cart = await this.getExistingCart(userId);
+    const cart = await this.getExistingCart(userId, tx);
     if (!cart) return;
 
     await dbT.delete(cartTable).where(eq(cartTable.id, cart.id));
@@ -271,6 +342,18 @@ class CartService {
     userId: number;
   }) {
     const cartItem = await this.assertCartItemOwner(cartItemId, userId);
+
+    if (cartItem.productId !== productId) {
+      throw new AppError("Cart item does not match product", 400);
+    }
+
+    if (type === "+") {
+      const cart = await this.getExistingCart(userId);
+      if (!cart?.storeId) {
+        throw new AppError("Cart is not assigned to a store", 409);
+      }
+      await this.getAvailableStoreProduct(cart.storeId, productId);
+    }
 
     if (type === "-" && cartItem.quantity! <= 1) {
       return await this.deleteCartItem(cartItemId);

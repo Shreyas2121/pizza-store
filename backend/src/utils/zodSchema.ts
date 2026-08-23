@@ -55,6 +55,7 @@ export const createOrderSchema = z.object({
 
 export const addToCartSchema = z.object({
   productId: z.number().int().positive("Product ID is required"),
+  storeId: z.number().int().positive("Store ID is required"),
   cIds: z.array(z.number().int()).optional(),
 });
 

@@ -335,20 +335,25 @@ Remove a delivery zone from the specified store.
 
 ### `POST /cart/add` 🔒
 
-Add a product to cart (creates cart if needed).
+Add a product to cart using its store-specific price (creates the cart if
+needed). The product and store must both be active and available.
 
 **Body:**
 ```json
 {
   "productId": 1,
+  "storeId": 2,
   "cIds": [3, 5]
 }
 ```
 `cIds` is an array of customization option IDs. Pass empty array for no customizations.
+If the cart belongs to another store, its existing items are cleared atomically
+before the new item is added and `data.cartCleared` is `true`.
 
 **Response `200`:**
 ```json
 {
+  "data": { "cartCleared": false, "storeId": 2 },
   "message": "Product added to cart"
 }
 ```
@@ -366,13 +371,15 @@ Get number of items in the current user's cart.
 
 ### `GET /cart` 🔒
 
-Get full cart with items, product details, and customizations.
+Get the full cart with its assigned store, items, product details, and
+customizations. Cart item prices are store-price snapshots from add time.
 
 **Response `200`:**
 ```json
 {
   "data": {
-    "id": 1, "totalPrice": 547,
+    "id": 1, "storeId": 2, "totalPrice": 547,
+    "store": { "id": 2, "name": "PizzaStore - Koramangala" },
     "items": [
       {
         "id": 1, "productId": 3, "quantity": 2, "price": 199,
@@ -390,7 +397,8 @@ Get cart summary for checkout (cart without items).
 
 ### `PATCH /cart/update` 🔒
 
-Update cart item quantity.
+Update cart item quantity. Quantity increases revalidate store and product
+availability while retaining the item's snapshotted store price.
 
 **Body:**
 ```json

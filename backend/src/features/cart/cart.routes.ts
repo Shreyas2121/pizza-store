@@ -13,18 +13,24 @@ cartRoutes.post(
   "/add",
   validateBody(addToCartSchema),
   asyncHandler(async (req: Auth, res) => {
-    const { productId, cIds } = req.body;
+    const { productId, storeId, cIds } = req.body;
 
     const userId = req.user!.id;
     const newCids = cIds ? cIds : [];
 
-    await cartService.addToCart({
+    const result = await cartService.addToCart({
       userId,
       productId,
+      storeId,
       cIds: newCids,
     });
 
-    res.status(200).json({ message: "Product added to cart" });
+    res.status(200).json({
+      data: result,
+      message: result.cartCleared
+        ? "Your cart has been cleared because you changed your delivery area"
+        : "Product added to cart",
+    });
   }),
 );
 
