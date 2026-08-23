@@ -284,8 +284,9 @@ class CartService {
     return itemsCount;
   }
 
-  async getCart(userId: number) {
-    return await db.query.cartTable.findFirst({
+  async getCart(userId: number, tx?: TransactionType) {
+    const dbT = tx ?? db;
+    return await dbT.query.cartTable.findFirst({
       where: eq(cartTable.userId, userId),
       with: {
         store: true,

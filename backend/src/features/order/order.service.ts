@@ -1,24 +1,116 @@
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "../../db";
 import {
+  addressTable,
+  deliveryZonesTable,
   orderItemCustomizationsTable,
   orderItemsTable,
   ordersTable,
+  productsTable,
+  storeProductsTable,
 } from "../../db/schema";
 import { AppError } from "../../utils/error";
 import cartService from "../cart/cart.service";
 import { OrderStatus } from "../../utils/types";
+import { isStoreOpen } from "../stores/store-hours";
+
+type CreateOrderData = Omit<
+  typeof ordersTable.$inferInsert,
+  "storeId" | "addressId"
+> & {
+  addressId: number;
+};
 
 class OrderService {
-  async createOrder(data: typeof ordersTable.$inferInsert) {
-    const cart = await cartService.getCart(data.userId);
-
-    if (!cart) {
-      throw new AppError("No Cart Found.");
-    }
-
+  async createOrder(data: CreateOrderData) {
     return await db.transaction(async (tx) => {
-      const [order] = await tx.insert(ordersTable).values(data).returning();
+      const cart = await cartService.getCart(data.userId, tx);
+
+      if (!cart || cart.items.length === 0) {
+        throw new AppError("Cart is empty", 400);
+      }
+      if (!cart.storeId || !cart.store) {
+        throw new AppError("Cart is not assigned to a store", 409);
+      }
+      if (!cart.store.isActive) {
+        throw new AppError("Store is no longer active", 409);
+      }
+      if (!isStoreOpen(cart.store.opensAt, cart.store.closesAt)) {
+        throw new AppError(
+          `Store is currently closed. Opens at ${cart.store.opensAt}`,
+          409
+        );
+      }
+
+      const address = await tx.query.addressTable.findFirst({
+        where: and(
+          eq(addressTable.id, data.addressId),
+          eq(addressTable.userId, data.userId)
+        ),
+      });
+
+      if (!address) {
+        throw new AppError("Delivery address not found", 404);
+      }
+
+      const deliveryZone = await tx.query.deliveryZonesTable.findFirst({
+        where: and(
+          eq(deliveryZonesTable.storeId, cart.storeId),
+          eq(deliveryZonesTable.pincode, address.pincode)
+        ),
+      });
+
+      if (!deliveryZone) {
+        throw new AppError(
+          "Delivery address is outside this store's delivery area",
+          409
+        );
+      }
+
+      const productIds = [...new Set(cart.items.map((item) => item.productId))];
+      const storeProducts = await tx
+        .select({
+          productId: storeProductsTable.productId,
+          isAvailable: storeProductsTable.isAvailable,
+          productIsAvailable: productsTable.isAvailable,
+        })
+        .from(storeProductsTable)
+        .innerJoin(
+          productsTable,
+          eq(storeProductsTable.productId, productsTable.id)
+        )
+        .where(
+          and(
+            eq(storeProductsTable.storeId, cart.storeId),
+            inArray(storeProductsTable.productId, productIds)
+          )
+        );
+      const availableProductIds = new Set(
+        storeProducts
+          .filter(
+            (mapping) => mapping.isAvailable && mapping.productIsAvailable
+          )
+          .map((mapping) => mapping.productId)
+      );
+      const unavailableItems = [
+        ...new Set(
+          cart.items
+            .filter((item) => !availableProductIds.has(item.productId))
+            .map((item) => item.product.name)
+        ),
+      ];
+
+      if (unavailableItems.length > 0) {
+        throw new AppError(
+          `Unavailable items: ${unavailableItems.join(", ")}`,
+          409
+        );
+      }
+
+      const [order] = await tx
+        .insert(ordersTable)
+        .values({ ...data, storeId: cart.storeId })
+        .returning();
 
       await Promise.all(
         cart.items.map(async (item) => {
@@ -93,6 +185,7 @@ class OrderService {
           },
         },
         payment: true,
+        store: true,
       },
     });
   }

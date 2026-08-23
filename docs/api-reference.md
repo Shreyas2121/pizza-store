@@ -421,6 +421,11 @@ Remove an item from cart.
 
 Create an order from the current cart.
 
+The order's store is copied from the cart. Before creating the order, the
+backend verifies that the store is active and open, the selected address
+belongs to the user and is covered by that store, and every cart item remains
+available globally and at the store.
+
 **Body:**
 ```json
 {
