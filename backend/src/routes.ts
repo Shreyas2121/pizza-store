@@ -13,6 +13,7 @@ import { paymentRoutes } from "./features/payments/payment.routes";
 import { couponRoutes } from "./features/coupon/coupon.routes";
 import { dashRoutes } from "./features/dashboard/dashboard.routes";
 import { chatRoutes } from "./features/chat/chat.routes";
+import { storeRoutes } from "./features/stores/stores.routes";
 
 export const mainRoutes = Router();
 
@@ -27,5 +28,7 @@ mainRoutes.use("/payments", paymentRoutes);
 mainRoutes.use("/coupon", couponRoutes);
 mainRoutes.use("/dashboard", dashRoutes);
 mainRoutes.use("/chat", chatRoutes);
+mainRoutes.use("/stores", storeRoutes);
+mainRoutes.use("/store", storeRoutes);
 
 mainRoutes.use("/uploads", static_(path.resolve(__dirname, "../uploads")));

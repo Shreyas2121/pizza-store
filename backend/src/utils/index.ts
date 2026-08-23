@@ -8,8 +8,11 @@ export const filterImage = (file: Express.Multer.File) => {
 export const generateSlug = (text: string) => {
   return text
     .toLowerCase()
-    .replace(/[^\w\s]/gi, "")
-    .replace(/\s+/g, "-");
+    .trim()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/[\s_]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "");
 };
 
 export const cap = (str: string) => {

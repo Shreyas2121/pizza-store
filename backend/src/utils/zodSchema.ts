@@ -78,3 +78,32 @@ export const createCouponSchema = z.object({
   startDate: z.string().optional(),
   endDate: z.string().optional(),
 });
+
+const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
+export const createStoreSchema = z.object({
+  name: z.string().min(1, "Store name is required"),
+  slug: z.string().min(1).optional(),
+  address: z.string().min(1, "Address is required"),
+  city: z.string().min(1, "City is required"),
+  state: z.string().min(1, "State is required"),
+  pincode: z.string().min(1, "Pincode is required"),
+  phone: z.string().min(1, "Phone number is required"),
+  email: z
+    .string()
+    .email("Invalid email format")
+    .optional()
+    .nullable()
+    .or(z.literal("")),
+  latitude: z.number().optional().nullable(),
+  longitude: z.number().optional().nullable(),
+  opensAt: z
+    .string()
+    .regex(timeRegex, "Opening time must be in HH:MM format (24h)"),
+  closesAt: z
+    .string()
+    .regex(timeRegex, "Closing time must be in HH:MM format (24h)"),
+  isActive: z.boolean().optional().default(true),
+});
+
+export const updateStoreSchema = createStoreSchema.partial();
