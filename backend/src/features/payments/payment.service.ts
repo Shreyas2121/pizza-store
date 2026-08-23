@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from "crypto";
-import { eq } from "drizzle-orm";
+import { and, eq, inArray, lt } from "drizzle-orm";
 import { db } from "../../db";
 import { ordersTable, paymentsTable, storesTable } from "../../db/schema";
 import { AppError } from "../../utils/error";
@@ -47,6 +47,7 @@ interface LocalRazorpayAttempt {
   userId: number;
   storeId: number;
   storeName: string;
+  totalPrice: number;
   couponId: number | null;
   provider: "cod" | "razorpay";
   amountPaise: number;
@@ -177,20 +178,72 @@ class PaymentService {
       );
     }
 
+    const result = await this.reconcileProviderPayment(
+      attempt.providerOrderId,
+      data.razorpayPaymentId,
+      { userId: data.userId, requireCaptured: true }
+    );
+    if ("ignored" in result || !("totalPrice" in result)) {
+      throw new AppError("Payment order not found", 404);
+    }
+    return result;
+  }
+
+  async reconcileProviderPayment(
+    providerOrderId: string,
+    providerPaymentId: string,
+    options: {
+      userId?: number;
+      requireCaptured?: boolean;
+      failureCode?: string | null;
+      failureDescription?: string | null;
+    } = {}
+  ) {
+    const config = getRazorpayConfig();
+    if (!config) {
+      throw new AppError(
+        "Online payments are temporarily unavailable",
+        503,
+        "PAYMENT_UNAVAILABLE"
+      );
+    }
+
+    const attempt = await this.getAttemptByProviderOrderId(providerOrderId);
+    if (!attempt || (options.userId !== undefined && attempt.userId !== options.userId)) {
+      if (options.userId !== undefined) {
+        throw new AppError("Payment order not found", 404);
+      }
+      logger.warn("Ignoring Razorpay event for an unknown provider order", {
+        providerOrderId,
+        providerPaymentId,
+      });
+      return { ignored: true as const, finalizedNow: false };
+    }
+
     const gateway = createRazorpayGateway(config);
     let providerPayment: RazorpayPaymentSnapshot;
     let providerOrder: RazorpayOrderSnapshot;
     try {
       [providerPayment, providerOrder] = await Promise.all([
-        gateway.fetchPayment(data.razorpayPaymentId),
-        gateway.fetchOrder(attempt.providerOrderId),
+        gateway.fetchPayment(providerPaymentId),
+        gateway.fetchOrder(providerOrderId),
       ]);
+
+      // A failed event can arrive after another attempt captured the order.
+      // Resolve the captured attempt before applying any failure transition.
+      if (providerPayment.status === "failed") {
+        const payments = await gateway.fetchOrderPayments(providerOrderId);
+        providerPayment =
+          payments.find((payment) => payment.status === "captured") ??
+          payments.find((payment) => payment.status === "authorized") ??
+          providerPayment;
+      }
     } catch (error) {
-      logger.error("Could not fetch Razorpay state during verification", {
+      logger.error("Could not fetch Razorpay state during reconciliation", {
         localOrderId: attempt.localOrderId,
         localPaymentId: attempt.localPaymentId,
-        providerOrderId: attempt.providerOrderId,
-        providerPaymentId: data.razorpayPaymentId,
+        providerOrderId,
+        providerPaymentId,
         error: error instanceof Error ? error.message : "Provider fetch failed",
       });
       throw new AppError(
@@ -204,30 +257,34 @@ class PaymentService {
       );
     }
 
+    this.assertProviderStateMatches(attempt, providerPayment, providerOrder);
+
     if (
-      providerPayment.orderId !== attempt.providerOrderId ||
-      providerPayment.amountPaise !== attempt.amountPaise ||
-      providerPayment.currency !== attempt.currency ||
-      providerOrder.id !== attempt.providerOrderId ||
-      providerOrder.amountPaise !== attempt.amountPaise ||
-      providerOrder.currency !== attempt.currency
+      providerPayment.status === "captured" &&
+      providerOrder.status === "paid"
     ) {
-      logger.error("Razorpay verification state did not match local payment", {
+      if (
+        providerOrder.amountPaidPaise !== attempt.amountPaise ||
+        providerOrder.amountDuePaise !== 0
+      ) {
+        throw new AppError(
+          "Paid amount does not match the order",
+          409,
+          "PAYMENT_PROVIDER_MISMATCH"
+        );
+      }
+      return await this.finalizeCapturedPayment({
+        userId: options.userId,
         localOrderId: attempt.localOrderId,
-        localPaymentId: attempt.localPaymentId,
-        providerOrderId: attempt.providerOrderId,
-        providerPaymentId: data.razorpayPaymentId,
+        providerOrderId: providerOrder.id,
+        providerPaymentId: providerPayment.id,
+        amountPaise: providerPayment.amountPaise,
+        currency: providerPayment.currency,
+        providerStatus: providerPayment.status,
       });
-      throw new AppError(
-        "Payment details do not match the order",
-        409,
-        "PAYMENT_PROVIDER_MISMATCH"
-      );
     }
-    if (
-      providerPayment.status !== "captured" ||
-      providerOrder.status !== "paid"
-    ) {
+
+    if (options.requireCaptured) {
       throw new AppError(
         "Payment has not been captured yet",
         409,
@@ -240,26 +297,22 @@ class PaymentService {
         }
       );
     }
-    if (
-      providerOrder.amountPaidPaise !== attempt.amountPaise ||
-      providerOrder.amountDuePaise !== 0
-    ) {
-      throw new AppError(
-        "Paid amount does not match the order",
-        409,
-        "PAYMENT_PROVIDER_MISMATCH"
-      );
+
+    if (providerPayment.status === "failed") {
+      return await this.markProviderPaymentFailed(attempt, providerPayment, {
+        code: options.failureCode,
+        description: options.failureDescription,
+      });
     }
 
-    return await this.finalizeCapturedPayment({
-      userId: data.userId,
+    await this.recordProviderObservation(attempt, providerPayment.status);
+    return {
       localOrderId: attempt.localOrderId,
-      providerOrderId: providerOrder.id,
-      providerPaymentId: providerPayment.id,
-      amountPaise: providerPayment.amountPaise,
-      currency: providerPayment.currency,
-      providerStatus: providerPayment.status,
-    });
+      localPaymentId: attempt.localPaymentId,
+      paymentStatus: attempt.status,
+      orderStatus: "awaiting_payment" as const,
+      finalizedNow: false,
+    };
   }
 
   async finalizeCapturedPayment(data: FinalizeCapturedPaymentInput) {
@@ -378,6 +431,167 @@ class PaymentService {
     });
   }
 
+  async reconcileStalePayments(olderThanMinutes: number, limit: number) {
+    const config = getRazorpayConfig();
+    if (!config) {
+      throw new AppError(
+        "Online payments are temporarily unavailable",
+        503,
+        "PAYMENT_UNAVAILABLE"
+      );
+    }
+    const gateway = createRazorpayGateway(config);
+    const cutoff = new Date(Date.now() - olderThanMinutes * 60_000);
+    const candidates = await this.selectAttempts()
+      .where(
+        and(
+          eq(paymentsTable.provider, "razorpay"),
+          inArray(paymentsTable.status, ["processing", "failed"]),
+          lt(paymentsTable.updatedAt, cutoff)
+        )
+      )
+      .limit(limit);
+
+    const results: Array<{
+      providerOrderId: string | null;
+      status: "finalized" | "failed" | "unchanged" | "error";
+      localOrderId?: number;
+      totalPrice?: number;
+      finalizedNow?: boolean;
+      error?: string;
+    }> = [];
+
+    for (const candidate of candidates) {
+      try {
+        let providerOrderId = candidate.providerOrderId;
+        if (!providerOrderId) {
+          const recoveredOrder = await gateway.findOrderByReceipt(
+            this.buildReceipt(candidate)
+          );
+          if (!recoveredOrder) {
+            results.push({
+              providerOrderId: null,
+              localOrderId: candidate.localOrderId,
+              status: "unchanged",
+              finalizedNow: false,
+            });
+            continue;
+          }
+          if (
+            recoveredOrder.amountPaise !== candidate.amountPaise ||
+            recoveredOrder.currency !== candidate.currency ||
+            recoveredOrder.receipt !== this.buildReceipt(candidate)
+          ) {
+            throw new AppError(
+              "Recovered provider order does not match local payment",
+              409,
+              "PAYMENT_PROVIDER_MISMATCH"
+            );
+          }
+          providerOrderId = recoveredOrder.id;
+          await this.attachRecoveredProviderOrder(candidate, recoveredOrder);
+          logger.warn("Recovered an unattached Razorpay order by receipt", {
+            localOrderId: candidate.localOrderId,
+            localPaymentId: candidate.localPaymentId,
+            providerOrderId,
+          });
+        }
+
+        const result = await this.reconcileProviderOrder(providerOrderId);
+        results.push({
+          providerOrderId,
+          status: result.finalizedNow
+            ? "finalized"
+            : "paymentStatus" in result && result.paymentStatus === "failed"
+              ? "failed"
+              : "unchanged",
+          ...("localOrderId" in result && result.localOrderId
+            ? { localOrderId: result.localOrderId }
+            : {}),
+          ...("totalPrice" in result && result.totalPrice !== undefined
+            ? { totalPrice: result.totalPrice }
+            : {}),
+          finalizedNow: result.finalizedNow,
+        });
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message.slice(0, 500) : "Unknown error";
+        logger.error("Stale Razorpay payment reconciliation failed", {
+          providerOrderId: candidate.providerOrderId,
+          localOrderId: candidate.localOrderId,
+          error: message,
+        });
+        results.push({
+          providerOrderId: candidate.providerOrderId,
+          localOrderId: candidate.localOrderId,
+          status: "error",
+          error: message,
+        });
+      }
+    }
+
+    return {
+      checked: candidates.length,
+      finalized: results.filter((result) => result.status === "finalized").length,
+      failed: results.filter((result) => result.status === "failed").length,
+      errors: results.filter((result) => result.status === "error").length,
+      results,
+    };
+  }
+
+  async reconcileProviderOrder(providerOrderId: string) {
+    const config = getRazorpayConfig();
+    if (!config) {
+      throw new AppError(
+        "Online payments are temporarily unavailable",
+        503,
+        "PAYMENT_UNAVAILABLE"
+      );
+    }
+    const attempt = await this.getAttemptByProviderOrderId(providerOrderId);
+    if (!attempt) {
+      return { ignored: true as const, finalizedNow: false };
+    }
+
+    const gateway = createRazorpayGateway(config);
+    const [providerOrder, providerPayments] = await Promise.all([
+      gateway.fetchOrder(providerOrderId),
+      gateway.fetchOrderPayments(providerOrderId),
+    ]);
+    const providerPayment =
+      providerPayments.find((payment) => payment.status === "captured") ??
+      providerPayments.find((payment) => payment.status === "authorized") ??
+      providerPayments.find((payment) => payment.status === "failed") ??
+      providerPayments[0];
+
+    if (!providerPayment) {
+      if (
+        providerOrder.id !== attempt.providerOrderId ||
+        providerOrder.amountPaise !== attempt.amountPaise ||
+        providerOrder.currency !== attempt.currency
+      ) {
+        throw new AppError(
+          "Provider order does not match the local payment",
+          409,
+          "PAYMENT_PROVIDER_MISMATCH"
+        );
+      }
+      await this.recordProviderObservation(attempt, providerOrder.status);
+      return {
+        localOrderId: attempt.localOrderId,
+        localPaymentId: attempt.localPaymentId,
+        paymentStatus: attempt.status,
+        orderStatus: "awaiting_payment" as const,
+        finalizedNow: false,
+      };
+    }
+
+    return await this.reconcileProviderPayment(
+      providerOrderId,
+      providerPayment.id
+    );
+  }
+
   private async findOrCreateLocalAttempt(data: InitiateRazorpayOrderInput) {
     const existing = await this.getAttemptByClientRequestId(data.clientRequestId);
     if (existing) {
@@ -446,6 +660,7 @@ class PaymentService {
           userId: order.userId,
           storeId: order.storeId,
           storeName: quote.cart.store!.name,
+          totalPrice: order.totalPrice,
           couponId: order.couponId,
           provider: payment.provider,
           amountPaise: payment.amountPaise,
@@ -708,6 +923,167 @@ class PaymentService {
     });
   }
 
+  private async attachRecoveredProviderOrder(
+    attempt: LocalRazorpayAttempt,
+    providerOrder: RazorpayOrderSnapshot
+  ) {
+    await db.transaction(async (tx) => {
+      const [payment] = await tx
+        .select()
+        .from(paymentsTable)
+        .where(eq(paymentsTable.id, attempt.localPaymentId))
+        .for("update")
+        .limit(1);
+      if (!payment) throw new AppError("Payment not found", 404);
+      if (
+        payment.providerOrderId &&
+        payment.providerOrderId !== providerOrder.id
+      ) {
+        throw new AppError(
+          "Payment already has a different provider order",
+          409,
+          "PAYMENT_PROVIDER_MISMATCH"
+        );
+      }
+      if (payment.status === "failed" && attempt.couponId) {
+        await checkoutService.restoreCouponReservation(
+          { couponId: attempt.couponId, orderId: attempt.localOrderId },
+          tx,
+          false
+        );
+      }
+      await this.updatePayment(
+        {
+          providerOrderId: providerOrder.id,
+          providerStatus: providerOrder.status,
+          status:
+            payment.status === "completed" || payment.status === "refunded"
+              ? payment.status
+              : "processing",
+          failureCode: null,
+          failureDescription: null,
+          failedAt: null,
+        },
+        payment.id,
+        tx
+      );
+    });
+  }
+
+  private assertProviderStateMatches(
+    attempt: LocalRazorpayAttempt,
+    providerPayment: RazorpayPaymentSnapshot,
+    providerOrder: RazorpayOrderSnapshot
+  ) {
+    if (
+      providerPayment.orderId !== attempt.providerOrderId ||
+      providerPayment.amountPaise !== attempt.amountPaise ||
+      providerPayment.currency !== attempt.currency ||
+      providerOrder.id !== attempt.providerOrderId ||
+      providerOrder.amountPaise !== attempt.amountPaise ||
+      providerOrder.currency !== attempt.currency
+    ) {
+      logger.error("Razorpay state did not match local payment", {
+        localOrderId: attempt.localOrderId,
+        localPaymentId: attempt.localPaymentId,
+        providerOrderId: providerOrder.id,
+        providerPaymentId: providerPayment.id,
+      });
+      throw new AppError(
+        "Payment details do not match the order",
+        409,
+        "PAYMENT_PROVIDER_MISMATCH"
+      );
+    }
+  }
+
+  private async markProviderPaymentFailed(
+    attempt: LocalRazorpayAttempt,
+    providerPayment: RazorpayPaymentSnapshot,
+    failure: { code?: string | null; description?: string | null }
+  ) {
+    return await db.transaction(async (tx) => {
+      const [record] = await tx
+        .select({ order: ordersTable, payment: paymentsTable })
+        .from(ordersTable)
+        .innerJoin(paymentsTable, eq(ordersTable.paymentId, paymentsTable.id))
+        .where(eq(ordersTable.id, attempt.localOrderId))
+        .for("update")
+        .limit(1);
+
+      if (!record || record.payment.providerOrderId !== attempt.providerOrderId) {
+        throw new AppError("Payment order not found", 404);
+      }
+      if (
+        record.payment.status === "completed" ||
+        record.payment.status === "refunded" ||
+        record.order.status !== "awaiting_payment"
+      ) {
+        return {
+          localOrderId: record.order.id,
+          localPaymentId: record.payment.id,
+          totalPrice: record.order.totalPrice,
+          paymentStatus: record.payment.status,
+          orderStatus: record.order.status,
+          finalizedNow: false,
+        };
+      }
+
+      await this.updatePayment(
+        {
+          status: "failed",
+          providerStatus: "failed",
+          providerPaymentId: providerPayment.id,
+          failureCode: this.sanitizeProviderText(failure.code, "PAYMENT_FAILED"),
+          failureDescription: this.sanitizeProviderText(
+            failure.description,
+            "Razorpay reported a failed payment"
+          ),
+          failedAt: new Date(),
+        },
+        record.payment.id,
+        tx
+      );
+      await checkoutService.releaseCouponReservation(record.order.id, tx);
+
+      return {
+        localOrderId: record.order.id,
+        localPaymentId: record.payment.id,
+        totalPrice: record.order.totalPrice,
+        paymentStatus: "failed" as const,
+        orderStatus: record.order.status,
+        finalizedNow: false,
+      };
+    });
+  }
+
+  private async recordProviderObservation(
+    attempt: LocalRazorpayAttempt,
+    providerStatus: typeof paymentsTable.$inferInsert.providerStatus
+  ) {
+    await db.transaction(async (tx) => {
+      const [payment] = await tx
+        .select()
+        .from(paymentsTable)
+        .where(eq(paymentsTable.id, attempt.localPaymentId))
+        .for("update")
+        .limit(1);
+      if (
+        !payment ||
+        payment.status === "completed" ||
+        payment.status === "refunded"
+      ) {
+        return;
+      }
+      await this.updatePayment({ providerStatus }, payment.id, tx);
+    });
+  }
+
+  private sanitizeProviderText(value: string | null | undefined, fallback: string) {
+    const normalized = value?.replace(/[\r\n\t]+/g, " ").trim();
+    return (normalized || fallback).slice(0, 500);
+  }
+
   private async getAttemptByClientRequestId(clientRequestId: string) {
     const [attempt] = await this.selectAttempts()
       .where(eq(paymentsTable.clientRequestId, clientRequestId))
@@ -722,6 +1098,13 @@ class PaymentService {
     return attempt;
   }
 
+  private async getAttemptByProviderOrderId(providerOrderId: string) {
+    const [attempt] = await this.selectAttempts()
+      .where(eq(paymentsTable.providerOrderId, providerOrderId))
+      .limit(1);
+    return attempt;
+  }
+
   private selectAttempts() {
     return db
       .select({
@@ -730,6 +1113,7 @@ class PaymentService {
         userId: ordersTable.userId,
         storeId: ordersTable.storeId,
         storeName: storesTable.name,
+        totalPrice: ordersTable.totalPrice,
         couponId: ordersTable.couponId,
         provider: paymentsTable.provider,
         amountPaise: paymentsTable.amountPaise,

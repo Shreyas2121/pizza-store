@@ -295,7 +295,8 @@ class CheckoutService {
 
   async restoreCouponReservation(
     data: { couponId: number; orderId: number },
-    tx: TransactionType
+    tx: TransactionType,
+    enforceCapacity = true
   ) {
     const [redemption] = await tx
       .select()
@@ -315,6 +316,14 @@ class CheckoutService {
     if (redemption.status === "reserved") return;
     if (redemption.status === "consumed") {
       throw new AppError("Coupon has already been consumed", 409);
+    }
+
+    if (!enforceCapacity) {
+      await tx
+        .update(couponRedemptionsTable)
+        .set({ status: "reserved", reservedAt: new Date(), releasedAt: null })
+        .where(eq(couponRedemptionsTable.id, redemption.id));
+      return;
     }
 
     const [coupon] = await tx
@@ -343,7 +352,11 @@ class CheckoutService {
         )
       );
     const activeUsage = Math.max(coupon.redemptionCount, Number(usage.active));
-    if (coupon.maxRedemptions >= 0 && activeUsage >= coupon.maxRedemptions) {
+    if (
+      enforceCapacity &&
+      coupon.maxRedemptions >= 0 &&
+      activeUsage >= coupon.maxRedemptions
+    ) {
       throw new AppError("Coupon maximum redemption limit reached", 409);
     }
 

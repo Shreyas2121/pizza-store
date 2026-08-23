@@ -153,6 +153,29 @@ Configure automatic capture in the Razorpay Dashboard: verification deliberately
 keeps an order in `awaiting_payment` until Razorpay reports its payment as
 `captured` and its order as `paid`.
 
+Configure the Dashboard webhook URL as:
+
+```text
+https://<public-backend-host>/api/v1/payments/razorpay/webhook
+```
+
+Subscribe to `payment.captured`, `payment.failed`, and `order.paid`, and set the
+Dashboard webhook secret to the exact `RAZORPAY_WEBHOOK_SECRET` value. The URL
+must be public HTTPS. Do not send browser requests to this endpoint and do not
+place it behind JWT authentication or JSON-transforming middleware.
+
+Run stale-payment reconciliation periodically from a trusted scheduler or
+operations shell:
+
+```bash
+pnpm payments:reconcile
+```
+
+Optional `RECONCILE_OLDER_THAN_MINUTES` (default `15`) and `RECONCILE_LIMIT`
+(default `25`, maximum `50`) environment variables control each batch. The
+command exits non-zero if any candidate could not be reconciled. The equivalent
+admin API is `POST /api/v1/payments/razorpay/reconcile`.
+
 ### Access the admin panel
 
 1. Log in with an admin account (created via seeding or by manually setting `role = 'admin'` in the database).

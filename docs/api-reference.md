@@ -595,6 +595,64 @@ Important error codes include `PAYMENT_SIGNATURE_INVALID`,
 `PAYMENT_NOT_CAPTURED`, and `PAYMENT_PROVIDER_UNAVAILABLE`. An `authorized`
 payment is not fulfillment-ready.
 
+### `POST /payments/razorpay/webhook`
+
+Public Razorpay webhook receiver. This route does not use JWT authentication;
+it is protected by an HMAC-SHA256 signature over the exact raw request body
+using `RAZORPAY_WEBHOOK_SECRET`.
+
+Required headers:
+
+- `X-Razorpay-Signature`
+- `x-razorpay-event-id`
+
+The backend handles `payment.captured`, `payment.failed`, and `order.paid`.
+Other correctly signed events are acknowledged and recorded as ignored. Event
+IDs are stored uniquely in `payment_webhook_events`; processed duplicates are
+acknowledged without repeating state transitions. Failed events and processing
+claims older than five minutes can be claimed again. A concurrent fresh claim
+returns non-2xx so Razorpay retains retry responsibility if the first worker
+fails.
+
+Webhook payloads are treated as event hints. Before changing local payment
+state, the backend fetches current order/payment data from Razorpay and verifies
+association, amount, and currency. A newer authorized or captured attempt wins
+over a late failed event, and completed/refunded payments are never downgraded.
+
+**Response `200`:**
+```json
+{
+  "data": {
+    "eventId": "provider-event-id",
+    "eventType": "payment.captured",
+    "duplicate": false,
+    "inProgress": false,
+    "reconciliation": { "localOrderId": 42, "finalizedNow": true }
+  },
+  "message": "Webhook accepted"
+}
+```
+
+### `POST /payments/razorpay/reconcile` 🔒🛡️
+
+Admin-only recovery operation for stale `processing` or `failed` Razorpay
+payments. It fetches current provider state, finalizes captured payments,
+records genuine failures, and searches by the unique receipt to repair the
+narrow crash window where Razorpay created an order but its ID was not saved
+locally.
+
+**Body:**
+```json
+{
+  "olderThanMinutes": 15,
+  "limit": 25
+}
+```
+
+Both fields default to the values above. The age range is 1–1440 minutes and
+the batch limit is 1–50. Errors are isolated per payment and returned in the
+summary so one provider failure does not prevent recovery of the rest.
+
 ---
 
 ## Coupons

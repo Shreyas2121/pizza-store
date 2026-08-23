@@ -55,8 +55,24 @@ export class RazorpaySdkGateway implements RazorpayGateway {
     return toOrderSnapshot(order);
   }
 
+  async findOrderByReceipt(receipt: string) {
+    const orders = await this.sdk.orders.all({ receipt, count: 2 });
+    const matchingOrders = orders.items.filter(
+      (order) => order.receipt === receipt
+    );
+    if (matchingOrders.length > 1) {
+      throw new Error("Razorpay returned multiple orders for one receipt");
+    }
+    return matchingOrders[0] ? toOrderSnapshot(matchingOrders[0]) : null;
+  }
+
   async fetchOrder(orderId: string) {
     return toOrderSnapshot(await this.sdk.orders.fetch(orderId));
+  }
+
+  async fetchOrderPayments(orderId: string) {
+    const payments = await this.sdk.orders.fetchPayments(orderId);
+    return payments.items.map(toPaymentSnapshot);
   }
 
   async fetchPayment(paymentId: string) {

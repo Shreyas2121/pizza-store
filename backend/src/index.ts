@@ -6,6 +6,7 @@ import { mainRoutes } from "./routes";
 import { Server } from "socket.io";
 import http from "http";
 import { env } from "./utils/zodSchema";
+import { paymentWebhookRoutes } from "./features/payments/payment.webhook.routes";
 
 import path from "path";
 
@@ -30,6 +31,9 @@ io.on("connection", (socket) => {
     logger.info(`Client disconnected: ${socket.id}`);
   });
 });
+// Razorpay signatures cover the exact request bytes. This route must remain
+// ahead of every middleware that parses or transforms JSON request bodies.
+app.use("/api/v1/payments/razorpay/webhook", paymentWebhookRoutes);
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cors({ origin: env.FE_URL, credentials: true }));

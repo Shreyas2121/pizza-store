@@ -1,0 +1,50 @@
+import { closeDatabase } from "../db";
+import paymentService from "../features/payments/payment.service";
+
+const parseBoundedInteger = (
+  value: string | undefined,
+  fallback: number,
+  minimum: number,
+  maximum: number,
+  label: string
+) => {
+  if (value === undefined) return fallback;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < minimum || parsed > maximum) {
+    throw new Error(`${label} must be an integer from ${minimum} to ${maximum}`);
+  }
+  return parsed;
+};
+
+const run = async () => {
+  const olderThanMinutes = parseBoundedInteger(
+    process.env.RECONCILE_OLDER_THAN_MINUTES,
+    15,
+    1,
+    1440,
+    "RECONCILE_OLDER_THAN_MINUTES"
+  );
+  const limit = parseBoundedInteger(
+    process.env.RECONCILE_LIMIT,
+    25,
+    1,
+    50,
+    "RECONCILE_LIMIT"
+  );
+
+  const result = await paymentService.reconcileStalePayments(
+    olderThanMinutes,
+    limit
+  );
+  console.log(JSON.stringify(result, null, 2));
+  if (result.errors > 0) process.exitCode = 1;
+};
+
+run()
+  .catch((error) => {
+    console.error(error instanceof Error ? error.message : "Reconciliation failed");
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    await closeDatabase();
+  });

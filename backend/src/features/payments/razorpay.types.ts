@@ -34,7 +34,9 @@ export interface RazorpayPaymentSnapshot {
 
 export interface RazorpayGateway {
   createOrder(input: CreateRazorpayOrderInput): Promise<RazorpayOrderSnapshot>;
+  findOrderByReceipt(receipt: string): Promise<RazorpayOrderSnapshot | null>;
   fetchOrder(orderId: string): Promise<RazorpayOrderSnapshot>;
+  fetchOrderPayments(orderId: string): Promise<RazorpayPaymentSnapshot[]>;
   fetchPayment(paymentId: string): Promise<RazorpayPaymentSnapshot>;
 }
 

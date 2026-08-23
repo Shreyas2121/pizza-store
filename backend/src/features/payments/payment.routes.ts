@@ -1,17 +1,49 @@
 import { Router } from "express";
-import { authenticateUser } from "../../middleware/authenticateUser";
+import {
+  authenticateAdmin,
+  authenticateUser,
+} from "../../middleware/authenticateUser";
 import { validateBody } from "../../middleware/validateBody";
 import { asyncHandler } from "../../utils/error";
 import { parseIntegerParam } from "../../utils/request";
 import type { Auth } from "../../utils/types";
 import {
   initiateRazorpayOrderSchema,
+  reconcileRazorpayPaymentsSchema,
   verifyRazorpayPaymentSchema,
 } from "../../utils/zodSchema";
 import paymentService from "./payment.service";
 import { io } from "../..";
 
 export const paymentRoutes = Router();
+
+paymentRoutes.post(
+  "/razorpay/reconcile",
+  authenticateAdmin,
+  validateBody(reconcileRazorpayPaymentsSchema),
+  asyncHandler(async (req, res) => {
+    const data = await paymentService.reconcileStalePayments(
+      req.body.olderThanMinutes,
+      req.body.limit
+    );
+
+    for (const result of data.results) {
+      if (
+        result.finalizedNow &&
+        result.localOrderId &&
+        result.totalPrice !== undefined
+      ) {
+        io.emit("orderPlaced", {
+          orderId: result.localOrderId,
+          status: "pending",
+          total: result.totalPrice,
+        });
+      }
+    }
+
+    res.json({ data, message: "Payment reconciliation completed" });
+  })
+);
 
 paymentRoutes.post(
   "/razorpay/verify",

@@ -13,3 +13,5 @@ const pool = new Pool({
 export const db = drizzle(pool, {
   schema,
 });
+
+export const closeDatabase = () => pool.end();

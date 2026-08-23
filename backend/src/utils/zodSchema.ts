@@ -109,6 +109,13 @@ export const verifyRazorpayPaymentSchema = z
   })
   .strict();
 
+export const reconcileRazorpayPaymentsSchema = z
+  .object({
+    olderThanMinutes: z.number().int().min(1).max(1440).default(15),
+    limit: z.number().int().min(1).max(50).default(25),
+  })
+  .strict();
+
 export const validateCouponSchema = z
   .object({
     code: z
