@@ -1,0 +1,329 @@
+import { relations } from "drizzle-orm";
+
+// Tables — import from each domain module
+import { usersTable, addressTable } from "./user.schema";
+import { categoriesTable, productsTable } from "./catalog.schema";
+import {
+  storesTable,
+  storeProductsTable,
+  deliveryZonesTable,
+} from "./store.schema";
+import {
+  customizationGroupsTable,
+  customizationOptionsTable,
+  productCustomizationGroupMappingTable,
+} from "./customization.schema";
+import { menuItemsTable, menuItemsMappingTable } from "./menu.schema";
+import {
+  cartTable,
+  cartItemsTable,
+  cartItemCustomizationsTable,
+} from "./cart.schema";
+import { couponsTable } from "./coupon.schema";
+import { paymentsTable } from "./payment.schema";
+import {
+  ordersTable,
+  orderItemsTable,
+  orderItemCustomizationsTable,
+} from "./order.schema";
+import { chatSessionsTable, chatMessagesTable } from "./chat.schema";
+
+/**
+ * All Drizzle relations live here to avoid circular imports between
+ * domain schema files. Relations inherently cross domain boundaries,
+ * so keeping them in one place is the cleanest pattern.
+ */
+
+// ──────────────────────────────────────────────
+// User relations
+// ──────────────────────────────────────────────
+
+export const usersRelations = relations(usersTable, ({ many, one }) => ({
+  addresses: many(addressTable),
+  cart: one(cartTable, {
+    fields: [usersTable.id],
+    references: [cartTable.userId],
+  }),
+  items: many(cartItemsTable),
+  orders: many(ordersTable),
+}));
+
+export const addressesRelations = relations(addressTable, ({ many, one }) => ({
+  user: one(usersTable, {
+    fields: [addressTable.userId],
+    references: [usersTable.id],
+  }),
+  orders: many(ordersTable),
+}));
+
+// ──────────────────────────────────────────────
+// Catalog relations
+// ──────────────────────────────────────────────
+
+export const categoriesRelations = relations(
+  categoriesTable,
+  ({ many }) => ({
+    products: many(productsTable),
+  })
+);
+
+export const productsRelations = relations(productsTable, ({ many, one }) => ({
+  category: one(categoriesTable, {
+    fields: [productsTable.categoryId],
+    references: [categoriesTable.id],
+  }),
+  customizationGroups: many(customizationGroupsTable),
+  menuItems: many(menuItemsTable),
+  cartItems: many(cartItemsTable),
+  orderItems: many(orderItemsTable),
+  stores: many(storeProductsTable),
+}));
+
+// ──────────────────────────────────────────────
+// Store relations
+// ──────────────────────────────────────────────
+
+export const storesRelations = relations(storesTable, ({ many }) => ({
+  products: many(storeProductsTable),
+  deliveryZones: many(deliveryZonesTable),
+  orders: many(ordersTable),
+  carts: many(cartTable),
+}));
+
+export const storeProductsRelations = relations(
+  storeProductsTable,
+  ({ one }) => ({
+    store: one(storesTable, {
+      fields: [storeProductsTable.storeId],
+      references: [storesTable.id],
+    }),
+    product: one(productsTable, {
+      fields: [storeProductsTable.productId],
+      references: [productsTable.id],
+    }),
+  })
+);
+
+export const deliveryZonesRelations = relations(
+  deliveryZonesTable,
+  ({ one }) => ({
+    store: one(storesTable, {
+      fields: [deliveryZonesTable.storeId],
+      references: [storesTable.id],
+    }),
+  })
+);
+
+// ──────────────────────────────────────────────
+// Customization relations
+// ──────────────────────────────────────────────
+
+export const customizationGroupsRelations = relations(
+  customizationGroupsTable,
+  ({ many }) => ({
+    options: many(customizationOptionsTable),
+    mapping: many(productCustomizationGroupMappingTable),
+  })
+);
+
+export const customizationOptionsRelations = relations(
+  customizationOptionsTable,
+  ({ many, one }) => ({
+    group: one(customizationGroupsTable, {
+      fields: [customizationOptionsTable.groupId],
+      references: [customizationGroupsTable.id],
+    }),
+    orderItemCustomizations: many(orderItemCustomizationsTable),
+    cartItemCustomizations: many(cartItemCustomizationsTable),
+  })
+);
+
+export const productCustomizationGroupMappingRelations = relations(
+  productCustomizationGroupMappingTable,
+  ({ one }) => ({
+    product: one(productsTable, {
+      fields: [productCustomizationGroupMappingTable.productId],
+      references: [productsTable.id],
+    }),
+    group: one(customizationGroupsTable, {
+      fields: [productCustomizationGroupMappingTable.groupId],
+      references: [customizationGroupsTable.id],
+    }),
+  })
+);
+
+// ──────────────────────────────────────────────
+// Menu relations
+// ──────────────────────────────────────────────
+
+export const menuItemsTableRelations = relations(
+  menuItemsTable,
+  ({ many }) => ({
+    products: many(productsTable),
+  })
+);
+
+export const menuItemsMappingRelations = relations(
+  menuItemsMappingTable,
+  ({ one }) => ({
+    menuItem: one(menuItemsTable, {
+      fields: [menuItemsMappingTable.menuItemId],
+      references: [menuItemsTable.id],
+    }),
+    product: one(productsTable, {
+      fields: [menuItemsMappingTable.productId],
+      references: [productsTable.id],
+    }),
+  })
+);
+
+// ──────────────────────────────────────────────
+// Cart relations
+// ──────────────────────────────────────────────
+
+export const cartTableRelations = relations(cartTable, ({ many, one }) => ({
+  user: one(usersTable, {
+    fields: [cartTable.userId],
+    references: [usersTable.id],
+  }),
+  items: many(cartItemsTable),
+  store: one(storesTable, {
+    fields: [cartTable.storeId],
+    references: [storesTable.id],
+  }),
+}));
+
+export const cartItemsTableRelations = relations(
+  cartItemsTable,
+  ({ many, one }) => ({
+    cart: one(cartTable, {
+      fields: [cartItemsTable.cartId],
+      references: [cartTable.id],
+    }),
+    product: one(productsTable, {
+      fields: [cartItemsTable.productId],
+      references: [productsTable.id],
+    }),
+    customizations: many(cartItemCustomizationsTable),
+  })
+);
+
+export const cartItemCustomizationsRelations = relations(
+  cartItemCustomizationsTable,
+  ({ one }) => ({
+    cartItem: one(cartItemsTable, {
+      fields: [cartItemCustomizationsTable.cartItemId],
+      references: [cartItemsTable.id],
+    }),
+    customizationOption: one(customizationOptionsTable, {
+      fields: [cartItemCustomizationsTable.customizationOptionId],
+      references: [customizationOptionsTable.id],
+    }),
+  })
+);
+
+// ──────────────────────────────────────────────
+// Coupon relations
+// ──────────────────────────────────────────────
+
+export const couponRelations = relations(couponsTable, ({ many }) => ({
+  users: many(usersTable),
+  orders: many(ordersTable),
+}));
+
+// ──────────────────────────────────────────────
+// Payment relations
+// ──────────────────────────────────────────────
+
+export const paymentRelations = relations(paymentsTable, ({ one }) => ({
+  order: one(ordersTable, {
+    fields: [paymentsTable.id],
+    references: [ordersTable.paymentId],
+  }),
+}));
+
+// ──────────────────────────────────────────────
+// Order relations
+// ──────────────────────────────────────────────
+
+export const orderRelations = relations(ordersTable, ({ many, one }) => ({
+  user: one(usersTable, {
+    fields: [ordersTable.userId],
+    references: [usersTable.id],
+  }),
+  payment: one(paymentsTable, {
+    fields: [ordersTable.paymentId],
+    references: [paymentsTable.id],
+  }),
+  coupon: one(couponsTable, {
+    fields: [ordersTable.couponId],
+    references: [couponsTable.id],
+  }),
+  items: many(orderItemsTable),
+  address: one(addressTable, {
+    fields: [ordersTable.addressId],
+    references: [addressTable.id],
+  }),
+  store: one(storesTable, {
+    fields: [ordersTable.storeId],
+    references: [storesTable.id],
+  }),
+}));
+
+export const orderItemsTableRelations = relations(
+  orderItemsTable,
+  ({ one, many }) => ({
+    order: one(ordersTable, {
+      fields: [orderItemsTable.orderId],
+      references: [ordersTable.id],
+    }),
+    product: one(productsTable, {
+      fields: [orderItemsTable.productId],
+      references: [productsTable.id],
+    }),
+    orderItemCustomizations: many(orderItemCustomizationsTable),
+  })
+);
+
+export const orderItemCustomizationsRelations = relations(
+  orderItemCustomizationsTable,
+  ({ one }) => ({
+    orderItem: one(orderItemsTable, {
+      fields: [orderItemCustomizationsTable.orderItemId],
+      references: [orderItemsTable.id],
+    }),
+    customizationOption: one(customizationOptionsTable, {
+      fields: [orderItemCustomizationsTable.customizationOptionId],
+      references: [customizationOptionsTable.id],
+    }),
+  })
+);
+
+// ──────────────────────────────────────────────
+// Chat relations
+// ──────────────────────────────────────────────
+
+export const chatSessionsRelations = relations(
+  chatSessionsTable,
+  ({ one, many }) => ({
+    user: one(usersTable, {
+      fields: [chatSessionsTable.userId],
+      references: [usersTable.id],
+    }),
+    messages: many(chatMessagesTable),
+  })
+);
+
+export const chatMessagesRelations = relations(
+  chatMessagesTable,
+  ({ one }) => ({
+    session: one(chatSessionsTable, {
+      fields: [chatMessagesTable.sessionId],
+      references: [chatSessionsTable.id],
+    }),
+    sender: one(usersTable, {
+      fields: [chatMessagesTable.senderId],
+      references: [usersTable.id],
+    }),
+  })
+);
