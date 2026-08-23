@@ -7,6 +7,7 @@ import { useAuthModalStore } from "@/shared/model";
 import { useGetCartCount } from "@/features/cart";
 import { success } from "@/shared/lib";
 import BrandLockup from "./brand-lockup";
+import { useStoreStore } from "@/features/store";
 
 const primaryLinks = [
   { label: "Menu", to: "/#menu" },
@@ -21,6 +22,8 @@ export function StorefrontNavbar() {
   const location = useLocation();
   const { data } = useGetCartCount(isLoggedIn);
   const cartCount = data ?? 0;
+  const userPincode = useStoreStore((state) => state.userPincode);
+  const clearStore = useStoreStore((state) => state.clearStore);
   const initials = user ? `${user.fname?.[0] ?? ""}${user.lname?.[0] ?? ""}`.toUpperCase() : "";
 
   useEffect(() => setMobileOpen(false), [location.pathname, location.search, location.hash]);
@@ -52,6 +55,16 @@ export function StorefrontNavbar() {
         </div>
 
         <div className="hidden items-center gap-2 md:flex">
+          <Tooltip label={userPincode ? "Change delivery pincode" : "Set delivery pincode"}>
+            <button
+              type="button"
+              onClick={clearStore}
+              className="inline-flex min-h-11 items-center gap-2 rounded-pill border border-border bg-surface px-3.5 text-sm font-semibold text-ink transition-colors hover:border-brand hover:bg-brand-soft focus-visible:outline-none"
+            >
+              <MapPin size={18} className="text-brand" aria-hidden="true" />
+              <span>{userPincode ?? "Set pincode"}</span>
+            </button>
+          </Tooltip>
           <Tooltip label="Find a pizza">
             <Link to="/#menu" className="icon-button" aria-label="Find a pizza in the menu"><Search size={20} /></Link>
           </Tooltip>
@@ -120,6 +133,14 @@ export function StorefrontNavbar() {
           )}
 
           <p className="mb-2 text-xs font-bold uppercase tracking-[0.14em] text-ink-muted">Discover</p>
+          <button
+            type="button"
+            onClick={() => { clearStore(); setMobileOpen(false); }}
+            className="mb-3 flex min-h-12 items-center gap-3 rounded-control bg-brand-soft px-4 text-left font-semibold text-ink"
+          >
+            <MapPin size={19} className="text-brand" />
+            <span>{userPincode ? `Delivering to ${userPincode}` : "Set delivery pincode"}</span>
+          </button>
           <div className="flex flex-col">
             {primaryLinks.map((link) => <Link key={link.label} to={link.to} className="flex min-h-14 items-center border-b border-border text-lg font-semibold text-ink">{link.label}</Link>)}
           </div>

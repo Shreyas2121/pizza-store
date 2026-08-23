@@ -4,6 +4,7 @@ import { SupportAction } from "@/features/support";
 import { Outlet } from "react-router";
 import { Suspense } from "react";
 import { RouteSkeleton } from "@/shared/ui";
+import { StoreContext } from "@/features/store";
 
 export const MainLayout = () => {
   return (
@@ -15,6 +16,7 @@ export const MainLayout = () => {
         Skip to content
       </a>
       <StorefrontNavbar />
+      <StoreContext />
       <SupportAction />
       <main id="main-content" className="flex-1">
         <Suspense fallback={<RouteSkeleton />}>
