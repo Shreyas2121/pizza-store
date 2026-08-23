@@ -21,7 +21,12 @@ import { NextFunction, Request, Response } from "express";
 export type AddressType = "Home" | "Work" | "Other";
 export type Role = "admin" | "user";
 export type CustomizationType = "single" | "multiple";
-export type OrderStatus = "pending" | "preparing" | "delievered" | "cancelled";
+export type OrderStatus =
+  | "awaiting_payment"
+  | "pending"
+  | "preparing"
+  | "delievered"
+  | "cancelled";
 export type PaymentStatus =
   | "pending"
   | "processing"
@@ -38,6 +43,11 @@ export type RazorpayPaymentStatus =
   | "captured"
   | "refunded"
   | "failed";
+export type RazorpayProviderStatus =
+  | RazorpayOrderStatus
+  | RazorpayPaymentStatus;
+export type PaymentWebhookEventStatus = "processing" | "processed" | "failed";
+export type CouponRedemptionStatus = "reserved" | "consumed" | "released";
 export type CouponType = "percentage" | "fixed";
 export type ChatStatus = "open" | "close" | "rejected" | "pending";
 

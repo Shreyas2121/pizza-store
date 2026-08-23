@@ -32,7 +32,9 @@ export const ordersTable = pgTable("orders", {
     .$type<PaymentType>()
     .default("cash")
     .notNull(),
-  paymentId: integer("payment_id").references(() => paymentsTable.id),
+  paymentId: integer("payment_id")
+    .references(() => paymentsTable.id)
+    .unique(),
   addressId: integer("address_id").references(() => addressTable.id),
   storeId: integer("store_id")
     .references(() => storesTable.id)

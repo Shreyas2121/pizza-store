@@ -1,6 +1,6 @@
 # Database Schema
 
-PostgreSQL stores all application state. Drizzle ORM defines the schema in `backend/src/db/schema.ts` as a single centralized file. Migrations are generated and applied using `drizzle-kit`.
+PostgreSQL stores all application state. Drizzle ORM defines domain schemas in `backend/src/db/schema/`, with centralized relations in `_relations.ts`. Migrations are generated and applied using `drizzle-kit`.
 
 ## Connection policy
 
@@ -223,9 +223,26 @@ Relations: one-to-many with cart item customizations.
 | Column | Type | Constraints | Notes |
 | --- | --- | --- | --- |
 | `id` | integer | PK | |
-| `status` | text | NOT NULL, default `"pending"` | `"pending"`, `"processing"`, `"completed"`, `"failed"` |
-| `payment_date` | timestamptz | NOT NULL, default `now()` | |
+| `provider` | text | NOT NULL, default `"cod"`, CHECK | `"cod"` or `"razorpay"` |
+| `status` | text | NOT NULL, default `"pending"`, indexed | Application lifecycle: pending, processing, completed, failed, or refunded |
+| `provider_status` | text | nullable | Last exact Razorpay order/payment state observed |
+| `amount_paise` | integer | NOT NULL, default `0`, CHECK >= 0 | Exact charged amount in currency subunits |
+| `currency` | text | NOT NULL, default `"INR"`, CHECK | INR in the current integration |
+| `provider_order_id` | text | UNIQUE, nullable | Razorpay `order_...` identifier |
+| `provider_payment_id` | text | UNIQUE, nullable | Razorpay `pay_...` identifier |
+| `client_request_id` | text | UNIQUE, nullable | Checkout idempotency key |
+| `failure_code`, `failure_description` | text | nullable | Sanitized provider failure details |
+| `payment_date` | timestamptz | nullable | Deprecated legacy field; use `paid_at` |
+| `paid_at`, `failed_at` | timestamptz | nullable | Payment lifecycle timestamps |
 | `created_at`, `updated_at` | timestamptz | | |
+
+### `payment_webhook_events`
+
+Durable Razorpay webhook deduplication and processing state. `event_id` is unique; `status` is `processing`, `processed`, or `failed`; `attempts` is a positive integer; and `processed_at` records successful completion.
+
+### `coupon_redemptions`
+
+Per-order coupon reservation state used to prevent concurrent oversubscription. It links a coupon, order, and user; `order_id` is unique; and state is `reserved`, `consumed`, or `released`, with matching lifecycle timestamps.
 
 ### `orders`
 
@@ -237,8 +254,8 @@ Relations: one-to-many with cart item customizations.
 | `discount_amount` | double precision | NOT NULL | Computed discount at checkout |
 | `coupon_id` | integer | FK → coupons, nullable | |
 | `total_price` | double precision | NOT NULL, default `0` | Final price after discount |
-| `status` | text | NOT NULL, default `"pending"` | `"pending"`, `"preparing"`, `"delievered"`, `"cancelled"` |
-| `payment_type` | text | NOT NULL, default `"cash"` | `"cash"` only (COD) |
+| `status` | text | NOT NULL, default `"pending"` | Also supports `"awaiting_payment"` for unpaid online orders |
+| `payment_type` | text | NOT NULL, default `"cash"` | `"cash"` or `"razorpay"` |
 | `payment_id` | integer | FK → payments, nullable | |
 | `address_id` | integer | FK → addresses, nullable | |
 | `store_id` | integer | FK → stores, NOT NULL | Fulfilling store |
@@ -343,6 +360,9 @@ erDiagram
     orders ||--o{ order_items : contains
     orders }o--o| coupons : uses
     orders }o--o| payments : paid_by
+    orders ||--o| coupon_redemptions : reserves
+    coupons ||--o{ coupon_redemptions : tracks
+    users ||--o{ coupon_redemptions : owns
     orders }o--o| addresses : delivered_to
     order_items }o--|| products : references
     order_items ||--o{ order_item_customizations : has
@@ -365,7 +385,7 @@ No transaction is held open while awaiting user input or external service calls.
 ## Known schema notes
 
 - The `status` enum in orders includes `"delievered"` (typo). Existing data uses this spelling.
-- `payment_type` is constrained to `"cash"` only (COD).
+- Payment provider/currency and support-table states have database CHECK constraints; legacy order states remain typed text.
 - `max_redemptions` of `-1` on coupons indicates unlimited redemptions.
 - Cart and order items snapshot prices at creation time to protect against subsequent price changes.
 - `cart_items` and `cart_item_customizations` cascade on delete of their parent.
