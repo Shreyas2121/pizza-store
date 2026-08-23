@@ -106,7 +106,13 @@ List all addresses for the current user.
 
 Get products filtered by menu, with pagination and sorting.
 
+When `storeId` is present, only globally available products with an available
+mapping for that store are returned. The response and price sorting use the
+store-specific price. Without `storeId`, the existing global catalog behavior
+is preserved.
+
 **Query params:**
+- `storeId` (optional) — scope the catalog to a resolved store
 - `menuSlug` (optional) — filter by menu slug
 - `page` (default `1`) — page number
 - `sortBy` (default `"default"`) — `"default"`, `"price_low"`, `"price_high"`

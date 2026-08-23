@@ -49,6 +49,13 @@ productRoutes.get(
     const page = query.page ? parseInt(query.page as any) : 1;
     const limit = 10;
     const offset = (page - 1) * limit;
+    let storeId: number | undefined;
+    if (query.storeId !== undefined) {
+      if (typeof query.storeId !== "string") {
+        throw new AppError("Store ID must be a positive integer", 400);
+      }
+      storeId = parseIntegerParam(query.storeId, "Store ID");
+    }
 
     const sortBy = query.sortBy ? (query.sortBy as string) : "default";
 
@@ -60,12 +67,14 @@ productRoutes.get(
         limit,
         offset,
         sortBy,
+        storeId,
       });
     } else {
       products = await productService.getProducts({
         limit,
         offset,
         sortBy,
+        storeId,
       });
     }
 

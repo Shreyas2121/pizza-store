@@ -1,10 +1,11 @@
-import { asc, desc, eq, getTableColumns, SQL } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, SQL } from "drizzle-orm";
 import { db } from "../../db";
 import {
   menuItemsMappingTable,
   menuItemsTable,
   productCustomizationGroupMappingTable,
   productsTable,
+  storeProductsTable,
 } from "../../db/schema";
 import { AppError } from "../../utils/error";
 
@@ -39,11 +40,13 @@ class ProductService {
     limit = 10,
     offset = 0,
     sortBy = "default",
+    storeId,
   }: {
     menuSlug: string;
     limit?: number;
     offset?: number;
     sortBy?: string;
+    storeId?: number;
   }) {
     let order: SQL<unknown>;
 
@@ -53,11 +56,15 @@ class ProductService {
         break;
 
       case "price_low":
-        order = asc(productsTable.price);
+        order = asc(
+          storeId !== undefined ? storeProductsTable.price : productsTable.price
+        );
         break;
 
       case "price_high":
-        order = desc(productsTable.price);
+        order = desc(
+          storeId !== undefined ? storeProductsTable.price : productsTable.price
+        );
         break;
 
       default:
@@ -65,7 +72,39 @@ class ProductService {
         break;
     }
 
-    const res = await db
+    if (storeId !== undefined) {
+      return await db
+        .select({
+          ...getTableColumns(productsTable),
+          price: storeProductsTable.price,
+        })
+        .from(productsTable)
+        .innerJoin(
+          storeProductsTable,
+          eq(storeProductsTable.productId, productsTable.id)
+        )
+        .innerJoin(
+          menuItemsMappingTable,
+          eq(menuItemsMappingTable.productId, productsTable.id)
+        )
+        .innerJoin(
+          menuItemsTable,
+          eq(menuItemsTable.id, menuItemsMappingTable.menuItemId)
+        )
+        .where(
+          and(
+            eq(menuItemsTable.slug, menuSlug),
+            eq(storeProductsTable.storeId, storeId),
+            eq(productsTable.isAvailable, true),
+            eq(storeProductsTable.isAvailable, true)
+          )
+        )
+        .offset(offset)
+        .limit(limit)
+        .orderBy(order);
+    }
+
+    return await db
       .select({
         ...getTableColumns(productsTable),
       })
@@ -82,18 +121,18 @@ class ProductService {
       .offset(offset)
       .limit(limit)
       .orderBy(order);
-
-    return res;
   }
 
   async getProducts({
     limit = 10,
     offset = 0,
     sortBy = "default",
+    storeId,
   }: {
     limit?: number;
     offset?: number;
     sortBy?: string;
+    storeId?: number;
   }) {
     let order: SQL<unknown>;
 
@@ -103,16 +142,43 @@ class ProductService {
         break;
 
       case "price_low":
-        order = asc(productsTable.price);
+        order = asc(
+          storeId !== undefined ? storeProductsTable.price : productsTable.price
+        );
         break;
 
       case "price_high":
-        order = desc(productsTable.price);
+        order = desc(
+          storeId !== undefined ? storeProductsTable.price : productsTable.price
+        );
         break;
 
       default:
         order = desc(productsTable.createdAt);
         break;
+    }
+
+    if (storeId !== undefined) {
+      return await db
+        .select({
+          ...getTableColumns(productsTable),
+          price: storeProductsTable.price,
+        })
+        .from(productsTable)
+        .innerJoin(
+          storeProductsTable,
+          eq(storeProductsTable.productId, productsTable.id)
+        )
+        .where(
+          and(
+            eq(storeProductsTable.storeId, storeId),
+            eq(productsTable.isAvailable, true),
+            eq(storeProductsTable.isAvailable, true)
+          )
+        )
+        .offset(offset)
+        .limit(limit)
+        .orderBy(order);
     }
 
     return await db.query.productsTable.findMany({
