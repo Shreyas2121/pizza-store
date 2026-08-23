@@ -4,12 +4,15 @@ import { Button, Select, TextInput } from "@mantine/core";
 import { Home, MapPin, Phone } from "lucide-react";
 import { useCreateAddress, useUpdateAddress } from "../api/address.queries";
 import { addressSchema, TAddress } from "../model/address.schema";
-import { success } from "@/shared/lib";
+import { success, warning } from "@/shared/lib";
+import { useStoreStore } from "@/features/store";
 
 export const AddressForm = ({ addressId, defaultValues, onSubmit: afterSubmit }: { addressId?: number; defaultValues?: TAddress; onSubmit?: () => void }) => {
   const createAddressM = useCreateAddress();
   const updateAddressM = useUpdateAddress();
   const isPending = createAddressM.isPending || updateAddressM.isPending;
+  const setPincode = useStoreStore((state) => state.setPincode);
+  const openPincodeModal = useStoreStore((state) => state.openPincodeModal);
   const { control, register, handleSubmit, formState: { errors } } = useForm<TAddress>({
     resolver: zodResolver(addressSchema),
     defaultValues: defaultValues ?? { type: "Home", street: "", city: "", state: "", pincode: "", phone: "" },
@@ -19,8 +22,15 @@ export const AddressForm = ({ addressId, defaultValues, onSubmit: afterSubmit }:
     const mutation = addressId ? updateAddressM : createAddressM;
     const payload = addressId ? { id: addressId, data } : data;
     mutation.mutate(payload as never, {
-      onSuccess: (response: { message: string }) => {
+      onSuccess: async (response: { message: string }) => {
         success(response.message);
+        if (!addressId) {
+          const store = await setPincode(data.pincode);
+          if (!store) {
+            warning("Address saved, but no available store serves its pincode.");
+            openPincodeModal();
+          }
+        }
         afterSubmit?.();
       },
     });

@@ -7,11 +7,13 @@ export const addressKeys = {
   lists: () => ["addressAll"] as const,
 };
 
-export const useGetAddresses = () => {
+export const useGetAddresses = (enabled: boolean = true) => {
   return createQuery<Address[]>(
     addressKeys.lists(),
     "/user/address",
-    "data"
+    "data",
+    undefined,
+    { enabled },
   );
 };
 
