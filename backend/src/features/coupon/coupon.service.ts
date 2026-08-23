@@ -57,7 +57,10 @@ class CouponService {
       throw new AppError("Coupon is expired or not yet valid", 400);
     }
 
-    if (coupon.redemptionCount >= coupon.maxRedemptions) {
+    if (
+      coupon.maxRedemptions >= 0 &&
+      coupon.redemptionCount >= coupon.maxRedemptions
+    ) {
       throw new AppError("Coupon maximum redemption limit reached", 400);
     }
 

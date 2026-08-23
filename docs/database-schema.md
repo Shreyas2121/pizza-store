@@ -378,7 +378,7 @@ The following operations use database transactions:
 - **Cart add**: Creating/finding cart → creating cart item → creating cart item customizations → updating cart total price.
 - **Cart update (quantity)**: Looking up current product price → updating cart item quantity/price → updating cart total.
 - **Cart item delete**: Calculating price to subtract → deleting cart item → updating cart total.
-- **Order creation**: Copying cart items to order items → copying customizations → clearing cart items → resetting cart total → creating the order record.
+- **COD order creation**: Locking and quoting the cart, validating/consuming a coupon, creating and linking a pending COD payment, snapshotting order items/customizations, and deleting the cart all commit atomically.
 
 No transaction is held open while awaiting user input or external service calls.
 

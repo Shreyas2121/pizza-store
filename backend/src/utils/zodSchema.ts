@@ -66,11 +66,27 @@ export const createAddressSchema = z.object({
 
 export const createOrderSchema = z.object({
   addressId: z.number().int().positive("Valid address ID is required"),
-  totalPrice: z.number().nonnegative("Total price must be non-negative"),
-  paymentType: z.enum(["cash"]).optional(),
-  couponId: z.number().int().nullable().optional(),
-  discountAmount: z.number().nonnegative().optional(),
-});
+  paymentType: z.literal("cash").default("cash"),
+  couponCode: z
+    .string()
+    .trim()
+    .min(1, "Coupon code cannot be empty")
+    .max(100, "Coupon code is too long")
+    .transform((code) => code.toUpperCase())
+    .nullable()
+    .optional(),
+}).strict();
+
+export const validateCouponSchema = z
+  .object({
+    code: z
+      .string()
+      .trim()
+      .min(1, "Coupon code is required")
+      .max(100, "Coupon code is too long")
+      .transform((code) => code.toUpperCase()),
+  })
+  .strict();
 
 export const addToCartSchema = z.object({
   productId: z.number().int().positive("Product ID is required"),

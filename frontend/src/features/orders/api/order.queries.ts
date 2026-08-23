@@ -11,10 +11,10 @@ export const orderKeys = {
 };
 
 export const useCreateOrder = () => {
-  return createMutation<{
-    data: number;
-    message: string;
-  }>("/order", "post", [
+  return createMutation<
+    { data: number; message: string },
+    { addressId: number; paymentType: "cash"; couponCode?: string | null }
+  >("/order", "post", [
     cartKeys.get() as unknown as string[],
     cartKeys.count() as unknown as string[],
     cartKeys.checkout() as unknown as string[],

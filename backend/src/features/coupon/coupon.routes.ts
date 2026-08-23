@@ -5,8 +5,11 @@ import {
 } from "../../middleware/authenticateUser";
 import { AppError, asyncHandler } from "../../utils/error";
 import couponService from "./coupon.service";
-import orderService from "../order/order.service";
+import checkoutService from "../checkout/checkout.service";
 import { parseIntegerParam, requireRouteParam } from "../../utils/request";
+import type { Auth } from "../../utils/types";
+import { validateBody } from "../../middleware/validateBody";
+import { validateCouponSchema } from "../../utils/zodSchema";
 
 export const couponRoutes = Router();
 
@@ -99,35 +102,11 @@ couponRoutes.delete(
 couponRoutes.post(
   "/validate",
   authenticateUser,
-  asyncHandler(async (req, res) => {
-    const { code, total } = req.body;
+  validateBody(validateCouponSchema),
+  asyncHandler(async (req: Auth, res) => {
+    const { code } = req.body;
+    const total = await checkoutService.getCartSubtotalRupees(req.user!.id);
     const coupon = await couponService.validateCoupon({ code, total });
     res.json({ data: coupon });
-  })
-);
-
-couponRoutes.post(
-  "/redeem",
-  authenticateUser,
-  asyncHandler(async (req, res) => {
-    const { code, orderId } = req.body;
-
-    const coupon = await couponService.getCouponByCode(code);
-
-    if (!coupon) {
-      throw new AppError("Coupon not found", 404);
-    }
-
-    const order = await orderService.getOrderById(orderId);
-
-    if (!order) {
-      throw new AppError("Order not found", 404);
-    }
-
-    await couponService.updateCoupon(coupon.id, {
-      redemptionCount: coupon.redemptionCount + 1,
-    });
-
-    res.json({ data: "Coupon redeemed" });
   })
 );

@@ -1,24 +1,28 @@
 import { eq } from "drizzle-orm";
 import { db } from "../../db";
 import { paymentsTable } from "../../db/schema";
+import type { TransactionType } from "../../utils/types";
 
 class PaymentService {
-  async processPayment() {
-    const res = await db
+  async createPayment(
+    data: typeof paymentsTable.$inferInsert,
+    tx?: TransactionType
+  ) {
+    const dbT = tx ?? db;
+    const [payment] = await dbT
       .insert(paymentsTable)
-      .values({
-        status: "pending",
-      })
+      .values(data)
       .returning();
-
-    return res[0].id;
+    return payment;
   }
 
   async updatePayment(
     data: Partial<typeof paymentsTable.$inferInsert>,
-    id: number
+    id: number,
+    tx?: TransactionType
   ) {
-    await db.update(paymentsTable).set(data).where(eq(paymentsTable.id, id));
+    const dbT = tx ?? db;
+    await dbT.update(paymentsTable).set(data).where(eq(paymentsTable.id, id));
   }
 }
 

@@ -3,7 +3,7 @@ import type { Address } from "@/features/account";
 import type { Product, CustomizationOption } from "@/features/catalog";
 import type { Coupon, Payment, PaymentType } from "@/features/checkout";
 
-export type OrderStatus = "pending" | "preparing" | "delivered" | "delievered" | "cancelled";
+export type OrderStatus = "awaiting_payment" | "pending" | "preparing" | "delivered" | "delievered" | "cancelled";
 
 export const orderStatus: { label: string; value: OrderStatus }[] = [
   { label: "Pending", value: "pending" },

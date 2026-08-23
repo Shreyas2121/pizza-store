@@ -7,7 +7,7 @@ import { useGetCartCheckout } from "@/features/cart";
 import { useCreateOrder } from "@/features/orders";
 import { error, formatClockTime, formatStoreHours, success } from "@/shared/lib";
 import { Coupon } from "../model/checkout.types";
-import { useValidateCoupon, useRedeemCoupon } from "../api/coupon.mutations";
+import { useValidateCoupon } from "../api/coupon.mutations";
 import AddressStep from "../components/address-step";
 import PaymentStep from "../components/payment-step";
 import CheckoutSummary from "../components/checkout-summary";
@@ -22,7 +22,6 @@ export const CheckoutPage = () => {
   const { data: user, isLoading: loadingUser, isError: userError } = useGetUser();
   const createOrderM = useCreateOrder();
   const validateCouponM = useValidateCoupon();
-  const redeemCouponM = useRedeemCoupon();
   const [coupon, setCoupon] = useState<Coupon | null>(null);
   const [code, setCode] = useState("");
   const [selectedAddress, setSelectedAddress] = useState<number | null>(null);
@@ -56,7 +55,7 @@ export const CheckoutPage = () => {
     const normalized = code.trim().toUpperCase();
     if (!normalized) { error("Enter a coupon code"); return; }
     if (!cart) return;
-    validateCouponM.mutate({ code: normalized, total: cart.totalPrice }, { onSuccess: (validated) => { setCoupon(validated); setCode(validated.code); success("Coupon applied"); } });
+    validateCouponM.mutate({ code: normalized }, { onSuccess: (validated) => { setCoupon(validated); setCode(validated.code); success("Coupon applied"); } });
   };
 
   const placeOrder = () => {
@@ -65,9 +64,8 @@ export const CheckoutPage = () => {
     if (!isStoreOpen(resolvedStore.opensAt, resolvedStore.closesAt)) { error(`This store is currently closed. It opens at ${formatClockTime(resolvedStore.opensAt)}.`); return; }
     if (!selectedAddress) { error("Select a delivery address"); return; }
     if (!addressMatchesStore) { error(`Choose an address in pincode ${userPincode}.`); return; }
-    createOrderM.mutate({ addressId: selectedAddress, totalPrice: total, paymentType: "cash", couponId: coupon?.id ?? null, discountAmount }, {
+    createOrderM.mutate({ addressId: selectedAddress, paymentType: "cash", couponCode: coupon?.code ?? null }, {
       onSuccess: (response) => {
-        if (coupon) redeemCouponM.mutate({ code: coupon.code, orderId: response.data });
         success(response.message);
         navigate(`/order/${response.data}`);
       },

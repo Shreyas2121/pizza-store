@@ -422,20 +422,22 @@ Remove an item from cart.
 Create an order from the current cart.
 
 The order's store is copied from the cart. Before creating the order, the
-backend verifies that the store is active and open, the selected address
-belongs to the user and is covered by that store, and every cart item remains
-available globally and at the store.
+backend locks the cart, verifies that the store is active/open, checks address
+ownership and delivery coverage, and revalidates product availability. The
+backend calculates subtotal, discount, and total from item/customization price
+snapshots; client-supplied monetary values are rejected. Order, COD payment,
+coupon consumption, item snapshots, and cart deletion commit atomically.
 
 **Body:**
 ```json
 {
   "addressId": 1,
-  "totalPrice": 547,
   "paymentType": "cash",
-  "couponId": null,
-  "discountAmount": 0
+  "couponCode": "SAVE20"
 }
 ```
+
+`couponCode` is optional or nullable. `paymentType` defaults to `cash`.
 
 **Response `200`:**
 ```json
@@ -476,27 +478,9 @@ List all orders (admin view), filtered by status.
 
 ## Payments
 
-### `POST /payments/process-cod` 🔒
-
-Process a Cash on Delivery payment.
-
-**Body:**
-```json
-{
-  "orderId": 42
-}
-```
-
-**Response `200`:**
-```json
-{
-  "data": {
-    "paymentId": 1,
-    "paymentType": "cash",
-    "message": "Order placed successfully with Cash on Delivery"
-  }
-}
-```
+COD payments are created and linked atomically by `POST /order`. The legacy
+`POST /payments/process-cod` endpoint has been removed because it created
+orphan payment rows.
 
 ---
 
@@ -516,13 +500,13 @@ Update a coupon.
 
 ### `POST /coupon/validate`
 
-Validate a coupon code against an order total.
+Preview a coupon against the authenticated user's current server-calculated
+cart subtotal. Checkout always locks and revalidates the coupon before use.
 
 **Body:**
 ```json
 {
-  "code": "SAVE20",
-  "total": 500
+  "code": "SAVE20"
 }
 ```
 
@@ -533,17 +517,9 @@ Validate a coupon code against an order total.
 }
 ```
 
-### `POST /coupon/redeem`
-
-Redeem a coupon for an order.
-
-**Body:**
-```json
-{
-  "code": "SAVE20",
-  "orderId": 42
-}
-```
+Coupon redemption is internal to the order transaction. The former public
+`POST /coupon/redeem` endpoint has been removed to prevent replay and
+cross-order redemption.
 
 ---
 

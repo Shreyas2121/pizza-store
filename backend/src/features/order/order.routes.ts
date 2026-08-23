@@ -22,21 +22,20 @@ orderRoutes.post(
 
     const data = req.body;
 
-    const orderId = await orderService.createOrder({
-      ...data,
+    const order = await orderService.createOrder({
+      addressId: data.addressId,
+      couponCode: data.couponCode,
       userId,
-      status: "pending",
-      discountAmount: data.discountAmount ?? 0,
     });
 
     io.emit("orderPlaced", {
-      orderId,
+      orderId: order.id,
       status: "pending",
-      total: data.totalPrice,
+      total: order.totalPrice,
     });
 
     res.json({
-      data: orderId,
+      data: order.id,
       message: "Order created successfully.",
     });
   })
