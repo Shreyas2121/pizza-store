@@ -11,6 +11,7 @@ import {
   menuItemsMappingTable,
   addressTable,
 } from "../db/schema";
+import { seedDefaultStore } from "./default-store";
 
 /**
  * Master seed script — seeds the entire database with realistic food data.
@@ -430,12 +431,18 @@ async function seed() {
     );
   }
 
+  const defaultStore = await seedDefaultStore();
+
   console.log("\n🎉 Seed completed successfully!");
   console.log("\n📌 Quick reference:");
   console.log("   Admin login: admin@pizzastore.com / admin123");
   console.log("   User login:  shreyas@test.com / user123");
   console.log(
     `   Data: ${categories.length} categories, ${products.length} products, 3 customization groups, 5 menus`
+  );
+
+  console.log(
+    `   Store: ${defaultStore.store.name}, ${defaultStore.productsMapped} new product mappings, delivery pincode ${defaultStore.store.pincode}`
   );
 
   process.exit(0);

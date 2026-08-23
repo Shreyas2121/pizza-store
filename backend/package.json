@@ -11,6 +11,7 @@
     "seed:users": "ts-node src/scripts/user.ts",
     "seed:addresses": "ts-node src/scripts/address.ts",
     "seed:orders": "ts-node src/scripts/order.ts",
+    "seed:default-store": "ts-node src/scripts/default-store.ts",
     "seed": "ts-node src/scripts/seed.ts",
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
