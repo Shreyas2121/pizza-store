@@ -244,6 +244,39 @@ Create a menu item. Accepts `multipart/form-data`.
 
 ## Stores
 
+### `GET /stores/:storeId/products` 🔒🛡️
+
+List the products mapped to a store. Each mapping includes its store-specific
+price and availability plus the global product details and base price.
+
+### `POST /stores/:storeId/products` 🔒🛡️
+
+Bulk-create or update up to 100 store-product mappings.
+
+**Body:**
+```json
+[
+  { "productId": 1, "price": 299, "isAvailable": true },
+  { "productId": 2, "price": 349, "isAvailable": false }
+]
+```
+
+### `PUT /stores/:storeId/products/:productId` 🔒🛡️
+
+Update a mapped product's store-specific price, availability, or both.
+
+**Body:**
+```json
+{
+  "price": 319,
+  "isAvailable": true
+}
+```
+
+### `DELETE /stores/:storeId/products/:productId` 🔒🛡️
+
+Remove a product from a store's offering.
+
 ### `GET /stores/:storeId/delivery-zones` 🔒🛡️
 
 List the delivery pincodes assigned to a store, ordered by pincode.

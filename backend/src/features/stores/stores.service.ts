@@ -1,6 +1,23 @@
-import { and, asc, count, desc, eq, ilike, ne, or } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  getTableColumns,
+  ilike,
+  inArray,
+  ne,
+  or,
+  sql,
+} from "drizzle-orm";
 import { db } from "../../db";
-import { deliveryZonesTable, storesTable } from "../../db/schema";
+import {
+  deliveryZonesTable,
+  productsTable,
+  storeProductsTable,
+  storesTable,
+} from "../../db/schema";
 import { AppError } from "../../utils/error";
 import { generateSlug } from "../../utils";
 
@@ -123,6 +140,131 @@ class StoreService {
     return await db.query.storesTable.findFirst({
       where: eq(storesTable.slug, slug),
     });
+  }
+
+  async getStoreProducts(storeId: number) {
+    const store = await this.getStoreById(storeId);
+    if (!store) {
+      throw new AppError("Store not found", 404);
+    }
+
+    return await db
+      .select({
+        ...getTableColumns(storeProductsTable),
+        product: {
+          id: productsTable.id,
+          name: productsTable.name,
+          slug: productsTable.slug,
+          price: productsTable.price,
+          image: productsTable.image,
+          isAvailable: productsTable.isAvailable,
+          categoryId: productsTable.categoryId,
+        },
+      })
+      .from(storeProductsTable)
+      .innerJoin(
+        productsTable,
+        eq(storeProductsTable.productId, productsTable.id)
+      )
+      .where(eq(storeProductsTable.storeId, storeId))
+      .orderBy(asc(productsTable.name));
+  }
+
+  async mapStoreProducts(
+    storeId: number,
+    mappings: Array<{
+      productId: number;
+      price: number;
+      isAvailable: boolean;
+    }>
+  ) {
+    const store = await this.getStoreById(storeId);
+    if (!store) {
+      throw new AppError("Store not found", 404);
+    }
+
+    const productIds = mappings.map((mapping) => mapping.productId);
+    const existingProducts = await db
+      .select({ id: productsTable.id })
+      .from(productsTable)
+      .where(inArray(productsTable.id, productIds));
+    const existingProductIds = new Set(
+      existingProducts.map((product) => product.id)
+    );
+    const missingProductIds = productIds.filter(
+      (productId) => !existingProductIds.has(productId)
+    );
+
+    if (missingProductIds.length > 0) {
+      throw new AppError(
+        `Products not found: ${missingProductIds.join(", ")}`,
+        404
+      );
+    }
+
+    return await db
+      .insert(storeProductsTable)
+      .values(mappings.map((mapping) => ({ storeId, ...mapping })))
+      .onConflictDoUpdate({
+        target: [storeProductsTable.storeId, storeProductsTable.productId],
+        set: {
+          price: sql`excluded.price`,
+          isAvailable: sql`excluded.is_available`,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+  }
+
+  async updateStoreProduct(
+    storeId: number,
+    productId: number,
+    data: { price?: number; isAvailable?: boolean }
+  ) {
+    const store = await this.getStoreById(storeId);
+    if (!store) {
+      throw new AppError("Store not found", 404);
+    }
+
+    const [mapping] = await db
+      .update(storeProductsTable)
+      .set({ ...data, updatedAt: new Date() })
+      .where(
+        and(
+          eq(storeProductsTable.storeId, storeId),
+          eq(storeProductsTable.productId, productId)
+        )
+      )
+      .returning();
+
+    if (!mapping) {
+      throw new AppError("Store product mapping not found", 404);
+    }
+
+    return mapping;
+  }
+
+  async deleteStoreProduct(storeId: number, productId: number) {
+    const store = await this.getStoreById(storeId);
+    if (!store) {
+      throw new AppError("Store not found", 404);
+    }
+
+    const [mapping] = await db
+      .delete(storeProductsTable)
+      .where(
+        and(
+          eq(storeProductsTable.storeId, storeId),
+          eq(storeProductsTable.productId, productId)
+        )
+      )
+      .returning();
+
+    if (!mapping) {
+      throw new AppError("Store product mapping not found", 404);
+    }
+
+    return mapping;
   }
 
   async getDeliveryZones(storeId: number) {

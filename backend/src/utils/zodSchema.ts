@@ -120,3 +120,38 @@ export const addDeliveryZonesSchema = z.object({
     .max(100, "A maximum of 100 pincodes can be added at once")
     .transform((pincodes) => [...new Set(pincodes)]),
 });
+
+const storeProductMappingSchema = z.object({
+  productId: z.number().int().positive("Product ID must be a positive integer"),
+  price: z.number().nonnegative("Price must be non-negative"),
+  isAvailable: z.boolean().optional().default(true),
+});
+
+export const mapStoreProductsSchema = z
+  .array(storeProductMappingSchema)
+  .min(1, "At least one product mapping is required")
+  .max(100, "A maximum of 100 products can be mapped at once")
+  .superRefine((mappings, context) => {
+    const seenProductIds = new Set<number>();
+
+    mappings.forEach((mapping, index) => {
+      if (seenProductIds.has(mapping.productId)) {
+        context.addIssue({
+          code: "custom",
+          path: [index, "productId"],
+          message: `Product ID ${mapping.productId} appears more than once`,
+        });
+      }
+      seenProductIds.add(mapping.productId);
+    });
+  });
+
+export const updateStoreProductSchema = z
+  .object({
+    price: z.number().nonnegative("Price must be non-negative").optional(),
+    isAvailable: z.boolean().optional(),
+  })
+  .refine(
+    (data) => data.price !== undefined || data.isAvailable !== undefined,
+    "Price or availability is required"
+  );

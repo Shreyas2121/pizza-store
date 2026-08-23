@@ -5,6 +5,8 @@ import { parseIntegerParam, requireRouteParam } from "../../utils/request";
 import {
   addDeliveryZonesSchema,
   createStoreSchema,
+  mapStoreProductsSchema,
+  updateStoreProductSchema,
   updateStoreSchema,
 } from "../../utils/zodSchema";
 import storeService from "./stores.service";
@@ -83,6 +85,72 @@ storeRoutes.post(
 );
 
 // ──────────────────────────────────────────────
+// Store-product mapping
+
+storeRoutes.get(
+  "/:id/products",
+  authenticateAdmin,
+  asyncHandler(async (req, res) => {
+    const storeId = parseIntegerParam(req.params.id, "Store ID");
+    const mappings = await storeService.getStoreProducts(storeId);
+
+    res.json({ data: mappings });
+  })
+);
+
+storeRoutes.post(
+  "/:id/products",
+  authenticateAdmin,
+  asyncHandler(async (req, res) => {
+    const storeId = parseIntegerParam(req.params.id, "Store ID");
+    const mappings = mapStoreProductsSchema.parse(req.body);
+    const storeProducts = await storeService.mapStoreProducts(
+      storeId,
+      mappings
+    );
+
+    res.status(201).json({
+      data: storeProducts,
+      message: "Store products mapped successfully",
+    });
+  })
+);
+
+storeRoutes.put(
+  "/:id/products/:productId",
+  authenticateAdmin,
+  asyncHandler(async (req, res) => {
+    const storeId = parseIntegerParam(req.params.id, "Store ID");
+    const productId = parseIntegerParam(req.params.productId, "Product ID");
+    const data = updateStoreProductSchema.parse(req.body);
+    const mapping = await storeService.updateStoreProduct(
+      storeId,
+      productId,
+      data
+    );
+
+    res.json({
+      data: mapping,
+      message: "Store product updated successfully",
+    });
+  })
+);
+
+storeRoutes.delete(
+  "/:id/products/:productId",
+  authenticateAdmin,
+  asyncHandler(async (req, res) => {
+    const storeId = parseIntegerParam(req.params.id, "Store ID");
+    const productId = parseIntegerParam(req.params.productId, "Product ID");
+    const mapping = await storeService.deleteStoreProduct(storeId, productId);
+
+    res.json({
+      data: mapping,
+      message: "Store product removed successfully",
+    });
+  })
+);
+
 // Delivery zone management
 
 storeRoutes.get(
