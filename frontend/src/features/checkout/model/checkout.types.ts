@@ -8,6 +8,11 @@ export type PaymentType = "cash" | "razorpay";
 export type PaymentProvider = "cod" | "razorpay";
 export type CouponType = "percentage" | "fixed";
 
+export type PaymentMethods = {
+  cash: true;
+  razorpay: boolean;
+};
+
 export type Payment = {
   status: PaymentStatus;
   provider: PaymentProvider;

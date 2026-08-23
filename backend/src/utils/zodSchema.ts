@@ -15,6 +15,10 @@ const envSchema = z.object({
   RAZORPAY_KEY_ID: z.string().min(1).optional(),
   RAZORPAY_KEY_SECRET: z.string().min(1).optional(),
   RAZORPAY_WEBHOOK_SECRET: z.string().min(1).optional(),
+  RAZORPAY_ENABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
 }).superRefine((value, ctx) => {
   const razorpayValues = [
     value.RAZORPAY_KEY_ID,
@@ -29,6 +33,14 @@ const envSchema = z.object({
       message:
         "RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, and RAZORPAY_WEBHOOK_SECRET must be configured together",
       path: ["RAZORPAY_KEY_ID"],
+    });
+  }
+
+  if (value.RAZORPAY_ENABLED && configuredValues !== razorpayValues.length) {
+    ctx.addIssue({
+      code: "custom",
+      message: "Razorpay credentials are required when RAZORPAY_ENABLED=true",
+      path: ["RAZORPAY_ENABLED"],
     });
   }
 });

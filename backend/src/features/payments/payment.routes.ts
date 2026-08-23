@@ -13,9 +13,19 @@ import {
   verifyRazorpayPaymentSchema,
 } from "../../utils/zodSchema";
 import paymentService from "./payment.service";
+import { isRazorpayCheckoutEnabled } from "./razorpay.config";
 import { io } from "../..";
 
 export const paymentRoutes = Router();
+
+paymentRoutes.get("/methods", (_req, res) => {
+  res.json({
+    data: {
+      cash: true,
+      razorpay: isRazorpayCheckoutEnabled(),
+    },
+  });
+});
 
 paymentRoutes.post(
   "/razorpay/reconcile",

@@ -482,6 +482,25 @@ COD payments are created and linked atomically by `POST /order`. The legacy
 `POST /payments/process-cod` endpoint has been removed because it created
 orphan payment rows.
 
+### `GET /payments/methods`
+
+Return payment-method availability for checkout. This endpoint contains no
+credentials and is safe to cache briefly.
+
+```json
+{
+  "data": {
+    "cash": true,
+    "razorpay": false
+  }
+}
+```
+
+`razorpay` is true only when credentials are complete and the server-side
+`RAZORPAY_ENABLED` rollout flag is true. Disabling the flag blocks initiation
+and retry with `503 ONLINE_PAYMENT_DISABLED`; verification, signed webhooks,
+and reconciliation remain active for already-created attempts.
+
 ### `POST /payments/razorpay/orders` 🔒
 
 Create or resume an online checkout attempt. The backend locks and validates

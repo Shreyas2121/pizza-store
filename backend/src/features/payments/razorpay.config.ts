@@ -17,6 +17,12 @@ export const getRazorpayConfig = (): RazorpayServerConfig | null => {
   };
 };
 
+// Disabling Checkout only stops new customer attempts. Credentials remain
+// available so verification, webhooks, and reconciliation can finish payments
+// that were already in flight before a rollback.
+export const isRazorpayCheckoutEnabled = () =>
+  env.RAZORPAY_ENABLED && getRazorpayConfig() !== null;
+
 export const requireRazorpayConfig = (): RazorpayServerConfig => {
   const config = getRazorpayConfig();
   if (!config) {

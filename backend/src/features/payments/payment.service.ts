@@ -7,7 +7,10 @@ import { logger } from "../../utils/logger";
 import type { TransactionType } from "../../utils/types";
 import cartService from "../cart/cart.service";
 import checkoutService from "../checkout/checkout.service";
-import { getRazorpayConfig } from "./razorpay.config";
+import {
+  getRazorpayConfig,
+  isRazorpayCheckoutEnabled,
+} from "./razorpay.config";
 import { createRazorpayGateway } from "./razorpay.gateway";
 import type {
   RazorpayOrderSnapshot,
@@ -82,6 +85,13 @@ class PaymentService {
   }
 
   async initiateRazorpayOrder(data: InitiateRazorpayOrderInput) {
+    if (!isRazorpayCheckoutEnabled()) {
+      throw new AppError(
+        "Online payment is currently disabled. Choose cash on delivery.",
+        503,
+        "ONLINE_PAYMENT_DISABLED"
+      );
+    }
     const config = getRazorpayConfig();
     if (!config) {
       throw new AppError(
@@ -96,6 +106,13 @@ class PaymentService {
   }
 
   async retryRazorpayOrder(localOrderId: number, userId: number) {
+    if (!isRazorpayCheckoutEnabled()) {
+      throw new AppError(
+        "Online payment is currently disabled. Existing payments will still be reconciled.",
+        503,
+        "ONLINE_PAYMENT_DISABLED"
+      );
+    }
     const config = getRazorpayConfig();
     if (!config) {
       throw new AppError(
@@ -128,7 +145,10 @@ class PaymentService {
     if (attempt.provider !== "razorpay") {
       throw new AppError("Online payment order not found", 404);
     }
-    return this.toCheckoutResponse(attempt, getRazorpayConfig()?.keyId ?? null);
+    return this.toCheckoutResponse(
+      attempt,
+      isRazorpayCheckoutEnabled() ? getRazorpayConfig()?.keyId ?? null : null
+    );
   }
 
   async verifyRazorpayPayment(data: VerifyRazorpayPaymentInput) {

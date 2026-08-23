@@ -4,6 +4,7 @@ import { CreditCard, RefreshCw, ShieldCheck } from "lucide-react";
 import axios from "axios";
 import { error, success, warning } from "@/shared/lib";
 import {
+  usePaymentMethods,
   useRetryRazorpayOrder,
   useVerifyRazorpayPayment,
 } from "../api/payment.mutations";
@@ -20,8 +21,10 @@ export const PendingPaymentCard = ({
 }: PendingPaymentCardProps) => {
   const retryPayment = useRetryRazorpayOrder();
   const verifyPayment = useVerifyRazorpayPayment();
+  const { data: paymentMethods, isLoading: loadingMethods } = usePaymentMethods();
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const busy = retryPayment.isPending || verifyPayment.isPending || !!statusMessage;
+  const retryEnabled = paymentMethods?.razorpay ?? false;
 
   const retry = async () => {
     try {
@@ -80,7 +83,9 @@ export const PendingPaymentCard = ({
               Payment required
             </h2>
             <p className="mt-1 max-w-xl text-sm text-ink-muted">
-              This order is safely saved but will not reach the kitchen until Razorpay confirms a captured payment.
+              {retryEnabled
+                ? "This order is safely saved but will not reach the kitchen until Razorpay confirms a captured payment."
+                : "Online checkout is temporarily paused. Your order remains saved and will not reach the kitchen until payment is captured."}
             </p>
             {statusMessage && (
               <p className="mt-2 text-sm font-semibold text-brand" role="status">
@@ -91,12 +96,13 @@ export const PendingPaymentCard = ({
         </div>
         <Button
           onClick={retry}
-          loading={busy}
+          loading={busy || loadingMethods}
+          disabled={!retryEnabled}
           leftSection={<RefreshCw size={16} />}
           rightSection={<ShieldCheck size={16} />}
           className="shrink-0"
         >
-          Retry secure payment
+          {retryEnabled ? "Retry secure payment" : "Online payment paused"}
         </Button>
       </div>
     </section>

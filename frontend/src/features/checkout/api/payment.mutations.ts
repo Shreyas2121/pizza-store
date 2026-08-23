@@ -1,14 +1,23 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { cartKeys } from "@/features/cart";
 import { API } from "@/shared/api";
 import type {
   InitiateRazorpayOrderRequest,
+  PaymentMethods,
   RazorpayCheckoutData,
   VerifyRazorpayPaymentRequest,
   VerifyRazorpayPaymentResult,
 } from "../model/checkout.types";
 
 type ApiResponse<T> = { data: T; message: string };
+
+export const usePaymentMethods = () =>
+  useQuery({
+    queryKey: ["payment-methods"],
+    queryFn: async () =>
+      (await API.get<{ data: PaymentMethods }>("/payments/methods")).data.data,
+    staleTime: 60_000,
+  });
 
 export const useInitiateRazorpayOrder = () =>
   useMutation({

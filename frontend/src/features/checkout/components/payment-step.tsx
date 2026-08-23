@@ -4,6 +4,7 @@ import type { PaymentType } from "../model/checkout.types";
 type PaymentStepProps = {
   value: PaymentType;
   onChange: (value: PaymentType) => void;
+  razorpayEnabled: boolean;
   disabled?: boolean;
 };
 
@@ -27,7 +28,12 @@ const methods: Array<{
   },
 ];
 
-export const PaymentStep = ({ value, onChange, disabled }: PaymentStepProps) => (
+export const PaymentStep = ({
+  value,
+  onChange,
+  razorpayEnabled,
+  disabled,
+}: PaymentStepProps) => (
   <section className="rounded-card border border-border bg-surface p-5 shadow-subtle sm:p-6">
     <div className="flex gap-3">
       <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand text-sm font-bold text-white">
@@ -52,7 +58,9 @@ export const PaymentStep = ({ value, onChange, disabled }: PaymentStepProps) => 
       disabled={disabled}
     >
       <legend className="sr-only">Payment method</legend>
-      {methods.map((method) => {
+      {methods.filter(
+        (method) => method.value !== "razorpay" || razorpayEnabled
+      ).map((method) => {
         const selected = value === method.value;
         const Icon = method.icon;
         return (

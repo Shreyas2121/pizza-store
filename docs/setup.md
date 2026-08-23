@@ -43,6 +43,7 @@ JWT_SECRET=your_jwt_secret_here
 FE_URL=http://localhost:3150
 
 # Razorpay (configure all three together when online payments are enabled)
+RAZORPAY_ENABLED=false
 RAZORPAY_KEY_ID=rzp_test_...
 RAZORPAY_KEY_SECRET=your_test_key_secret
 RAZORPAY_WEBHOOK_SECRET=your_test_webhook_secret
@@ -66,10 +67,16 @@ All variables are validated at startup via Zod. The server will not start if any
 | `RAZORPAY_KEY_ID` | No** | Public Razorpay Test/Live Key ID |
 | `RAZORPAY_KEY_SECRET` | No** | Server-only Razorpay API key secret |
 | `RAZORPAY_WEBHOOK_SECRET` | No** | Server-only secret used to validate webhook signatures |
+| `RAZORPAY_ENABLED` | No | Set to `true` to offer new/retried online checkouts; defaults to `false` |
 
 \* Either `DATABASE_URL` or the individual `DB_*` variables must be provided.
 
 \** Razorpay variables may be omitted while the application is COD-only. If any one is set, all three are required. Use separate Test and Live credentials, and never expose either secret to the frontend.
+
+`RAZORPAY_ENABLED=true` requires all three credentials. Setting it to `false`
+immediately removes Razorpay from checkout and blocks new/retried attempts while
+COD remains available. Keep the credentials configured during a rollback so
+verification, webhooks, and reconciliation can safely finish in-flight payments.
 
 ### Create the database
 
@@ -191,6 +198,8 @@ Optional `RECONCILE_OLDER_THAN_MINUTES` (default `15`) and `RECONCILE_LIMIT`
 (default `25`, maximum `50`) environment variables control each batch. The
 command exits non-zero if any candidate could not be reconciled. The equivalent
 admin API is `POST /api/v1/payments/razorpay/reconcile`.
+See [the Razorpay operations runbook](./razorpay-runbook.md) for staging, live
+rollout, monitoring, alert thresholds, incident rollback, and reconciliation.
 
 ### Access the admin panel
 

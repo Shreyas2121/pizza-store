@@ -8,6 +8,7 @@ export { PendingPaymentCard } from "./components/pending-payment-card";
 export { useValidateCoupon } from "./api/coupon.mutations";
 export {
   useInitiateRazorpayOrder,
+  usePaymentMethods,
   useRetryRazorpayOrder,
   useVerifyRazorpayPayment,
 } from "./api/payment.mutations";
@@ -22,6 +23,7 @@ export type {
   PaymentType,
   PaymentStatus,
   PaymentProvider,
+  PaymentMethods,
   CouponType,
   InitiateRazorpayOrderRequest,
   RazorpayCheckoutData,

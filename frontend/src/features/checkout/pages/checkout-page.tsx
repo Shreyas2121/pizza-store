@@ -10,6 +10,7 @@ import { Coupon, PaymentType } from "../model/checkout.types";
 import { useValidateCoupon } from "../api/coupon.mutations";
 import {
   useInitiateRazorpayOrder,
+  usePaymentMethods,
   useVerifyRazorpayPayment,
 } from "../api/payment.mutations";
 import { openRazorpayCheckout } from "../lib/razorpay";
@@ -29,6 +30,7 @@ export const CheckoutPage = () => {
   const validateCouponM = useValidateCoupon();
   const initiateRazorpayM = useInitiateRazorpayOrder();
   const verifyRazorpayM = useVerifyRazorpayPayment();
+  const { data: paymentMethods } = usePaymentMethods();
   const [coupon, setCoupon] = useState<Coupon | null>(null);
   const [code, setCode] = useState("");
   const [selectedAddress, setSelectedAddress] = useState<number | null>(null);
@@ -79,6 +81,11 @@ export const CheckoutPage = () => {
     if (!isStoreOpen(resolvedStore.opensAt, resolvedStore.closesAt)) { error(`This store is currently closed. It opens at ${formatClockTime(resolvedStore.opensAt)}.`); return; }
     if (!selectedAddress) { error("Select a delivery address"); return; }
     if (!addressMatchesStore) { error(`Choose an address in pincode ${userPincode}.`); return; }
+    if (paymentType === "razorpay" && !paymentMethods?.razorpay) {
+      setPaymentType("cash");
+      warning("Online payment is currently unavailable. Cash on delivery is still available.");
+      return;
+    }
     if (paymentType === "cash") {
       createOrderM.mutate({ addressId: selectedAddress, paymentType: "cash", couponCode: coupon?.code ?? null }, {
         onSuccess: (response) => {
@@ -210,6 +217,7 @@ export const CheckoutPage = () => {
 
           <PaymentStep
             value={paymentType}
+            razorpayEnabled={paymentMethods?.razorpay ?? false}
             onChange={(value) => {
               setPaymentType(value);
               setPaymentStatusMessage(null);
