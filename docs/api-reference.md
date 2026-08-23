@@ -551,7 +551,8 @@ Redeem a coupon for an order.
 
 ### `GET /dashboard` 🔒🛡️
 
-Get dashboard metric cards.
+Get dashboard metric cards. Pass optional `storeId=<id>` to filter every
+metric and its comparison period to one store.
 
 **Query params:**
 - `from` — start date (ISO string)
@@ -577,7 +578,8 @@ Get dashboard metric cards.
 
 ### `GET /dashboard/charts` 🔒🛡️
 
-Get time-series chart data.
+Get time-series chart data. Pass optional `storeId=<id>` to filter both chart
+series to one store.
 
 **Query params:**
 - `from`, `to` — date range

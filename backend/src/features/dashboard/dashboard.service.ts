@@ -1,4 +1,4 @@
-import { and, asc, count, gte, lte, sql, sum } from "drizzle-orm";
+import { and, asc, count, eq, gte, lte, sql } from "drizzle-orm";
 import { db } from "../../db";
 import { ordersTable } from "../../db/schema";
 import { differenceInCalendarDays, subDays } from "date-fns";
@@ -10,64 +10,55 @@ import { formatNumber, formatPrice } from "../../utils";
 interface Props {
   from?: Date;
   to?: Date;
+  storeId?: number;
 }
 
 interface ChartsProp extends Props {
   group: GroupT;
 }
 
+const getOrderFilters = ({ from, to, storeId }: Props) =>
+  and(
+    lte(ordersTable.orderDate, to ?? new Date()),
+    gte(ordersTable.orderDate, from ?? subDays(new Date(), 15)),
+    storeId === undefined ? undefined : eq(ordersTable.storeId, storeId)
+  );
+
 class DashboardService {
-  async getTotalRevenue({ from, to }: Props) {
-    const defaultFrom = subDays(new Date(), 15);
-    const defaultTo = new Date();
+  async getTotalRevenue({ from, to, storeId }: Props) {
     return (
       await db
         .select({
           total: sql`COALESCE(SUM(total_price), 0) as total_revenue`,
         })
         .from(ordersTable)
-        .where(
-          and(
-            lte(ordersTable.orderDate, to ?? defaultTo),
-            gte(ordersTable.orderDate, from ?? defaultFrom)
-          )
-        )
+        .where(getOrderFilters({ from, to, storeId }))
     )[0].total as number;
   }
 
-  async getActiveUsers({ from, to }: Props) {
+  async getActiveUsers({ from, to, storeId }: Props) {
     return (
       await db
         .selectDistinct({
           userId: ordersTable.userId,
         })
         .from(ordersTable)
-        .where(
-          and(
-            lte(ordersTable.orderDate, to ?? new Date()),
-            gte(ordersTable.orderDate, from ?? subDays(new Date(), 15))
-          )
-        )
+        .where(getOrderFilters({ from, to, storeId }))
     ).length;
   }
 
-  async getTotalOrders({ from, to }: Props) {
+  async getTotalOrders({ from, to, storeId }: Props) {
     return (
       await db
         .select({
           totalOrders: count(ordersTable.id),
         })
         .from(ordersTable)
-        .where(
-          and(
-            lte(ordersTable.orderDate, to ?? new Date()),
-            gte(ordersTable.orderDate, from ?? subDays(new Date(), 15))
-          )
-        )
+        .where(getOrderFilters({ from, to, storeId }))
     )[0].totalOrders;
   }
 
-  async getRevenueOverTime({ group, from, to }: ChartsProp) {
+  async getRevenueOverTime({ group, from, to, storeId }: ChartsProp) {
     const truncUnit = groupToTrunc[group];
     if (!truncUnit) {
       throw new AppError(`Invalid group: ${group}`);
@@ -81,12 +72,7 @@ class DashboardService {
         revenue: sql<number>`sum(${ordersTable.totalPrice})`,
       })
       .from(ordersTable)
-      .where(
-        and(
-          lte(ordersTable.orderDate, to ?? new Date()),
-          gte(ordersTable.orderDate, from ?? subDays(new Date(), 15))
-        )
-      )
+      .where(getOrderFilters({ from, to, storeId }))
       .groupBy(
         sql`date_trunc(${sql.raw(`'${truncUnit}'`)}, ${ordersTable.orderDate})`
       )
@@ -99,7 +85,7 @@ class DashboardService {
       );
   }
 
-  async getOrdersOverTime({ group, from, to }: ChartsProp) {
+  async getOrdersOverTime({ group, from, to, storeId }: ChartsProp) {
     const truncUnit = groupToTrunc[group];
     if (!truncUnit) {
       throw new AppError(`Invalid group: ${group}`);
@@ -113,12 +99,7 @@ class DashboardService {
         orders: count(ordersTable.id),
       })
       .from(ordersTable)
-      .where(
-        and(
-          lte(ordersTable.orderDate, to ?? new Date()),
-          gte(ordersTable.orderDate, from ?? subDays(new Date(), 15))
-        )
-      )
+      .where(getOrderFilters({ from, to, storeId }))
       .groupBy(
         sql`date_trunc(${sql.raw(`'${truncUnit}'`)}, ${ordersTable.orderDate})`
       )
@@ -131,7 +112,7 @@ class DashboardService {
       );
   }
 
-  async getDashboardMetrics(from: string, to: string) {
+  async getDashboardMetrics(from: string, to: string, storeId?: number) {
     const fromDate = new Date(from);
     const toDate = new Date(to);
 
@@ -139,8 +120,8 @@ class DashboardService {
     const prevFrom = subDays(fromDate, daysDiff);
     const prevTo = subDays(toDate, daysDiff);
 
-    const currentParam = { from: fromDate, to: toDate };
-    const prevParam = { from: prevFrom, to: prevTo };
+    const currentParam = { from: fromDate, to: toDate, storeId };
+    const prevParam = { from: prevFrom, to: prevTo, storeId };
 
     const currentRevenue = await this.getTotalRevenue(currentParam);
     const activeUsers = await this.getActiveUsers(currentParam);

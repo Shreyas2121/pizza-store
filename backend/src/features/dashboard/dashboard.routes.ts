@@ -1,10 +1,10 @@
 import { Router } from "express";
-import { asyncHandler } from "../../utils/error";
+import { AppError, asyncHandler } from "../../utils/error";
 import dashboardService from "./dashboard.service";
-import { differenceInCalendarDays, subDays } from "date-fns";
 import { GroupT } from "../../utils/types";
-import { formatNumber, formatPeriod, formatPrice } from "../../utils";
+import { formatPeriod } from "../../utils";
 import { authenticateAdmin } from "../../middleware/authenticateUser";
+import { parseIntegerParam } from "../../utils/request";
 
 export const dashRoutes = Router();
 
@@ -15,8 +15,15 @@ dashRoutes.get(
     const query = req.query;
     const from = query.from as string;
     const to = query.to as string;
+    let storeId: number | undefined;
+    if (query.storeId !== undefined) {
+      if (typeof query.storeId !== "string") {
+        throw new AppError("Store ID must be a positive integer", 400);
+      }
+      storeId = parseIntegerParam(query.storeId, "Store ID");
+    }
 
-    const data = await dashboardService.getDashboardMetrics(from, to);
+    const data = await dashboardService.getDashboardMetrics(from, to, storeId);
 
     res.json({ data });
   })
@@ -31,6 +38,13 @@ dashRoutes.get(
     const from = query.from as string;
     const to = query.to as string;
     const group = query.group as GroupT;
+    let storeId: number | undefined;
+    if (query.storeId !== undefined) {
+      if (typeof query.storeId !== "string") {
+        throw new AppError("Store ID must be a positive integer", 400);
+      }
+      storeId = parseIntegerParam(query.storeId, "Store ID");
+    }
 
     const fromDate = new Date(from);
     const toDate = new Date(to);
@@ -39,6 +53,7 @@ dashRoutes.get(
       from: fromDate,
       to: toDate,
       group,
+      storeId,
     };
 
     const revenueOverTime = await dashboardService.getRevenueOverTime(
