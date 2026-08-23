@@ -153,6 +153,22 @@ Configure automatic capture in the Razorpay Dashboard: verification deliberately
 keeps an order in `awaiting_payment` until Razorpay reports its payment as
 `captured` and its order as `paid`.
 
+The frontend loads Razorpay Checkout directly from Razorpay when the customer
+chooses **Pay online**. Do not add a Razorpay key or secret to the frontend
+environment: the public key ID, amount, currency, and provider order ID all come
+from the authenticated initiation response. If Checkout is closed or payment
+verification is interrupted, the customer can resume the same payment from the
+order-details page instead of placing a duplicate order.
+
+To exercise the browser flow in Test Mode:
+
+1. Add an item to the cart, select an address, and choose **Pay online**.
+2. Complete Checkout with a Razorpay Test Mode payment method.
+3. Confirm that the order moves from `awaiting_payment` to `pending` only after
+   server verification.
+4. Close Checkout on another attempt and confirm that **Retry payment** appears
+   on that order's details page.
+
 Configure the Dashboard webhook URL as:
 
 ```text

@@ -11,6 +11,7 @@ import { OrderStatus } from "../components/order-status";
 type Filter = "all" | OrderStatusType;
 const filters: { label: string; value: Filter }[] = [
   { label: "All", value: "all" },
+  { label: "Awaiting payment", value: "awaiting_payment" },
   { label: "Pending", value: "pending" },
   { label: "Preparing", value: "preparing" },
   { label: "Delivered", value: "delievered" },

@@ -3,7 +3,7 @@ import { ChevronRight, LockKeyhole } from "lucide-react";
 import { CartRes } from "@/features/cart";
 import { BASE_URL } from "@/shared/config";
 import { formatPrice } from "@/shared/lib";
-import { Coupon } from "../model/checkout.types";
+import { Coupon, PaymentType } from "../model/checkout.types";
 import CouponField from "./coupon-field";
 
 type CheckoutSummaryProps = {
@@ -15,6 +15,8 @@ type CheckoutSummaryProps = {
   total: number;
   validatingCoupon?: boolean;
   placingOrder?: boolean;
+  paymentType: PaymentType;
+  paymentStatusMessage?: string | null;
   canPlaceOrder: boolean;
   onCodeChange: (code: string) => void;
   onApplyCoupon: () => void;
@@ -31,6 +33,8 @@ export const CheckoutSummary = ({
   total,
   validatingCoupon,
   placingOrder,
+  paymentType,
+  paymentStatusMessage,
   canPlaceOrder,
   onCodeChange,
   onApplyCoupon,
@@ -120,12 +124,20 @@ export const CheckoutSummary = ({
         onClick={onPlaceOrder}
         rightSection={<ChevronRight size={18} />}
       >
-        Place cash-on-delivery order
+        {paymentType === "cash" ? "Place cash-on-delivery order" : "Pay securely"}
       </Button>
 
+      {paymentStatusMessage && (
+        <p className="mt-3 rounded-control bg-brand-soft px-3 py-2 text-center text-sm font-semibold text-ink" role="status">
+          {paymentStatusMessage}
+        </p>
+      )}
+
       <p className="mt-3 flex items-start justify-center gap-2 text-center text-xs leading-5 text-ink-muted">
-        <LockKeyhole size={15} className="mt-0.5 shrink-0" /> Your order details are
-        securely linked to your account.
+        <LockKeyhole size={15} className="mt-0.5 shrink-0" />
+        {paymentType === "cash"
+          ? "Your order details are securely linked to your account."
+          : "Payment details are handled securely by Razorpay. We never receive your card or UPI credentials."}
       </p>
     </aside>
   );

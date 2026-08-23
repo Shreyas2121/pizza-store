@@ -1,13 +1,18 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button, Drawer } from "@mantine/core";
 import { ArrowLeft, Clock3, MapPin, Store as StoreIcon, Truck, UserRound } from "lucide-react";
 import { Link, useNavigate } from "react-router";
 import { AddressForm, useGetAddresses, useGetUser } from "@/features/account";
 import { useGetCartCheckout } from "@/features/cart";
 import { useCreateOrder } from "@/features/orders";
-import { error, formatClockTime, formatStoreHours, success } from "@/shared/lib";
-import { Coupon } from "../model/checkout.types";
+import { error, formatClockTime, formatStoreHours, success, warning } from "@/shared/lib";
+import { Coupon, PaymentType } from "../model/checkout.types";
 import { useValidateCoupon } from "../api/coupon.mutations";
+import {
+  useInitiateRazorpayOrder,
+  useVerifyRazorpayPayment,
+} from "../api/payment.mutations";
+import { openRazorpayCheckout } from "../lib/razorpay";
 import AddressStep from "../components/address-step";
 import PaymentStep from "../components/payment-step";
 import CheckoutSummary from "../components/checkout-summary";
@@ -22,10 +27,15 @@ export const CheckoutPage = () => {
   const { data: user, isLoading: loadingUser, isError: userError } = useGetUser();
   const createOrderM = useCreateOrder();
   const validateCouponM = useValidateCoupon();
+  const initiateRazorpayM = useInitiateRazorpayOrder();
+  const verifyRazorpayM = useVerifyRazorpayPayment();
   const [coupon, setCoupon] = useState<Coupon | null>(null);
   const [code, setCode] = useState("");
   const [selectedAddress, setSelectedAddress] = useState<number | null>(null);
+  const [paymentType, setPaymentType] = useState<PaymentType>("cash");
+  const [paymentStatusMessage, setPaymentStatusMessage] = useState<string | null>(null);
   const [addressDrawerOpen, setAddressDrawerOpen] = useState(false);
+  const clientRequestId = useRef<string | null>(null);
   const resolvedStore = useStoreStore((state) => state.resolvedStore);
   const userPincode = useStoreStore((state) => state.userPincode);
   const openPincodeModal = useStoreStore((state) => state.openPincodeModal);
@@ -36,6 +46,10 @@ export const CheckoutPage = () => {
       if (matchingAddress) setSelectedAddress(matchingAddress.id);
     }
   }, [addresses, selectedAddress, userPincode]);
+
+  useEffect(() => {
+    clientRequestId.current = null;
+  }, [selectedAddress, coupon?.code]);
 
   const { discountAmount, total } = useMemo(() => {
     const subtotal = cart?.totalPrice ?? 0;
@@ -58,24 +72,107 @@ export const CheckoutPage = () => {
     validateCouponM.mutate({ code: normalized }, { onSuccess: (validated) => { setCoupon(validated); setCode(validated.code); success("Coupon applied"); } });
   };
 
-  const placeOrder = () => {
+  const placeOrder = async () => {
+    if (!user) { error("Your account details are unavailable. Refresh and try again."); return; }
     if (!resolvedStore || !userPincode) { error("Select your delivery pincode before placing the order."); openPincodeModal(); return; }
     if (!cartMatchesStore) { error("Your cart belongs to a different store. Review your delivery area."); openPincodeModal(); return; }
     if (!isStoreOpen(resolvedStore.opensAt, resolvedStore.closesAt)) { error(`This store is currently closed. It opens at ${formatClockTime(resolvedStore.opensAt)}.`); return; }
     if (!selectedAddress) { error("Select a delivery address"); return; }
     if (!addressMatchesStore) { error(`Choose an address in pincode ${userPincode}.`); return; }
-    createOrderM.mutate({ addressId: selectedAddress, paymentType: "cash", couponCode: coupon?.code ?? null }, {
-      onSuccess: (response) => {
-        success(response.message);
-        navigate(`/order/${response.data}`);
-      },
-      onError: (cause) => error(
-        axios.isAxiosError<{ message?: string }>(cause)
-          ? cause.response?.data.message ?? "The order could not be placed."
-          : "The order could not be placed. Check store availability and try again.",
-      ),
-    });
+    if (paymentType === "cash") {
+      createOrderM.mutate({ addressId: selectedAddress, paymentType: "cash", couponCode: coupon?.code ?? null }, {
+        onSuccess: (response) => {
+          success(response.message);
+          navigate(`/order/${response.data}`);
+        },
+        onError: (cause) => error(
+          axios.isAxiosError<{ message?: string }>(cause)
+            ? cause.response?.data.message ?? "The order could not be placed."
+            : "The order could not be placed. Check store availability and try again.",
+        ),
+      });
+      return;
+    }
+
+    if (total < 1) {
+      error("Online payments require a total of at least ₹1.00. Choose cash on delivery.");
+      return;
+    }
+
+    let pendingOrderId: number | null = null;
+    try {
+      setPaymentStatusMessage("Preparing secure payment…");
+      clientRequestId.current ??= crypto.randomUUID();
+      const initiation = await initiateRazorpayM.mutateAsync({
+        addressId: selectedAddress,
+        couponCode: coupon?.code ?? null,
+        clientRequestId: clientRequestId.current,
+      });
+      const checkout = initiation.data;
+      pendingOrderId = checkout.localOrderId;
+
+      if (!checkout.checkoutReady) {
+        const message =
+          checkout.failure?.description ??
+          "Your payment is still being prepared. Open the order to retry.";
+        warning(message, "Payment pending");
+        navigate(`/order/${checkout.localOrderId}`);
+        return;
+      }
+
+      setPaymentStatusMessage("Opening Razorpay Checkout…");
+      const checkoutResult = await openRazorpayCheckout({
+        checkout,
+        prefill: {
+          name: `${user.fname} ${user.lname}`.trim(),
+          email: user.email,
+          contact: selectedAddressDetails?.phone,
+        },
+        onPaymentFailed: (message) => error(message, "Payment failed"),
+      });
+
+      if (checkoutResult.kind === "dismissed") {
+        warning(
+          "Payment was not confirmed. Your order is saved and can be retried.",
+          "Payment window closed"
+        );
+        navigate(`/order/${checkout.localOrderId}`);
+        return;
+      }
+
+      setPaymentStatusMessage("Verifying captured payment…");
+      const verification = await verifyRazorpayM.mutateAsync({
+        localOrderId: checkout.localOrderId,
+        ...checkoutResult.response,
+      });
+      success(verification.message);
+      navigate(`/order/${verification.data.localOrderId}`);
+    } catch (cause) {
+      const response = axios.isAxiosError<{
+        message?: string;
+        data?: { localOrderId?: number };
+      }>(cause)
+        ? cause.response?.data
+        : undefined;
+      pendingOrderId = response?.data?.localOrderId ?? pendingOrderId;
+      error(
+        response?.message ??
+          (cause instanceof Error
+            ? cause.message
+            : "Online payment could not be completed."),
+        "Payment not confirmed"
+      );
+      if (pendingOrderId) navigate(`/order/${pendingOrderId}`);
+    } finally {
+      setPaymentStatusMessage(null);
+    }
   };
+
+  const paymentBusy =
+    createOrderM.isPending ||
+    initiateRazorpayM.isPending ||
+    verifyRazorpayM.isPending ||
+    paymentStatusMessage !== null;
 
   if (loading) return <div className="page-shell"><DetailsPageSkeleton /></div>;
 
@@ -111,7 +208,15 @@ export const CheckoutPage = () => {
             servicePincode={userPincode}
           />
 
-          <PaymentStep />
+          <PaymentStep
+            value={paymentType}
+            onChange={(value) => {
+              setPaymentType(value);
+              setPaymentStatusMessage(null);
+              clientRequestId.current = null;
+            }}
+            disabled={paymentBusy}
+          />
         </div>
 
         <CheckoutSummary
@@ -122,7 +227,9 @@ export const CheckoutPage = () => {
           discountAmount={discountAmount}
           total={total}
           validatingCoupon={validateCouponM.isPending}
-          placingOrder={createOrderM.isPending}
+          placingOrder={paymentBusy}
+          paymentType={paymentType}
+          paymentStatusMessage={paymentStatusMessage}
           canPlaceOrder={!!selectedAddress && addressMatchesStore && cartMatchesStore && storeOpen}
           onCodeChange={(newCode) => setCode(newCode)}
           onApplyCoupon={applyCoupon}

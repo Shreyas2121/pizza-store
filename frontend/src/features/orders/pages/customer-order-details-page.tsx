@@ -8,6 +8,7 @@ import { OrderAddress } from "../components/order-address";
 import { OrderCoupon } from "../components/order-coupon";
 import { OrderItems } from "../components/order-items";
 import { OrderStatus } from "../components/order-status";
+import { PendingPaymentCard } from "@/features/checkout";
 
 
 export const CustomerOrderDetailsPage = () => {
@@ -40,7 +41,12 @@ export const CustomerOrderDetailsPage = () => {
         action={<OrderStatus status={order.status} />}
       />
 
-      {order.status === "cancelled" ? (
+      {order.status === "awaiting_payment" ? (
+        <PendingPaymentCard
+          localOrderId={order.id}
+          contact={order.address?.phone}
+        />
+      ) : order.status === "cancelled" ? (
         <div className="mb-5 rounded-card border border-red-200 bg-red-50 p-5"><div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-full bg-red-100 text-danger">×</span><div><h2 className="font-semibold text-danger">This order was cancelled</h2><p className="mt-1 text-sm text-red-800/75">The order will not move to preparation or delivery.</p></div></div></div>
       ) : (
         <section className="mb-5 rounded-card border border-border bg-surface p-5 shadow-subtle sm:p-6" aria-labelledby="order-progress-title">
@@ -63,8 +69,8 @@ export const CustomerOrderDetailsPage = () => {
 
       <div className="mb-5 grid grid-cols-2 gap-3 rounded-card border border-border bg-surface p-4 shadow-subtle sm:grid-cols-4 sm:p-5">
         <div><p className="text-xs font-bold uppercase tracking-wide text-ink-muted">Order status</p><div className="mt-2"><OrderStatus status={order.status} /></div></div>
-        <div><p className="text-xs font-bold uppercase tracking-wide text-ink-muted">Payment</p><Badge mt={8} color={order.payment?.status === "completed" ? "basil" : "yellow"} variant="light">{order.payment?.status ?? "Pending"}</Badge></div>
-        <div><p className="text-xs font-bold uppercase tracking-wide text-ink-muted">Method</p><p className="mt-2 text-sm font-semibold text-ink">{order.paymentType === "cash" ? "Cash on delivery" : order.paymentType}</p></div>
+        <div><p className="text-xs font-bold uppercase tracking-wide text-ink-muted">Payment</p><Badge mt={8} color={order.payment?.status === "completed" ? "basil" : order.payment?.status === "failed" ? "red" : "yellow"} variant="light">{order.payment?.status ?? "Pending"}</Badge>{order.payment?.providerStatus && <p className="mt-1 text-xs text-ink-muted">Razorpay: {order.payment.providerStatus}</p>}</div>
+        <div><p className="text-xs font-bold uppercase tracking-wide text-ink-muted">Method</p><p className="mt-2 text-sm font-semibold text-ink">{order.paymentType === "cash" ? "Cash on delivery" : "Razorpay online"}</p></div>
         <div><p className="text-xs font-bold uppercase tracking-wide text-ink-muted">Total</p><p className="mt-1 text-xl font-bold tabular-nums text-brand">{formatPrice(order.totalPrice)}</p></div>
       </div>
 

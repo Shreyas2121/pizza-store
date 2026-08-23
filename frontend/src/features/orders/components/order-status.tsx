@@ -1,8 +1,10 @@
-import { CheckCircle2, ChefHat, Clock3, XCircle } from "lucide-react";
+import { CheckCircle2, ChefHat, Clock3, WalletCards, XCircle } from "lucide-react";
 import { OrderStatus as OS } from "../model/order.types";
 
 export const getOrderStatusMeta = (status: OS) => {
   switch (status) {
+    case "awaiting_payment":
+      return { label: "Awaiting payment", icon: WalletCards, className: "bg-amber-100 text-amber-800" };
     case "preparing":
       return { label: "Preparing", icon: ChefHat, className: "bg-blue-100 text-blue-800" };
     case "delivered":
