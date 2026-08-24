@@ -590,10 +590,32 @@ class PaymentService {
           continue;
         }
 
-        if (attempt.providerOrderId && config) {
+        if (!attempt.providerOrderId && attempt.status === "processing") {
+          const message =
+            "Processing payment has no attached provider order; reservation was preserved for payment recovery";
+          logger.error(message, {
+            orderId,
+            localPaymentId: attempt.localPaymentId,
+          });
+          results.push({ orderId, status: "conflict", error: message });
+          continue;
+        }
+
+        if (attempt.providerOrderId) {
+          if (!config) {
+            const message =
+              "Razorpay configuration is unavailable; reservation was preserved";
+            logger.error(message, {
+              orderId,
+              providerOrderId: attempt.providerOrderId,
+            });
+            results.push({ orderId, status: "error", error: message });
+            continue;
+          }
+
           const gateway = createRazorpayGateway(config);
-          let providerOrder: RazorpayOrderSnapshot | null = null;
-          let providerPayments: RazorpayPaymentSnapshot[] = [];
+          let providerOrder: RazorpayOrderSnapshot;
+          let providerPayments: RazorpayPaymentSnapshot[];
           try {
             [providerOrder, providerPayments] = await Promise.all([
               gateway.fetchOrder(attempt.providerOrderId),
@@ -608,22 +630,56 @@ class PaymentService {
                 error: err instanceof Error ? err.message : "Provider error",
               }
             );
+            const message =
+              "Could not verify Razorpay state; reservation was preserved";
+            results.push({ orderId, status: "error", error: message });
+            continue;
           }
 
-          const captured = providerPayments.find(
+          const paidOrAuthorized = providerPayments.find(
             (p) => p.status === "captured" || p.status === "authorized"
           );
 
-          if (captured && providerOrder?.status === "paid") {
+          if (paidOrAuthorized && providerOrder.status === "paid") {
             const res = await this.reconcileProviderPayment(
               attempt.providerOrderId,
-              captured.id,
+              paidOrAuthorized.id,
               { requireCaptured: true }
             );
-            if (res.finalizedNow) {
+            if (
+              res.finalizedNow ||
+              ("paymentStatus" in res &&
+                (res.paymentStatus === "completed" ||
+                  res.paymentStatus === "refunded"))
+            ) {
               results.push({ orderId, status: "finalized" });
               continue;
             }
+          }
+
+          if (paidOrAuthorized) {
+            const message =
+              "Razorpay payment state is not safe to expire; reservation was preserved";
+            logger.error(message, {
+              orderId,
+              providerOrderId: attempt.providerOrderId,
+              providerOrderStatus: providerOrder.status,
+              providerPaymentId: paidOrAuthorized.id,
+              providerPaymentStatus: paidOrAuthorized.status,
+            });
+            results.push({ orderId, status: "conflict", error: message });
+            continue;
+          }
+
+          if (providerOrder.status === "paid") {
+            const message =
+              "Razorpay order is paid but no captured payment was returned; reservation was preserved";
+            logger.error(message, {
+              orderId,
+              providerOrderId: attempt.providerOrderId,
+            });
+            results.push({ orderId, status: "conflict", error: message });
+            continue;
           }
         }
 
@@ -647,7 +703,10 @@ class PaymentService {
             .for("update")
             .limit(1);
 
-          if (payment && payment.status === "pending") {
+          if (
+            payment &&
+            (payment.status === "pending" || payment.status === "processing")
+          ) {
             await this.updatePayment(
               {
                 status: "failed",

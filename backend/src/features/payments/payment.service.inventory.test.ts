@@ -13,11 +13,12 @@ import cartService from "../cart/cart.service";
 import checkoutService from "../checkout/checkout.service";
 import inventoryService from "../inventory/inventory.service";
 import * as razorpayConfig from "./razorpay.config";
+import * as razorpayGateway from "./razorpay.gateway";
 import paymentService from "./payment.service";
 
 describe("PaymentService inventory reservation lifecycle", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.restoreAllMocks();
   });
 
   describe("initiation (findOrCreateLocalAttempt)", () => {
@@ -475,6 +476,108 @@ describe("PaymentService inventory reservation lifecycle", () => {
       expect(report.released).toBe(1);
       expect(report.finalized).toBe(0);
       expect(releaseSpy).toHaveBeenCalledWith(42, mockTx);
+    });
+
+    it("preserves reservations when provider state cannot be fetched", async () => {
+      vi.spyOn(
+        inventoryService,
+        "getExpiredActiveReservationOrderIds"
+      ).mockResolvedValue([42]);
+      vi.spyOn(paymentService as any, "getAttemptByOrderId").mockResolvedValue({
+        localOrderId: 42,
+        localPaymentId: 101,
+        userId: 7,
+        storeId: 1,
+        storeName: "Main Store",
+        totalPrice: 500,
+        couponId: null,
+        provider: "razorpay",
+        amountPaise: 50000,
+        currency: "INR",
+        status: "processing",
+        providerStatus: "created",
+        providerOrderId: "order_rzp_123",
+        failureCode: null,
+        failureDescription: null,
+      });
+      vi.spyOn(razorpayConfig, "getRazorpayConfig").mockReturnValue({
+        keyId: "rzp_test_key",
+        keySecret: "rzp_test_secret",
+        webhookSecret: "whsec_test",
+      });
+      vi.spyOn(razorpayGateway, "createRazorpayGateway").mockReturnValue({
+        fetchOrder: vi.fn().mockRejectedValue(new Error("Network timeout")),
+        fetchOrderPayments: vi.fn().mockResolvedValue([]),
+      } as any);
+      const releaseSpy = vi.spyOn(inventoryService, "releaseReservations");
+      const transactionSpy = vi.spyOn(db, "transaction");
+
+      const report = await paymentService.reconcileExpiredReservations(10);
+
+      expect(report).toMatchObject({
+        scanned: 1,
+        released: 0,
+        errors: 1,
+      });
+      expect(report.results[0]).toMatchObject({
+        orderId: 42,
+        status: "error",
+      });
+      expect(releaseSpy).not.toHaveBeenCalled();
+      expect(transactionSpy).not.toHaveBeenCalled();
+    });
+
+    it("preserves reservations when provider configuration is unavailable", async () => {
+      vi.spyOn(
+        inventoryService,
+        "getExpiredActiveReservationOrderIds"
+      ).mockResolvedValue([42]);
+      vi.spyOn(paymentService as any, "getAttemptByOrderId").mockResolvedValue({
+        localOrderId: 42,
+        localPaymentId: 101,
+        provider: "razorpay",
+        status: "processing",
+        providerOrderId: "order_rzp_123",
+      });
+      vi.spyOn(razorpayConfig, "getRazorpayConfig").mockReturnValue(null);
+      const releaseSpy = vi.spyOn(inventoryService, "releaseReservations");
+      const transactionSpy = vi.spyOn(db, "transaction");
+
+      const report = await paymentService.reconcileExpiredReservations(10);
+
+      expect(report).toMatchObject({
+        scanned: 1,
+        released: 0,
+        errors: 1,
+      });
+      expect(releaseSpy).not.toHaveBeenCalled();
+      expect(transactionSpy).not.toHaveBeenCalled();
+    });
+
+    it("preserves a processing reservation with an unattached provider order", async () => {
+      vi.spyOn(
+        inventoryService,
+        "getExpiredActiveReservationOrderIds"
+      ).mockResolvedValue([42]);
+      vi.spyOn(paymentService as any, "getAttemptByOrderId").mockResolvedValue({
+        localOrderId: 42,
+        localPaymentId: 101,
+        provider: "razorpay",
+        status: "processing",
+        providerOrderId: null,
+      });
+      const releaseSpy = vi.spyOn(inventoryService, "releaseReservations");
+      const transactionSpy = vi.spyOn(db, "transaction");
+
+      const report = await paymentService.reconcileExpiredReservations(10);
+
+      expect(report).toMatchObject({
+        scanned: 1,
+        released: 0,
+        conflicts: 1,
+      });
+      expect(releaseSpy).not.toHaveBeenCalled();
+      expect(transactionSpy).not.toHaveBeenCalled();
     });
   });
 });
