@@ -1,0 +1,484 @@
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gte,
+  gt,
+  ilike,
+  inArray,
+  isNotNull,
+  lte,
+  sql,
+  type SQL,
+} from "drizzle-orm";
+import { db } from "../../db";
+import {
+  inventoryMovementsTable,
+  inventoryReservationsTable,
+  productsTable,
+  storeProductsTable,
+  storesTable,
+  usersTable,
+} from "../../db/schema";
+import { AppError } from "../../utils/error";
+import type {
+  InventoryChangeType,
+  StockStatus,
+  TransactionType,
+} from "../../utils/types";
+import {
+  assertAdjustmentCoversReservations,
+  calculateAdjustment,
+  calculateRestock,
+} from "./inventory.logic";
+
+type InventoryListStatus = "all" | "low_stock" | "out_of_stock";
+
+interface InventoryListInput {
+  status: InventoryListStatus;
+  search?: string;
+  page: number;
+  limit: number;
+}
+
+interface MovementListInput {
+  changeType?: InventoryChangeType;
+  productId?: number;
+  from?: Date;
+  to?: Date;
+  page: number;
+  limit: number;
+}
+
+class InventoryService {
+  private activeReservationsSubquery() {
+    return db
+      .select({
+        storeProductId: inventoryReservationsTable.storeProductId,
+        reservedQuantity:
+          sql<number>`coalesce(sum(${inventoryReservationsTable.quantity}), 0)::integer`.as(
+            "reserved_quantity"
+          ),
+      })
+      .from(inventoryReservationsTable)
+      .where(eq(inventoryReservationsTable.status, "reserved"))
+      .groupBy(inventoryReservationsTable.storeProductId)
+      .as("active_inventory_reservations");
+  }
+
+  async lockStoreProducts(
+    storeId: number,
+    productIds: number[],
+    tx: TransactionType
+  ) {
+    const uniqueProductIds = [...new Set(productIds)];
+    if (uniqueProductIds.length === 0) return [];
+
+    return await tx
+      .select()
+      .from(storeProductsTable)
+      .where(
+        and(
+          eq(storeProductsTable.storeId, storeId),
+          inArray(storeProductsTable.productId, uniqueProductIds)
+        )
+      )
+      .orderBy(asc(storeProductsTable.id))
+      .for("update");
+  }
+
+  async getActiveReservedQuantities(
+    storeProductIds: number[],
+    tx: TransactionType
+  ) {
+    const uniqueIds = [...new Set(storeProductIds)];
+    if (uniqueIds.length === 0) return new Map<number, number>();
+
+    const rows = await tx
+      .select({
+        storeProductId: inventoryReservationsTable.storeProductId,
+        quantity:
+          sql<number>`coalesce(sum(${inventoryReservationsTable.quantity}), 0)::integer`,
+      })
+      .from(inventoryReservationsTable)
+      .where(
+        and(
+          eq(inventoryReservationsTable.status, "reserved"),
+          inArray(inventoryReservationsTable.storeProductId, uniqueIds)
+        )
+      )
+      .groupBy(inventoryReservationsTable.storeProductId);
+
+    return new Map(
+      rows.map((row) => [row.storeProductId, Number(row.quantity)] as const)
+    );
+  }
+
+  async getStoreInventory(storeId: number, input: InventoryListInput) {
+    await this.assertStoreExists(storeId);
+
+    const activeReservations = this.activeReservationsSubquery();
+    const reservedQuantity = sql<number>`coalesce(${activeReservations.reservedQuantity}, 0)::integer`;
+    const availableQuantity = sql<number | null>`case
+      when ${storeProductsTable.onHandQuantity} is null then null
+      else greatest(${storeProductsTable.onHandQuantity} - ${reservedQuantity}, 0)
+    end`;
+    const stockStatus = sql<StockStatus>`case
+      when ${storeProductsTable.onHandQuantity} is null then 'untracked'
+      when ${availableQuantity} <= 0 then 'out_of_stock'
+      when ${availableQuantity} <= ${storeProductsTable.lowStockThreshold} then 'low_stock'
+      else 'in_stock'
+    end`;
+
+    const conditions: SQL[] = [eq(storeProductsTable.storeId, storeId)];
+    if (input.search) {
+      conditions.push(ilike(productsTable.name, `%${input.search}%`));
+    }
+    if (input.status === "low_stock") {
+      conditions.push(
+        isNotNull(storeProductsTable.onHandQuantity),
+        gt(availableQuantity, 0),
+        lte(availableQuantity, storeProductsTable.lowStockThreshold)
+      );
+    } else if (input.status === "out_of_stock") {
+      conditions.push(
+        isNotNull(storeProductsTable.onHandQuantity),
+        lte(availableQuantity, 0)
+      );
+    }
+
+    const whereClause = and(...conditions);
+    const [{ total }] = await db
+      .select({ total: count() })
+      .from(storeProductsTable)
+      .innerJoin(
+        productsTable,
+        eq(storeProductsTable.productId, productsTable.id)
+      )
+      .leftJoin(
+        activeReservations,
+        eq(activeReservations.storeProductId, storeProductsTable.id)
+      )
+      .where(whereClause);
+
+    const offset = (input.page - 1) * input.limit;
+    const items = await db
+      .select({
+        storeProductId: storeProductsTable.id,
+        storeId: storeProductsTable.storeId,
+        productId: storeProductsTable.productId,
+        productName: productsTable.name,
+        productImage: productsTable.image,
+        price: storeProductsTable.price,
+        isAvailable: storeProductsTable.isAvailable,
+        productIsAvailable: productsTable.isAvailable,
+        onHandQuantity: storeProductsTable.onHandQuantity,
+        reservedQuantity,
+        availableQuantity,
+        lowStockThreshold: storeProductsTable.lowStockThreshold,
+        lastRestockedAt: storeProductsTable.lastRestockedAt,
+        stockStatus,
+      })
+      .from(storeProductsTable)
+      .innerJoin(
+        productsTable,
+        eq(storeProductsTable.productId, productsTable.id)
+      )
+      .leftJoin(
+        activeReservations,
+        eq(activeReservations.storeProductId, storeProductsTable.id)
+      )
+      .where(whereClause)
+      .orderBy(asc(productsTable.name), asc(storeProductsTable.id))
+      .limit(input.limit)
+      .offset(offset);
+
+    const parsedTotal = Number(total);
+    return {
+      items,
+      meta: {
+        total: parsedTotal,
+        page: input.page,
+        limit: input.limit,
+        totalPages: Math.ceil(parsedTotal / input.limit),
+        hasNextPage: input.page * input.limit < parsedTotal,
+      },
+    };
+  }
+
+  async getProductInventory(storeId: number, productId: number) {
+    const activeReservations = this.activeReservationsSubquery();
+    const reservedQuantity = sql<number>`coalesce(${activeReservations.reservedQuantity}, 0)::integer`;
+    const availableQuantity = sql<number | null>`case
+      when ${storeProductsTable.onHandQuantity} is null then null
+      else greatest(${storeProductsTable.onHandQuantity} - ${reservedQuantity}, 0)
+    end`;
+    const stockStatus = sql<StockStatus>`case
+      when ${storeProductsTable.onHandQuantity} is null then 'untracked'
+      when ${availableQuantity} <= 0 then 'out_of_stock'
+      when ${availableQuantity} <= ${storeProductsTable.lowStockThreshold} then 'low_stock'
+      else 'in_stock'
+    end`;
+
+    const [item] = await db
+      .select({
+        storeProductId: storeProductsTable.id,
+        storeId: storeProductsTable.storeId,
+        productId: storeProductsTable.productId,
+        productName: productsTable.name,
+        productImage: productsTable.image,
+        price: storeProductsTable.price,
+        isAvailable: storeProductsTable.isAvailable,
+        productIsAvailable: productsTable.isAvailable,
+        onHandQuantity: storeProductsTable.onHandQuantity,
+        reservedQuantity,
+        availableQuantity,
+        lowStockThreshold: storeProductsTable.lowStockThreshold,
+        lastRestockedAt: storeProductsTable.lastRestockedAt,
+        stockStatus,
+      })
+      .from(storeProductsTable)
+      .innerJoin(
+        productsTable,
+        eq(storeProductsTable.productId, productsTable.id)
+      )
+      .leftJoin(
+        activeReservations,
+        eq(activeReservations.storeProductId, storeProductsTable.id)
+      )
+      .where(
+        and(
+          eq(storeProductsTable.storeId, storeId),
+          eq(storeProductsTable.productId, productId)
+        )
+      )
+      .limit(1);
+
+    if (!item) {
+      throw new AppError(
+        "Store product mapping not found",
+        404,
+        "STORE_PRODUCT_NOT_FOUND"
+      );
+    }
+
+    const movements = await this.getMovements(storeId, {
+      productId,
+      page: 1,
+      limit: 20,
+    });
+
+    return { ...item, recentMovements: movements.items };
+  }
+
+  async getMovements(storeId: number, input: MovementListInput) {
+    await this.assertStoreExists(storeId);
+
+    const conditions: SQL[] = [eq(storeProductsTable.storeId, storeId)];
+    if (input.productId !== undefined) {
+      conditions.push(eq(storeProductsTable.productId, input.productId));
+    }
+    if (input.changeType) {
+      conditions.push(eq(inventoryMovementsTable.changeType, input.changeType));
+    }
+    if (input.from) {
+      conditions.push(gte(inventoryMovementsTable.createdAt, input.from));
+    }
+    if (input.to) {
+      conditions.push(lte(inventoryMovementsTable.createdAt, input.to));
+    }
+    const whereClause = and(...conditions);
+
+    const [{ total }] = await db
+      .select({ total: count() })
+      .from(inventoryMovementsTable)
+      .innerJoin(
+        storeProductsTable,
+        eq(inventoryMovementsTable.storeProductId, storeProductsTable.id)
+      )
+      .where(whereClause);
+
+    const items = await db
+      .select({
+        id: inventoryMovementsTable.id,
+        storeProductId: inventoryMovementsTable.storeProductId,
+        productId: storeProductsTable.productId,
+        productName: productsTable.name,
+        changeType: inventoryMovementsTable.changeType,
+        quantityChange: inventoryMovementsTable.quantityChange,
+        previousQuantity: inventoryMovementsTable.previousQuantity,
+        newQuantity: inventoryMovementsTable.newQuantity,
+        reason: inventoryMovementsTable.reason,
+        orderId: inventoryMovementsTable.orderId,
+        createdBy: inventoryMovementsTable.createdBy,
+        actorFirstName: usersTable.fname,
+        actorLastName: usersTable.lname,
+        createdAt: inventoryMovementsTable.createdAt,
+      })
+      .from(inventoryMovementsTable)
+      .innerJoin(
+        storeProductsTable,
+        eq(inventoryMovementsTable.storeProductId, storeProductsTable.id)
+      )
+      .innerJoin(
+        productsTable,
+        eq(storeProductsTable.productId, productsTable.id)
+      )
+      .leftJoin(usersTable, eq(inventoryMovementsTable.createdBy, usersTable.id))
+      .where(whereClause)
+      .orderBy(desc(inventoryMovementsTable.createdAt))
+      .limit(input.limit)
+      .offset((input.page - 1) * input.limit);
+
+    const parsedTotal = Number(total);
+    return {
+      items,
+      meta: {
+        total: parsedTotal,
+        page: input.page,
+        limit: input.limit,
+        totalPages: Math.ceil(parsedTotal / input.limit),
+        hasNextPage: input.page * input.limit < parsedTotal,
+      },
+    };
+  }
+
+  async restockProduct(
+    storeId: number,
+    productId: number,
+    data: { quantityAdded: number; reason?: string; createdBy: number }
+  ) {
+    return await db.transaction(async (tx) => {
+      const mapping = await this.lockSingleStoreProduct(storeId, productId, tx);
+      const change = calculateRestock(
+        mapping.onHandQuantity,
+        data.quantityAdded
+      );
+      const now = new Date();
+
+      await tx
+        .update(storeProductsTable)
+        .set({
+          onHandQuantity: change.newQuantity,
+          lastRestockedAt: now,
+          updatedAt: now,
+        })
+        .where(eq(storeProductsTable.id, mapping.id));
+
+      await tx.insert(inventoryMovementsTable).values({
+        storeProductId: mapping.id,
+        changeType: "restock",
+        quantityChange: change.quantityChange,
+        previousQuantity: change.previousQuantity,
+        newQuantity: change.newQuantity,
+        reason: data.reason ?? null,
+        createdBy: data.createdBy,
+      });
+
+      return {
+        storeProductId: mapping.id,
+        productId,
+        ...(await this.getProductName(productId, tx)),
+        ...change,
+        changeType: "restock" as const,
+        lastRestockedAt: now,
+      };
+    });
+  }
+
+  async adjustProduct(
+    storeId: number,
+    productId: number,
+    data: { targetQuantity: number; reason: string; createdBy: number }
+  ) {
+    return await db.transaction(async (tx) => {
+      const mapping = await this.lockSingleStoreProduct(storeId, productId, tx);
+      const reservedQuantities = await this.getActiveReservedQuantities(
+        [mapping.id],
+        tx
+      );
+      assertAdjustmentCoversReservations(
+        data.targetQuantity,
+        reservedQuantities.get(mapping.id) ?? 0
+      );
+      const change = calculateAdjustment(
+        mapping.onHandQuantity,
+        data.targetQuantity
+      );
+
+      await tx
+        .update(storeProductsTable)
+        .set({ onHandQuantity: change.newQuantity, updatedAt: new Date() })
+        .where(eq(storeProductsTable.id, mapping.id));
+
+      await tx.insert(inventoryMovementsTable).values({
+        storeProductId: mapping.id,
+        changeType: "adjustment",
+        quantityChange: change.quantityChange,
+        previousQuantity: change.previousQuantity,
+        newQuantity: change.newQuantity,
+        reason: data.reason,
+        createdBy: data.createdBy,
+      });
+
+      return {
+        storeProductId: mapping.id,
+        productId,
+        ...(await this.getProductName(productId, tx)),
+        ...change,
+        changeType: "adjustment" as const,
+      };
+    });
+  }
+
+  async updateThreshold(storeId: number, productId: number, threshold: number) {
+    return await db.transaction(async (tx) => {
+      const mapping = await this.lockSingleStoreProduct(storeId, productId, tx);
+      const [updated] = await tx
+        .update(storeProductsTable)
+        .set({ lowStockThreshold: threshold, updatedAt: new Date() })
+        .where(eq(storeProductsTable.id, mapping.id))
+        .returning();
+      return updated;
+    });
+  }
+
+  private async lockSingleStoreProduct(
+    storeId: number,
+    productId: number,
+    tx: TransactionType
+  ) {
+    const [mapping] = await this.lockStoreProducts(storeId, [productId], tx);
+    if (!mapping) {
+      throw new AppError(
+        "Store product mapping not found",
+        404,
+        "STORE_PRODUCT_NOT_FOUND"
+      );
+    }
+    return mapping;
+  }
+
+  private async getProductName(productId: number, tx: TransactionType) {
+    const [product] = await tx
+      .select({ productName: productsTable.name })
+      .from(productsTable)
+      .where(eq(productsTable.id, productId))
+      .limit(1);
+    if (!product) throw new AppError("Product not found", 404, "PRODUCT_NOT_FOUND");
+    return product;
+  }
+
+  private async assertStoreExists(storeId: number) {
+    const store = await db.query.storesTable.findFirst({
+      where: eq(storesTable.id, storeId),
+      columns: { id: true },
+    });
+    if (!store) throw new AppError("Store not found", 404, "STORE_NOT_FOUND");
+  }
+}
+
+export { InventoryService };
+export default new InventoryService();

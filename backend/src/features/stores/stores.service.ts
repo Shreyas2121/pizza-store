@@ -14,6 +14,8 @@ import {
 import { db } from "../../db";
 import {
   deliveryZonesTable,
+  inventoryMovementsTable,
+  inventoryReservationsTable,
   productsTable,
   storeProductsTable,
   storesTable,
@@ -287,21 +289,49 @@ class StoreService {
       throw new AppError("Store not found", 404);
     }
 
-    const [mapping] = await db
-      .delete(storeProductsTable)
-      .where(
-        and(
-          eq(storeProductsTable.storeId, storeId),
-          eq(storeProductsTable.productId, productId)
+    return await db.transaction(async (tx) => {
+      const [mapping] = await tx
+        .select()
+        .from(storeProductsTable)
+        .where(
+          and(
+            eq(storeProductsTable.storeId, storeId),
+            eq(storeProductsTable.productId, productId)
+          )
         )
-      )
-      .returning();
+        .for("update")
+        .limit(1);
 
-    if (!mapping) {
-      throw new AppError("Store product mapping not found", 404);
-    }
+      if (!mapping) {
+        throw new AppError("Store product mapping not found", 404);
+      }
 
-    return mapping;
+      const [movement] = await tx
+        .select({ id: inventoryMovementsTable.id })
+        .from(inventoryMovementsTable)
+        .where(eq(inventoryMovementsTable.storeProductId, mapping.id))
+        .limit(1);
+      const [reservation] = await tx
+        .select({ id: inventoryReservationsTable.id })
+        .from(inventoryReservationsTable)
+        .where(eq(inventoryReservationsTable.storeProductId, mapping.id))
+        .limit(1);
+
+      if (movement || reservation) {
+        const [updated] = await tx
+          .update(storeProductsTable)
+          .set({ isAvailable: false, updatedAt: new Date() })
+          .where(eq(storeProductsTable.id, mapping.id))
+          .returning();
+        return { ...updated, removal: "soft" as const };
+      }
+
+      const [deleted] = await tx
+        .delete(storeProductsTable)
+        .where(eq(storeProductsTable.id, mapping.id))
+        .returning();
+      return { ...deleted, removal: "hard" as const };
+    });
   }
 
   async getDeliveryZones(storeId: number) {
