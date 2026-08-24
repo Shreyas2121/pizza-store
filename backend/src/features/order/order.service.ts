@@ -1,12 +1,13 @@
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "../../db";
-import {
-  ordersTable,
-} from "../../db/schema";
+import { ordersTable } from "../../db/schema";
+import { AppError } from "../../utils/error";
+import type { OrderStatus } from "../../utils/types";
 import cartService from "../cart/cart.service";
-import { OrderStatus } from "../../utils/types";
 import checkoutService from "../checkout/checkout.service";
+import inventoryService from "../inventory/inventory.service";
 import paymentService from "../payments/payment.service";
+import { assertValidOrderTransition } from "./order.logic";
 
 interface CreateCodOrderData {
   userId: number;
@@ -40,6 +41,15 @@ class OrderService {
         tx
       );
 
+      const lowStockAlerts = await inventoryService.deductStockForCod(
+        {
+          orderId: order.id,
+          storeId: order.storeId,
+          allocations: quote.stockAllocations,
+        },
+        tx
+      );
+
       if (quote.coupon) {
         await checkoutService.recordCouponUse(
           {
@@ -58,13 +68,16 @@ class OrderService {
         id: order.id,
         paymentId: payment.id,
         totalPrice: order.totalPrice,
+        lowStockAlerts,
       };
     });
   }
 
   async getOrders(userId: number, status?: OrderStatus) {
     return await db.query.ordersTable.findMany({
-      where: status ? and(eq(ordersTable.status, status), eq(ordersTable.userId, userId)) : eq(ordersTable.userId, userId),
+      where: status
+        ? and(eq(ordersTable.status, status), eq(ordersTable.userId, userId))
+        : eq(ordersTable.userId, userId),
       orderBy: desc(ordersTable.orderDate),
     });
   }
@@ -119,12 +132,53 @@ class OrderService {
     });
   }
 
-  async updateOrderStatus(orderId: number, status: OrderStatus) {
-    return await db
-      .update(ordersTable)
-      .set({ status })
-      .where(eq(ordersTable.id, orderId));
+  async updateOrderStatus(
+    orderId: number,
+    status: OrderStatus,
+    adminUserId?: number
+  ) {
+    return await db.transaction(async (tx) => {
+      const [order] = await tx
+        .select()
+        .from(ordersTable)
+        .where(eq(ordersTable.id, orderId))
+        .for("update")
+        .limit(1);
+
+      if (!order) {
+        throw new AppError("Order not found", 404, "ORDER_NOT_FOUND");
+      }
+
+      if (order.status === status) {
+        return order;
+      }
+
+      assertValidOrderTransition(order.status, status);
+
+      if (status === "cancelled") {
+        await inventoryService.restoreStockForOrder(
+          {
+            orderId: order.id,
+            createdBy: adminUserId ?? null,
+          },
+          tx
+        );
+
+        if (order.couponId) {
+          await checkoutService.releaseCouponReservation(order.id, tx);
+        }
+      }
+
+      const [updatedOrder] = await tx
+        .update(ordersTable)
+        .set({ status, updatedAt: new Date() })
+        .where(eq(ordersTable.id, orderId))
+        .returning();
+
+      return updatedOrder;
+    });
   }
 }
 
+export { OrderService };
 export default new OrderService();

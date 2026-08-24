@@ -12,6 +12,36 @@ export interface StockChange {
   quantityChange: number;
 }
 
+export interface StockAllocationItem {
+  storeProductId: number;
+  productId: number;
+  productName: string;
+  demandedQuantity: number;
+  isTracked: boolean;
+  onHandQuantity: number | null;
+  reservedQuantity: number;
+  availableQuantity: number | null;
+  lowStockThreshold: number;
+}
+
+export interface InsufficientStockItem {
+  productId: number;
+  productName: string;
+  requestedQuantity: number;
+  availableQuantity: number;
+}
+
+export interface LowStockAlert {
+  storeId: number;
+  storeName?: string;
+  storeProductId: number;
+  productId: number;
+  productName: string;
+  currentQuantity: number;
+  threshold: number;
+  severity: "low_stock" | "out_of_stock";
+}
+
 const assertStockInteger = (
   value: number,
   name: string,
@@ -136,4 +166,133 @@ export const assertAdjustmentCoversReservations = (
       { targetQuantity, reservedQuantity }
     );
   }
+};
+
+export const validateStockDemand = (params: {
+  demandByProduct: Map<number, number>;
+  storeProducts: Array<{
+    id: number;
+    productId: number;
+    onHandQuantity: number | null;
+    lowStockThreshold: number;
+  }>;
+  reservedQuantities: Map<number, number>;
+  productNameMap: Map<number, string>;
+}): StockAllocationItem[] => {
+  const { demandByProduct, storeProducts, reservedQuantities, productNameMap } =
+    params;
+  const storeProductMap = new Map(
+    storeProducts.map((sp) => [sp.productId, sp])
+  );
+
+  for (const productId of demandByProduct.keys()) {
+    if (!storeProductMap.has(productId)) {
+      const productName =
+        productNameMap.get(productId) ?? `Product #${productId}`;
+      throw new AppError(
+        `Store product mapping not found for ${productName}`,
+        404,
+        "STORE_PRODUCT_NOT_FOUND",
+        { productId }
+      );
+    }
+  }
+
+  const allocations: StockAllocationItem[] = [];
+  const insufficientItems: InsufficientStockItem[] = [];
+
+  for (const sp of storeProducts) {
+    const demanded = demandByProduct.get(sp.productId);
+    if (demanded === undefined) continue;
+
+    const reserved = reservedQuantities.get(sp.id) ?? 0;
+    const isTracked = sp.onHandQuantity !== null;
+    const available = isTracked
+      ? getAvailableQuantity(sp.onHandQuantity, reserved)
+      : null;
+    const productName =
+      productNameMap.get(sp.productId) ?? `Product #${sp.productId}`;
+
+    if (isTracked && available !== null && available < demanded) {
+      insufficientItems.push({
+        productId: sp.productId,
+        productName,
+        requestedQuantity: demanded,
+        availableQuantity: available,
+      });
+    }
+
+    allocations.push({
+      storeProductId: sp.id,
+      productId: sp.productId,
+      productName,
+      demandedQuantity: demanded,
+      isTracked,
+      onHandQuantity: sp.onHandQuantity,
+      reservedQuantity: reserved,
+      availableQuantity: available,
+      lowStockThreshold: sp.lowStockThreshold,
+    });
+  }
+
+  if (insufficientItems.length > 0) {
+    throw new AppError(
+      "Insufficient stock for one or more items",
+      409,
+      "INSUFFICIENT_STOCK",
+      { items: insufficientItems }
+    );
+  }
+
+  return allocations;
+};
+
+export const calculateDownwardThresholdCrossing = (params: {
+  storeId: number;
+  storeName?: string;
+  storeProductId: number;
+  productId: number;
+  productName: string;
+  availableBefore: number;
+  availableAfter: number;
+  threshold: number;
+}): LowStockAlert | null => {
+  const {
+    storeId,
+    storeName,
+    storeProductId,
+    productId,
+    productName,
+    availableBefore,
+    availableAfter,
+    threshold,
+  } = params;
+
+  if (availableBefore > 0 && availableAfter <= 0) {
+    return {
+      storeId,
+      ...(storeName ? { storeName } : {}),
+      storeProductId,
+      productId,
+      productName,
+      currentQuantity: availableAfter,
+      threshold,
+      severity: "out_of_stock",
+    };
+  }
+
+  if (availableBefore > threshold && availableAfter <= threshold) {
+    return {
+      storeId,
+      ...(storeName ? { storeName } : {}),
+      storeProductId,
+      productId,
+      productName,
+      currentQuantity: availableAfter,
+      threshold,
+      severity: "low_stock",
+    };
+  }
+
+  return null;
 };

@@ -15,6 +15,7 @@ import { AppError } from "../../utils/error";
 import { paiseToRupees, rupeesToPaise } from "../../utils/money";
 import type { CouponRedemptionStatus, TransactionType } from "../../utils/types";
 import cartService from "../cart/cart.service";
+import inventoryService from "../inventory/inventory.service";
 import { formatStoreTime, isStoreOpen } from "../stores/store-hours";
 
 type CheckoutCart = NonNullable<
@@ -140,6 +141,11 @@ class CheckoutService {
     }
 
     await this.assertProductsAvailable(cart, tx);
+    const stockAllocations = await inventoryService.validateAndLockStock(
+      cart.storeId,
+      cart.items,
+      tx
+    );
 
     const subtotalPaise = calculateCartSubtotalPaise(cart);
     const coupon = couponCode
@@ -160,6 +166,7 @@ class CheckoutService {
       discountRupees: paiseToRupees(discountPaise),
       totalPaise,
       totalRupees: paiseToRupees(totalPaise),
+      stockAllocations,
     };
   }
 

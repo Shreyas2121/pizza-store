@@ -107,12 +107,12 @@ orderRoutes.get(
 orderRoutes.patch(
   "/:orderId",
   authenticateAdmin,
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Auth, res) => {
     const id = parseIntegerParam(req.params.orderId, "Order ID");
 
     const status = req.body.status as OrderStatus;
 
-    await orderService.updateOrderStatus(id, status);
+    await orderService.updateOrderStatus(id, status, req.user?.id);
 
     res.json({
       message: "Updated",

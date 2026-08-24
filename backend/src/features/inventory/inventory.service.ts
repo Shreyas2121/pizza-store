@@ -29,9 +29,15 @@ import type {
   TransactionType,
 } from "../../utils/types";
 import {
+  aggregateCartDemand,
   assertAdjustmentCoversReservations,
   calculateAdjustment,
+  calculateDownwardThresholdCrossing,
   calculateRestock,
+  type LowStockAlert,
+  type StockAllocationItem,
+  type StockDemandItem,
+  validateStockDemand,
 } from "./inventory.logic";
 
 type InventoryListStatus = "all" | "low_stock" | "out_of_stock";
@@ -114,6 +120,223 @@ class InventoryService {
     return new Map(
       rows.map((row) => [row.storeProductId, Number(row.quantity)] as const)
     );
+  }
+
+  async validateAndLockStock(
+    storeId: number,
+    items: Array<{
+      productId: number;
+      quantity: number;
+      product?: { name: string };
+      productName?: string;
+    }>,
+    tx: TransactionType
+  ): Promise<StockAllocationItem[]> {
+    const demandByProduct = aggregateCartDemand(items);
+    const productIds = [...demandByProduct.keys()];
+    const lockedStoreProducts = await this.lockStoreProducts(
+      storeId,
+      productIds,
+      tx
+    );
+
+    const reservedQuantities = await this.getActiveReservedQuantities(
+      lockedStoreProducts.map((sp) => sp.id),
+      tx
+    );
+
+    const productNameMap = new Map<number, string>();
+    for (const item of items) {
+      const name = item.product?.name ?? item.productName;
+      if (name) {
+        productNameMap.set(item.productId, name);
+      }
+    }
+
+    const missingProductIds = productIds.filter(
+      (id) => !productNameMap.has(id)
+    );
+    if (missingProductIds.length > 0) {
+      const dbProducts = await tx
+        .select({ id: productsTable.id, name: productsTable.name })
+        .from(productsTable)
+        .where(inArray(productsTable.id, missingProductIds));
+      for (const p of dbProducts) {
+        productNameMap.set(p.id, p.name);
+      }
+    }
+
+    return validateStockDemand({
+      demandByProduct,
+      storeProducts: lockedStoreProducts,
+      reservedQuantities,
+      productNameMap,
+    });
+  }
+
+  async deductStockForCod(
+    data: {
+      orderId: number;
+      storeId: number;
+      allocations: StockAllocationItem[];
+    },
+    tx: TransactionType
+  ): Promise<LowStockAlert[]> {
+    const alerts: LowStockAlert[] = [];
+
+    for (const allocation of data.allocations) {
+      if (!allocation.isTracked || allocation.onHandQuantity === null) {
+        continue;
+      }
+
+      const demanded = allocation.demandedQuantity;
+      const previousQuantity = allocation.onHandQuantity;
+      const newQuantity = previousQuantity - demanded;
+
+      await tx
+        .update(storeProductsTable)
+        .set({
+          onHandQuantity: newQuantity,
+          updatedAt: new Date(),
+        })
+        .where(eq(storeProductsTable.id, allocation.storeProductId));
+
+      await tx.insert(inventoryMovementsTable).values({
+        storeProductId: allocation.storeProductId,
+        changeType: "sale",
+        quantityChange: -demanded,
+        previousQuantity,
+        newQuantity,
+        orderId: data.orderId,
+        idempotencyKey: `sale:${data.orderId}:${allocation.storeProductId}`,
+        createdBy: null,
+      });
+
+      const availableBefore = allocation.availableQuantity!;
+      const availableAfter = Math.max(
+        0,
+        newQuantity - allocation.reservedQuantity
+      );
+
+      const alert = calculateDownwardThresholdCrossing({
+        storeId: data.storeId,
+        storeProductId: allocation.storeProductId,
+        productId: allocation.productId,
+        productName: allocation.productName,
+        availableBefore,
+        availableAfter,
+        threshold: allocation.lowStockThreshold,
+      });
+
+      if (alert) {
+        alerts.push(alert);
+      }
+    }
+
+    return alerts;
+  }
+
+  async restoreStockForOrder(
+    data: {
+      orderId: number;
+      createdBy?: number | null;
+    },
+    tx: TransactionType
+  ) {
+    await this.releaseReservations(data.orderId, tx);
+
+    const saleMovements = await tx
+      .select()
+      .from(inventoryMovementsTable)
+      .where(
+        and(
+          eq(inventoryMovementsTable.orderId, data.orderId),
+          eq(inventoryMovementsTable.changeType, "sale")
+        )
+      );
+
+    if (saleMovements.length === 0) {
+      return;
+    }
+
+    const existingCancellations = await tx
+      .select({ storeProductId: inventoryMovementsTable.storeProductId })
+      .from(inventoryMovementsTable)
+      .where(
+        and(
+          eq(inventoryMovementsTable.orderId, data.orderId),
+          eq(inventoryMovementsTable.changeType, "cancellation")
+        )
+      );
+    const cancelledStoreProductIds = new Set(
+      existingCancellations.map((c) => c.storeProductId)
+    );
+
+    const pendingRestorations = saleMovements.filter(
+      (m) => !cancelledStoreProductIds.has(m.storeProductId)
+    );
+    if (pendingRestorations.length === 0) {
+      return;
+    }
+
+    const storeProductIds = [
+      ...new Set(pendingRestorations.map((m) => m.storeProductId)),
+    ];
+    const lockedStoreProducts = await tx
+      .select()
+      .from(storeProductsTable)
+      .where(inArray(storeProductsTable.id, storeProductIds))
+      .orderBy(asc(storeProductsTable.id))
+      .for("update");
+
+    const lockedMap = new Map(lockedStoreProducts.map((sp) => [sp.id, sp]));
+
+    for (const sale of pendingRestorations) {
+      const sp = lockedMap.get(sale.storeProductId);
+      if (!sp) continue;
+
+      const restoredQuantity = Math.abs(sale.quantityChange);
+      if (sp.onHandQuantity !== null) {
+        const previousQuantity = sp.onHandQuantity;
+        const newQuantity = previousQuantity + restoredQuantity;
+
+        await tx
+          .update(storeProductsTable)
+          .set({
+            onHandQuantity: newQuantity,
+            updatedAt: new Date(),
+          })
+          .where(eq(storeProductsTable.id, sp.id));
+
+        await tx.insert(inventoryMovementsTable).values({
+          storeProductId: sp.id,
+          changeType: "cancellation",
+          quantityChange: restoredQuantity,
+          previousQuantity,
+          newQuantity,
+          orderId: data.orderId,
+          idempotencyKey: `cancellation:${data.orderId}:${sp.id}`,
+          createdBy: data.createdBy ?? null,
+          reason: "Order cancelled",
+        });
+      }
+    }
+  }
+
+  async releaseReservations(orderId: number, tx: TransactionType) {
+    await tx
+      .update(inventoryReservationsTable)
+      .set({
+        status: "released",
+        releasedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(inventoryReservationsTable.orderId, orderId),
+          eq(inventoryReservationsTable.status, "reserved")
+        )
+      );
   }
 
   async getStoreInventory(storeId: number, input: InventoryListInput) {
