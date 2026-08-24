@@ -1,12 +1,15 @@
 import {
   boolean,
+  check,
   doublePrecision,
   integer,
   pgTable,
   real,
   text,
+  timestamp,
   unique,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { id, createdAt, updatedAt, isActive } from "./_helpers";
 import { productsTable } from "./catalog.schema";
 
@@ -49,6 +52,9 @@ export const storeProductsTable = pgTable(
       .notNull(),
     price: real().notNull(),
     isAvailable: boolean("is_available").notNull().default(true),
+    onHandQuantity: integer("on_hand_quantity"),
+    lowStockThreshold: integer("low_stock_threshold").notNull().default(10),
+    lastRestockedAt: timestamp("last_restocked_at", { withTimezone: true }),
     createdAt,
     updatedAt,
   },
@@ -56,6 +62,14 @@ export const storeProductsTable = pgTable(
     unique("store_products_store_id_product_id_unique").on(
       table.storeId,
       table.productId
+    ),
+    check(
+      "store_products_on_hand_quantity_nonnegative",
+      sql`${table.onHandQuantity} is null or ${table.onHandQuantity} >= 0`
+    ),
+    check(
+      "store_products_low_stock_threshold_nonnegative",
+      sql`${table.lowStockThreshold} >= 0`
     ),
   ]
 );

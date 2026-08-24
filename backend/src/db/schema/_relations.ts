@@ -27,6 +27,10 @@ import {
   orderItemsTable,
   orderItemCustomizationsTable,
 } from "./order.schema";
+import {
+  inventoryMovementsTable,
+  inventoryReservationsTable,
+} from "./inventory.schema";
 import { chatSessionsTable, chatMessagesTable } from "./chat.schema";
 
 /**
@@ -48,6 +52,7 @@ export const usersRelations = relations(usersTable, ({ many, one }) => ({
   items: many(cartItemsTable),
   orders: many(ordersTable),
   couponRedemptions: many(couponRedemptionsTable),
+  inventoryMovements: many(inventoryMovementsTable),
 }));
 
 export const addressesRelations = relations(addressTable, ({ many, one }) => ({
@@ -94,7 +99,7 @@ export const storesRelations = relations(storesTable, ({ many }) => ({
 
 export const storeProductsRelations = relations(
   storeProductsTable,
-  ({ one }) => ({
+  ({ many, one }) => ({
     store: one(storesTable, {
       fields: [storeProductsTable.storeId],
       references: [storesTable.id],
@@ -103,6 +108,8 @@ export const storeProductsRelations = relations(
       fields: [storeProductsTable.productId],
       references: [productsTable.id],
     }),
+    inventoryMovements: many(inventoryMovementsTable),
+    inventoryReservations: many(inventoryReservationsTable),
   })
 );
 
@@ -293,6 +300,8 @@ export const orderRelations = relations(ordersTable, ({ many, one }) => ({
     fields: [ordersTable.id],
     references: [couponRedemptionsTable.orderId],
   }),
+  inventoryMovements: many(inventoryMovementsTable),
+  inventoryReservations: many(inventoryReservationsTable),
 }));
 
 export const orderItemsTableRelations = relations(
@@ -320,6 +329,42 @@ export const orderItemCustomizationsRelations = relations(
     customizationOption: one(customizationOptionsTable, {
       fields: [orderItemCustomizationsTable.customizationOptionId],
       references: [customizationOptionsTable.id],
+    }),
+  })
+);
+
+// ──────────────────────────────────────────────
+// Inventory relations
+// ──────────────────────────────────────────────
+
+export const inventoryMovementsRelations = relations(
+  inventoryMovementsTable,
+  ({ one }) => ({
+    storeProduct: one(storeProductsTable, {
+      fields: [inventoryMovementsTable.storeProductId],
+      references: [storeProductsTable.id],
+    }),
+    order: one(ordersTable, {
+      fields: [inventoryMovementsTable.orderId],
+      references: [ordersTable.id],
+    }),
+    createdByUser: one(usersTable, {
+      fields: [inventoryMovementsTable.createdBy],
+      references: [usersTable.id],
+    }),
+  })
+);
+
+export const inventoryReservationsRelations = relations(
+  inventoryReservationsTable,
+  ({ one }) => ({
+    order: one(ordersTable, {
+      fields: [inventoryReservationsTable.orderId],
+      references: [ordersTable.id],
+    }),
+    storeProduct: one(storeProductsTable, {
+      fields: [inventoryReservationsTable.storeProductId],
+      references: [storeProductsTable.id],
     }),
   })
 );

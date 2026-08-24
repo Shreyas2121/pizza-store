@@ -50,6 +50,21 @@ export type PaymentWebhookEventStatus = "processing" | "processed" | "failed";
 export type CouponRedemptionStatus = "reserved" | "consumed" | "released";
 export type CouponType = "percentage" | "fixed";
 export type ChatStatus = "open" | "close" | "rejected" | "pending";
+export type InventoryChangeType =
+  | "sale"
+  | "restock"
+  | "adjustment"
+  | "return"
+  | "cancellation";
+export type InventoryReservationStatus =
+  | "reserved"
+  | "consumed"
+  | "released";
+export type StockStatus =
+  | "untracked"
+  | "in_stock"
+  | "low_stock"
+  | "out_of_stock";
 
 export type GroupT = "daily" | "weekly" | "monthly" | "quarterly" | "yearly";
 
