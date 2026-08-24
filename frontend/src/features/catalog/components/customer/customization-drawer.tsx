@@ -1,10 +1,12 @@
 import { Button, Checkbox, Radio, Skeleton } from "@mantine/core";
+import { useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, RotateCcw, ShoppingCart } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useGetProductCustomization } from "../../api/customization.queries";
 import { Group, Product } from "../../model/catalog.types";
-import { error, formatPrice, success, warning } from "@/shared/lib";
-import { useAddToCart, useUpdateCartItemCustomizations, ItemRes } from "@/features/cart";
+import { catalogKeys } from "../../model/catalog.keys";
+import { formatPrice, handleStockApiError, success, warning } from "@/shared/lib";
+import { cartKeys, useAddToCart, useUpdateCartItemCustomizations, ItemRes } from "@/features/cart";
 import { LoadingRegion } from "@/shared/ui";
 import { useStoreStore } from "@/features/store";
 
@@ -14,9 +16,11 @@ export const CustomizationDrawer = ({ product, close, cartItem }: { product: Pro
   const { data, isLoading, isError, refetch } = useGetProductCustomization(product.id);
   const addToCartM = useAddToCart();
   const updateCustomizationsM = useUpdateCartItemCustomizations();
+  const queryClient = useQueryClient();
   const [selection, setSelection] = useState<Selection>({});
   const resolvedStore = useStoreStore((state) => state.resolvedStore);
 
+  const isOutOfStock = !product.isAvailable || product.stockStatus === "out_of_stock";
   const groups = useMemo(() => (data ?? []).map((entry) => entry.group), [data]);
 
   useEffect(() => {
@@ -61,17 +65,24 @@ export const CustomizationDrawer = ({ product, close, cartItem }: { product: Pro
   };
 
   const handleSubmit = () => {
-    if (incompleteGroups.length > 0 || addToCartM.isPending || updateCustomizationsM.isPending) return;
+    if (isOutOfStock || incompleteGroups.length > 0 || addToCartM.isPending || updateCustomizationsM.isPending) return;
     if (!cartItem && !resolvedStore) {
-      error("Choose your delivery pincode before adding items.");
+      handleStockApiError(new Error("Choose your delivery pincode before adding items."));
       return;
     }
-    const callbacks = {
-      onSuccess: (response: { message: string }) => { success(response.message); close(); },
-      onError: () => error("Your customization could not be saved. Please try again."),
+    const onError = (cause: unknown) => {
+      handleStockApiError(cause, "Your customization could not be saved. Please try again.");
+      queryClient.invalidateQueries({ queryKey: catalogKeys.all });
+      queryClient.invalidateQueries({ queryKey: cartKeys.all });
     };
     if (cartItem) {
-      updateCustomizationsM.mutate({ cartItemId: cartItem.id, cIds: selectedIds }, callbacks);
+      updateCustomizationsM.mutate(
+        { cartItemId: cartItem.id, cIds: selectedIds },
+        {
+          onSuccess: (response: { message: string }) => { success(response.message); close(); },
+          onError,
+        }
+      );
       return;
     }
     addToCartM.mutate(
@@ -82,7 +93,7 @@ export const CustomizationDrawer = ({ product, close, cartItem }: { product: Pro
           else success(response.message);
           close();
         },
-        onError: callbacks.onError,
+        onError,
       },
     );
   };
@@ -188,8 +199,14 @@ export const CustomizationDrawer = ({ product, close, cartItem }: { product: Pro
         )}
         <div className="flex items-center justify-between gap-4">
           <div><p className="text-xs text-ink-muted">Total</p><p className="text-xl font-bold tabular-nums text-ink">{formatPrice(product.price + extrasTotal)}</p></div>
-          <Button size="md" loading={addToCartM.isPending || updateCustomizationsM.isPending} disabled={incompleteGroups.length > 0} onClick={handleSubmit} leftSection={<ShoppingCart size={18} />}>
-            {cartItem ? "Update item" : "Add to cart"}
+          <Button
+            size="md"
+            loading={addToCartM.isPending || updateCustomizationsM.isPending}
+            disabled={isOutOfStock || incompleteGroups.length > 0}
+            onClick={handleSubmit}
+            leftSection={<ShoppingCart size={18} />}
+          >
+            {isOutOfStock ? "Sold out" : cartItem ? "Update item" : "Add to cart"}
           </Button>
         </div>
       </div>

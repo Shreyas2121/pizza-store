@@ -1,5 +1,11 @@
 export type CustomizationType = "single" | "multiple";
 
+export type StockStatus =
+  | "untracked"
+  | "in_stock"
+  | "low_stock"
+  | "out_of_stock";
+
 export type Category = {
   id: number;
   name: string;
@@ -20,6 +26,8 @@ export type Product = {
   price: number;
   image: string;
   categoryId: number;
+  stockStatus?: StockStatus;
+  stockCount?: number | null;
 };
 
 export type MenuItem = {

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Drawer, Button } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
+import { useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Clock3, MapPin, ShoppingCart, Store as StoreIcon } from "lucide-react";
 import { useNavigate } from "react-router";
 import { AddressForm, useGetAddresses } from "@/features/account";
@@ -8,10 +9,11 @@ import { CustomizationDrawer } from "@/features/catalog";
 import { EmptyState, PageHeader } from "@/shared/ui";
 
 import { useAuthModalStore } from "@/shared/model";
-import { error, formatStoreHours, success } from "@/shared/lib";
+import { error, formatStoreHours, handleStockApiError, success } from "@/shared/lib";
 import { useStoreStore } from "@/features/store";
 import { ItemRes } from "../model/cart.types";
 import {
+  cartKeys,
   useGetCart,
   useRemoveCartItem,
   useUpdateCartItemQuantity,
@@ -22,6 +24,7 @@ import CartSummary from "../components/cart-summary";
 export const CartPage = () => {
   const { data: rawCart } = useGetCart();
   const cart = rawCart || { id: 0, userId: 0, items: [], totalPrice: 0, storeId: null, store: null };
+  const queryClient = useQueryClient();
   const { openModal, closeModal } = useAuthModalStore();
   const updateCartM = useUpdateCartItemQuantity();
   const removeCartItemM = useRemoveCartItem();
@@ -134,7 +137,14 @@ export const CartPage = () => {
     }
     updateCartM.mutate(
       { productId: item.productId, cartItemId: item.id, type },
-      { onSuccess: (response) => success(response.message) }
+      {
+        onSuccess: (response) => success(response.message),
+        onError: (cause) => {
+          handleStockApiError(cause, "Failed to update item quantity.");
+          queryClient.invalidateQueries({ queryKey: cartKeys.all });
+          queryClient.invalidateQueries({ queryKey: ["catalog"] });
+        },
+      }
     );
   };
 

@@ -13,3 +13,4 @@ export {
 } from "./regional";
 export { cn } from "./cn";
 export { cap } from "./cap";
+export { formatStockErrorMessage, handleStockApiError } from "./stock-error";

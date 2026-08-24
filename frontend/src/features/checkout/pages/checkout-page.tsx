@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button, Drawer } from "@mantine/core";
+import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Clock3, MapPin, Store as StoreIcon, Truck, UserRound } from "lucide-react";
 import { Link, useNavigate } from "react-router";
 import { AddressForm, useGetAddresses, useGetUser } from "@/features/account";
 import { useGetCartCheckout } from "@/features/cart";
 import { useCreateOrder } from "@/features/orders";
-import { error, formatClockTime, formatStoreHours, success, warning } from "@/shared/lib";
+import { error, formatClockTime, formatStoreHours, handleStockApiError, success, warning } from "@/shared/lib";
 import { Coupon, PaymentType } from "../model/checkout.types";
 import { useValidateCoupon } from "../api/coupon.mutations";
 import {
@@ -23,6 +24,7 @@ import axios from "axios";
 
 export const CheckoutPage = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { data: addresses, isLoading: loadingAddresses, isError: addressesError } = useGetAddresses();
   const { data: cart, isLoading: loadingCart, isError: cartError } = useGetCartCheckout();
   const { data: user, isLoading: loadingUser, isError: userError } = useGetUser();
@@ -92,11 +94,17 @@ export const CheckoutPage = () => {
           success(response.message);
           navigate(`/order/${response.data}`);
         },
-        onError: (cause) => error(
-          axios.isAxiosError<{ message?: string }>(cause)
-            ? cause.response?.data.message ?? "The order could not be placed."
-            : "The order could not be placed. Check store availability and try again.",
-        ),
+        onError: (cause) => {
+          const stockResult = handleStockApiError(
+            cause,
+            "The order could not be placed. Check store availability and try again."
+          );
+          queryClient.invalidateQueries({ queryKey: ["cart"] });
+          queryClient.invalidateQueries({ queryKey: ["catalog"] });
+          if (stockResult.isStockError) {
+            navigate("/cart");
+          }
+        },
       });
       return;
     }
@@ -162,13 +170,19 @@ export const CheckoutPage = () => {
         ? cause.response?.data
         : undefined;
       pendingOrderId = response?.data?.localOrderId ?? pendingOrderId;
-      error(
-        response?.message ??
-          (cause instanceof Error
-            ? cause.message
-            : "Online payment could not be completed."),
-        "Payment not confirmed"
+
+      const stockResult = handleStockApiError(
+        cause,
+        "Online payment could not be completed."
       );
+      queryClient.invalidateQueries({ queryKey: ["cart"] });
+      queryClient.invalidateQueries({ queryKey: ["catalog"] });
+
+      if (stockResult.isStockError) {
+        navigate("/cart");
+        return;
+      }
+
       if (pendingOrderId) navigate(`/order/${pendingOrderId}`);
     } finally {
       setPaymentStatusMessage(null);

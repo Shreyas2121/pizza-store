@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { Button, Drawer } from "@mantine/core";
+import { useQueryClient } from "@tanstack/react-query";
 import { ImageOff, Settings2, ShoppingCart } from "lucide-react";
 import { Product } from "../../model/catalog.types";
+import { catalogKeys } from "../../model/catalog.keys";
 import { BASE_URL } from "@/shared/config";
-import { error, formatPrice, success, warning } from "@/shared/lib";
-import { useAddToCart } from "@/features/cart";
+import { formatPrice, handleStockApiError, success, warning } from "@/shared/lib";
+import { cartKeys, useAddToCart } from "@/features/cart";
 import { useAuthModalStore } from "@/shared/model";
 import { Login, useUser } from "@/features/auth";
 import CustomizationDrawer from "./customization-drawer";
@@ -26,6 +28,7 @@ const DietaryMark = ({ vegetarian }: { vegetarian: boolean }) => {
 
 export const ProductCard = ({ product }: { product: Product }) => {
   const addToCartM = useAddToCart();
+  const queryClient = useQueryClient();
   const [opened, setOpened] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
   const { isLoggedIn } = useUser();
@@ -33,8 +36,11 @@ export const ProductCard = ({ product }: { product: Product }) => {
   const resolvedStore = useStoreStore((state) => state.resolvedStore);
   const openPincodeModal = useStoreStore((state) => state.openPincodeModal);
 
+  const isOutOfStock = !product.isAvailable || product.stockStatus === "out_of_stock";
+  const isLowStock = !isOutOfStock && product.stockStatus === "low_stock" && typeof product.stockCount === "number";
+
   const handleAddToCart = () => {
-    if (!product.isAvailable || addToCartM.isPending) return;
+    if (isOutOfStock || addToCartM.isPending) return;
 
     if (!resolvedStore) {
       openPincodeModal();
@@ -55,12 +61,16 @@ export const ProductCard = ({ product }: { product: Product }) => {
       { productId: product.id, storeId: resolvedStore.id, cIds: [] },
       {
         onSuccess: (response) => response.data.cartCleared ? warning(response.message) : success(response.message),
-        onError: () => error("This product could not be added. Refresh the menu and try again."),
+        onError: (cause) => {
+          handleStockApiError(cause, "This product could not be added. Refresh the menu and try again.");
+          queryClient.invalidateQueries({ queryKey: catalogKeys.all });
+          queryClient.invalidateQueries({ queryKey: cartKeys.all });
+        },
       }
     );
   };
 
-  const buttonLabel = !product.isAvailable
+  const buttonLabel = isOutOfStock
     ? "Sold out"
     : !isLoggedIn
       ? "Sign in to add"
@@ -70,7 +80,7 @@ export const ProductCard = ({ product }: { product: Product }) => {
 
   return (
     <>
-      <article className="group flex h-full flex-col overflow-hidden rounded-card border border-border bg-surface shadow-subtle transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-1 hover:border-brand/40 hover:shadow-subtle-hover focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/25">
+      <article className={`group flex h-full flex-col overflow-hidden rounded-card border border-border bg-surface shadow-subtle transition-[transform,box-shadow,border-color] duration-200 ${isOutOfStock ? "opacity-85" : "hover:-translate-y-1 hover:border-brand/40 hover:shadow-subtle-hover focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/25"}`}>
         <div className="relative aspect-[4/3] overflow-hidden bg-surface-muted">
           {!imageFailed ? (
             <img
@@ -78,7 +88,7 @@ export const ProductCard = ({ product }: { product: Product }) => {
               alt={product.name}
               loading="lazy"
               onError={() => setImageFailed(true)}
-              className={`h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.035] ${!product.isAvailable ? "grayscale-[35%]" : ""}`}
+              className={`h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.035] ${isOutOfStock ? "grayscale-[50%]" : ""}`}
             />
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-2 text-ink-muted" role="img" aria-label={`${product.name} image unavailable`}>
@@ -88,8 +98,13 @@ export const ProductCard = ({ product }: { product: Product }) => {
           )}
 
           {product.veg !== null && <span className="absolute left-3 top-3"><DietaryMark vegetarian={product.veg} /></span>}
-          {!product.isAvailable && (
-            <div className="absolute inset-0 flex items-center justify-center bg-ink/45">
+          {isLowStock && (
+            <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-pill bg-amber-600/95 px-2.5 py-1 text-xs font-bold text-white shadow-subtle backdrop-blur-sm">
+              Only {product.stockCount} left
+            </span>
+          )}
+          {isOutOfStock && (
+            <div className="absolute inset-0 flex items-center justify-center bg-ink/50 backdrop-blur-[1px]">
               <span className="rounded-pill bg-surface px-4 py-2 text-sm font-bold text-ink shadow-panel">Sold out</span>
             </div>
           )}
@@ -103,7 +118,7 @@ export const ProductCard = ({ product }: { product: Product }) => {
             ) : (
               <p className="mt-2 min-h-10 text-sm leading-5 text-ink-muted">Freshly prepared with our signature crust and sauce.</p>
             )}
-            {product.hasCustomization && product.isAvailable && (
+            {product.hasCustomization && !isOutOfStock && (
               <p className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-basil"><Settings2 size={14} aria-hidden="true" /> Sizes and extras available</p>
             )}
           </div>
@@ -115,7 +130,7 @@ export const ProductCard = ({ product }: { product: Product }) => {
               fullWidth
               mt="md"
               size="md"
-              disabled={!product.isAvailable}
+              disabled={isOutOfStock}
               loading={addToCartM.isPending}
               loaderProps={{ type: "dots" }}
               onClick={handleAddToCart}
