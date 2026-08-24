@@ -14,6 +14,8 @@ import checkoutService from "../checkout/checkout.service";
 import inventoryService from "../inventory/inventory.service";
 import * as razorpayConfig from "./razorpay.config";
 import * as razorpayGateway from "./razorpay.gateway";
+import paymentReconciliationService from "./payment-reconciliation.service";
+import paymentRepository from "./payment.repository";
 import paymentService from "./payment.service";
 
 describe("PaymentService inventory reservation lifecycle", () => {
@@ -399,7 +401,7 @@ describe("PaymentService inventory reservation lifecycle", () => {
         .spyOn(inventoryService, "releaseReservations")
         .mockResolvedValue(undefined as any);
 
-      await (paymentService as any).markProviderPaymentFailed(
+      await paymentReconciliationService.markProviderPaymentFailed(
         mockAttempt,
         {
           id: "pay_rzp_failed",
@@ -440,7 +442,7 @@ describe("PaymentService inventory reservation lifecycle", () => {
         failureDescription: null,
       };
 
-      vi.spyOn(paymentService as any, "getAttemptByOrderId").mockResolvedValue(
+      vi.spyOn(paymentRepository, "getAttemptByOrderId").mockResolvedValue(
         mockAttempt
       );
 
@@ -483,7 +485,7 @@ describe("PaymentService inventory reservation lifecycle", () => {
         inventoryService,
         "getExpiredActiveReservationOrderIds"
       ).mockResolvedValue([42]);
-      vi.spyOn(paymentService as any, "getAttemptByOrderId").mockResolvedValue({
+      vi.spyOn(paymentRepository, "getAttemptByOrderId").mockResolvedValue({
         localOrderId: 42,
         localPaymentId: 101,
         userId: 7,
@@ -532,7 +534,7 @@ describe("PaymentService inventory reservation lifecycle", () => {
         inventoryService,
         "getExpiredActiveReservationOrderIds"
       ).mockResolvedValue([42]);
-      vi.spyOn(paymentService as any, "getAttemptByOrderId").mockResolvedValue({
+      vi.spyOn(paymentRepository, "getAttemptByOrderId").mockResolvedValue({
         localOrderId: 42,
         localPaymentId: 101,
         provider: "razorpay",
@@ -559,7 +561,7 @@ describe("PaymentService inventory reservation lifecycle", () => {
         inventoryService,
         "getExpiredActiveReservationOrderIds"
       ).mockResolvedValue([42]);
-      vi.spyOn(paymentService as any, "getAttemptByOrderId").mockResolvedValue({
+      vi.spyOn(paymentRepository, "getAttemptByOrderId").mockResolvedValue({
         localOrderId: 42,
         localPaymentId: 101,
         provider: "razorpay",
