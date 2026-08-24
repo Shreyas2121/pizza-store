@@ -1,6 +1,7 @@
-import { and, asc, desc, eq, getTableColumns, SQL } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, gt, sql, SQL } from "drizzle-orm";
 import { db } from "../../db";
 import {
+  inventoryReservationsTable,
   menuItemsMappingTable,
   menuItemsTable,
   productCustomizationGroupMappingTable,
@@ -8,6 +9,10 @@ import {
   storeProductsTable,
 } from "../../db/schema";
 import { AppError } from "../../utils/error";
+import {
+  deriveStockStatus,
+  getAvailableQuantity,
+} from "../inventory/inventory.logic";
 
 class ProductService {
   async createProduct(product: typeof productsTable.$inferInsert) {
@@ -73,10 +78,35 @@ class ProductService {
     }
 
     if (storeId !== undefined) {
-      return await db
+      const now = new Date();
+      const activeReservationsSubquery = db
+        .select({
+          storeProductId: inventoryReservationsTable.storeProductId,
+          reservedQuantity:
+            sql<number>`COALESCE(SUM(${inventoryReservationsTable.quantity}), 0)`
+              .mapWith(Number)
+              .as("reserved_quantity"),
+        })
+        .from(inventoryReservationsTable)
+        .where(
+          and(
+            eq(inventoryReservationsTable.status, "reserved"),
+            gt(inventoryReservationsTable.expiresAt, now)
+          )
+        )
+        .groupBy(inventoryReservationsTable.storeProductId)
+        .as("active_reservations");
+
+      const rows = await db
         .select({
           ...getTableColumns(productsTable),
           price: storeProductsTable.price,
+          onHandQuantity: storeProductsTable.onHandQuantity,
+          lowStockThreshold: storeProductsTable.lowStockThreshold,
+          reservedQuantity:
+            sql<number>`COALESCE(${activeReservationsSubquery.reservedQuantity}, 0)`.mapWith(
+              Number
+            ),
         })
         .from(productsTable)
         .innerJoin(
@@ -91,6 +121,10 @@ class ProductService {
           menuItemsTable,
           eq(menuItemsTable.id, menuItemsMappingTable.menuItemId)
         )
+        .leftJoin(
+          activeReservationsSubquery,
+          eq(storeProductsTable.id, activeReservationsSubquery.storeProductId)
+        )
         .where(
           and(
             eq(menuItemsTable.slug, menuSlug),
@@ -102,9 +136,35 @@ class ProductService {
         .offset(offset)
         .limit(limit)
         .orderBy(order);
+
+      return rows.map((row) => {
+        const isTracked = row.onHandQuantity !== null;
+        const availableQuantity = isTracked
+          ? getAvailableQuantity(row.onHandQuantity, row.reservedQuantity)
+          : null;
+        const stockStatus = deriveStockStatus(
+          row.onHandQuantity,
+          availableQuantity,
+          row.lowStockThreshold
+        );
+        const stockCount =
+          stockStatus === "low_stock" ? availableQuantity : null;
+
+        const {
+          onHandQuantity,
+          lowStockThreshold,
+          reservedQuantity,
+          ...productData
+        } = row;
+        return {
+          ...productData,
+          stockStatus,
+          stockCount,
+        };
+      });
     }
 
-    return await db
+    const rows = await db
       .select({
         ...getTableColumns(productsTable),
       })
@@ -121,6 +181,12 @@ class ProductService {
       .offset(offset)
       .limit(limit)
       .orderBy(order);
+
+    return rows.map((p) => ({
+      ...p,
+      stockStatus: "untracked" as const,
+      stockCount: null,
+    }));
   }
 
   async getProducts({
@@ -159,15 +225,44 @@ class ProductService {
     }
 
     if (storeId !== undefined) {
-      return await db
+      const now = new Date();
+      const activeReservationsSubquery = db
+        .select({
+          storeProductId: inventoryReservationsTable.storeProductId,
+          reservedQuantity:
+            sql<number>`COALESCE(SUM(${inventoryReservationsTable.quantity}), 0)`
+              .mapWith(Number)
+              .as("reserved_quantity"),
+        })
+        .from(inventoryReservationsTable)
+        .where(
+          and(
+            eq(inventoryReservationsTable.status, "reserved"),
+            gt(inventoryReservationsTable.expiresAt, now)
+          )
+        )
+        .groupBy(inventoryReservationsTable.storeProductId)
+        .as("active_reservations");
+
+      const rows = await db
         .select({
           ...getTableColumns(productsTable),
           price: storeProductsTable.price,
+          onHandQuantity: storeProductsTable.onHandQuantity,
+          lowStockThreshold: storeProductsTable.lowStockThreshold,
+          reservedQuantity:
+            sql<number>`COALESCE(${activeReservationsSubquery.reservedQuantity}, 0)`.mapWith(
+              Number
+            ),
         })
         .from(productsTable)
         .innerJoin(
           storeProductsTable,
           eq(storeProductsTable.productId, productsTable.id)
+        )
+        .leftJoin(
+          activeReservationsSubquery,
+          eq(storeProductsTable.id, activeReservationsSubquery.storeProductId)
         )
         .where(
           and(
@@ -179,13 +274,45 @@ class ProductService {
         .offset(offset)
         .limit(limit)
         .orderBy(order);
+
+      return rows.map((row) => {
+        const isTracked = row.onHandQuantity !== null;
+        const availableQuantity = isTracked
+          ? getAvailableQuantity(row.onHandQuantity, row.reservedQuantity)
+          : null;
+        const stockStatus = deriveStockStatus(
+          row.onHandQuantity,
+          availableQuantity,
+          row.lowStockThreshold
+        );
+        const stockCount =
+          stockStatus === "low_stock" ? availableQuantity : null;
+
+        const {
+          onHandQuantity,
+          lowStockThreshold,
+          reservedQuantity,
+          ...productData
+        } = row;
+        return {
+          ...productData,
+          stockStatus,
+          stockCount,
+        };
+      });
     }
 
-    return await db.query.productsTable.findMany({
+    const rows = await db.query.productsTable.findMany({
       offset,
       limit,
       orderBy: order,
     });
+
+    return rows.map((p) => ({
+      ...p,
+      stockStatus: "untracked" as const,
+      stockCount: null,
+    }));
   }
 
   async getProductsA() {

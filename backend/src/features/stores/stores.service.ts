@@ -5,6 +5,7 @@ import {
   desc,
   eq,
   getTableColumns,
+  gt,
   ilike,
   inArray,
   ne,
@@ -22,6 +23,10 @@ import {
 } from "../../db/schema";
 import { AppError } from "../../utils/error";
 import { generateSlug } from "../../utils";
+import {
+  deriveStockStatus,
+  getAvailableQuantity,
+} from "../inventory/inventory.logic";
 import { formatStoreTime, isStoreOpen } from "./store-hours";
 
 class StoreService {
@@ -173,7 +178,7 @@ class StoreService {
 
     if (!store) {
       throw new AppError(
-          `Stores in your area are currently closed. Opens at ${formatStoreTime(activeStores[0].opensAt)} IST`,
+        `Stores in your area are currently closed. Opens at ${formatStoreTime(activeStores[0].opensAt)} IST`,
         409
       );
     }
@@ -187,9 +192,32 @@ class StoreService {
       throw new AppError("Store not found", 404);
     }
 
-    return await db
+    const now = new Date();
+    const activeReservationsSubquery = db
+      .select({
+        storeProductId: inventoryReservationsTable.storeProductId,
+        reservedQuantity:
+          sql<number>`COALESCE(SUM(${inventoryReservationsTable.quantity}), 0)`
+            .mapWith(Number)
+            .as("reserved_quantity"),
+      })
+      .from(inventoryReservationsTable)
+      .where(
+        and(
+          eq(inventoryReservationsTable.status, "reserved"),
+          gt(inventoryReservationsTable.expiresAt, now)
+        )
+      )
+      .groupBy(inventoryReservationsTable.storeProductId)
+      .as("active_reservations");
+
+    const rows = await db
       .select({
         ...getTableColumns(storeProductsTable),
+        reservedQuantity:
+          sql<number>`COALESCE(${activeReservationsSubquery.reservedQuantity}, 0)`.mapWith(
+            Number
+          ),
         product: {
           id: productsTable.id,
           name: productsTable.name,
@@ -205,8 +233,31 @@ class StoreService {
         productsTable,
         eq(storeProductsTable.productId, productsTable.id)
       )
+      .leftJoin(
+        activeReservationsSubquery,
+        eq(storeProductsTable.id, activeReservationsSubquery.storeProductId)
+      )
       .where(eq(storeProductsTable.storeId, storeId))
       .orderBy(asc(productsTable.name));
+
+    return rows.map((row) => {
+      const isTracked = row.onHandQuantity !== null;
+      const availableQuantity = isTracked
+        ? getAvailableQuantity(row.onHandQuantity, row.reservedQuantity)
+        : null;
+      const stockStatus = deriveStockStatus(
+        row.onHandQuantity,
+        availableQuantity,
+        row.lowStockThreshold
+      );
+
+      return {
+        ...row,
+        reservedQuantity: row.reservedQuantity,
+        availableQuantity,
+        stockStatus,
+      };
+    });
   }
 
   async mapStoreProducts(

@@ -1,9 +1,10 @@
-import { and, count, eq, inArray, sql } from "drizzle-orm";
+import { and, count, eq, gt, inArray, sql } from "drizzle-orm";
 import { db } from "../../db";
 import {
   cartItemCustomizationsTable,
   cartItemsTable,
   cartTable,
+  inventoryReservationsTable,
   productsTable,
   storeProductsTable,
   storesTable,
@@ -11,6 +12,7 @@ import {
 import { AppError } from "../../utils/error";
 import { TransactionType } from "../../utils/types";
 import customizeService from "../customization/customize.service";
+import { getAvailableQuantity } from "../inventory/inventory.logic";
 
 class CartService {
   /**
@@ -43,6 +45,46 @@ class CartService {
       let cartCleared = false;
 
       const existingCart = await this.getExistingCart(userId, tx);
+
+      let existingQuantityInCart = 0;
+      if (existingCart && existingCart.storeId === storeId) {
+        const cartItems = await tx
+          .select({ quantity: cartItemsTable.quantity })
+          .from(cartItemsTable)
+          .where(
+            and(
+              eq(cartItemsTable.cartId, existingCart.id),
+              eq(cartItemsTable.productId, productId)
+            )
+          );
+        existingQuantityInCart = cartItems.reduce(
+          (sum, item) => sum + (item.quantity ?? 0),
+          0
+        );
+      }
+
+      const requestedTotalQuantity = existingQuantityInCart + 1;
+      if (
+        storeProduct.isTracked &&
+        storeProduct.availableQuantity !== null &&
+        requestedTotalQuantity > storeProduct.availableQuantity
+      ) {
+        throw new AppError(
+          "Insufficient stock for one or more items",
+          409,
+          "INSUFFICIENT_STOCK",
+          {
+            items: [
+              {
+                productId,
+                productName: storeProduct.productName,
+                requestedQuantity: requestedTotalQuantity,
+                availableQuantity: storeProduct.availableQuantity,
+              },
+            ],
+          }
+        );
+      }
 
       if (existingCart) {
         cartId = existingCart.id;
@@ -129,10 +171,38 @@ class CartService {
     tx?: TransactionType
   ) {
     const dbT = tx ?? db;
+    const now = new Date();
+
+    const activeReservationsSubquery = dbT
+      .select({
+        storeProductId: inventoryReservationsTable.storeProductId,
+        reservedQuantity:
+          sql<number>`COALESCE(SUM(${inventoryReservationsTable.quantity}), 0)`
+            .mapWith(Number)
+            .as("reserved_quantity"),
+      })
+      .from(inventoryReservationsTable)
+      .where(
+        and(
+          eq(inventoryReservationsTable.status, "reserved"),
+          gt(inventoryReservationsTable.expiresAt, now)
+        )
+      )
+      .groupBy(inventoryReservationsTable.storeProductId)
+      .as("active_reservations");
+
     const [storeProduct] = await dbT
       .select({
+        id: storeProductsTable.id,
         price: storeProductsTable.price,
         isAvailable: storeProductsTable.isAvailable,
+        onHandQuantity: storeProductsTable.onHandQuantity,
+        lowStockThreshold: storeProductsTable.lowStockThreshold,
+        reservedQuantity:
+          sql<number>`COALESCE(${activeReservationsSubquery.reservedQuantity}, 0)`.mapWith(
+            Number
+          ),
+        productName: productsTable.name,
         productIsAvailable: productsTable.isAvailable,
         hasCustomization: productsTable.hasCustomization,
         storeIsActive: storesTable.isActive,
@@ -143,6 +213,10 @@ class CartService {
         eq(storeProductsTable.productId, productsTable.id)
       )
       .innerJoin(storesTable, eq(storeProductsTable.storeId, storesTable.id))
+      .leftJoin(
+        activeReservationsSubquery,
+        eq(storeProductsTable.id, activeReservationsSubquery.storeProductId)
+      )
       .where(
         and(
           eq(storeProductsTable.storeId, storeId),
@@ -161,7 +235,19 @@ class CartService {
       throw new AppError("Product is not available at this store", 409);
     }
 
-    return storeProduct;
+    const isTracked = storeProduct.onHandQuantity !== null;
+    const availableQuantity = isTracked
+      ? getAvailableQuantity(
+          storeProduct.onHandQuantity,
+          storeProduct.reservedQuantity
+        )
+      : null;
+
+    return {
+      ...storeProduct,
+      isTracked,
+      availableQuantity,
+    };
   }
 
   async addToCartItem(
@@ -353,7 +439,47 @@ class CartService {
       if (!cart?.storeId) {
         throw new AppError("Cart is not assigned to a store", 409);
       }
-      await this.getAvailableStoreProduct(cart.storeId, productId);
+      const storeProduct = await this.getAvailableStoreProduct(
+        cart.storeId,
+        productId
+      );
+
+      const cartItems = await db
+        .select({ quantity: cartItemsTable.quantity })
+        .from(cartItemsTable)
+        .where(
+          and(
+            eq(cartItemsTable.cartId, cart.id),
+            eq(cartItemsTable.productId, productId)
+          )
+        );
+      const existingQuantityInCart = cartItems.reduce(
+        (sum, item) => sum + (item.quantity ?? 0),
+        0
+      );
+
+      const requestedTotalQuantity = existingQuantityInCart + 1;
+      if (
+        storeProduct.isTracked &&
+        storeProduct.availableQuantity !== null &&
+        requestedTotalQuantity > storeProduct.availableQuantity
+      ) {
+        throw new AppError(
+          "Insufficient stock for one or more items",
+          409,
+          "INSUFFICIENT_STOCK",
+          {
+            items: [
+              {
+                productId,
+                productName: storeProduct.productName,
+                requestedQuantity: requestedTotalQuantity,
+                availableQuantity: storeProduct.availableQuantity,
+              },
+            ],
+          }
+        );
+      }
     }
 
     if (type === "-" && cartItem.quantity! <= 1) {
