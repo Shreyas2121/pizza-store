@@ -7,6 +7,7 @@ import { logger } from "../../utils/logger";
 import type { TransactionType } from "../../utils/types";
 import cartService from "../cart/cart.service";
 import checkoutService from "../checkout/checkout.service";
+import inventoryService from "../inventory/inventory.service";
 import {
   getRazorpayConfig,
   isRazorpayCheckoutEnabled,
@@ -409,6 +410,8 @@ class PaymentService {
         );
       }
 
+      await inventoryService.consumeReservationsForOrder(record.order.id, tx);
+
       const paidAt = new Date();
       await this.updatePayment(
         {
@@ -559,6 +562,139 @@ class PaymentService {
     };
   }
 
+  async reconcileExpiredReservations(limit = 25) {
+    const orderIds =
+      await inventoryService.getExpiredActiveReservationOrderIds(limit);
+
+    const results: Array<{
+      orderId: number;
+      status: "finalized" | "released" | "skipped" | "conflict" | "error";
+      error?: string;
+    }> = [];
+
+    const config = getRazorpayConfig();
+
+    for (const orderId of orderIds) {
+      try {
+        const attempt = await this.getAttemptByOrderId(orderId);
+        if (!attempt) {
+          await db.transaction(async (tx) => {
+            await inventoryService.releaseReservations(orderId, tx);
+          });
+          results.push({ orderId, status: "released" });
+          continue;
+        }
+
+        if (attempt.status === "completed" || attempt.status === "refunded") {
+          results.push({ orderId, status: "skipped" });
+          continue;
+        }
+
+        if (attempt.providerOrderId && config) {
+          const gateway = createRazorpayGateway(config);
+          let providerOrder: RazorpayOrderSnapshot | null = null;
+          let providerPayments: RazorpayPaymentSnapshot[] = [];
+          try {
+            [providerOrder, providerPayments] = await Promise.all([
+              gateway.fetchOrder(attempt.providerOrderId),
+              gateway.fetchOrderPayments(attempt.providerOrderId),
+            ]);
+          } catch (err) {
+            logger.warn(
+              "Could not fetch Razorpay order status during reservation expiry",
+              {
+                orderId,
+                providerOrderId: attempt.providerOrderId,
+                error: err instanceof Error ? err.message : "Provider error",
+              }
+            );
+          }
+
+          const captured = providerPayments.find(
+            (p) => p.status === "captured" || p.status === "authorized"
+          );
+
+          if (captured && providerOrder?.status === "paid") {
+            const res = await this.reconcileProviderPayment(
+              attempt.providerOrderId,
+              captured.id,
+              { requireCaptured: true }
+            );
+            if (res.finalizedNow) {
+              results.push({ orderId, status: "finalized" });
+              continue;
+            }
+          }
+        }
+
+        // Release expired reservations and cancel awaiting_payment order atomically
+        await db.transaction(async (tx) => {
+          const [order] = await tx
+            .select()
+            .from(ordersTable)
+            .where(eq(ordersTable.id, orderId))
+            .for("update")
+            .limit(1);
+
+          if (!order || order.status !== "awaiting_payment") {
+            return;
+          }
+
+          const [payment] = await tx
+            .select()
+            .from(paymentsTable)
+            .where(eq(paymentsTable.id, attempt.localPaymentId))
+            .for("update")
+            .limit(1);
+
+          if (payment && payment.status === "pending") {
+            await this.updatePayment(
+              {
+                status: "failed",
+                failureCode: "RESERVATION_EXPIRED",
+                failureDescription:
+                  "Payment reservation expired before completion",
+                failedAt: new Date(),
+              },
+              payment.id,
+              tx
+            );
+          }
+
+          await tx
+            .update(ordersTable)
+            .set({ status: "cancelled", updatedAt: new Date() })
+            .where(eq(ordersTable.id, orderId));
+
+          await inventoryService.releaseReservations(orderId, tx);
+          if (attempt.couponId) {
+            await checkoutService.releaseCouponReservation(orderId, tx);
+          }
+        });
+
+        results.push({ orderId, status: "released" });
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message.slice(0, 500) : "Unknown error";
+        logger.error("Expired reservation reconciliation error", {
+          orderId,
+          error: message,
+        });
+        results.push({ orderId, status: "error", error: message });
+      }
+    }
+
+    return {
+      scanned: orderIds.length,
+      finalized: results.filter((r) => r.status === "finalized").length,
+      released: results.filter((r) => r.status === "released").length,
+      skipped: results.filter((r) => r.status === "skipped").length,
+      conflicts: results.filter((r) => r.status === "conflict").length,
+      errors: results.filter((r) => r.status === "error").length,
+      results,
+    };
+  }
+
   async reconcileProviderOrder(providerOrderId: string) {
     const config = getRazorpayConfig();
     if (!config) {
@@ -654,6 +790,15 @@ class PaymentService {
             paymentId: payment.id,
             paymentType: "razorpay",
             status: "awaiting_payment",
+          },
+          tx
+        );
+
+        await inventoryService.reserveStockForOrder(
+          {
+            orderId: order.id,
+            storeId: order.storeId,
+            allocations: quote.stockAllocations,
           },
           tx
         );
@@ -899,6 +1044,7 @@ class PaymentService {
         tx
       );
       await checkoutService.releaseCouponReservation(attempt.localOrderId, tx);
+      await inventoryService.releaseReservations(attempt.localOrderId, tx);
     });
   }
 
@@ -1065,6 +1211,7 @@ class PaymentService {
         tx
       );
       await checkoutService.releaseCouponReservation(record.order.id, tx);
+      await inventoryService.releaseReservations(record.order.id, tx);
 
       return {
         localOrderId: record.order.id,

@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { inventoryMovementsTable, storeProductsTable } from "../../db/schema";
+import {
+  inventoryMovementsTable,
+  inventoryReservationsTable,
+  storeProductsTable,
+} from "../../db/schema";
 import { AppError } from "../../utils/error";
 import type { TransactionType } from "../../utils/types";
 import { InventoryService } from "./inventory.service";
@@ -254,6 +258,198 @@ describe("InventoryService unit tests", () => {
 
       // No new stock movements or on-hand updates
       expect(insertedMovements).toHaveLength(0);
+    });
+  });
+
+  describe("reserveStockForOrder", () => {
+    it("creates reservations without decrementing on-hand quantity", async () => {
+      const insertedReservations: any[] = [];
+      const mockTx = {
+        insert: vi.fn((table: any) => ({
+          values: vi.fn((values: any) => {
+            insertedReservations.push({ table, values });
+            return Promise.resolve();
+          }),
+        })),
+      } as unknown as TransactionType;
+
+      const alerts = await service.reserveStockForOrder(
+        {
+          orderId: 42,
+          storeId: 1,
+          allocations: [
+            {
+              storeProductId: 10,
+              productId: 1,
+              productName: "Margherita",
+              demandedQuantity: 2,
+              isTracked: true,
+              onHandQuantity: 10,
+              reservedQuantity: 0,
+              availableQuantity: 10,
+              lowStockThreshold: 8,
+            },
+            {
+              storeProductId: 11,
+              productId: 2,
+              productName: "Garlic Bread",
+              demandedQuantity: 1,
+              isTracked: false,
+              onHandQuantity: null,
+              reservedQuantity: 0,
+              availableQuantity: null,
+              lowStockThreshold: 5,
+            },
+          ],
+        },
+        mockTx
+      );
+
+      expect(insertedReservations).toHaveLength(1);
+      expect(insertedReservations[0].values).toEqual({
+        orderId: 42,
+        storeProductId: 10,
+        quantity: 2,
+        status: "reserved",
+        expiresAt: expect.any(Date),
+      });
+
+      // Emits downward alert: availableBefore 10 > 8, availableAfter 8 <= 8
+      expect(alerts).toEqual([
+        {
+          storeId: 1,
+          storeProductId: 10,
+          productId: 1,
+          productName: "Margherita",
+          currentQuantity: 8,
+          threshold: 8,
+          severity: "low_stock",
+        },
+      ]);
+    });
+  });
+
+  describe("consumeReservationsForOrder", () => {
+    it("consumes active reservations, decrements on-hand, and inserts sale movements", async () => {
+      const updatedRows: any[] = [];
+      const insertedMovements: any[] = [];
+
+      const mockTx = {
+        select: vi.fn(() => ({
+          from: vi.fn((table: any) => ({
+            where: vi.fn((condition: any) => {
+              if (table === inventoryReservationsTable) {
+                return {
+                  orderBy: vi.fn().mockReturnValue({
+                    for: vi.fn().mockResolvedValue([
+                      {
+                        id: 1,
+                        orderId: 42,
+                        storeProductId: 10,
+                        quantity: 2,
+                        status: "reserved",
+                      },
+                    ]),
+                  }),
+                  // initial select without orderBy
+                  then: (resolve: any) =>
+                    resolve([
+                      {
+                        id: 1,
+                        orderId: 42,
+                        storeProductId: 10,
+                        quantity: 2,
+                        status: "reserved",
+                      },
+                    ]),
+                };
+              }
+              if (table === storeProductsTable) {
+                return {
+                  orderBy: vi.fn().mockReturnValue({
+                    for: vi.fn().mockResolvedValue([
+                      {
+                        id: 10,
+                        productId: 1,
+                        onHandQuantity: 10,
+                      },
+                    ]),
+                  }),
+                };
+              }
+              return Promise.resolve([]);
+            }),
+          })),
+        })),
+        update: vi.fn((table: any) => ({
+          set: vi.fn((values: any) => {
+            updatedRows.push({ table, values });
+            return {
+              where: vi.fn().mockResolvedValue([]),
+            };
+          }),
+        })),
+        insert: vi.fn((table: any) => ({
+          values: vi.fn((values: any) => {
+            insertedMovements.push({ table, values });
+            return Promise.resolve();
+          }),
+        })),
+      } as unknown as TransactionType;
+
+      const result = await service.consumeReservationsForOrder(42, mockTx);
+
+      expect(result.consumedCount).toBe(1);
+      expect(result.alreadyConsumed).toBe(false);
+
+      const reservationUpdate = updatedRows.find(
+        (u) => u.table === inventoryReservationsTable
+      );
+      expect(reservationUpdate.values.status).toBe("consumed");
+
+      const storeProductUpdate = updatedRows.find(
+        (u) => u.table === storeProductsTable
+      );
+      expect(storeProductUpdate.values.onHandQuantity).toBe(8);
+
+      expect(insertedMovements).toHaveLength(1);
+      expect(insertedMovements[0].values).toEqual({
+        storeProductId: 10,
+        changeType: "sale",
+        quantityChange: -2,
+        previousQuantity: 10,
+        newQuantity: 8,
+        orderId: 42,
+        idempotencyKey: "sale:42:10",
+        createdBy: null,
+      });
+    });
+
+    it("throws INVENTORY_RESERVATIONS_RELEASED if any reservation was released", async () => {
+      const mockTx = {
+        select: vi.fn(() => ({
+          from: vi.fn(() => ({
+            where: vi.fn().mockResolvedValue([
+              {
+                id: 1,
+                orderId: 42,
+                storeProductId: 10,
+                quantity: 2,
+                status: "released",
+              },
+            ]),
+          })),
+        })),
+      } as unknown as TransactionType;
+
+      await expect(
+        service.consumeReservationsForOrder(42, mockTx)
+      ).rejects.toThrowError(
+        expect.objectContaining({
+          code: "INVENTORY_RESERVATIONS_RELEASED",
+          status: 409,
+        })
+      );
     });
   });
 });

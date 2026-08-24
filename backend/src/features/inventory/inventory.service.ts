@@ -9,6 +9,7 @@ import {
   ilike,
   inArray,
   isNotNull,
+  lt,
   lte,
   sql,
   type SQL,
@@ -234,6 +235,190 @@ class InventoryService {
     }
 
     return alerts;
+  }
+
+  async reserveStockForOrder(
+    data: {
+      orderId: number;
+      storeId: number;
+      allocations: StockAllocationItem[];
+      expiresAt?: Date;
+    },
+    tx: TransactionType
+  ): Promise<LowStockAlert[]> {
+    const alerts: LowStockAlert[] = [];
+    const expiresAt =
+      data.expiresAt ?? new Date(Date.now() + 30 * 60_000);
+
+    for (const allocation of data.allocations) {
+      if (!allocation.isTracked || allocation.onHandQuantity === null) {
+        continue;
+      }
+
+      await tx.insert(inventoryReservationsTable).values({
+        orderId: data.orderId,
+        storeProductId: allocation.storeProductId,
+        quantity: allocation.demandedQuantity,
+        status: "reserved",
+        expiresAt,
+      });
+
+      const availableBefore = allocation.availableQuantity!;
+      const availableAfter = Math.max(
+        0,
+        availableBefore - allocation.demandedQuantity
+      );
+
+      const alert = calculateDownwardThresholdCrossing({
+        storeId: data.storeId,
+        storeProductId: allocation.storeProductId,
+        productId: allocation.productId,
+        productName: allocation.productName,
+        availableBefore,
+        availableAfter,
+        threshold: allocation.lowStockThreshold,
+      });
+
+      if (alert) {
+        alerts.push(alert);
+      }
+    }
+
+    return alerts;
+  }
+
+  async consumeReservationsForOrder(
+    orderId: number,
+    tx: TransactionType
+  ) {
+    const existingReservations = await tx
+      .select()
+      .from(inventoryReservationsTable)
+      .where(eq(inventoryReservationsTable.orderId, orderId));
+
+    if (existingReservations.length === 0) {
+      return { consumedCount: 0, alreadyConsumed: false };
+    }
+
+    const allConsumed = existingReservations.every(
+      (r) => r.status === "consumed"
+    );
+    if (allConsumed) {
+      return { consumedCount: 0, alreadyConsumed: true };
+    }
+
+    const anyReleased = existingReservations.some(
+      (r) => r.status === "released"
+    );
+    if (anyReleased) {
+      throw new AppError(
+        "Payment reservations were released or expired",
+        409,
+        "INVENTORY_RESERVATIONS_RELEASED",
+        { orderId }
+      );
+    }
+
+    // Strict global lock order:
+    // 1. Order + payment row lock (already held)
+    // 2. store_products in ascending ID order
+    // 3. inventory_reservations in ascending ID order
+    // 4. inventory_movements append
+    const storeProductIds = [
+      ...new Set(existingReservations.map((r) => r.storeProductId)),
+    ];
+    const lockedStoreProducts = await tx
+      .select()
+      .from(storeProductsTable)
+      .where(inArray(storeProductsTable.id, storeProductIds))
+      .orderBy(asc(storeProductsTable.id))
+      .for("update");
+    const storeProductMap = new Map(
+      lockedStoreProducts.map((sp) => [sp.id, sp])
+    );
+
+    const lockedReservations = await tx
+      .select()
+      .from(inventoryReservationsTable)
+      .where(
+        and(
+          eq(inventoryReservationsTable.orderId, orderId),
+          eq(inventoryReservationsTable.status, "reserved")
+        )
+      )
+      .orderBy(asc(inventoryReservationsTable.id))
+      .for("update");
+
+    if (lockedReservations.length !== existingReservations.length) {
+      throw new AppError(
+        "Payment reservations state changed during finalization",
+        409,
+        "INVENTORY_RESERVATIONS_STATE_CONFLICT",
+        { orderId }
+      );
+    }
+
+    const now = new Date();
+    for (const res of lockedReservations) {
+      const sp = storeProductMap.get(res.storeProductId);
+      if (!sp || sp.onHandQuantity === null) continue;
+
+      const previousQuantity = sp.onHandQuantity;
+      const newQuantity = previousQuantity - res.quantity;
+
+      await tx
+        .update(inventoryReservationsTable)
+        .set({
+          status: "consumed",
+          consumedAt: now,
+          updatedAt: now,
+        })
+        .where(eq(inventoryReservationsTable.id, res.id));
+
+      await tx
+        .update(storeProductsTable)
+        .set({
+          onHandQuantity: newQuantity,
+          updatedAt: now,
+        })
+        .where(eq(storeProductsTable.id, sp.id));
+
+      await tx.insert(inventoryMovementsTable).values({
+        storeProductId: sp.id,
+        changeType: "sale",
+        quantityChange: -res.quantity,
+        previousQuantity,
+        newQuantity,
+        orderId,
+        idempotencyKey: `sale:${orderId}:${sp.id}`,
+        createdBy: null,
+      });
+    }
+
+    return {
+      consumedCount: lockedReservations.length,
+      alreadyConsumed: false,
+    };
+  }
+
+  async getExpiredActiveReservationOrderIds(
+    limit: number,
+    tx?: TransactionType
+  ): Promise<number[]> {
+    const dbT = tx ?? db;
+    const now = new Date();
+    const rows = await dbT
+      .selectDistinct({ orderId: inventoryReservationsTable.orderId })
+      .from(inventoryReservationsTable)
+      .where(
+        and(
+          eq(inventoryReservationsTable.status, "reserved"),
+          lt(inventoryReservationsTable.expiresAt, now)
+        )
+      )
+      .limit(limit);
+
+    return rows.map((r) => r.orderId);
   }
 
   async restoreStockForOrder(
