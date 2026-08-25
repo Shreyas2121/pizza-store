@@ -4,6 +4,7 @@ import {
   MessageCircleQuestionIcon,
   PackageSearch,
   ShoppingCart,
+  ShieldAlert,
   Sliders,
   Store,
 } from "lucide-react";
@@ -48,5 +49,10 @@ export const sidebarLinks = [
     label: "Support",
     to: "/admin/support",
     icon: MessageCircleQuestionIcon,
+  },
+  {
+    label: "System",
+    to: "/admin/system",
+    icon: ShieldAlert,
   },
 ];

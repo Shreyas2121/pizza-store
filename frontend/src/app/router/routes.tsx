@@ -28,6 +28,7 @@ const AdminChat = lazy(() => import("@/features/support").then((m) => ({ default
 
 const AdminHome = lazy(() => import("@/features/admin-dashboard").then((m) => ({ default: m.AdminDashboardPage })));
 const AdminInventory = lazy(() => import("@/features/inventory").then((m) => ({ default: m.AdminInventoryPage })));
+const AdminSystem = lazy(() => import("@/features/system-maintenance").then((m) => ({ default: m.AdminSystemPage })));
 const AdminStores = lazy(() => import("@/features/store").then((m) => ({ default: m.AdminStoresPage })));
 const AdminStoreProducts = lazy(() => import("@/features/store").then((m) => ({ default: m.AdminStoreProductsPage })));
 const AdminStoreDeliveryZones = lazy(() => import("@/features/store").then((m) => ({ default: m.AdminStoreDeliveryZonesPage })));
@@ -82,6 +83,7 @@ export const AppRoutes = () => (
       <Route path="/admin/menu" element={<AdminMenu />} />
       <Route path="/admin/orders" element={<AdminOrders />} />
       <Route path="/admin/inventory" element={<AdminInventory />} />
+      <Route path="/admin/system" element={<AdminSystem />} />
       <Route path="/admin/stores" element={<AdminStores />} />
       <Route path="/admin/stores/:id/products" element={<AdminStoreProducts />} />
       <Route path="/admin/stores/:id/delivery-zones" element={<AdminStoreDeliveryZones />} />

@@ -1,0 +1,120 @@
+import { eq, getTableName, ne, sql } from "drizzle-orm";
+import { db } from "../../db";
+import {
+  addressTable,
+  cartItemCustomizationsTable,
+  cartItemsTable,
+  cartTable,
+  categoriesTable,
+  chatMessagesTable,
+  chatSessionsTable,
+  couponRedemptionsTable,
+  couponsTable,
+  customizationGroupsTable,
+  customizationOptionsTable,
+  deliveryPrice,
+  deliveryZonesTable,
+  inventoryMovementsTable,
+  inventoryReservationsTable,
+  menuItemsMappingTable,
+  menuItemsTable,
+  orderItemCustomizationsTable,
+  orderItemsTable,
+  ordersTable,
+  paymentWebhookEventsTable,
+  paymentsTable,
+  productCustomizationGroupMappingTable,
+  productsTable,
+  storeProductsTable,
+  storesTable,
+  usersTable,
+} from "../../db/schema";
+import { AppError } from "../../utils/error";
+import type { TransactionType } from "../../utils/types";
+
+const applicationDataTables = [
+  addressTable,
+  cartItemCustomizationsTable,
+  cartItemsTable,
+  cartTable,
+  categoriesTable,
+  chatMessagesTable,
+  chatSessionsTable,
+  couponRedemptionsTable,
+  couponsTable,
+  customizationGroupsTable,
+  customizationOptionsTable,
+  deliveryPrice,
+  deliveryZonesTable,
+  inventoryMovementsTable,
+  inventoryReservationsTable,
+  menuItemsMappingTable,
+  menuItemsTable,
+  orderItemCustomizationsTable,
+  orderItemsTable,
+  ordersTable,
+  paymentWebhookEventsTable,
+  paymentsTable,
+  productCustomizationGroupMappingTable,
+  productsTable,
+  storeProductsTable,
+  storesTable,
+] as const;
+
+export const APPLICATION_DATA_TABLE_NAMES = applicationDataTables.map((table) =>
+  getTableName(table)
+);
+
+const quoteIdentifier = (identifier: string) =>
+  `"${identifier.replaceAll('"', '""')}"`;
+
+export const TRUNCATE_APPLICATION_DATA_SQL = `TRUNCATE TABLE ${APPLICATION_DATA_TABLE_NAMES.map(
+  quoteIdentifier
+).join(", ")} RESTART IDENTITY`;
+
+class SystemMaintenanceService {
+  async clearAllExceptAdmins(
+    requestingAdminId: number,
+    transaction?: TransactionType
+  ) {
+    const execute = async (tx: TransactionType) => {
+      await tx.execute(sql.raw('LOCK TABLE "users" IN EXCLUSIVE MODE'));
+
+      const [requestingAdmin] = await tx
+        .select({ id: usersTable.id, role: usersTable.role })
+        .from(usersTable)
+        .where(eq(usersTable.id, requestingAdminId))
+        .for("update")
+        .limit(1);
+      if (!requestingAdmin || requestingAdmin.role !== "admin") {
+        throw new AppError(
+          "Admin account is no longer authorized",
+          403,
+          "ADMIN_ACCOUNT_NOT_AUTHORIZED"
+        );
+      }
+
+      await tx.execute(sql.raw(TRUNCATE_APPLICATION_DATA_SQL));
+      const deletedUsers = await tx
+        .delete(usersTable)
+        .where(ne(usersTable.role, "admin"))
+        .returning({ id: usersTable.id });
+      const preservedAdmins = await tx
+        .select({ id: usersTable.id })
+        .from(usersTable)
+        .where(eq(usersTable.role, "admin"));
+
+      return {
+        cleared: true as const,
+        clearedTableCount: APPLICATION_DATA_TABLE_NAMES.length,
+        deletedNonAdminUsers: deletedUsers.length,
+        preservedAdminUsers: preservedAdmins.length,
+      };
+    };
+
+    return transaction ? execute(transaction) : db.transaction(execute);
+  }
+}
+
+export { SystemMaintenanceService };
+export default new SystemMaintenanceService();

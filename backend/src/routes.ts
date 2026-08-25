@@ -15,6 +15,7 @@ import { dashRoutes } from "./features/dashboard/dashboard.routes";
 import { chatRoutes } from "./features/chat/chat.routes";
 import { storeRoutes } from "./features/stores/stores.routes";
 import { inventoryRoutes } from "./features/inventory/inventory.routes";
+import { systemMaintenanceRoutes } from "./features/system-maintenance/system-maintenance.routes";
 
 export const mainRoutes = Router();
 
@@ -32,5 +33,6 @@ mainRoutes.use("/chat", chatRoutes);
 mainRoutes.use("/stores", storeRoutes);
 mainRoutes.use("/store", storeRoutes);
 mainRoutes.use("/inventory", inventoryRoutes);
+mainRoutes.use("/admin/system", systemMaintenanceRoutes);
 
 mainRoutes.use("/uploads", static_(path.resolve(__dirname, "../uploads")));
