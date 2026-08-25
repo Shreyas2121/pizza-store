@@ -53,4 +53,5 @@ export const toCheckoutResponse = (
           description: attempt.failureDescription,
         }
       : null,
+  lowStockAlerts: attempt.lowStockAlerts,
 });

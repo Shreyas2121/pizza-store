@@ -104,7 +104,7 @@ export const AdminDashboardPage = () => {
             Performance metrics could not be loaded.
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {cardsQuery.data?.map((card) => (
               <DashboardCard key={card.label} card={card} />
             ))}

@@ -92,6 +92,12 @@ paymentRoutes.post(
       clientRequestId: req.body.clientRequestId,
     });
 
+    if (data.lowStockAlerts?.length) {
+      for (const alert of data.lowStockAlerts) {
+        io.emit("lowStock", alert);
+      }
+    }
+
     res.json({ data, message: "Online payment initialized" });
   })
 );

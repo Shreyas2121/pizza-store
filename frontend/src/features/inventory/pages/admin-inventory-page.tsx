@@ -1,7 +1,8 @@
 import { Button, Select, TextInput } from "@mantine/core";
 import { useDebouncedValue } from "@mantine/hooks";
 import { PackagePlus, RotateCcw, Search, Warehouse } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router";
 import { useAdminStores } from "@/features/store";
 import { PageHeader, TableSkeleton } from "@/shared/ui";
 import { useInventoryList } from "../api/inventory.queries";
@@ -26,8 +27,22 @@ const pageSizeOptions = ["10", "20", "50"];
 
 export function AdminInventoryPage() {
   const stores = useAdminStores();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialStatusParam = searchParams.get("status");
+  const initialStatus: InventoryStatusFilter =
+    initialStatusParam === "low_stock" || initialStatusParam === "out_of_stock"
+      ? initialStatusParam
+      : "all";
+
   const [storeId, setStoreId] = useState<number | null>(null);
-  const [status, setStatus] = useState<InventoryStatusFilter>("all");
+  const [status, setStatus] = useState<InventoryStatusFilter>(initialStatus);
+
+  useEffect(() => {
+    const param = searchParams.get("status");
+    if (param === "low_stock" || param === "out_of_stock" || param === "all") {
+      setStatus(param as InventoryStatusFilter);
+    }
+  }, [searchParams]);
   const [search, setSearch] = useState("");
   const [debouncedSearch] = useDebouncedValue(search.trim(), 300);
   const [page, setPage] = useState(1);
@@ -110,6 +125,7 @@ export function AdminInventoryPage() {
     setStatus("all");
     setSearch("");
     setPage(1);
+    setSearchParams({});
   };
 
   const filtersChanged = status !== "all" || search.length > 0;

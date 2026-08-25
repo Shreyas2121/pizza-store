@@ -1,3 +1,5 @@
+import type { LowStockAlert } from "../inventory/inventory.logic";
+
 export interface InitiateRazorpayOrderInput {
   userId: number;
   addressId: number;
@@ -39,4 +41,6 @@ export interface LocalRazorpayAttempt {
   providerOrderId: string | null;
   failureCode: string | null;
   failureDescription: string | null;
+  lowStockAlerts?: LowStockAlert[];
 }
+

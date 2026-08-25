@@ -196,7 +196,7 @@ class PaymentService {
           },
           tx
         );
-        await inventoryService.reserveStockForOrder(
+        const lowStockAlerts = await inventoryService.reserveStockForOrder(
           {
             orderId: order.id,
             storeId: order.storeId,
@@ -233,6 +233,7 @@ class PaymentService {
           providerOrderId: payment.providerOrderId,
           failureCode: payment.failureCode,
           failureDescription: payment.failureDescription,
+          lowStockAlerts,
         } satisfies LocalRazorpayAttempt;
       });
     } catch (error) {

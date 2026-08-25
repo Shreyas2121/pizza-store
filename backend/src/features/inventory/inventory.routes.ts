@@ -12,6 +12,7 @@ import {
   updateInventoryThresholdSchema,
 } from "./inventory.schemas";
 import inventoryService from "./inventory.service";
+import { io } from "../..";
 
 export const inventoryRoutes = Router();
 
@@ -79,6 +80,10 @@ inventoryRoutes.post(
       ...body,
       createdBy: req.user!.id,
     });
+
+    if (data.alert) {
+      io.emit("lowStock", data.alert);
+    }
 
     res.json({ data, message: "Stock adjusted successfully" });
   })

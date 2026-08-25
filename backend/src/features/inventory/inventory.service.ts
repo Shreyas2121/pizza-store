@@ -917,10 +917,8 @@ class InventoryService {
         [mapping.id],
         tx
       );
-      assertAdjustmentCoversReservations(
-        data.targetQuantity,
-        reservedQuantities.get(mapping.id) ?? 0
-      );
+      const reserved = reservedQuantities.get(mapping.id) ?? 0;
+      assertAdjustmentCoversReservations(data.targetQuantity, reserved);
       const change = calculateAdjustment(
         mapping.onHandQuantity,
         data.targetQuantity
@@ -941,12 +939,30 @@ class InventoryService {
         createdBy: data.createdBy,
       });
 
+      const productNameInfo = await this.getProductName(productId, tx);
+      const availableBefore =
+        mapping.onHandQuantity !== null
+          ? Math.max(0, mapping.onHandQuantity - reserved)
+          : 0;
+      const availableAfter = Math.max(0, change.newQuantity - reserved);
+
+      const alert = calculateDownwardThresholdCrossing({
+        storeId,
+        storeProductId: mapping.id,
+        productId,
+        productName: productNameInfo.productName,
+        availableBefore,
+        availableAfter,
+        threshold: mapping.lowStockThreshold,
+      });
+
       return {
         storeProductId: mapping.id,
         productId,
-        ...(await this.getProductName(productId, tx)),
+        ...productNameInfo,
         ...change,
         changeType: "adjustment" as const,
+        alert: alert ?? undefined,
       };
     });
   }

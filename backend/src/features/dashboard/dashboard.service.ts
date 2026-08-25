@@ -1,6 +1,21 @@
-import { and, asc, count, eq, gte, lte, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  eq,
+  gt,
+  gte,
+  isNotNull,
+  lte,
+  sql,
+} from "drizzle-orm";
 import { db } from "../../db";
-import { ordersTable } from "../../db/schema";
+import {
+  inventoryReservationsTable,
+  ordersTable,
+  productsTable,
+  storeProductsTable,
+} from "../../db/schema";
 import { differenceInCalendarDays, subDays } from "date-fns";
 import { GroupT } from "../../utils/types";
 import { AppError } from "../../utils/error";
@@ -56,6 +71,55 @@ class DashboardService {
         .from(ordersTable)
         .where(getOrderFilters({ from, to, storeId }))
     )[0].totalOrders;
+  }
+
+  async getLowStockItemsCount({ storeId }: { storeId?: number } = {}) {
+    const now = new Date();
+    const activeReservations = db
+      .select({
+        storeProductId: inventoryReservationsTable.storeProductId,
+        reservedQuantity:
+          sql<number>`COALESCE(SUM(${inventoryReservationsTable.quantity}), 0)`
+            .mapWith(Number)
+            .as("reserved_quantity"),
+      })
+      .from(inventoryReservationsTable)
+      .where(
+        and(
+          eq(inventoryReservationsTable.status, "reserved"),
+          gt(inventoryReservationsTable.expiresAt, now)
+        )
+      )
+      .groupBy(inventoryReservationsTable.storeProductId)
+      .as("active_reservations");
+
+    const availableQuantity = sql<number>`GREATEST(0, ${storeProductsTable.onHandQuantity} - COALESCE(${activeReservations.reservedQuantity}, 0))`;
+
+    const conditions = [
+      isNotNull(storeProductsTable.onHandQuantity),
+      eq(storeProductsTable.isAvailable, true),
+      eq(productsTable.isAvailable, true),
+      lte(availableQuantity, storeProductsTable.lowStockThreshold),
+    ];
+
+    if (storeId !== undefined) {
+      conditions.push(eq(storeProductsTable.storeId, storeId));
+    }
+
+    const [{ total }] = await db
+      .select({ total: count() })
+      .from(storeProductsTable)
+      .innerJoin(
+        productsTable,
+        eq(storeProductsTable.productId, productsTable.id)
+      )
+      .leftJoin(
+        activeReservations,
+        eq(storeProductsTable.id, activeReservations.storeProductId)
+      )
+      .where(and(...conditions));
+
+    return Number(total);
   }
 
   async getRevenueOverTime({ group, from, to, storeId }: ChartsProp) {
@@ -135,6 +199,8 @@ class DashboardService {
     const previousAOV =
       previousTotalOrders === 0 ? 0 : previousRevenue / previousTotalOrders;
 
+    const lowStockItems = await this.getLowStockItemsCount({ storeId });
+
     const renderRes = (
       type: "price" | "number",
       curr: number,
@@ -180,6 +246,19 @@ class DashboardService {
           name: "credit-card",
           color: "teal",
         }),
+      },
+      {
+        label: "Low Stock Items",
+        data: {
+          current: formatNumber(lowStockItems),
+          previous: "Real-time",
+          isLow: lowStockItems > 0,
+          percentage: "N/A",
+          icon: {
+            name: "alert-triangle",
+            color: lowStockItems > 0 ? "red" : "gray",
+          },
+        },
       },
     ];
   }

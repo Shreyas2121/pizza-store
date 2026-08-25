@@ -34,6 +34,12 @@ orderRoutes.post(
       total: order.totalPrice,
     });
 
+    if (order.lowStockAlerts?.length) {
+      for (const alert of order.lowStockAlerts) {
+        io.emit("lowStock", alert);
+      }
+    }
+
     res.json({
       data: order.id,
       message: "Order created successfully.",

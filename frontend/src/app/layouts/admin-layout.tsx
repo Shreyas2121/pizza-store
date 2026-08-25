@@ -8,7 +8,6 @@ import { useUser } from "@/features/auth";
 import { useSocketStore } from "@/features/support";
 import { RouteSkeleton } from "@/shared/ui";
 
-
 const pageNames: Record<string, string> = {
   "/admin": "Dashboard",
   "/admin/products": "Products",
@@ -44,8 +43,10 @@ export const AdminLayout = () => {
   const initials = `${user?.fname?.[0] ?? ""}${user?.lname?.[0] ?? ""}`.toUpperCase();
 
   useEffect(() => setMobileOpened(false), [location.pathname]);
+
   useEffect(() => {
     if (!socket) return;
+
     const handleChatRequest = () =>
       showNotification({
         title: "New support request",
@@ -54,9 +55,38 @@ export const AdminLayout = () => {
         autoClose: 8000,
         onClick: () => navigate("/admin/support"),
       });
+
+    const handleLowStock = (alert: {
+      storeId: number;
+      storeName?: string;
+      productId: number;
+      productName: string;
+      currentQuantity: number;
+      threshold: number;
+      severity: "low_stock" | "out_of_stock";
+    }) => {
+      const isOutOfStock =
+        alert.severity === "out_of_stock" || alert.currentQuantity === 0;
+      showNotification({
+        title: isOutOfStock ? "Out of stock alert" : "Low stock alert",
+        message: isOutOfStock
+          ? `${alert.productName} is now out of stock${
+              alert.storeName ? ` at ${alert.storeName}` : ""
+            }.`
+          : `${alert.productName} has only ${alert.currentQuantity} left in stock (threshold: ${
+              alert.threshold
+            })${alert.storeName ? ` at ${alert.storeName}` : ""}.`,
+        color: isOutOfStock ? "red" : "yellow",
+        autoClose: 8000,
+        onClick: () => navigate(`/admin/inventory?status=${alert.severity}`),
+      });
+    };
+
     socket.on("chatRequest", handleChatRequest);
+    socket.on("lowStock", handleLowStock);
     return () => {
       socket.off("chatRequest", handleChatRequest);
+      socket.off("lowStock", handleLowStock);
     };
   }, [socket, navigate]);
 
