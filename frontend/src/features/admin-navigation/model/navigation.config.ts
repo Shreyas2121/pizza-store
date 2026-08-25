@@ -2,6 +2,7 @@ import {
   Box,
   Home,
   MessageCircleQuestionIcon,
+  PackageSearch,
   ShoppingCart,
   Sliders,
   Store,
@@ -27,6 +28,11 @@ export const sidebarLinks = [
     label: "Stores",
     to: "/admin/stores",
     icon: Store,
+  },
+  {
+    label: "Inventory",
+    to: "/admin/inventory",
+    icon: PackageSearch,
   },
   {
     label: "Orders",
