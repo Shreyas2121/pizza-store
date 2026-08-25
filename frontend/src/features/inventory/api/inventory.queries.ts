@@ -9,17 +9,22 @@ import { storeKeys } from "@/features/store";
 import { API } from "@/shared/api";
 import type {
   AdjustmentValues,
+  BulkRestockValues,
   RestockValues,
   ThresholdValues,
 } from "../model/inventory.schemas";
 import type {
   InventoryListParams,
   InventoryListResponse,
+  InventoryMovementsParams,
+  InventoryMovementsResponse,
 } from "../model/inventory.types";
 
 export const inventoryKeys = {
   all: ["inventory"] as const,
   list: (params: InventoryListParams) => ["inventory", "list", params] as const,
+  movements: (params: InventoryMovementsParams) =>
+    ["inventory", "movements", params] as const,
 };
 
 export const useInventoryList = (params: InventoryListParams) =>
@@ -40,6 +45,32 @@ export const useInventoryList = (params: InventoryListParams) =>
       return data;
     },
     enabled: params.storeId !== null && params.storeId > 0,
+    placeholderData: keepPreviousData,
+  });
+
+export const useInventoryMovements = (params: InventoryMovementsParams) =>
+  useQuery({
+    queryKey: inventoryKeys.movements(params),
+    queryFn: async () => {
+      const { data } = await API.get<InventoryMovementsResponse>(
+        `/inventory/store/${params.storeId}/movements`,
+        {
+          params: {
+            productId: params.productId,
+            changeType:
+              params.changeType === "all" ? undefined : params.changeType,
+            page: params.page,
+            limit: params.limit,
+          },
+        }
+      );
+      return data;
+    },
+    enabled:
+      params.storeId !== null &&
+      params.storeId > 0 &&
+      params.productId !== null &&
+      params.productId > 0,
     placeholderData: keepPreviousData,
   });
 
@@ -73,6 +104,23 @@ export const useRestockInventory = (storeId: number | null) => {
             reason: values.reason.trim() || undefined,
           }
         )
+      ).data,
+    onSuccess: invalidate,
+  });
+};
+
+export const useBulkRestockInventory = (storeId: number | null) => {
+  const invalidate = useInventoryInvalidation(storeId);
+  return useMutation({
+    mutationFn: async (values: BulkRestockValues) =>
+      (
+        await API.post(`/inventory/store/${storeId}/restock/bulk`, {
+          items: values.items.map(({ productId, quantityAdded, reason }) => ({
+            productId,
+            quantityAdded,
+            reason: reason.trim() || undefined,
+          })),
+        })
       ).data,
     onSuccess: invalidate,
   });

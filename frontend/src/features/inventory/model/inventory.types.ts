@@ -53,3 +53,42 @@ export interface InventoryMutationTarget {
 }
 
 export type InventoryAction = "restock" | "adjust" | "threshold";
+
+export type InventoryChangeType =
+  | "sale"
+  | "restock"
+  | "adjustment"
+  | "return"
+  | "cancellation";
+
+export type InventoryChangeTypeFilter = "all" | InventoryChangeType;
+
+export interface InventoryMovement {
+  id: number;
+  storeProductId: number;
+  productId: number;
+  productName: string;
+  changeType: InventoryChangeType;
+  quantityChange: number;
+  previousQuantity: number;
+  newQuantity: number;
+  reason: string | null;
+  orderId: number | null;
+  createdBy: number | null;
+  actorFirstName: string | null;
+  actorLastName: string | null;
+  createdAt: string;
+}
+
+export interface InventoryMovementsParams {
+  storeId: number | null;
+  productId: number | null;
+  changeType: InventoryChangeTypeFilter;
+  page: number;
+  limit: number;
+}
+
+export interface InventoryMovementsResponse {
+  data: InventoryMovement[];
+  meta: InventoryMeta;
+}

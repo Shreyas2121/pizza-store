@@ -59,6 +59,12 @@ interface MovementListInput {
   limit: number;
 }
 
+interface BulkRestockItem {
+  productId: number;
+  quantityAdded: number;
+  reason?: string;
+}
+
 class InventoryService {
   private activeReservationsSubquery() {
     return db
@@ -794,6 +800,110 @@ class InventoryService {
         lastRestockedAt: now,
       };
     });
+  }
+
+  async bulkRestockProducts(
+    storeId: number,
+    items: BulkRestockItem[],
+    createdBy: number,
+    transaction?: TransactionType
+  ) {
+    if (items.length === 0) {
+      throw new AppError(
+        "At least one product is required",
+        400,
+        "BULK_RESTOCK_EMPTY"
+      );
+    }
+    if (items.length > 50) {
+      throw new AppError(
+        "Bulk restock is limited to 50 products",
+        400,
+        "BULK_RESTOCK_LIMIT_EXCEEDED"
+      );
+    }
+
+    const productIds = items.map((item) => item.productId);
+    if (new Set(productIds).size !== productIds.length) {
+      throw new AppError(
+        "Duplicate product IDs are not allowed",
+        400,
+        "DUPLICATE_PRODUCT_IDS"
+      );
+    }
+
+    const execute = async (tx: TransactionType) => {
+      const lockedMappings = await this.lockStoreProducts(
+        storeId,
+        productIds,
+        tx
+      );
+      const mappingsByProductId = new Map(
+        lockedMappings.map((mapping) => [mapping.productId, mapping] as const)
+      );
+      const missingProductIds = productIds.filter(
+        (productId) => !mappingsByProductId.has(productId)
+      );
+      if (missingProductIds.length > 0) {
+        throw new AppError(
+          "One or more products are not mapped to this store",
+          404,
+          "STORE_PRODUCT_NOT_FOUND",
+          { productIds: missingProductIds }
+        );
+      }
+
+      const inputByProductId = new Map(
+        items.map((item) => [item.productId, item] as const)
+      );
+      const prepared = lockedMappings.map((mapping) => {
+        const input = inputByProductId.get(mapping.productId)!;
+        return {
+          mapping,
+          input,
+          change: calculateRestock(
+            mapping.onHandQuantity,
+            input.quantityAdded
+          ),
+        };
+      });
+      const now = new Date();
+
+      for (const { mapping, change } of prepared) {
+        await tx
+          .update(storeProductsTable)
+          .set({
+            onHandQuantity: change.newQuantity,
+            lastRestockedAt: now,
+            updatedAt: now,
+          })
+          .where(eq(storeProductsTable.id, mapping.id));
+      }
+
+      await tx.insert(inventoryMovementsTable).values(
+        prepared.map(({ mapping, input, change }) => ({
+          storeProductId: mapping.id,
+          changeType: "restock" as const,
+          quantityChange: change.quantityChange,
+          previousQuantity: change.previousQuantity,
+          newQuantity: change.newQuantity,
+          reason: input.reason ?? null,
+          createdBy,
+        }))
+      );
+
+      return {
+        updatedCount: prepared.length,
+        items: prepared.map(({ mapping, change }) => ({
+          storeProductId: mapping.id,
+          productId: mapping.productId,
+          ...change,
+          lastRestockedAt: now,
+        })),
+      };
+    };
+
+    return transaction ? execute(transaction) : db.transaction(execute);
   }
 
   async adjustProduct(

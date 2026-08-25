@@ -2,12 +2,19 @@ import {
   ActionIcon,
   Badge,
   Button,
+  Checkbox,
   Menu,
   Pagination,
   Table,
   Text,
 } from "@mantine/core";
-import { MoreHorizontal, PackagePlus, Pencil, SlidersHorizontal } from "lucide-react";
+import {
+  History,
+  MoreHorizontal,
+  PackagePlus,
+  Pencil,
+  SlidersHorizontal,
+} from "lucide-react";
 import { BASE_URL } from "@/shared/config";
 import { formatDateTime } from "@/shared/lib";
 import { RefreshIndicator } from "@/shared/ui";
@@ -23,6 +30,10 @@ type InventoryTableProps = {
   isRefreshing: boolean;
   onPageChange: (page: number) => void;
   onAction: (item: InventoryItem, action: InventoryAction) => void;
+  onHistory: (item: InventoryItem) => void;
+  selectedProductIds: Set<number>;
+  onToggleSelection: (item: InventoryItem, selected: boolean) => void;
+  onTogglePage: (items: InventoryItem[], selected: boolean) => void;
 };
 
 const statusPresentation = {
@@ -37,9 +48,11 @@ const quantity = (value: number | null) => value ?? "—";
 function InventoryActions({
   item,
   onAction,
+  onHistory,
 }: {
   item: InventoryItem;
   onAction: InventoryTableProps["onAction"];
+  onHistory: InventoryTableProps["onHistory"];
 }) {
   return (
     <Menu position="bottom-end" shadow="md" width={190}>
@@ -67,6 +80,13 @@ function InventoryActions({
         >
           Edit threshold
         </Menu.Item>
+        <Menu.Divider />
+        <Menu.Item
+          leftSection={<History size={16} />}
+          onClick={() => onHistory(item)}
+        >
+          Movement history
+        </Menu.Item>
       </Menu.Dropdown>
     </Menu>
   );
@@ -77,7 +97,18 @@ export function InventoryTable({
   isRefreshing,
   onPageChange,
   onAction,
+  onHistory,
+  selectedProductIds,
+  onToggleSelection,
+  onTogglePage,
 }: InventoryTableProps) {
+  const selectableItems = items.filter((item) => item.onHandQuantity !== null);
+  const selectedOnPage = selectableItems.filter((item) =>
+    selectedProductIds.has(item.productId)
+  ).length;
+  const allOnPageSelected =
+    selectableItems.length > 0 && selectedOnPage === selectableItems.length;
+
   return (
     <section
       className="relative overflow-hidden rounded-2xl border border-border bg-surface shadow-sm"
@@ -91,6 +122,19 @@ export function InventoryTable({
           return (
             <article key={item.storeProductId} className="p-4">
               <div className="flex items-start gap-3">
+                <Checkbox
+                  mt={4}
+                  aria-label={`Select ${item.productName}`}
+                  checked={selectedProductIds.has(item.productId)}
+                  disabled={
+                    item.onHandQuantity === null ||
+                    (!selectedProductIds.has(item.productId) &&
+                      selectedProductIds.size >= 50)
+                  }
+                  onChange={(event) =>
+                    onToggleSelection(item, event.currentTarget.checked)
+                  }
+                />
                 <img
                   src={`${BASE_URL}${item.productImage}`}
                   alt=""
@@ -109,7 +153,11 @@ export function InventoryTable({
                     )}
                   </div>
                 </div>
-                <InventoryActions item={item} onAction={onAction} />
+                <InventoryActions
+                  item={item}
+                  onAction={onAction}
+                  onHistory={onHistory}
+                />
               </div>
               <dl className="mt-4 grid grid-cols-4 gap-2 rounded-lg bg-surface-muted p-3 text-center">
                 <div>
@@ -145,6 +193,20 @@ export function InventoryTable({
         <Table verticalSpacing="sm" horizontalSpacing="md" highlightOnHover>
           <Table.Thead className="bg-surface-muted/70">
             <Table.Tr>
+              <Table.Th>
+                <Checkbox
+                  aria-label="Select all products on this page"
+                  checked={allOnPageSelected}
+                  indeterminate={selectedOnPage > 0 && !allOnPageSelected}
+                  disabled={
+                    selectableItems.length === 0 ||
+                    (selectedProductIds.size >= 50 && selectedOnPage === 0)
+                  }
+                  onChange={(event) =>
+                    onTogglePage(selectableItems, event.currentTarget.checked)
+                  }
+                />
+              </Table.Th>
               {[
                 "Product",
                 "On-hand",
@@ -169,6 +231,20 @@ export function InventoryTable({
               const status = statusPresentation[item.stockStatus];
               return (
                 <Table.Tr key={item.storeProductId}>
+                  <Table.Td>
+                    <Checkbox
+                      aria-label={`Select ${item.productName}`}
+                      checked={selectedProductIds.has(item.productId)}
+                      disabled={
+                        item.onHandQuantity === null ||
+                        (!selectedProductIds.has(item.productId) &&
+                          selectedProductIds.size >= 50)
+                      }
+                      onChange={(event) =>
+                        onToggleSelection(item, event.currentTarget.checked)
+                      }
+                    />
+                  </Table.Td>
                   <Table.Td>
                     <div className="flex min-w-52 items-center gap-3">
                       <img
@@ -203,7 +279,11 @@ export function InventoryTable({
                     {item.lastRestockedAt ? formatDateTime(item.lastRestockedAt) : "Never"}
                   </Table.Td>
                   <Table.Td>
-                    <InventoryActions item={item} onAction={onAction} />
+                    <InventoryActions
+                      item={item}
+                      onAction={onAction}
+                      onHistory={onHistory}
+                    />
                   </Table.Td>
                 </Table.Tr>
               );
@@ -215,6 +295,9 @@ export function InventoryTable({
       <div className="flex flex-col gap-3 border-t border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <Text size="sm" c="dimmed">
           {meta.total} {meta.total === 1 ? "product" : "products"}
+          {selectedProductIds.size > 0
+            ? ` · ${selectedProductIds.size} selected`
+            : ""}
         </Text>
         {meta.totalPages > 1 && (
           <Pagination

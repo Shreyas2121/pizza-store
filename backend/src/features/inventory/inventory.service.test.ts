@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   inventoryMovementsTable,
   inventoryReservationsTable,
@@ -10,6 +10,10 @@ import { InventoryService } from "./inventory.service";
 
 describe("InventoryService unit tests", () => {
   const service = new InventoryService();
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
 
   describe("lockStoreProducts", () => {
     it("locks requested store-product rows in ascending ID order with FOR UPDATE", async () => {
@@ -450,6 +454,136 @@ describe("InventoryService unit tests", () => {
           status: 409,
         })
       );
+    });
+  });
+
+  describe("bulkRestockProducts", () => {
+    it("uses the shared lock helper and applies all prepared changes", async () => {
+      const updates: Array<Record<string, unknown>> = [];
+      const insertedMovements: unknown[] = [];
+      const mockTx = {
+        update: vi.fn(() => ({
+          set: vi.fn((values: Record<string, unknown>) => {
+            updates.push(values);
+            return { where: vi.fn().mockResolvedValue([]) };
+          }),
+        })),
+        insert: vi.fn(() => ({
+          values: vi.fn((values: unknown) => {
+            insertedMovements.push(values);
+            return Promise.resolve();
+          }),
+        })),
+      } as unknown as TransactionType;
+      const lockSpy = vi
+        .spyOn(service, "lockStoreProducts")
+        .mockResolvedValue([
+          { id: 10, storeId: 1, productId: 1, onHandQuantity: 5 },
+          { id: 20, storeId: 1, productId: 2, onHandQuantity: 7 },
+        ] as any);
+
+      const result = await service.bulkRestockProducts(
+        1,
+        [
+          { productId: 2, quantityAdded: 4, reason: "Delivery" },
+          { productId: 1, quantityAdded: 3 },
+        ],
+        99,
+        mockTx
+      );
+
+      expect(lockSpy).toHaveBeenCalledWith(1, [2, 1], mockTx);
+      expect(updates).toEqual([
+        {
+          onHandQuantity: 8,
+          lastRestockedAt: expect.any(Date),
+          updatedAt: expect.any(Date),
+        },
+        {
+          onHandQuantity: 11,
+          lastRestockedAt: expect.any(Date),
+          updatedAt: expect.any(Date),
+        },
+      ]);
+      expect(insertedMovements).toEqual([
+        [
+          {
+            storeProductId: 10,
+            changeType: "restock",
+            quantityChange: 3,
+            previousQuantity: 5,
+            newQuantity: 8,
+            reason: null,
+            createdBy: 99,
+          },
+          {
+            storeProductId: 20,
+            changeType: "restock",
+            quantityChange: 4,
+            previousQuantity: 7,
+            newQuantity: 11,
+            reason: "Delivery",
+            createdBy: 99,
+          },
+        ],
+      ]);
+      expect(result.updatedCount).toBe(2);
+    });
+
+    it("validates every mapping before performing any write", async () => {
+      const mockTx = {
+        update: vi.fn(),
+        insert: vi.fn(),
+      } as unknown as TransactionType;
+      vi.spyOn(service, "lockStoreProducts").mockResolvedValue([
+        { id: 10, storeId: 1, productId: 1, onHandQuantity: 5 },
+      ] as any);
+
+      await expect(
+        service.bulkRestockProducts(
+          1,
+          [
+            { productId: 1, quantityAdded: 2 },
+            { productId: 2, quantityAdded: 2 },
+          ],
+          99,
+          mockTx
+        )
+      ).rejects.toMatchObject({
+        code: "STORE_PRODUCT_NOT_FOUND",
+        data: { productIds: [2] },
+      });
+      expect(mockTx.update).not.toHaveBeenCalled();
+      expect(mockTx.insert).not.toHaveBeenCalled();
+    });
+
+    it("rejects duplicate IDs and batches over 50 before locking", async () => {
+      const lockSpy = vi.spyOn(service, "lockStoreProducts");
+      const mockTx = {} as TransactionType;
+
+      await expect(
+        service.bulkRestockProducts(
+          1,
+          [
+            { productId: 1, quantityAdded: 1 },
+            { productId: 1, quantityAdded: 2 },
+          ],
+          99,
+          mockTx
+        )
+      ).rejects.toMatchObject({ code: "DUPLICATE_PRODUCT_IDS" });
+      await expect(
+        service.bulkRestockProducts(
+          1,
+          Array.from({ length: 51 }, (_, index) => ({
+            productId: index + 1,
+            quantityAdded: 1,
+          })),
+          99,
+          mockTx
+        )
+      ).rejects.toMatchObject({ code: "BULK_RESTOCK_LIMIT_EXCEEDED" });
+      expect(lockSpy).not.toHaveBeenCalled();
     });
   });
 });

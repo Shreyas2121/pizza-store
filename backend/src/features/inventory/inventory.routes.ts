@@ -5,6 +5,7 @@ import { parseIntegerParam } from "../../utils/request";
 import type { Auth } from "../../utils/types";
 import {
   adjustInventorySchema,
+  bulkRestockInventorySchema,
   inventoryListQuerySchema,
   inventoryMovementsQuerySchema,
   restockInventorySchema,
@@ -35,6 +36,21 @@ inventoryRoutes.get(
     const data = await inventoryService.getProductInventory(storeId, productId);
 
     res.json({ data });
+  })
+);
+
+inventoryRoutes.post(
+  "/store/:storeId/restock/bulk",
+  asyncHandler(async (req: Auth, res) => {
+    const storeId = parseIntegerParam(req.params.storeId, "Store ID");
+    const { items } = bulkRestockInventorySchema.parse(req.body);
+    const data = await inventoryService.bulkRestockProducts(
+      storeId,
+      items,
+      req.user!.id
+    );
+
+    res.json({ data, message: "Products restocked successfully" });
   })
 );
 

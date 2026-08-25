@@ -36,6 +36,33 @@ export const restockInventorySchema = z
   })
   .strict();
 
+const bulkRestockItemSchema = z
+  .object({
+    productId: z.number().int().positive().safe(),
+    quantityAdded: z.number().int().positive().safe(),
+    reason: z.string().trim().min(1).max(500).optional(),
+  })
+  .strict();
+
+export const bulkRestockInventorySchema = z
+  .object({
+    items: z.array(bulkRestockItemSchema).min(1).max(50),
+  })
+  .strict()
+  .superRefine(({ items }, context) => {
+    const seen = new Set<number>();
+    items.forEach((item, index) => {
+      if (seen.has(item.productId)) {
+        context.addIssue({
+          code: "custom",
+          message: "Duplicate product IDs are not allowed",
+          path: ["items", index, "productId"],
+        });
+      }
+      seen.add(item.productId);
+    });
+  });
+
 export const adjustInventorySchema = z
   .object({
     targetQuantity: z.number().int().nonnegative().safe(),

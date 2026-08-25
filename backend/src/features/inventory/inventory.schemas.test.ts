@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   adjustInventorySchema,
+  bulkRestockInventorySchema,
   inventoryListQuerySchema,
   inventoryMovementsQuerySchema,
   restockInventorySchema,
@@ -54,5 +55,27 @@ describe("inventory mutation validation", () => {
     expect(updateInventoryThresholdSchema.parse({ threshold: 0 })).toEqual({
       threshold: 0,
     });
+  });
+
+  it("rejects duplicate products in a bulk restock", () => {
+    expect(() =>
+      bulkRestockInventorySchema.parse({
+        items: [
+          { productId: 1, quantityAdded: 2 },
+          { productId: 1, quantityAdded: 3 },
+        ],
+      })
+    ).toThrow();
+  });
+
+  it("limits bulk restock to 50 products", () => {
+    expect(() =>
+      bulkRestockInventorySchema.parse({
+        items: Array.from({ length: 51 }, (_, index) => ({
+          productId: index + 1,
+          quantityAdded: 1,
+        })),
+      })
+    ).toThrow();
   });
 });

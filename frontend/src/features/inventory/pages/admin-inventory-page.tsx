@@ -1,12 +1,14 @@
 import { Button, Select, TextInput } from "@mantine/core";
 import { useDebouncedValue } from "@mantine/hooks";
-import { RotateCcw, Search, Warehouse } from "lucide-react";
+import { PackagePlus, RotateCcw, Search, Warehouse } from "lucide-react";
 import { useState } from "react";
 import { useAdminStores } from "@/features/store";
 import { PageHeader, TableSkeleton } from "@/shared/ui";
 import { useInventoryList } from "../api/inventory.queries";
 import { InventoryActionModal } from "../components/inventory-action-modal";
+import { BulkRestockModal } from "../components/bulk-restock-modal";
 import { InventoryTable } from "../components/inventory-table";
+import { MovementHistoryDrawer } from "../components/movement-history-drawer";
 import type {
   InventoryAction,
   InventoryItem,
@@ -32,6 +34,12 @@ export function AdminInventoryPage() {
   const [limit, setLimit] = useState(20);
   const [action, setAction] = useState<InventoryAction | null>(null);
   const [target, setTarget] = useState<InventoryMutationTarget | null>(null);
+  const [selectedItems, setSelectedItems] = useState(
+    () => new Map<number, InventoryItem>()
+  );
+  const [bulkOpened, setBulkOpened] = useState(false);
+  const [historyTarget, setHistoryTarget] =
+    useState<InventoryMutationTarget | null>(null);
 
   const inventory = useInventoryList({
     storeId,
@@ -63,6 +71,41 @@ export function AdminInventoryPage() {
     setTarget(null);
   };
 
+  const asMutationTarget = (item: InventoryItem): InventoryMutationTarget => ({
+    productId: item.productId,
+    productName: item.productName,
+    onHandQuantity: item.onHandQuantity,
+    reservedQuantity: item.reservedQuantity,
+    lowStockThreshold: item.lowStockThreshold,
+  });
+
+  const toggleSelection = (item: InventoryItem, selected: boolean) => {
+    setSelectedItems((current) => {
+      const next = new Map(current);
+      if (selected && item.onHandQuantity !== null && next.size < 50) {
+        next.set(item.productId, item);
+      } else if (!selected) {
+        next.delete(item.productId);
+      }
+      return next;
+    });
+  };
+
+  const togglePage = (items: InventoryItem[], selected: boolean) => {
+    setSelectedItems((current) => {
+      const next = new Map(current);
+      for (const item of items) {
+        if (selected) {
+          if (next.size >= 50) break;
+          next.set(item.productId, item);
+        } else {
+          next.delete(item.productId);
+        }
+      }
+      return next;
+    });
+  };
+
   const clearFilters = () => {
     setStatus("all");
     setSearch("");
@@ -77,6 +120,15 @@ export function AdminInventoryPage() {
         eyebrow="Operations"
         title="Inventory"
         description="Monitor store-level stock, account for active reservations, and record controlled quantity changes."
+        action={
+          <Button
+            leftSection={<PackagePlus size={16} />}
+            disabled={selectedItems.size === 0}
+            onClick={() => setBulkOpened(true)}
+          >
+            Bulk restock{selectedItems.size ? ` (${selectedItems.size})` : ""}
+          </Button>
+        }
       />
 
       <div className="mb-4 grid gap-3 rounded-2xl border border-border bg-surface p-4 shadow-sm md:grid-cols-[minmax(220px,1fr)_minmax(220px,1fr)_180px_110px_auto] md:items-end">
@@ -88,6 +140,9 @@ export function AdminInventoryPage() {
           onChange={(value) => {
             setStoreId(value ? Number(value) : null);
             setPage(1);
+            setSelectedItems(new Map());
+            setBulkOpened(false);
+            setHistoryTarget(null);
             closeAction();
           }}
           searchable
@@ -195,6 +250,10 @@ export function AdminInventoryPage() {
           isRefreshing={inventory.isFetching && !inventory.isLoading}
           onPageChange={setPage}
           onAction={openAction}
+          onHistory={(item) => setHistoryTarget(asMutationTarget(item))}
+          selectedProductIds={new Set(selectedItems.keys())}
+          onToggleSelection={toggleSelection}
+          onTogglePage={togglePage}
         />
       )}
 
@@ -204,6 +263,25 @@ export function AdminInventoryPage() {
         storeId={storeId}
         onClose={closeAction}
       />
+      {bulkOpened && storeId !== null && (
+        <BulkRestockModal
+          storeId={storeId}
+          selectedItems={[...selectedItems.values()]}
+          onClose={() => setBulkOpened(false)}
+          onSaved={() => {
+            setBulkOpened(false);
+            setSelectedItems(new Map());
+          }}
+        />
+      )}
+      {historyTarget && storeId !== null && (
+        <MovementHistoryDrawer
+          key={`${storeId}-${historyTarget.productId}`}
+          storeId={storeId}
+          target={historyTarget}
+          onClose={() => setHistoryTarget(null)}
+        />
+      )}
     </section>
   );
 }
