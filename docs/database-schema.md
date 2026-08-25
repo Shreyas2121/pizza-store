@@ -109,10 +109,55 @@ Relations: one-to-many with store products, delivery zones, carts, and orders.
 | `store_id` | integer | FK → stores, NOT NULL | |
 | `product_id` | integer | FK → products, NOT NULL | |
 | `price` | real | NOT NULL | Store-specific product price |
-| `is_available` | boolean | NOT NULL, default `true` | Store-level availability |
+| `is_available` | boolean | NOT NULL, default `true` | Store-level manual availability |
+| `on_hand_quantity` | integer | nullable, CHECK >= 0 | Physical stock count; `NULL` = untracked stock |
+| `low_stock_threshold` | integer | NOT NULL, default `5`, CHECK >= 0 | Threshold for low stock status and alerts |
+| `last_restocked_at` | timestamptz | nullable | Timestamp of last restock operation |
 | `created_at`, `updated_at` | timestamptz | | |
 
 Unique constraint: `(store_id, product_id)`.
+Relations: belongs to store and product; one-to-many with inventory reservations and inventory movements.
+
+### `inventory_reservations`
+
+Tracks temporary stock reservations for in-flight online (Razorpay) checkout attempts to prevent overselling.
+
+| Column | Type | Constraints | Notes |
+| --- | --- | --- | --- |
+| `id` | integer | PK, generated always | |
+| `order_id` | integer | FK → orders, NOT NULL | Order reserving the stock |
+| `store_product_id` | integer | FK → store_products, NOT NULL | Store product being reserved |
+| `quantity` | integer | NOT NULL, CHECK > 0 | Number of units reserved |
+| `status` | text | NOT NULL, default `"reserved"`, CHECK | `"reserved"`, `"consumed"`, or `"released"` |
+| `expires_at` | timestamptz | NOT NULL | Reservation expiry deadline (default 30 mins) |
+| `reserved_at` | timestamptz | NOT NULL, default `now()` | Creation timestamp |
+| `consumed_at` | timestamptz | nullable | Set when payment succeeds and stock is deducted |
+| `released_at` | timestamptz | nullable | Set when payment fails/expires or order is cancelled |
+| `created_at`, `updated_at` | timestamptz | | |
+
+Unique constraint: `(order_id, store_product_id)`.
+Indexes: `(store_product_id, status)` for fast active-reservation lookups; `(status, expires_at)` for background expiry sweeps.
+
+### `inventory_movements`
+
+Append-only audit ledger of every inventory quantity transition.
+
+| Column | Type | Constraints | Notes |
+| --- | --- | --- | --- |
+| `id` | integer | PK, generated always | |
+| `store_product_id` | integer | FK → store_products, NOT NULL | |
+| `change_type` | text | NOT NULL, CHECK | `"restock"`, `"sale"`, `"adjustment"`, or `"cancellation"` |
+| `quantity_change` | integer | NOT NULL | Signed delta (`+` for additions, `-` for deductions) |
+| `previous_quantity` | integer | NOT NULL, CHECK >= 0 | On-hand quantity before change |
+| `new_quantity` | integer | NOT NULL, CHECK >= 0 | On-hand quantity after change |
+| `reason` | text | nullable | Mandatory for manual adjustments |
+| `order_id` | integer | FK → orders, nullable | Associated order for sales and cancellations |
+| `created_by` | integer | FK → users (ON DELETE SET NULL), nullable | Admin user who performed restock/adjustment |
+| `idempotency_key` | text | UNIQUE, nullable | Deterministic key preventing duplicate movements |
+| `created_at` | timestamptz | NOT NULL, default `now()` | Movement timestamp |
+
+Constraints: `CHECK (new_quantity = previous_quantity + quantity_change)`.
+Indexes: `(store_product_id, created_at)` for movement history queries; `(change_type, created_at)`.
 
 ### `customization_groups`
 
@@ -345,6 +390,9 @@ erDiagram
     stores ||--o{ cart : scopes
     stores ||--o{ orders : fulfills
 
+    store_products ||--o{ inventory_reservations : reserves_for
+    store_products ||--o{ inventory_movements : logs_changes
+
     products ||--o{ product_customization_group_mapping : has
     customization_groups ||--o{ product_customization_group_mapping : has
     customization_groups ||--o{ customization_options : contains
@@ -361,6 +409,7 @@ erDiagram
     orders }o--o| coupons : uses
     orders }o--o| payments : paid_by
     orders ||--o| coupon_redemptions : reserves
+    orders ||--o{ inventory_reservations : holds
     coupons ||--o{ coupon_redemptions : tracks
     users ||--o{ coupon_redemptions : owns
     orders }o--o| addresses : delivered_to
@@ -375,10 +424,14 @@ erDiagram
 
 The following operations use database transactions:
 
-- **Cart add**: Creating/finding cart → creating cart item → creating cart item customizations → updating cart total price.
-- **Cart update (quantity)**: Looking up current product price → updating cart item quantity/price → updating cart total.
+- **Cart add**: Checking available stock → creating/finding cart → creating cart item → creating cart item customizations → updating cart total price.
+- **Cart update (quantity)**: Checking available stock → updating cart item quantity/price → updating cart total.
 - **Cart item delete**: Calculating price to subtract → deleting cart item → updating cart total.
-- **COD order creation**: Locking and quoting the cart, validating/consuming a coupon, creating and linking a pending COD payment, snapshotting order items/customizations, and deleting the cart all commit atomically.
+- **COD order creation**: Locking store products in ascending ID order, verifying stock availability, quoting the cart, validating/consuming coupon, creating pending payment, snapshotting order/customizations, deducting `on_hand_quantity`, writing `sale` inventory movements, and deleting the cart commit atomically.
+- **Online payment initiation**: Locking store products, validating stock, creating order and payment in `awaiting_payment` status, creating `inventory_reservations` rows, and reserving coupon commit atomically.
+- **Online payment capture**: Locking store products in ascending ID order, locking matching reservations, consuming reservations, decrementing `on_hand_quantity`, writing `sale` inventory movements, consuming coupon, and transitioning payment/order to completed/pending commit atomically.
+- **Order cancellation**: Locking order, locking store products in ascending ID order, releasing active reservations or restoring previously deducted stock with `cancellation` inventory movements, and updating order status commit atomically.
+- **Admin restock / adjustment / bulk restock**: Locking store products in deterministic ID order, computing new quantities, updating on-hand stock and `last_restocked_at`, and logging immutable `inventory_movements` commit atomically.
 
 No transaction is held open while awaiting user input or external service calls.
 

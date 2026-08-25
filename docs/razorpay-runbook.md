@@ -55,6 +55,32 @@ the API key pair and the separate webhook secret before starting this checklist.
 5. Run `pnpm payments:reconcile` from `backend/` every five minutes. The command
    exits non-zero when any candidate fails and should page the on-call operator.
 
+## Inventory reservation lifecycle under Razorpay
+
+Online payments utilize a two-phase stock commitment to avoid overselling and double deductions:
+
+1. **Initiation (`POST /payments/razorpay/orders`)**:
+   - Creates `inventory_reservations` rows in `reserved` status with a 30-minute expiry window.
+   - Does **not** decrement `on_hand_quantity`.
+   - Decreases `available_quantity = on_hand_quantity - active_reservations`.
+   - Emits `"lowStock"` alert only if `available_quantity` drops past threshold.
+
+2. **Capture (`POST /payments/razorpay/verify` or Webhook `payment.captured`)**:
+   - Acquires deterministic row locks on store products (ascending ID) and then reservations.
+   - Marks reservations `consumed`.
+   - Decrements `on_hand_quantity` and appends `sale` movements with idempotent key `sale:{orderId}:{storeProductId}`.
+   - No duplicate low-stock alerts are emitted (available quantity remains constant).
+
+3. **Terminal Failure / User Cancellation**:
+   - Marks reservations `released`.
+   - Restores available quantity to general stock.
+
+4. **Expiry Reconciliation (`pnpm payments:reconcile`)**:
+   - Scans expired active reservations (`status = 'reserved' AND expires_at < now()`).
+   - Verifies the provider payment status with Razorpay outside database transactions.
+   - If payment was not captured, releases the reservations.
+   - If payment was captured, finalizes the order and consumes the reservations safely.
+
 ## Monitoring and alerts
 
 Aggregate the structured payment logs and alert on these starting thresholds;

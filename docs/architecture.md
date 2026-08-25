@@ -43,10 +43,34 @@ Current feature modules:
 | `menu` | Menu item CRUD with position ordering and product assignment |
 | `cart` | Add, update quantity, remove items; cart totals; transactional price updates |
 | `order` | Order creation from cart, order listing with status filtering, admin views |
-| `payments` | COD payment record creation |
+| `payments` | Cash and Razorpay payment processing, lifecycle, and reconciliation |
+| `inventory` | Store-level stock management, reservations, atomic movements, and threshold alerts |
 | `coupon` | Coupon CRUD, validation against order totals, redemption tracking |
-| `dashboard` | Revenue, order count, active users, average order value; time-series charts |
+| `dashboard` | Revenue, order count, active users, average order value, low-stock items; time-series charts |
 | `chat` | Support session lifecycle, message persistence, Socket.IO integration |
+
+### Inventory and concurrency model
+
+The inventory system tracks physical on-hand stock and active reservations at the `store_products` level:
+
+- **Source-of-Truth Invariants**:
+  ```text
+  available_quantity = on_hand_quantity - active_reserved_quantity
+
+  sellable = products.is_available
+          && store_products.is_available
+          && (on_hand_quantity IS NULL || available_quantity > 0)
+  ```
+- **Customization aggregation**: Customized cart lines share the same base product availability (demand is aggregated across variants by `productId`).
+- **Global lock order**: Every operation that mutates stock or reservations acquires locks in strict ascending order to prevent deadlocks:
+  ```text
+  1. Existing owning row when required (cart, order, or payment)
+  2. store_products rows, ordered by ascending store_products.id
+  3. inventory_reservations rows, ordered by ascending inventory_reservations.id
+  4. inventory_movements append
+  ```
+- **Movement audit ledger**: `inventory_movements` is append-only and strictly checks `new_quantity = previous_quantity + quantity_change`.
+- **Manual availability independence**: Manual toggles (`is_available`) are managed solely by admins and are never overwritten by inventory logic.
 
 ### Middleware layer
 
@@ -60,7 +84,7 @@ Current feature modules:
 
 ### Database layer
 
-The database client is initialized in `src/db/index.ts` using `drizzle-orm/node-postgres`. The schema is defined in `src/db/schema.ts` as a single centralized file containing all table definitions and Drizzle relation mappings.
+The database client is initialized in `src/db/index.ts` using `drizzle-orm/node-postgres`. The schema is defined across domain files in `src/db/schema/` with central relations in `_relations.ts`.
 
 Migrations are managed by `drizzle-kit`. Configuration lives in `drizzle.config.ts` at the backend root.
 
@@ -71,7 +95,8 @@ Socket.IO is initialized alongside the Express server. Events flow in both direc
 | Event | Direction | Payload | Purpose |
 | --- | --- | --- | --- |
 | `joinRoom` | Client → Server | `{ userId }` | Associates a socket with a user for targeted events |
-| `orderPlaced` | Server → Client | `{ orderId, total }` | Notifies admin dashboard of new orders |
+| `orderPlaced` | Server → Client | `{ orderId, total, status }` | Notifies admin dashboard of new/finalized orders |
+| `lowStock` | Server → Client | `LowStockAlert` object | Notifies admin panel of downward stock threshold crossings post-commit |
 | `chatRequest` | Server → Client | `{ userId }` | Notifies admin of new support requests |
 | `newMessage` | Server → Client | `Message` object | Delivers chat messages to the other party |
 

@@ -85,13 +85,13 @@ verification, webhooks, and reconciliation can safely finish in-flight payments.
 psql -U postgres -c "CREATE DATABASE pizzastore;"
 ```
 
-### Apply the schema
+### Apply the schema and migrations
 
 ```bash
-npx drizzle-kit push
+# Run database migrations
+pnpm run db:generate
+pnpm run db:migrate
 ```
-
-This uses the Drizzle configuration in `drizzle.config.ts` to push the schema defined in `src/db/schema.ts` directly to the database.
 
 ### Seed test data (optional)
 
@@ -148,7 +148,7 @@ The frontend will start on `http://localhost:3150`. It connects to the backend U
 ## 4. Verify the setup
 
 1. Open `http://localhost:3150` in a browser.
-2. You should see the PizzaStore home page with the menu section.
+2. You should see the PizzaStore home page with the menu section and real-time stock statuses.
 3. Register a new account or log in with a seeded user.
 4. Browse products, add items to cart, and test the checkout flow.
 
@@ -207,7 +207,7 @@ For step-by-step credential creation during development, see the
 
 1. Log in with an admin account (created via seeding or by manually setting `role = 'admin'` in the database).
 2. Navigate to `/admin` in the browser.
-3. You should see the admin dashboard with metrics and charts.
+3. You should see the admin dashboard with real-time metrics (including low stock counts), inventory management, and charts.
 
 ## 5. Available scripts
 
@@ -216,6 +216,11 @@ For step-by-step credential creation during development, see the
 | Script | Command | Description |
 | --- | --- | --- |
 | `dev` | `tsx watch src/index.ts` | Start dev server with hot reload |
+| `test` | `vitest run src --pool=threads` | Run backend unit test suite |
+| `test:watch` | `vitest src` | Run backend unit tests in interactive watch mode |
+| `build` | `tsc -p tsconfig.json` | Compile TypeScript backend to JavaScript |
+| `typecheck` | `tsc --noEmit` | Check TypeScript types without emitting files |
+| `payments:reconcile` | `tsx src/scripts/reconcile-stale-payments.ts` | Run background reconciliation for stale payments and expired reservations |
 | `seed:users` | `tsx src/scripts/users.ts` | Seed user accounts |
 | `seed:addresses` | `tsx src/scripts/address.ts` | Seed delivery addresses |
 | `seed:orders` | `tsx src/scripts/order.ts` | Seed sample orders |
@@ -231,10 +236,10 @@ For step-by-step credential creation during development, see the
 
 ## 6. Database migrations
 
-To generate a new migration after changing `src/db/schema.ts`:
+To generate a new migration after changing `src/db/schema/`:
 
 ```bash
-npx drizzle-kit generate
+pnpm run db:generate
 ```
 
 To apply pending migrations:

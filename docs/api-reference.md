@@ -108,8 +108,11 @@ Get products filtered by menu, with pagination and sorting.
 
 When `storeId` is present, only globally available products with an available
 mapping for that store are returned. The response and price sorting use the
-store-specific price. Without `storeId`, the existing global catalog behavior
-is preserved.
+store-specific price. Derived `stockStatus` (`"in_stock"`, `"low_stock"`,
+`"out_of_stock"`, `"untracked"`) is calculated based on available stock
+(`on_hand_quantity - active_reservations`). For low-stock items, `stockCount`
+reports remaining available units. Without `storeId`, the existing global
+catalog behavior is preserved.
 
 **Query params:**
 - `storeId` (optional) — scope the catalog to a resolved store
@@ -120,7 +123,16 @@ is preserved.
 **Response `200`:**
 ```json
 {
-  "data": [ { "id": 1, "name": "...", "price": 299, "image": "/uploads/..." } ],
+  "data": [
+    {
+      "id": 1,
+      "name": "Margherita",
+      "price": 299,
+      "image": "/uploads/...",
+      "stockStatus": "low_stock",
+      "stockCount": 3
+    }
+  ],
   "meta": { "page": 1, "limit": 10, "hasNextPage": true }
 }
 ```
@@ -406,6 +418,27 @@ availability while retaining the item's snapshotted store price.
   "cartItemId": 1,
   "productId": 3,
   "type": "+" | "-"
+}
+```
+
+If the requested quantity exceeds the store's current available stock, the server
+rejects the request with `409 Conflict`:
+
+**Error Response `409`:**
+```json
+{
+  "message": "Insufficient stock for one or more items",
+  "code": "INSUFFICIENT_STOCK",
+  "data": {
+    "items": [
+      {
+        "productId": 1,
+        "productName": "Margherita",
+        "requestedQuantity": 3,
+        "availableQuantity": 1
+      }
+    ]
+  }
 }
 ```
 
@@ -710,6 +743,225 @@ cart subtotal. Checkout always locks and revalidates the coupon before use.
 Coupon redemption is internal to the order transaction. The former public
 `POST /coupon/redeem` endpoint has been removed to prevent replay and
 cross-order redemption.
+
+---
+
+## Inventory
+
+### `GET /inventory/store/:storeId` 🔒🛡️
+
+List paginated inventory for a store with real-time calculated available quantities and stock statuses.
+
+**Query params:**
+- `status` (optional) — `"all"`, `"low_stock"`, `"out_of_stock"`
+- `search` (optional) — search product names
+- `page` (default `1`, max `10000`) — page number
+- `limit` (default `20`, max `100`) — items per page
+
+**Response `200`:**
+```json
+{
+  "data": [
+    {
+      "storeProductId": 1,
+      "storeId": 2,
+      "productId": 3,
+      "productName": "Margherita",
+      "productImage": "/uploads/...",
+      "price": 299,
+      "isAvailable": true,
+      "productIsAvailable": true,
+      "onHandQuantity": 15,
+      "reservedQuantity": 2,
+      "availableQuantity": 13,
+      "lowStockThreshold": 5,
+      "lastRestockedAt": "2026-08-25T12:00:00.000Z",
+      "stockStatus": "in_stock"
+    }
+  ],
+  "meta": {
+    "total": 1,
+    "page": 1,
+    "limit": 20,
+    "totalPages": 1,
+    "hasNextPage": false
+  }
+}
+```
+
+### `GET /inventory/store/:storeId/product/:productId` 🔒🛡️
+
+Get single product inventory details including the 20 most recent inventory movements.
+
+**Response `200`:**
+```json
+{
+  "data": {
+    "storeProductId": 1,
+    "storeId": 2,
+    "productId": 3,
+    "productName": "Margherita",
+    "productImage": "/uploads/...",
+    "price": 299,
+    "isAvailable": true,
+    "productIsAvailable": true,
+    "onHandQuantity": 15,
+    "reservedQuantity": 2,
+    "availableQuantity": 13,
+    "lowStockThreshold": 5,
+    "lastRestockedAt": "2026-08-25T12:00:00.000Z",
+    "stockStatus": "in_stock",
+    "recentMovements": [ ... ]
+  }
+}
+```
+
+### `POST /inventory/store/:storeId/product/:productId/restock` 🔒🛡️
+
+Add positive stock to a single product. Tracking must already be enabled (on-hand is not NULL). Creates an append-only `restock` movement and updates `lastRestockedAt`.
+
+**Body:**
+```json
+{
+  "quantityAdded": 20,
+  "reason": "Weekly bakery delivery"
+}
+```
+
+**Response `200`:**
+```json
+{
+  "message": "Product restocked successfully",
+  "data": {
+    "storeProductId": 1,
+    "productId": 3,
+    "productName": "Margherita",
+    "previousQuantity": 15,
+    "newQuantity": 35,
+    "quantityChange": 20,
+    "changeType": "restock",
+    "lastRestockedAt": "2026-08-25T14:30:00.000Z"
+  }
+}
+```
+
+### `POST /inventory/store/:storeId/restock/bulk` 🔒🛡️
+
+Restock up to 50 distinct products in a single atomic transaction.
+
+**Body:**
+```json
+{
+  "items": [
+    { "productId": 1, "quantityAdded": 10, "reason": "Batch arrival" },
+    { "productId": 2, "quantityAdded": 15, "reason": "Batch arrival" }
+  ]
+}
+```
+
+**Response `200`:**
+```json
+{
+  "message": "Products restocked successfully",
+  "data": {
+    "updatedCount": 2,
+    "items": [ ... ]
+  }
+}
+```
+
+### `POST /inventory/store/:storeId/product/:productId/adjustment` 🔒🛡️
+
+Manually set the absolute on-hand stock count. Also used to establish an initial opening balance for an untracked product. A non-empty reason is mandatory. Rejects targets lower than currently active reservations.
+
+**Body:**
+```json
+{
+  "targetQuantity": 12,
+  "reason": "Physical count discrepancy"
+}
+```
+
+**Response `200`:**
+```json
+{
+  "message": "Stock adjusted successfully",
+  "data": {
+    "storeProductId": 1,
+    "productId": 3,
+    "productName": "Margherita",
+    "previousQuantity": 15,
+    "newQuantity": 12,
+    "quantityChange": -3,
+    "changeType": "adjustment"
+  }
+}
+```
+
+### `PATCH /inventory/store/:storeId/product/:productId/threshold` 🔒🛡️
+
+Update the product's low-stock threshold for status calculation and warning alerts.
+
+**Body:**
+```json
+{
+  "threshold": 8
+}
+```
+
+**Response `200`:**
+```json
+{
+  "message": "Low-stock threshold updated successfully",
+  "data": {
+    "storeProductId": 1,
+    "lowStockThreshold": 8
+  }
+}
+```
+
+### `GET /inventory/store/:storeId/movements` 🔒🛡️
+
+List paginated audit movements with actor information and change-type filtering.
+
+**Query params:**
+- `productId` (optional) — filter by product ID
+- `changeType` (optional) — `"restock"`, `"sale"`, `"adjustment"`, `"cancellation"`
+- `from` (optional) — ISO timestamp
+- `to` (optional) — ISO timestamp
+- `page` (default `1`) — page number
+- `limit` (default `20`, max `100`) — items per page
+
+**Response `200`:**
+```json
+{
+  "data": [
+    {
+      "id": 101,
+      "storeProductId": 1,
+      "productId": 3,
+      "productName": "Margherita",
+      "changeType": "sale",
+      "quantityChange": -2,
+      "previousQuantity": 15,
+      "newQuantity": 13,
+      "reason": null,
+      "orderId": 42,
+      "createdBy": null,
+      "actorFirstName": null,
+      "actorLastName": null,
+      "createdAt": "2026-08-25T12:30:00.000Z"
+    }
+  ],
+  "meta": {
+    "total": 1,
+    "page": 1,
+    "limit": 20,
+    "totalPages": 1,
+    "hasNextPage": false
+  }
+}
+```
 
 ---
 
