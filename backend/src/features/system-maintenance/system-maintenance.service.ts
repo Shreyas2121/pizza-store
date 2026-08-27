@@ -34,6 +34,7 @@ import {
 } from "../../db/schema";
 import { AppError } from "../../utils/error";
 import type { TransactionType } from "../../utils/types";
+import type { AuthPrincipal } from "../auth/auth.types";
 
 const applicationDataTables = [
   addressTable,
@@ -80,16 +81,16 @@ export const TRUNCATE_APPLICATION_DATA_SQL = `TRUNCATE TABLE ${APPLICATION_DATA_
 
 class SystemMaintenanceService {
   async clearAllExceptAdmins(
-    requestingAdminId: number,
+    actor: AuthPrincipal,
     transaction?: TransactionType
   ) {
     const execute = async (tx: TransactionType) => {
       await tx.execute(sql.raw('LOCK TABLE "users" IN EXCLUSIVE MODE'));
 
       const [requestingAdmin] = await tx
-        .select({ id: usersTable.id, role: usersTable.role })
+        .select({ id: usersTable.id, role: usersTable.role, email: usersTable.email })
         .from(usersTable)
-        .where(eq(usersTable.id, requestingAdminId))
+        .where(eq(usersTable.id, actor.userId))
         .for("update")
         .limit(1);
       if (!requestingAdmin || requestingAdmin.role !== "admin") {
@@ -109,6 +110,22 @@ class SystemMaintenanceService {
         .select({ id: usersTable.id })
         .from(usersTable)
         .where(eq(usersTable.role, "admin"));
+
+      await tx.insert(auditLogsTable).values({
+        actorUserId: requestingAdmin.id,
+        actorEmailSnapshot: requestingAdmin.email ?? actor.email,
+        platformRole: "admin",
+        storeId: null,
+        action: "system.clear_all",
+        resourceType: "system",
+        resourceId: "application_data",
+        outcome: "success",
+        metadata: {
+          clearedTableCount: APPLICATION_DATA_TABLE_NAMES.length,
+          deletedNonAdminUsers: deletedUsers.length,
+          preservedAdminUsers: preservedAdmins.length,
+        },
+      });
 
       return {
         cleared: true as const,

@@ -14,7 +14,7 @@ systemMaintenanceRoutes.post(
   asyncHandler(async (req: Auth, res) => {
     clearAllDataSchema.parse(req.body);
     const data = await systemMaintenanceService.clearAllExceptAdmins(
-      req.principal!.userId
+      req.principal!
     );
 
     res.json({ data, message: "All non-admin application data was cleared" });

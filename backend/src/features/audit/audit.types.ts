@@ -18,8 +18,14 @@ export type StoreAuditAction =
   | "store.delivery_zone.deleted";
 
 export type OrderAuditAction = "order.status.updated";
+export type InventoryAuditAction =
+  | "inventory.restocked"
+  | "inventory.bulk_restocked"
+  | "inventory.adjusted"
+  | "inventory.threshold_updated";
+export type SystemAuditAction = "system.clear_all";
 
-export type AuditAction = StaffAuditAction | StoreAuditAction | OrderAuditAction;
+export type AuditAction = StaffAuditAction | StoreAuditAction | OrderAuditAction | InventoryAuditAction | SystemAuditAction;
 
 export type AuditResourceType =
   | "store_membership"
@@ -27,7 +33,8 @@ export type AuditResourceType =
   | "store"
   | "store_product"
   | "delivery_zone"
-  | "order";
+  | "order"
+  | "system";
 
 export interface StaffAuditState {
   role?: StoreRole;
@@ -38,7 +45,7 @@ export interface StaffAuditState {
 export interface WriteAuditInput {
   tx: TransactionType;
   actor: AuthPrincipal;
-  storeId: number;
+  storeId: number | null;
   action: AuditAction;
   resourceType: AuditResourceType;
   resourceId: number | string;

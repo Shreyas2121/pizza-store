@@ -1,4 +1,8 @@
+import { and, count, desc, eq, gte, lte, type SQL } from "drizzle-orm";
+import { db } from "../../db";
 import { auditLogsTable } from "../../db/schema";
+import type { AuthPrincipal } from "../auth/auth.types";
+import authorizationService, { AuthorizationService } from "../access/access.service";
 import type { AuditWriter, WriteAuditInput } from "./audit.types";
 
 const SENSITIVE_KEYS = new Set([
@@ -26,6 +30,10 @@ const sanitizeRecord = (
 };
 
 export class AuditService implements AuditWriter {
+  constructor(
+    private readonly authorization: AuthorizationService = authorizationService
+  ) {}
+
   async write({
     tx,
     actor,
@@ -59,6 +67,63 @@ export class AuditService implements AuditWriter {
       metadata: auditMetadata,
     });
   }
+
+  async listStore(
+    actor: AuthPrincipal,
+    storeId: number,
+    input: AuditListInput
+  ) {
+    await this.authorization.requireStorePermission({
+      principal: actor,
+      storeId,
+      permission: "store.audit.read",
+    });
+    return this.list({ ...input, storeId });
+  }
+
+  async listGlobal(actor: AuthPrincipal, input: AuditListInput) {
+    this.authorization.requirePlatformAdmin(actor, "platform.audit.read");
+    return this.list(input);
+  }
+
+  private async list(input: AuditListInput) {
+    const conditions: SQL[] = [];
+    if (input.storeId !== undefined) conditions.push(eq(auditLogsTable.storeId, input.storeId));
+    if (input.actorUserId !== undefined) conditions.push(eq(auditLogsTable.actorUserId, input.actorUserId));
+    if (input.action !== undefined) conditions.push(eq(auditLogsTable.action, input.action));
+    if (input.from !== undefined) conditions.push(gte(auditLogsTable.createdAt, input.from));
+    if (input.to !== undefined) conditions.push(lte(auditLogsTable.createdAt, input.to));
+    const where = conditions.length > 0 ? and(...conditions) : undefined;
+    const [{ total }] = await db.select({ total: count() }).from(auditLogsTable).where(where);
+    const items = await db
+      .select()
+      .from(auditLogsTable)
+      .where(where)
+      .orderBy(desc(auditLogsTable.createdAt), desc(auditLogsTable.id))
+      .limit(input.limit)
+      .offset((input.page - 1) * input.limit);
+    const parsedTotal = Number(total);
+    return {
+      items,
+      meta: {
+        total: parsedTotal,
+        page: input.page,
+        limit: input.limit,
+        totalPages: Math.ceil(parsedTotal / input.limit),
+        hasNextPage: input.page * input.limit < parsedTotal,
+      },
+    };
+  }
+}
+
+export interface AuditListInput {
+  page: number;
+  limit: number;
+  storeId?: number;
+  actorUserId?: number;
+  action?: string;
+  from?: Date;
+  to?: Date;
 }
 
 export default new AuditService();

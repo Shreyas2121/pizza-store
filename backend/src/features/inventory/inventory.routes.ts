@@ -1,5 +1,6 @@
 import { Router } from "express";
-import { authenticateAdmin } from "../../middleware/authenticateUser";
+import { authenticateUser } from "../../middleware/authenticateUser";
+import { fromParam, requireStorePermission } from "../access/access.middleware";
 import { asyncHandler } from "../../utils/error";
 import { parseIntegerParam } from "../../utils/request";
 import type { Auth } from "../../utils/types";
@@ -16,14 +17,15 @@ import { io } from "../..";
 
 export const inventoryRoutes = Router();
 
-inventoryRoutes.use(authenticateAdmin);
+inventoryRoutes.use(authenticateUser);
 
 inventoryRoutes.get(
   "/store/:storeId",
-  asyncHandler(async (req, res) => {
+  requireStorePermission("inventory.read", fromParam("storeId")),
+  asyncHandler(async (req: Auth, res) => {
     const storeId = parseIntegerParam(req.params.storeId, "Store ID");
     const query = inventoryListQuerySchema.parse(req.query);
-    const result = await inventoryService.getStoreInventory(storeId, query);
+    const result = await inventoryService.getStoreInventory(storeId, query, req.principal!);
 
     res.json({ data: result.items, meta: result.meta });
   })
@@ -31,10 +33,11 @@ inventoryRoutes.get(
 
 inventoryRoutes.get(
   "/store/:storeId/product/:productId",
-  asyncHandler(async (req, res) => {
+  requireStorePermission("inventory.read", fromParam("storeId")),
+  asyncHandler(async (req: Auth, res) => {
     const storeId = parseIntegerParam(req.params.storeId, "Store ID");
     const productId = parseIntegerParam(req.params.productId, "Product ID");
-    const data = await inventoryService.getProductInventory(storeId, productId);
+    const data = await inventoryService.getProductInventory(storeId, productId, req.principal!);
 
     res.json({ data });
   })
@@ -42,13 +45,14 @@ inventoryRoutes.get(
 
 inventoryRoutes.post(
   "/store/:storeId/restock/bulk",
+  requireStorePermission("inventory.restock", fromParam("storeId")),
   asyncHandler(async (req: Auth, res) => {
     const storeId = parseIntegerParam(req.params.storeId, "Store ID");
     const { items } = bulkRestockInventorySchema.parse(req.body);
     const data = await inventoryService.bulkRestockProducts(
       storeId,
       items,
-      req.principal!.userId
+      req.principal!
     );
 
     res.json({ data, message: "Products restocked successfully" });
@@ -57,14 +61,12 @@ inventoryRoutes.post(
 
 inventoryRoutes.post(
   "/store/:storeId/product/:productId/restock",
+  requireStorePermission("inventory.restock", fromParam("storeId")),
   asyncHandler(async (req: Auth, res) => {
     const storeId = parseIntegerParam(req.params.storeId, "Store ID");
     const productId = parseIntegerParam(req.params.productId, "Product ID");
     const body = restockInventorySchema.parse(req.body);
-    const data = await inventoryService.restockProduct(storeId, productId, {
-      ...body,
-      createdBy: req.principal!.userId,
-    });
+    const data = await inventoryService.restockProduct(storeId, productId, body, req.principal!);
 
     res.json({ data, message: "Product restocked successfully" });
   })
@@ -72,14 +74,12 @@ inventoryRoutes.post(
 
 inventoryRoutes.post(
   "/store/:storeId/product/:productId/adjustment",
+  requireStorePermission("inventory.adjust", fromParam("storeId")),
   asyncHandler(async (req: Auth, res) => {
     const storeId = parseIntegerParam(req.params.storeId, "Store ID");
     const productId = parseIntegerParam(req.params.productId, "Product ID");
     const body = adjustInventorySchema.parse(req.body);
-    const data = await inventoryService.adjustProduct(storeId, productId, {
-      ...body,
-      createdBy: req.principal!.userId,
-    });
+    const data = await inventoryService.adjustProduct(storeId, productId, body, req.principal!);
 
     if (data.alert) {
       io.emit("lowStock", data.alert);
@@ -91,10 +91,11 @@ inventoryRoutes.post(
 
 inventoryRoutes.get(
   "/store/:storeId/movements",
-  asyncHandler(async (req, res) => {
+  requireStorePermission("inventory.read", fromParam("storeId")),
+  asyncHandler(async (req: Auth, res) => {
     const storeId = parseIntegerParam(req.params.storeId, "Store ID");
     const query = inventoryMovementsQuerySchema.parse(req.query);
-    const result = await inventoryService.getMovements(storeId, query);
+    const result = await inventoryService.getMovements(storeId, query, req.principal!);
 
     res.json({ data: result.items, meta: result.meta });
   })
@@ -102,14 +103,16 @@ inventoryRoutes.get(
 
 inventoryRoutes.patch(
   "/store/:storeId/product/:productId/threshold",
-  asyncHandler(async (req, res) => {
+  requireStorePermission("inventory.threshold.update", fromParam("storeId")),
+  asyncHandler(async (req: Auth, res) => {
     const storeId = parseIntegerParam(req.params.storeId, "Store ID");
     const productId = parseIntegerParam(req.params.productId, "Product ID");
     const { threshold } = updateInventoryThresholdSchema.parse(req.body);
     const data = await inventoryService.updateThreshold(
       storeId,
       productId,
-      threshold
+      threshold,
+      req.principal!
     );
 
     res.json({ data, message: "Low-stock threshold updated successfully" });

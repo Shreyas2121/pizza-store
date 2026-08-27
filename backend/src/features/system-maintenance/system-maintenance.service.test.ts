@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { usersTable } from "../../db/schema";
+import { auditLogsTable, usersTable } from "../../db/schema";
 import type { TransactionType } from "../../utils/types";
 import {
   APPLICATION_DATA_TABLE_NAMES,
@@ -46,7 +46,7 @@ const createTransaction = (requestingRole: "admin" | "user" = "admin") => {
   const deleteFrom = vi.fn().mockReturnValue({ where: deleteWhere });
   const firstLimit = vi
     .fn()
-    .mockResolvedValue([{ id: 1, role: requestingRole }]);
+    .mockResolvedValue([{ id: 1, role: requestingRole, email: "admin@example.com" }]);
   const firstFor = vi.fn().mockReturnValue({ limit: firstLimit });
   const firstWhere = vi.fn().mockReturnValue({ for: firstFor });
   const firstFrom = vi.fn().mockReturnValue({ where: firstWhere });
@@ -56,16 +56,27 @@ const createTransaction = (requestingRole: "admin" | "user" = "admin") => {
     .fn()
     .mockReturnValueOnce({ from: firstFrom })
     .mockReturnValueOnce({ from: secondFrom });
+  const auditValues = vi.fn().mockResolvedValue(undefined);
+  const insert = vi.fn().mockReturnValue({ values: auditValues });
 
   return {
     tx: {
       execute,
       delete: deleteFrom,
       select,
+      insert,
     } as unknown as TransactionType,
     execute,
     deleteFrom,
+    insert,
+    auditValues,
   };
+};
+
+const adminPrincipal = {
+  userId: 1,
+  email: "admin@example.com",
+  platformRole: "admin" as const,
 };
 
 describe("SystemMaintenanceService", () => {
@@ -82,12 +93,19 @@ describe("SystemMaintenanceService", () => {
 
   it("clears application tables and deletes only non-admin users", async () => {
     const service = new SystemMaintenanceService();
-    const { tx, execute, deleteFrom } = createTransaction();
+    const { tx, execute, deleteFrom, insert, auditValues } = createTransaction();
 
-    const result = await service.clearAllExceptAdmins(1, tx);
+    const result = await service.clearAllExceptAdmins(adminPrincipal, tx);
 
     expect(execute).toHaveBeenCalledTimes(2);
     expect(deleteFrom).toHaveBeenCalledWith(usersTable);
+    expect(insert).toHaveBeenCalledWith(auditLogsTable);
+    expect(auditValues).toHaveBeenCalledTimes(1);
+    expect(auditValues).toHaveBeenCalledWith(expect.objectContaining({
+      actorUserId: 1,
+      action: "system.clear_all",
+      resourceType: "system",
+    }));
     expect(result).toEqual({
       cleared: true,
       clearedTableCount: expectedApplicationTables.length,
@@ -100,7 +118,7 @@ describe("SystemMaintenanceService", () => {
     const service = new SystemMaintenanceService();
     const { tx, execute, deleteFrom } = createTransaction("user");
 
-    await expect(service.clearAllExceptAdmins(1, tx)).rejects.toMatchObject({
+    await expect(service.clearAllExceptAdmins(adminPrincipal, tx)).rejects.toMatchObject({
       status: 403,
       code: "ADMIN_ACCOUNT_NOT_AUTHORIZED",
     });
