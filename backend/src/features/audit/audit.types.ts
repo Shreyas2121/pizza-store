@@ -17,14 +17,17 @@ export type StoreAuditAction =
   | "store.delivery_zones.added"
   | "store.delivery_zone.deleted";
 
-export type AuditAction = StaffAuditAction | StoreAuditAction;
+export type OrderAuditAction = "order.status.updated";
+
+export type AuditAction = StaffAuditAction | StoreAuditAction | OrderAuditAction;
 
 export type AuditResourceType =
   | "store_membership"
   | "store_staff_invitation"
   | "store"
   | "store_product"
-  | "delivery_zone";
+  | "delivery_zone"
+  | "order";
 
 export interface StaffAuditState {
   role?: StoreRole;

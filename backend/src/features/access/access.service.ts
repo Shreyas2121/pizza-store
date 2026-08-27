@@ -210,6 +210,23 @@ export class AuthorizationService {
       .map((membership) => membership.storeId);
   }
 
+  async hasStorePermission(
+    principal: AuthPrincipal,
+    storeId: number,
+    permission: Permission,
+    tx?: AccessExecutor
+  ): Promise<boolean> {
+    if (!isPermission(permission)) return false;
+    if (principal.platformRole === "admin") return true;
+
+    const membership = await this.repository.findMembership({
+      userId: principal.userId,
+      storeId,
+      executor: tx,
+    });
+    return !this.membershipDenialReason(membership, permission);
+  }
+
   async getCurrentAccess(principal: AuthPrincipal): Promise<CurrentAccessDto> {
     if (principal.platformRole === "admin") {
       return {

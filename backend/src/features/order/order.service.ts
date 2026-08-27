@@ -3,6 +3,12 @@ import { db } from "../../db";
 import { ordersTable, paymentsTable } from "../../db/schema";
 import { AppError } from "../../utils/error";
 import type { OrderStatus } from "../../utils/types";
+import type { AuthPrincipal } from "../auth/auth.types";
+import defaultAuthorizationService, {
+  AuthorizationService,
+} from "../access/access.service";
+import defaultAuditService from "../audit/audit.service";
+import type { AuditWriter } from "../audit/audit.types";
 import cartService from "../cart/cart.service";
 import checkoutService from "../checkout/checkout.service";
 import inventoryService from "../inventory/inventory.service";
@@ -16,6 +22,11 @@ interface CreateCodOrderData {
 }
 
 class OrderService {
+  constructor(
+    private readonly authorizationService: AuthorizationService = defaultAuthorizationService,
+    private readonly auditService: AuditWriter = defaultAuditService
+  ) {}
+
   async createOrder(data: CreateCodOrderData) {
     return await db.transaction(async (tx) => {
       const quote = await checkoutService.buildQuote(data, tx);
@@ -123,11 +134,27 @@ class OrderService {
     });
   }
 
-  async getAdminOrders(status: OrderStatus = "pending") {
+  async getAdminOrders({
+    status = "pending",
+    storeId,
+  }: {
+    status?: OrderStatus;
+    storeId?: number;
+  } = {}) {
+    const conditions = [];
+    if (status) {
+      conditions.push(eq(ordersTable.status, status));
+    }
+    if (storeId !== undefined) {
+      conditions.push(eq(ordersTable.storeId, storeId));
+    }
+
     return await db.query.ordersTable.findMany({
-      where: eq(ordersTable.status, status),
+      where: conditions.length > 0 ? and(...conditions) : undefined,
+      orderBy: desc(ordersTable.orderDate),
       with: {
         user: true,
+        store: true,
       },
     });
   }
@@ -135,8 +162,15 @@ class OrderService {
   async updateOrderStatus(
     orderId: number,
     status: OrderStatus,
-    adminUserId?: number
+    actor?: AuthPrincipal | number
   ) {
+    const principal: AuthPrincipal | undefined =
+      typeof actor === "object"
+        ? actor
+        : typeof actor === "number"
+        ? { userId: actor, email: "", platformRole: "admin", tokenVersion: 0 }
+        : undefined;
+
     return await db.transaction(async (tx) => {
       const [order] = await tx
         .select()
@@ -149,6 +183,15 @@ class OrderService {
         throw new AppError("Order not found", 404, "ORDER_NOT_FOUND");
       }
 
+      if (principal) {
+        await this.authorizationService.requireStorePermission({
+          principal,
+          storeId: order.storeId,
+          permission: "orders.update_status",
+          tx,
+        });
+      }
+
       if (order.status === status) {
         return order;
       }
@@ -159,7 +202,7 @@ class OrderService {
         await inventoryService.restoreStockForOrder(
           {
             orderId: order.id,
-            createdBy: adminUserId ?? null,
+            createdBy: principal?.userId ?? null,
           },
           tx
         );
@@ -212,6 +255,24 @@ class OrderService {
         .set({ status, updatedAt: new Date() })
         .where(eq(ordersTable.id, orderId))
         .returning();
+
+      if (principal) {
+        await this.auditService.write({
+          tx,
+          actor: principal,
+          storeId: order.storeId,
+          action: "order.status.updated",
+          resourceType: "order",
+          resourceId: order.id,
+          before: { status: order.status },
+          after: { status: updatedOrder.status },
+          metadata: {
+            orderId: order.id,
+            paymentId: order.paymentId,
+            customerUserId: order.userId,
+          },
+        });
+      }
 
       return updatedOrder;
     });

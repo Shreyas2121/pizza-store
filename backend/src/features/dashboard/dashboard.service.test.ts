@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { db } from "../../db";
 import dashboardService from "./dashboard.service";
 
-describe("DashboardService - Low Stock Metric", () => {
+describe("DashboardService unit tests", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
   });
@@ -50,19 +50,28 @@ describe("DashboardService - Low Stock Metric", () => {
   });
 
   describe("getDashboardMetrics", () => {
-    it("includes the Low Stock Items metric card in returned metrics", async () => {
+    it("returns all 5 metric cards including finance metrics when includeFinance is true", async () => {
       vi.spyOn(dashboardService, "getTotalRevenue").mockResolvedValue(50000);
       vi.spyOn(dashboardService, "getActiveUsers").mockResolvedValue(120);
       vi.spyOn(dashboardService, "getTotalOrders").mockResolvedValue(80);
       vi.spyOn(dashboardService, "getLowStockItemsCount").mockResolvedValue(4);
 
-      const metrics = await dashboardService.getDashboardMetrics(
-        "2026-08-01",
-        "2026-08-15",
-        1
-      );
+      const metrics = await dashboardService.getDashboardMetrics({
+        from: "2026-08-01",
+        to: "2026-08-15",
+        storeId: 1,
+        includeFinance: true,
+      });
 
       expect(metrics).toHaveLength(5);
+      expect(metrics.map((m) => m.label)).toEqual([
+        "Revenue",
+        "Active Users",
+        "Total Orders",
+        "Average Order Value",
+        "Low Stock Items",
+      ]);
+
       const lowStockCard = metrics.find((m) => m.label === "Low Stock Items");
       expect(lowStockCard).toBeDefined();
       expect(lowStockCard?.data).toMatchObject({
@@ -75,6 +84,54 @@ describe("DashboardService - Low Stock Metric", () => {
           color: "red",
         },
       });
+    });
+
+    it("omits financial fields server-side when includeFinance is false", async () => {
+      const getRevenueSpy = vi
+        .spyOn(dashboardService, "getTotalRevenue")
+        .mockResolvedValue(50000);
+      vi.spyOn(dashboardService, "getActiveUsers").mockResolvedValue(120);
+      vi.spyOn(dashboardService, "getTotalOrders").mockResolvedValue(80);
+      vi.spyOn(dashboardService, "getLowStockItemsCount").mockResolvedValue(4);
+
+      const metrics = await dashboardService.getDashboardMetrics({
+        from: "2026-08-01",
+        to: "2026-08-15",
+        storeId: 1,
+        includeFinance: false,
+      });
+
+      expect(metrics).toHaveLength(3);
+      expect(metrics.map((m) => m.label)).toEqual([
+        "Active Users",
+        "Total Orders",
+        "Low Stock Items",
+      ]);
+      expect(getRevenueSpy).not.toHaveBeenCalled();
+    });
+
+    it("applies storeId to current and previous comparison ranges", async () => {
+      const getActiveUsersSpy = vi
+        .spyOn(dashboardService, "getActiveUsers")
+        .mockResolvedValue(50);
+      const getTotalOrdersSpy = vi
+        .spyOn(dashboardService, "getTotalOrders")
+        .mockResolvedValue(30);
+      vi.spyOn(dashboardService, "getLowStockItemsCount").mockResolvedValue(2);
+
+      await dashboardService.getDashboardMetrics({
+        from: "2026-08-01",
+        to: "2026-08-15",
+        storeId: 3,
+        includeFinance: false,
+      });
+
+      expect(getActiveUsersSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ storeId: 3 })
+      );
+      expect(getTotalOrdersSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ storeId: 3 })
+      );
     });
   });
 });

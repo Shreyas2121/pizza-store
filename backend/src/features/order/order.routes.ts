@@ -1,12 +1,10 @@
 import { Router } from "express";
-import {
-  authenticateAdmin,
-  authenticateUser,
-} from "../../middleware/authenticateUser";
+import { authenticateUser } from "../../middleware/authenticateUser";
 import { validateBody } from "../../middleware/validateBody";
 import { createOrderSchema } from "../../utils/zodSchema";
 import { AppError, asyncHandler } from "../../utils/error";
-import { Auth, OrderStatus } from "../../utils/types";
+import type { AuthenticatedRequest, OrderStatus } from "../../utils/types";
+import authorizationService, { authenticationRequired } from "../access/access.service";
 import orderService from "./order.service";
 import { io } from "../..";
 import { parseIntegerParam } from "../../utils/request";
@@ -17,8 +15,9 @@ orderRoutes.post(
   "/",
   authenticateUser,
   validateBody(createOrderSchema),
-  asyncHandler(async (req: Auth, res) => {
-    const userId = req.principal!.userId;
+  asyncHandler(async (req: AuthenticatedRequest, res) => {
+    if (!req.principal) throw authenticationRequired();
+    const userId = req.principal.userId;
 
     const data = req.body;
 
@@ -50,8 +49,9 @@ orderRoutes.post(
 orderRoutes.get(
   "/",
   authenticateUser,
-  asyncHandler(async (req: Auth, res) => {
-    const userId = req.principal!.userId;
+  asyncHandler(async (req: AuthenticatedRequest, res) => {
+    if (!req.principal) throw authenticationRequired();
+    const userId = req.principal.userId;
 
     const query = req.query;
 
@@ -67,12 +67,39 @@ orderRoutes.get(
 
 orderRoutes.get(
   "/admin/all",
-  authenticateAdmin,
-  asyncHandler(async (req, res) => {
-    const query = req.query;
-    const status = query.status as OrderStatus;
+  authenticateUser,
+  asyncHandler(async (req: AuthenticatedRequest, res) => {
+    if (!req.principal) throw authenticationRequired();
+    const status = req.query.status as OrderStatus | undefined;
+    const isPlatformAdmin = req.principal.platformRole === "admin";
 
-    const data = await orderService.getAdminOrders(status);
+    let storeId: number | undefined;
+    if (req.query.storeId !== undefined) {
+      if (typeof req.query.storeId !== "string") {
+        throw new AppError("Store ID must be a positive integer", 400);
+      }
+      storeId = parseIntegerParam(req.query.storeId, "Store ID");
+    }
+
+    if (!isPlatformAdmin) {
+      if (storeId === undefined) {
+        throw new AppError(
+          "Store ID is required for store staff order queries",
+          400,
+          "STORE_ID_REQUIRED"
+        );
+      }
+      await authorizationService.requireStorePermission({
+        principal: req.principal,
+        storeId,
+        permission: "orders.read",
+      });
+    }
+
+    const data = await orderService.getAdminOrders({
+      status,
+      storeId,
+    });
 
     res.json({
       data,
@@ -83,13 +110,22 @@ orderRoutes.get(
 orderRoutes.get(
   "/:orderId",
   authenticateUser,
-  asyncHandler(async (req: Auth, res) => {
+  asyncHandler(async (req: AuthenticatedRequest, res) => {
+    if (!req.principal) throw authenticationRequired();
     const orderId = parseIntegerParam(req.params.orderId, "Order ID");
     const order = await orderService.getOrderDetails(orderId);
 
-    if (!order) throw new AppError("Order not found.");
-    if (req.principal!.platformRole !== "admin" && order.userId !== req.principal!.userId) {
-      throw new AppError("Order not found.", 404);
+    if (!order) throw new AppError("Order not found.", 404, "ORDER_NOT_FOUND");
+
+    const isOwner = order.userId === req.principal.userId;
+    const isPlatformAdmin = req.principal.platformRole === "admin";
+
+    if (!isOwner && !isPlatformAdmin) {
+      await authorizationService.requireResourceStorePermission({
+        principal: req.principal,
+        resourceStoreId: order.storeId,
+        permission: "orders.read",
+      });
     }
 
     const items = order.items.map((item) => {
@@ -108,17 +144,17 @@ orderRoutes.get(
   })
 );
 
-//update order status
-
+// Update order status
 orderRoutes.patch(
   "/:orderId",
-  authenticateAdmin,
-  asyncHandler(async (req: Auth, res) => {
+  authenticateUser,
+  asyncHandler(async (req: AuthenticatedRequest, res) => {
+    if (!req.principal) throw authenticationRequired();
     const id = parseIntegerParam(req.params.orderId, "Order ID");
 
     const status = req.body.status as OrderStatus;
 
-    await orderService.updateOrderStatus(id, status, req.principal?.userId);
+    await orderService.updateOrderStatus(id, status, req.principal);
 
     res.json({
       message: "Updated",

@@ -176,7 +176,36 @@ class DashboardService {
       );
   }
 
-  async getDashboardMetrics(from: string, to: string, storeId?: number) {
+  async getDashboardMetrics(
+    fromOrOptions:
+      | string
+      | {
+          from: string;
+          to: string;
+          storeId?: number;
+          includeFinance?: boolean;
+        },
+    toParam?: string,
+    storeIdParam?: number,
+    includeFinanceParam = true
+  ) {
+    let from: string;
+    let to: string;
+    let storeId: number | undefined;
+    let includeFinance = true;
+
+    if (typeof fromOrOptions === "object") {
+      from = fromOrOptions.from;
+      to = fromOrOptions.to;
+      storeId = fromOrOptions.storeId;
+      includeFinance = fromOrOptions.includeFinance ?? true;
+    } else {
+      from = fromOrOptions;
+      to = toParam!;
+      storeId = storeIdParam;
+      includeFinance = includeFinanceParam;
+    }
+
     const fromDate = new Date(from);
     const toDate = new Date(to);
 
@@ -187,17 +216,11 @@ class DashboardService {
     const currentParam = { from: fromDate, to: toDate, storeId };
     const prevParam = { from: prevFrom, to: prevTo, storeId };
 
-    const currentRevenue = await this.getTotalRevenue(currentParam);
     const activeUsers = await this.getActiveUsers(currentParam);
-    const currentTotalOrders = await this.getTotalOrders(currentParam);
-    const currentAOV =
-      currentTotalOrders === 0 ? 0 : currentRevenue / currentTotalOrders;
-
-    const previousRevenue = await this.getTotalRevenue(prevParam);
     const prevActiveUsers = await this.getActiveUsers(prevParam);
+
+    const currentTotalOrders = await this.getTotalOrders(currentParam);
     const previousTotalOrders = await this.getTotalOrders(prevParam);
-    const previousAOV =
-      previousTotalOrders === 0 ? 0 : previousRevenue / previousTotalOrders;
 
     const lowStockItems = await this.getLowStockItemsCount({ storeId });
 
@@ -218,48 +241,70 @@ class DashboardService {
       };
     };
 
-    return [
-      {
-        label: "Revenue",
-        data: renderRes("price", currentRevenue, previousRevenue, {
-          name: "indian-rupee",
-          color: "green",
-        }),
-      },
-      {
-        label: "Active Users",
-        data: renderRes("number", activeUsers, prevActiveUsers, {
-          name: "users",
-          color: "blue",
-        }),
-      },
-      {
-        label: "Total Orders",
-        data: renderRes("number", currentTotalOrders, previousTotalOrders, {
-          name: "shopping-cart",
-          color: "orange",
-        }),
-      },
-      {
-        label: "Average Order Value",
-        data: renderRes("price", currentAOV, previousAOV, {
-          name: "credit-card",
-          color: "teal",
-        }),
-      },
-      {
-        label: "Low Stock Items",
-        data: {
-          current: formatNumber(lowStockItems),
-          previous: "Real-time",
-          isLow: lowStockItems > 0,
-          percentage: "N/A",
-          icon: {
-            name: "alert-triangle",
-            color: lowStockItems > 0 ? "red" : "gray",
-          },
+    const activeUsersCard = {
+      label: "Active Users",
+      data: renderRes("number", activeUsers, prevActiveUsers, {
+        name: "users",
+        color: "blue",
+      }),
+    };
+
+    const totalOrdersCard = {
+      label: "Total Orders",
+      data: renderRes("number", currentTotalOrders, previousTotalOrders, {
+        name: "shopping-cart",
+        color: "orange",
+      }),
+    };
+
+    const lowStockCard = {
+      label: "Low Stock Items",
+      data: {
+        current: formatNumber(lowStockItems),
+        previous: "Real-time",
+        isLow: lowStockItems > 0,
+        percentage: "N/A",
+        icon: {
+          name: "alert-triangle",
+          color: lowStockItems > 0 ? "red" : "gray",
         },
       },
+    };
+
+    if (!includeFinance) {
+      return [activeUsersCard, totalOrdersCard, lowStockCard];
+    }
+
+    const currentRevenue = await this.getTotalRevenue(currentParam);
+    const previousRevenue = await this.getTotalRevenue(prevParam);
+
+    const currentAOV =
+      currentTotalOrders === 0 ? 0 : currentRevenue / currentTotalOrders;
+    const previousAOV =
+      previousTotalOrders === 0 ? 0 : previousRevenue / previousTotalOrders;
+
+    const revenueCard = {
+      label: "Revenue",
+      data: renderRes("price", currentRevenue, previousRevenue, {
+        name: "indian-rupee",
+        color: "green",
+      }),
+    };
+
+    const aovCard = {
+      label: "Average Order Value",
+      data: renderRes("price", currentAOV, previousAOV, {
+        name: "credit-card",
+        color: "teal",
+      }),
+    };
+
+    return [
+      revenueCard,
+      activeUsersCard,
+      totalOrdersCard,
+      aovCard,
+      lowStockCard,
     ];
   }
 }
