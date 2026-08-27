@@ -1,31 +1,19 @@
 import { Router } from "express";
-import {
-  authenticateAdmin,
-  authenticateUser,
-} from "../../middleware/authenticateUser";
+import { authenticateAdmin, authenticateUser } from "../../middleware/authenticateUser";
 import { validateBody } from "../../middleware/validateBody";
-import { asyncHandler } from "../../utils/error";
-import { parseIntegerParam } from "../../utils/request";
-import type { Auth } from "../../utils/types";
 import {
   initiateRazorpayOrderSchema,
   reconcileRazorpayPaymentsSchema,
   verifyRazorpayPaymentSchema,
 } from "../../utils/zodSchema";
+import { AppError, asyncHandler } from "../../utils/error";
+import type { Auth } from "../../utils/types";
+import { parseIntegerParam } from "../../utils/request";
 import paymentService from "./payment.service";
-import { isRazorpayCheckoutEnabled } from "./razorpay.config";
 import { io } from "../..";
+import { RealtimeRooms } from "../realtime/realtime-rooms";
 
 export const paymentRoutes = Router();
-
-paymentRoutes.get("/methods", (_req, res) => {
-  res.json({
-    data: {
-      cash: true,
-      razorpay: isRazorpayCheckoutEnabled(),
-    },
-  });
-});
 
 paymentRoutes.post(
   "/razorpay/reconcile",
@@ -43,10 +31,26 @@ paymentRoutes.post(
         result.localOrderId &&
         result.totalPrice !== undefined
       ) {
-        io.emit("orderPlaced", {
+        const storeAudience =
+          "storeId" in result && result.storeId
+            ? RealtimeRooms.storeOrders(result.storeId as number)
+            : RealtimeRooms.platformAdmin();
+        const userAudience =
+          "userId" in result && result.userId
+            ? RealtimeRooms.user(result.userId as number)
+            : RealtimeRooms.platformAdmin();
+
+        io.to([
+          userAudience,
+          storeAudience,
+          RealtimeRooms.platformAdmin(),
+        ]).emit("orderPlaced", {
           orderId: result.localOrderId,
           status: "pending",
           total: result.totalPrice,
+          ...("storeId" in result && result.storeId
+            ? { storeId: result.storeId }
+            : {}),
         });
       }
     }
@@ -69,10 +73,22 @@ paymentRoutes.post(
     });
 
     if (data.finalizedNow) {
-      io.emit("orderPlaced", {
+      const storeAudience =
+        "storeId" in data && data.storeId
+          ? RealtimeRooms.storeOrders(data.storeId as number)
+          : RealtimeRooms.platformAdmin();
+
+      io.to([
+        RealtimeRooms.user(req.principal!.userId),
+        storeAudience,
+        RealtimeRooms.platformAdmin(),
+      ]).emit("orderPlaced", {
         orderId: data.localOrderId,
         status: data.orderStatus,
         total: data.totalPrice,
+        ...("storeId" in data && data.storeId
+          ? { storeId: data.storeId }
+          : {}),
       });
     }
 
@@ -94,7 +110,10 @@ paymentRoutes.post(
 
     if (data.lowStockAlerts?.length) {
       for (const alert of data.lowStockAlerts) {
-        io.emit("lowStock", alert);
+        io.to([
+          RealtimeRooms.storeInventory(alert.storeId),
+          RealtimeRooms.platformAdmin(),
+        ]).emit("lowStock", alert);
       }
     }
 
@@ -110,28 +129,16 @@ paymentRoutes.get(
       req.params.localOrderId,
       "Order ID"
     );
-    const data = await paymentService.getRazorpayOrderStatus(
+
+    const payment = await paymentService.getRazorpayOrderStatus(
       localOrderId,
       req.principal!.userId
     );
 
-    res.json({ data });
-  })
-);
+    if (!payment) {
+      throw new AppError("Payment not found", 404);
+    }
 
-paymentRoutes.post(
-  "/razorpay/orders/:localOrderId/retry",
-  authenticateUser,
-  asyncHandler(async (req: Auth, res) => {
-    const localOrderId = parseIntegerParam(
-      req.params.localOrderId,
-      "Order ID"
-    );
-    const data = await paymentService.retryRazorpayOrder(
-      localOrderId,
-      req.principal!.userId
-    );
-
-    res.json({ data, message: "Online payment is ready" });
+    res.json({ data: payment });
   })
 );

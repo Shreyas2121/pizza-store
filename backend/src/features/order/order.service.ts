@@ -77,6 +77,7 @@ class OrderService {
 
       return {
         id: order.id,
+        storeId: order.storeId,
         paymentId: payment.id,
         totalPrice: order.totalPrice,
         lowStockAlerts,

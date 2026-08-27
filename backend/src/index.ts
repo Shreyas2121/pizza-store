@@ -10,6 +10,9 @@ import { paymentWebhookRoutes } from "./features/payments/payment.webhook.routes
 import { checkDatabaseConnection, closeDatabase } from "./db";
 import path from "path";
 
+import { createSocketAuthMiddleware } from "./features/realtime/realtime-auth";
+import { setRealtimeIoGetter } from "./features/staff/staff.realtime";
+
 logger.info("🚀 [Startup] Initializing Food Delivery Backend service...");
 logger.info(
   `⚙️  [Config] Port: ${env.PORT || 3000} | Env: ${
@@ -27,16 +30,16 @@ const httpServer = http.createServer(app);
 export const io = new Server(httpServer, {
   cors: {
     origin: env.FE_URL,
+    credentials: true,
   },
 });
 
+setRealtimeIoGetter(() => io);
+
+io.use(createSocketAuthMiddleware());
+
 io.on("connection", (socket) => {
   logger.info(`🔌 [Socket.io] Client connected: ${socket.id}`);
-
-  socket.on("joinRoom", ({ userId }) => {
-    socket.join(`user-${userId}`);
-    logger.info(`🔌 [Socket.io] Socket ${socket.id} joined room user-${userId}`);
-  });
 
   socket.on("disconnect", (reason) => {
     logger.info(

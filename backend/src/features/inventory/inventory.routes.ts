@@ -14,6 +14,7 @@ import {
 } from "./inventory.schemas";
 import inventoryService from "./inventory.service";
 import { io } from "../..";
+import { RealtimeRooms } from "../realtime/realtime-rooms";
 
 export const inventoryRoutes = Router();
 
@@ -82,7 +83,10 @@ inventoryRoutes.post(
     const data = await inventoryService.adjustProduct(storeId, productId, body, req.principal!);
 
     if (data.alert) {
-      io.emit("lowStock", data.alert);
+      io.to([
+        RealtimeRooms.storeInventory(storeId),
+        RealtimeRooms.platformAdmin(),
+      ]).emit("lowStock", data.alert);
     }
 
     res.json({ data, message: "Stock adjusted successfully" });

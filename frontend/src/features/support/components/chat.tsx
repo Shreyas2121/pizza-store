@@ -32,10 +32,6 @@ export const Chat = ({ height = "620px", width = "100%", userId }: Props) => {
   }, [existingMessages]);
 
   useEffect(() => {
-    socket?.emit("joinRoom", { userId });
-  }, [userId, socket]);
-
-  useEffect(() => {
     if (!socket) return;
     const receiveMessage = (incoming: Message) =>
       setMessages((current) =>

@@ -10,23 +10,27 @@ import { ErrorBoundary, GlobalModal, RouteSkeleton } from "@/shared/ui";
 
 export function App() {
   const { setSocket } = useSocketStore();
-  const { user, isLoggedIn } = useUser();
+  const { token, isLoggedIn } = useUser();
 
   useSyncChatStatus(isLoggedIn);
 
-
   useEffect(() => {
-    const socket = io(BASE_URL);
-    setSocket(socket);
-
-    if (user) {
-      socket.emit("joinRoom", { userId: user.id });
+    if (!token) {
+      setSocket(null);
+      return;
     }
+
+    const socket = io(BASE_URL, {
+      auth: {
+        token,
+      },
+    });
+    setSocket(socket);
 
     return () => {
       socket.disconnect();
     };
-  }, [setSocket, user]);
+  }, [setSocket, token]);
 
   return (
     <ErrorBoundary>

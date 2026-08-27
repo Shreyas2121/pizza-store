@@ -4,7 +4,7 @@ import { ChatStatus } from "./support.types";
 
 interface SocketState {
   socket: Socket | null;
-  setSocket: (socket: Socket) => void;
+  setSocket: (socket: Socket | null) => void;
   activeChat: boolean;
   setActiveChat: (activeChat: boolean) => void;
   chatSession: ChatStatus | null;
@@ -13,7 +13,7 @@ interface SocketState {
 
 export const useSocketStore = create<SocketState>((set) => ({
   socket: null,
-  setSocket: (socket: Socket) => set({ socket }),
+  setSocket: (socket: Socket | null) => set({ socket }),
   activeChat: false,
   setActiveChat: (activeChat: boolean) => set({ activeChat }),
   chatSession: null,

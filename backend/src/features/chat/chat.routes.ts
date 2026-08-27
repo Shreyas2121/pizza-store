@@ -4,10 +4,11 @@ import {
   authenticateUser,
 } from "../../middleware/authenticateUser";
 import { AppError, asyncHandler } from "../../utils/error";
-import { Auth, ChatStatus } from "../../utils/types";
+import type { Auth, ChatStatus } from "../../utils/types";
 import chatService from "./chat.service";
 import { io } from "../..";
 import userService from "../users/user.service";
+import { RealtimeRooms } from "../realtime/realtime-rooms";
 
 export const chatRoutes = Router();
 
@@ -28,13 +29,13 @@ chatRoutes.post(
     }
 
     const chatSession = await chatService.createNewChatSession(userId, title);
-    io.emit("chatRequest", chatSession);
+    io.to(RealtimeRooms.platformSupport()).emit("chatRequest", chatSession);
 
     res.json({
       message: "Session created",
       data: chatSession,
     });
-  })
+  }),
 );
 
 chatRoutes.get(
@@ -43,7 +44,8 @@ chatRoutes.get(
   asyncHandler(async (req: Auth, res) => {
     let userId: number;
     if (req.query.userId) {
-      if (req.principal!.platformRole !== "admin") throw new AppError("Unauthorized", 403);
+      if (req.principal!.platformRole !== "admin")
+        throw new AppError("Unauthorized", 403);
       userId = parseInt(req.query.userId as string);
     } else {
       userId = req.principal!.userId;
@@ -53,7 +55,7 @@ chatRoutes.get(
     res.json({
       data: activeChat,
     });
-  })
+  }),
 );
 
 chatRoutes.get(
@@ -68,7 +70,7 @@ chatRoutes.get(
     res.json({
       data: requests,
     });
-  })
+  }),
 );
 
 chatRoutes.patch(
@@ -78,22 +80,27 @@ chatRoutes.patch(
     const chatSessionId = req.body.chatId as string;
     const status = req.body.status as ChatStatus;
 
-    const previousChatSession = await chatService.getActiveChatBySessionId(parseInt(chatSessionId));
+    const previousChatSession = await chatService.getActiveChatBySessionId(
+      parseInt(chatSessionId),
+    );
     const [updatedChatSession] = await chatService.updateChatStatus(
       parseInt(chatSessionId),
-      status
+      status,
     );
 
-    io.emit("chatStatusChange", JSON.stringify(updatedChatSession));
+    io.to([
+      RealtimeRooms.user(updatedChatSession.userId),
+      RealtimeRooms.platformSupport(),
+    ]).emit("chatStatusChange", JSON.stringify(updatedChatSession));
 
     res.json({
       message: "Chat status updated",
       data: {
         updatedChatSession,
-          oldStatus: previousChatSession?.status ?? status,
+        oldStatus: previousChatSession?.status ?? status,
       },
     });
-  })
+  }),
 );
 
 chatRoutes.get(
@@ -102,7 +109,8 @@ chatRoutes.get(
   asyncHandler(async (req: Auth, res) => {
     let userId: number;
     if (req.query.userId) {
-      if (req.principal!.platformRole !== "admin") throw new AppError("Unauthorized", 403);
+      if (req.principal!.platformRole !== "admin")
+        throw new AppError("Unauthorized", 403);
       userId = parseInt(req.query.userId as string);
     } else {
       userId = req.principal!.userId;
@@ -129,7 +137,7 @@ chatRoutes.get(
     res.json({
       data: messages,
     });
-  })
+  }),
 );
 
 chatRoutes.post(
@@ -147,7 +155,7 @@ chatRoutes.post(
       throw new AppError("Unauthorized", 403);
     }
 
-  const [messageData] = await chatService.sendMessage({
+    const [messageData] = await chatService.sendMessage({
       ...data,
       senderId: userId,
     });
@@ -160,10 +168,13 @@ chatRoutes.post(
       message: messageData.message,
     };
 
-    io.to(`user-${session.userId}`).emit("newMessage", message);
+    io.to([
+      RealtimeRooms.user(session.userId),
+      RealtimeRooms.platformSupport(),
+    ]).emit("newMessage", message);
 
     res.json({
       data: message,
     });
-  })
+  }),
 );

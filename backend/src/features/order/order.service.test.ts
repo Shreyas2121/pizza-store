@@ -180,6 +180,7 @@ describe("OrderService unit tests", () => {
 
       expect(result).toEqual({
         id: 42,
+        storeId: 1,
         paymentId: 100,
         totalPrice: 500,
         lowStockAlerts: expect.any(Array),

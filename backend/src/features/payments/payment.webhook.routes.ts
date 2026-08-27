@@ -3,6 +3,7 @@ import type { Server } from "socket.io";
 import { AppError, asyncHandler } from "../../utils/error";
 import { requireRouteParam } from "../../utils/request";
 import razorpayWebhookService from "./razorpay.webhook";
+import { RealtimeRooms } from "../realtime/realtime-rooms";
 
 export const paymentWebhookRoutes = Router();
 
@@ -38,10 +39,24 @@ paymentWebhookRoutes.post(
       "totalPrice" in reconciliation
     ) {
       const io = req.app.get("io") as Server | undefined;
-      io?.emit("orderPlaced", {
+      const storeId =
+        "storeId" in reconciliation
+          ? (reconciliation as any).storeId
+          : undefined;
+      const userId =
+        "userId" in reconciliation
+          ? (reconciliation as any).userId
+          : undefined;
+
+      const audiences = [RealtimeRooms.platformAdmin()];
+      if (storeId) audiences.push(RealtimeRooms.storeOrders(storeId));
+      if (userId) audiences.push(RealtimeRooms.user(userId));
+
+      io?.to(audiences).emit("orderPlaced", {
         orderId: reconciliation.localOrderId,
         status: "pending",
         total: reconciliation.totalPrice,
+        ...(storeId ? { storeId } : {}),
       });
     }
 

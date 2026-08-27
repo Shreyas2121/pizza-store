@@ -9,6 +9,8 @@ import orderService from "./order.service";
 import { io } from "../..";
 import { parseIntegerParam } from "../../utils/request";
 
+import { RealtimeRooms } from "../realtime/realtime-rooms";
+
 export const orderRoutes = Router();
 
 orderRoutes.post(
@@ -27,15 +29,25 @@ orderRoutes.post(
       userId,
     });
 
-    io.emit("orderPlaced", {
+    const audiences = [
+      RealtimeRooms.user(userId),
+      RealtimeRooms.storeOrders(order.storeId),
+      RealtimeRooms.platformAdmin(),
+    ];
+
+    io.to(audiences).emit("orderPlaced", {
       orderId: order.id,
+      storeId: order.storeId,
       status: "pending",
       total: order.totalPrice,
     });
 
     if (order.lowStockAlerts?.length) {
       for (const alert of order.lowStockAlerts) {
-        io.emit("lowStock", alert);
+        io.to([
+          RealtimeRooms.storeInventory(alert.storeId),
+          RealtimeRooms.platformAdmin(),
+        ]).emit("lowStock", alert);
       }
     }
 
