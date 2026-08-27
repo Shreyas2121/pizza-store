@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 dotenv.config({ quiet: true });
 
 const envSchema = z.object({
+  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.string().min(4).max(4),
   DATABASE_URL: z.string().optional(),
   DB_HOST: z.string().optional(),
@@ -15,6 +16,7 @@ const envSchema = z.object({
   JWT_ISSUER: z.string().min(1).default("pizzastore-api"),
   JWT_AUDIENCE: z.string().min(1).default("pizzastore-web"),
   JWT_EXPIRES_IN: z.enum(["4h", "6h", "8h"]).default("6h"),
+  STAFF_INVITATION_EXPIRY_HOURS: z.coerce.number().int().min(1).max(168).default(48),
   FE_URL: z.string(),
   RAZORPAY_KEY_ID: z.string().min(1).optional(),
   RAZORPAY_KEY_SECRET: z.string().min(1).optional(),
