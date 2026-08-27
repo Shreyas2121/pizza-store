@@ -207,6 +207,33 @@ export const createStoreSchema = z.object({
 
 export const updateStoreSchema = createStoreSchema.partial();
 
+export const managerUpdateStoreSchema = z
+  .object({
+    name: z.string().min(1, "Store name is required").optional(),
+    address: z.string().min(1, "Address is required").optional(),
+    city: z.string().min(1, "City is required").optional(),
+    state: z.string().min(1, "State is required").optional(),
+    pincode: z.string().min(1, "Pincode is required").optional(),
+    phone: z.string().min(1, "Phone number is required").optional(),
+    email: z
+      .string()
+      .email("Invalid email format")
+      .optional()
+      .nullable()
+      .or(z.literal("")),
+    latitude: z.number().optional().nullable(),
+    longitude: z.number().optional().nullable(),
+    opensAt: z
+      .string()
+      .regex(timeRegex, "Opening time must be in HH:MM format (24h)")
+      .optional(),
+    closesAt: z
+      .string()
+      .regex(timeRegex, "Closing time must be in HH:MM format (24h)")
+      .optional(),
+  })
+  .strict();
+
 const deliveryPincodeSchema = z
   .string()
   .trim()

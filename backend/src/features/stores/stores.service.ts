@@ -28,11 +28,31 @@ import {
   getAvailableQuantity,
 } from "../inventory/inventory.logic";
 import { formatStoreTime, isStoreOpen } from "./store-hours";
+import type { AuthPrincipal } from "../auth/auth.types";
+import defaultAuthorizationService, {
+  AuthorizationService,
+  permissionDenied,
+} from "../access/access.service";
+import defaultAuditService, { AuditService } from "../audit/audit.service";
+import type { AuditWriter } from "../audit/audit.types";
 
-class StoreService {
+export class StoreService {
+  constructor(
+    private readonly authorizationService: AuthorizationService = defaultAuthorizationService,
+    private readonly auditService: AuditWriter = defaultAuditService
+  ) {}
+
   async createStore(
-    data: Omit<typeof storesTable.$inferInsert, "slug"> & { slug?: string }
+    data: Omit<typeof storesTable.$inferInsert, "slug"> & { slug?: string },
+    actor?: AuthPrincipal
   ) {
+    if (actor) {
+      this.authorizationService.requirePlatformAdmin(
+        actor,
+        "platform.stores.create"
+      );
+    }
+
     const slug = data.slug
       ? generateSlug(data.slug)
       : generateSlug(data.name);
@@ -54,17 +74,35 @@ class StoreService {
   }
 
   async getStores({
+    principal,
     page = 1,
     limit = 10,
     search,
     isActive,
   }: {
+    principal?: AuthPrincipal;
     page?: number;
     limit?: number;
     search?: string;
     isActive?: boolean;
   } = {}) {
     const conditions = [];
+
+    if (principal && principal.platformRole !== "admin") {
+      const accessibleStoreIds =
+        await this.authorizationService.getAccessibleStoreIds({
+          principal,
+          permission: "dashboard.operations.read",
+        });
+
+      if (accessibleStoreIds === "all") {
+        // Platform admin access
+      } else if (accessibleStoreIds.length === 0) {
+        throw permissionDenied();
+      } else {
+        conditions.push(inArray(storesTable.id, accessibleStoreIds));
+      }
+    }
 
     if (search && search.trim().length > 0) {
       const term = `%${search.trim()}%`;
@@ -120,9 +158,27 @@ class StoreService {
     });
   }
 
-  async getStoresSelect() {
+  async getStoresSelect(principal?: AuthPrincipal) {
+    const conditions = [eq(storesTable.isActive, true)];
+
+    if (principal && principal.platformRole !== "admin") {
+      const accessibleStoreIds =
+        await this.authorizationService.getAccessibleStoreIds({
+          principal,
+          permission: "dashboard.operations.read",
+        });
+
+      if (accessibleStoreIds === "all") {
+        // Platform admin access
+      } else if (accessibleStoreIds.length === 0) {
+        throw permissionDenied();
+      } else {
+        conditions.push(inArray(storesTable.id, accessibleStoreIds));
+      }
+    }
+
     const stores = await db.query.storesTable.findMany({
-      where: eq(storesTable.isActive, true),
+      where: and(...conditions),
       orderBy: asc(storesTable.name),
       columns: {
         id: true,
@@ -186,7 +242,15 @@ class StoreService {
     return store;
   }
 
-  async getStoreProducts(storeId: number) {
+  async getStoreProducts(storeId: number, actor?: AuthPrincipal) {
+    if (actor) {
+      await this.authorizationService.requireStorePermission({
+        principal: actor,
+        storeId,
+        permission: "store.products.read",
+      });
+    }
+
     const store = await this.getStoreById(storeId);
     if (!store) {
       throw new AppError("Store not found", 404);
@@ -266,78 +330,169 @@ class StoreService {
       productId: number;
       price: number;
       isAvailable: boolean;
-    }>
+    }>,
+    actor?: AuthPrincipal
   ) {
-    const store = await this.getStoreById(storeId);
-    if (!store) {
-      throw new AppError("Store not found", 404);
+    if (actor) {
+      await this.authorizationService.requireStorePermission({
+        principal: actor,
+        storeId,
+        permission: "store.products.mapping.manage",
+      });
     }
 
-    const productIds = mappings.map((mapping) => mapping.productId);
-    const existingProducts = await db
-      .select({ id: productsTable.id })
-      .from(productsTable)
-      .where(inArray(productsTable.id, productIds));
-    const existingProductIds = new Set(
-      existingProducts.map((product) => product.id)
-    );
-    const missingProductIds = productIds.filter(
-      (productId) => !existingProductIds.has(productId)
-    );
+    return await db.transaction(async (tx) => {
+      const [store] = await tx
+        .select()
+        .from(storesTable)
+        .where(eq(storesTable.id, storeId))
+        .for("update")
+        .limit(1);
 
-    if (missingProductIds.length > 0) {
-      throw new AppError(
-        `Products not found: ${missingProductIds.join(", ")}`,
-        404
+      if (!store) {
+        throw new AppError("Store not found", 404);
+      }
+
+      const productIds = mappings.map((mapping) => mapping.productId);
+      const existingProducts = await tx
+        .select({ id: productsTable.id })
+        .from(productsTable)
+        .where(inArray(productsTable.id, productIds));
+      const existingProductIds = new Set(
+        existingProducts.map((product) => product.id)
       );
-    }
+      const missingProductIds = productIds.filter(
+        (productId) => !existingProductIds.has(productId)
+      );
 
-    return await db
-      .insert(storeProductsTable)
-      .values(mappings.map((mapping) => ({ storeId, ...mapping })))
-      .onConflictDoUpdate({
-        target: [storeProductsTable.storeId, storeProductsTable.productId],
-        set: {
-          price: sql`excluded.price`,
-          isAvailable: sql`excluded.is_available`,
-          updatedAt: new Date(),
-        },
-      })
-      .returning();
+      if (missingProductIds.length > 0) {
+        throw new AppError(
+          `Products not found: ${missingProductIds.join(", ")}`,
+          404
+        );
+      }
+
+      const inserted = await tx
+        .insert(storeProductsTable)
+        .values(mappings.map((mapping) => ({ storeId, ...mapping })))
+        .onConflictDoUpdate({
+          target: [storeProductsTable.storeId, storeProductsTable.productId],
+          set: {
+            price: sql`excluded.price`,
+            isAvailable: sql`excluded.is_available`,
+            updatedAt: new Date(),
+          },
+        })
+        .returning();
+
+      if (actor) {
+        await this.auditService.write({
+          tx,
+          actor,
+          storeId,
+          action: "store.products.mapped",
+          resourceType: "store_product",
+          resourceId: storeId,
+          metadata: {
+            mappedCount: mappings.length,
+            mappings: mappings.map((m) => ({
+              productId: m.productId,
+              price: m.price,
+              isAvailable: m.isAvailable,
+            })),
+          },
+        });
+      }
+
+      return inserted;
+    });
   }
 
   async updateStoreProduct(
     storeId: number,
     productId: number,
-    data: { price?: number; isAvailable?: boolean }
+    data: { price?: number; isAvailable?: boolean },
+    actor?: AuthPrincipal
   ) {
-    const store = await this.getStoreById(storeId);
-    if (!store) {
-      throw new AppError("Store not found", 404);
+    if (actor) {
+      if (data.price !== undefined) {
+        await this.authorizationService.requireStorePermission({
+          principal: actor,
+          storeId,
+          permission: "store.products.price.update",
+        });
+      }
+      if (data.isAvailable !== undefined) {
+        await this.authorizationService.requireStorePermission({
+          principal: actor,
+          storeId,
+          permission: "store.products.availability.update",
+        });
+      }
     }
 
-    const [mapping] = await db
-      .update(storeProductsTable)
-      .set({ ...data, updatedAt: new Date() })
-      .where(
-        and(
-          eq(storeProductsTable.storeId, storeId),
-          eq(storeProductsTable.productId, productId)
+    return await db.transaction(async (tx) => {
+      const [existing] = await tx
+        .select()
+        .from(storeProductsTable)
+        .where(
+          and(
+            eq(storeProductsTable.storeId, storeId),
+            eq(storeProductsTable.productId, productId)
+          )
         )
-      )
-      .returning();
+        .for("update")
+        .limit(1);
 
-    if (!mapping) {
-      throw new AppError("Store product mapping not found", 404);
-    }
+      if (!existing) {
+        throw new AppError("Store product mapping not found", 404);
+      }
 
-    return mapping;
+      const before = {
+        price: existing.price,
+        isAvailable: existing.isAvailable,
+      };
+
+      const [mapping] = await tx
+        .update(storeProductsTable)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(storeProductsTable.id, existing.id))
+        .returning();
+
+      if (actor) {
+        await this.auditService.write({
+          tx,
+          actor,
+          storeId,
+          action: "store.product.updated",
+          resourceType: "store_product",
+          resourceId: mapping.id,
+          before,
+          after: {
+            price: mapping.price,
+            isAvailable: mapping.isAvailable,
+          },
+          metadata: {
+            productId,
+          },
+        });
+      }
+
+      return mapping;
+    });
   }
 
-  async deleteStoreProduct(storeId: number, productId: number) {
-    const store = await this.getStoreById(storeId);
-    if (!store) {
-      throw new AppError("Store not found", 404);
+  async deleteStoreProduct(
+    storeId: number,
+    productId: number,
+    actor?: AuthPrincipal
+  ) {
+    if (actor) {
+      await this.authorizationService.requireStorePermission({
+        principal: actor,
+        storeId,
+        permission: "store.products.mapping.manage",
+      });
     }
 
     return await db.transaction(async (tx) => {
@@ -374,6 +529,22 @@ class StoreService {
           .set({ isAvailable: false, updatedAt: new Date() })
           .where(eq(storeProductsTable.id, mapping.id))
           .returning();
+
+        if (actor) {
+          await this.auditService.write({
+            tx,
+            actor,
+            storeId,
+            action: "store.product.removed",
+            resourceType: "store_product",
+            resourceId: mapping.id,
+            metadata: {
+              productId,
+              removal: "soft",
+            },
+          });
+        }
+
         return { ...updated, removal: "soft" as const };
       }
 
@@ -381,11 +552,35 @@ class StoreService {
         .delete(storeProductsTable)
         .where(eq(storeProductsTable.id, mapping.id))
         .returning();
+
+      if (actor) {
+        await this.auditService.write({
+          tx,
+          actor,
+          storeId,
+          action: "store.product.removed",
+          resourceType: "store_product",
+          resourceId: mapping.id,
+          metadata: {
+            productId,
+            removal: "hard",
+          },
+        });
+      }
+
       return { ...deleted, removal: "hard" as const };
     });
   }
 
-  async getDeliveryZones(storeId: number) {
+  async getDeliveryZones(storeId: number, actor?: AuthPrincipal) {
+    if (actor) {
+      await this.authorizationService.requireStorePermission({
+        principal: actor,
+        storeId,
+        permission: "store.delivery_zones.read",
+      });
+    }
+
     const store = await this.getStoreById(storeId);
     if (!store) {
       throw new AppError("Store not found", 404);
@@ -397,97 +592,239 @@ class StoreService {
     });
   }
 
-  async addDeliveryZones(storeId: number, pincodes: string[]) {
-    const store = await this.getStoreById(storeId);
-    if (!store) {
-      throw new AppError("Store not found", 404);
+  async addDeliveryZones(
+    storeId: number,
+    pincodes: string[],
+    actor?: AuthPrincipal
+  ) {
+    if (actor) {
+      await this.authorizationService.requireStorePermission({
+        principal: actor,
+        storeId,
+        permission: "store.delivery_zones.manage",
+      });
     }
 
-    const uniquePincodes = [...new Set(pincodes.map((pincode) => pincode.trim()))];
-    const zones = await db
-      .insert(deliveryZonesTable)
-      .values(uniquePincodes.map((pincode) => ({ storeId, pincode })))
-      .onConflictDoNothing({
-        target: [deliveryZonesTable.storeId, deliveryZonesTable.pincode],
-      })
-      .returning();
+    return await db.transaction(async (tx) => {
+      const [store] = await tx
+        .select()
+        .from(storesTable)
+        .where(eq(storesTable.id, storeId))
+        .for("update")
+        .limit(1);
 
-    return {
-      zones,
-      addedCount: zones.length,
-      skippedCount: uniquePincodes.length - zones.length,
-    };
+      if (!store) {
+        throw new AppError("Store not found", 404);
+      }
+
+      const uniquePincodes = [
+        ...new Set(pincodes.map((pincode) => pincode.trim())),
+      ];
+      const zones = await tx
+        .insert(deliveryZonesTable)
+        .values(uniquePincodes.map((pincode) => ({ storeId, pincode })))
+        .onConflictDoNothing({
+          target: [deliveryZonesTable.storeId, deliveryZonesTable.pincode],
+        })
+        .returning();
+
+      const result = {
+        zones,
+        addedCount: zones.length,
+        skippedCount: uniquePincodes.length - zones.length,
+      };
+
+      if (actor) {
+        await this.auditService.write({
+          tx,
+          actor,
+          storeId,
+          action: "store.delivery_zones.added",
+          resourceType: "delivery_zone",
+          resourceId: storeId,
+          metadata: {
+            pincodes: uniquePincodes,
+            addedCount: result.addedCount,
+            skippedCount: result.skippedCount,
+          },
+        });
+      }
+
+      return result;
+    });
   }
 
-  async deleteDeliveryZone(storeId: number, zoneId: number) {
-    const store = await this.getStoreById(storeId);
-    if (!store) {
-      throw new AppError("Store not found", 404);
+  async deleteDeliveryZone(
+    storeId: number,
+    zoneId: number,
+    actor?: AuthPrincipal
+  ) {
+    if (actor) {
+      await this.authorizationService.requireStorePermission({
+        principal: actor,
+        storeId,
+        permission: "store.delivery_zones.manage",
+      });
     }
 
-    const [zone] = await db
-      .delete(deliveryZonesTable)
-      .where(
-        and(
-          eq(deliveryZonesTable.id, zoneId),
-          eq(deliveryZonesTable.storeId, storeId)
+    return await db.transaction(async (tx) => {
+      const [zone] = await tx
+        .delete(deliveryZonesTable)
+        .where(
+          and(
+            eq(deliveryZonesTable.id, zoneId),
+            eq(deliveryZonesTable.storeId, storeId)
+          )
         )
-      )
-      .returning();
+        .returning();
 
-    if (!zone) {
-      throw new AppError("Delivery zone not found", 404);
-    }
+      if (!zone) {
+        throw new AppError("Delivery zone not found", 404);
+      }
 
-    return zone;
+      if (actor) {
+        await this.auditService.write({
+          tx,
+          actor,
+          storeId,
+          action: "store.delivery_zone.deleted",
+          resourceType: "delivery_zone",
+          resourceId: zoneId,
+          metadata: {
+            pincode: zone.pincode,
+          },
+        });
+      }
+
+      return zone;
+    });
   }
 
   async updateStore(
     id: number,
-    data: Partial<typeof storesTable.$inferInsert>
+    data: Partial<typeof storesTable.$inferInsert>,
+    actor?: AuthPrincipal
   ) {
-    const store = await this.getStoreById(id);
-    if (!store) {
-      throw new AppError("Store not found", 404);
-    }
+    if (actor) {
+      if (actor.platformRole === "admin") {
+        this.authorizationService.requirePlatformAdmin(actor);
+      } else {
+        await this.authorizationService.requireStorePermission({
+          principal: actor,
+          storeId: id,
+          permission: "store.profile.update",
+        });
 
-    let slugToUpdate: string | undefined;
-    if (data.slug) {
-      slugToUpdate = generateSlug(data.slug);
-    } else if (data.name && data.name !== store.name && !data.slug) {
-      // If name changed and no slug provided, we can keep the old slug or let it be.
-      // Keeping old slug prevents breaking URLs unless slug is explicitly provided.
-    }
-
-    if (slugToUpdate && slugToUpdate !== store.slug) {
-      const existing = await db.query.storesTable.findFirst({
-        where: and(eq(storesTable.slug, slugToUpdate), ne(storesTable.id, id)),
-      });
-      if (existing) {
-        throw new AppError(
-          `Store with slug '${slugToUpdate}' already exists`,
-          409
-        );
+        // Non-admin managers cannot modify platform-controlled fields (slug, isActive)
+        if (data.slug !== undefined || data.isActive !== undefined) {
+          throw permissionDenied();
+        }
       }
     }
 
-    const [updatedStore] = await db
-      .update(storesTable)
-      .set({
-        ...data,
-        ...(slugToUpdate ? { slug: slugToUpdate } : {}),
-        updatedAt: new Date(),
-      })
-      .where(eq(storesTable.id, id))
-      .returning();
+    return await db.transaction(async (tx) => {
+      const [store] = await tx
+        .select()
+        .from(storesTable)
+        .where(eq(storesTable.id, id))
+        .for("update")
+        .limit(1);
 
-    return updatedStore;
+      if (!store) {
+        throw new AppError("Store not found", 404);
+      }
+
+      let slugToUpdate: string | undefined;
+      if (data.slug) {
+        slugToUpdate = generateSlug(data.slug);
+      }
+
+      if (slugToUpdate && slugToUpdate !== store.slug) {
+        const existing = await tx.query.storesTable.findFirst({
+          where: and(
+            eq(storesTable.slug, slugToUpdate),
+            ne(storesTable.id, id)
+          ),
+        });
+        if (existing) {
+          throw new AppError(
+            `Store with slug '${slugToUpdate}' already exists`,
+            409
+          );
+        }
+      }
+
+      const before = {
+        name: store.name,
+        address: store.address,
+        city: store.city,
+        state: store.state,
+        pincode: store.pincode,
+        phone: store.phone,
+        email: store.email,
+        opensAt: store.opensAt,
+        closesAt: store.closesAt,
+        latitude: store.latitude,
+        longitude: store.longitude,
+        slug: store.slug,
+        isActive: store.isActive,
+      };
+
+      const [updatedStore] = await tx
+        .update(storesTable)
+        .set({
+          ...data,
+          ...(slugToUpdate ? { slug: slugToUpdate } : {}),
+          updatedAt: new Date(),
+        })
+        .where(eq(storesTable.id, id))
+        .returning();
+
+      if (actor) {
+        const after = {
+          name: updatedStore.name,
+          address: updatedStore.address,
+          city: updatedStore.city,
+          state: updatedStore.state,
+          pincode: updatedStore.pincode,
+          phone: updatedStore.phone,
+          email: updatedStore.email,
+          opensAt: updatedStore.opensAt,
+          closesAt: updatedStore.closesAt,
+          latitude: updatedStore.latitude,
+          longitude: updatedStore.longitude,
+          slug: updatedStore.slug,
+          isActive: updatedStore.isActive,
+        };
+
+        await this.auditService.write({
+          tx,
+          actor,
+          storeId: id,
+          action: "store.profile.updated",
+          resourceType: "store",
+          resourceId: id,
+          before,
+          after,
+        });
+      }
+
+      return updatedStore;
+    });
   }
 
   async deleteStore(
     id: number,
-    { permanent = false }: { permanent?: boolean } = {}
+    { permanent = false }: { permanent?: boolean } = {},
+    actor?: AuthPrincipal
   ) {
+    if (actor) {
+      this.authorizationService.requirePlatformAdmin(
+        actor,
+        "platform.stores.delete"
+      );
+    }
+
     const store = await this.getStoreById(id);
     if (!store) {
       throw new AppError("Store not found", 404);
