@@ -17,6 +17,7 @@ import { OrderStatus } from "@/features/orders";
 
 import { formatDate, formatDateTime, formatPrice } from "@/shared/lib";
 import { useSocketStore } from "@/features/support";
+import { useStaffActiveStore } from "@/features/access";
 
 import { useAuthModalStore } from "@/shared/model";
 import { CardGridSkeleton, ChartSkeleton, ListSkeleton, RefreshIndicator } from "@/shared/ui";
@@ -26,14 +27,19 @@ export const AdminDashboardPage = () => {
   const { socket } = useSocketStore();
   const { dates, group } = useDatePicker();
   const { openModal } = useAuthModalStore();
+  const { activeStoreId } = useStaffActiveStore();
   const [from, to] = dates;
-  const cardsQuery = useGetDashboardCardsData(from, to);
-  const chartsQuery = useGetDashboardChartsData(from, to, group);
-  const ordersQuery = useGetAdminOrders("pending");
+  const cardsQuery = useGetDashboardCardsData(from, to, activeStoreId);
+  const chartsQuery = useGetDashboardChartsData(from, to, group, activeStoreId);
+  const ordersQuery = useGetAdminOrders("pending", activeStoreId);
 
   useEffect(() => {
     if (!socket) return;
-    const handleOrderPlaced = (order: { orderId: number; total: number }) =>
+    const handleOrderPlaced = (order: { orderId: number; total: number; storeId?: number }) => {
+      // If scoped to a store, only notify for that store or global
+      if (activeStoreId && order.storeId && order.storeId !== activeStoreId) {
+        return;
+      }
       showNotification({
         title: "New order",
         message: `Order #${order.orderId} · ${formatPrice(order.total)}`,
@@ -41,11 +47,12 @@ export const AdminDashboardPage = () => {
         autoClose: 8000,
         onClick: () => navigate(`/admin/order/${order.orderId}`),
       });
+    };
     socket.on("orderPlaced", handleOrderPlaced);
     return () => {
       socket.off("orderPlaced", handleOrderPlaced);
     };
-  }, [navigate, socket]);
+  }, [navigate, socket, activeStoreId]);
 
   const formattedDates = useMemo(
     () =>
@@ -127,7 +134,7 @@ export const AdminDashboardPage = () => {
           </div>
           {chartsQuery.isLoading ? (
             <ChartSkeleton />
-          ) : chartsQuery.isError || !charts?.revenueOverTime.length ? (
+          ) : chartsQuery.isError || !charts?.revenueOverTime?.length ? (
             <div className="flex h-80 items-center justify-center text-sm text-ink-muted">
               No revenue data for this period.
             </div>
@@ -159,7 +166,7 @@ export const AdminDashboardPage = () => {
           </div>
           {chartsQuery.isLoading ? (
             <ChartSkeleton />
-          ) : chartsQuery.isError || !charts?.ordersOverTime.length ? (
+          ) : chartsQuery.isError || !charts?.ordersOverTime?.length ? (
             <div className="flex h-80 items-center justify-center text-sm text-ink-muted">
               No order data for this period.
             </div>

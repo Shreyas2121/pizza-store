@@ -3,6 +3,7 @@ import { BASE_URL } from "@/shared/config";
 
 let getToken: (() => string | undefined | null) | null = null;
 let handleUnauthorized: (() => void) | null = null;
+let handleForbidden: (() => void) | null = null;
 
 export const setAuthTokenGetter = (fn: () => string | undefined | null) => {
   getToken = fn;
@@ -10,6 +11,10 @@ export const setAuthTokenGetter = (fn: () => string | undefined | null) => {
 
 export const setUnauthorizedHandler = (fn: () => void) => {
   handleUnauthorized = fn;
+};
+
+export const setForbiddenHandler = (fn: () => void) => {
+  handleForbidden = fn;
 };
 
 export const apiClient = axios.create({
@@ -30,8 +35,12 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (axios.isAxiosError(error) && error.response?.status === 401) {
-      handleUnauthorized?.();
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 401) {
+        handleUnauthorized?.();
+      } else if (error.response?.status === 403) {
+        handleForbidden?.();
+      }
     }
     return Promise.reject(error);
   }

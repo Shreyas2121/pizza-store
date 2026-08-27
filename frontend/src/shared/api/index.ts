@@ -2,6 +2,7 @@ export {
   apiClient,
   setAuthTokenGetter,
   setUnauthorizedHandler,
+  setForbiddenHandler,
   API,
 } from "./api-client";
 export {
