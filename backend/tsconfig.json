@@ -11,6 +11,9 @@
     "resolveJsonModule": true,
     "forceConsistentCasingInFileNames": true
   },
+  "ts-node": {
+    "transpileOnly": true
+  },
   "include": ["src/**/*"],
   "exclude": ["src/**/*.test.ts"]
 }

@@ -160,6 +160,97 @@ describe("OrderService unit tests", () => {
       expect(restoreSpy).not.toHaveBeenCalled();
     });
 
+    it("marks the linked COD payment completed when the order is delivered", async () => {
+      const set = vi.fn((values: Record<string, unknown>) => ({
+        where: vi.fn(() => ({
+          returning: vi.fn().mockResolvedValue(
+            "paidAt" in values
+              ? [{ id: 100 }]
+              : [{ id: 42, status: "delievered" }]
+          ),
+        })),
+      }));
+      const mockTx = {
+        select: vi.fn(() => ({
+          from: vi.fn(() => ({
+            where: vi.fn(() => ({
+              for: vi.fn(() => ({
+                limit: vi.fn().mockResolvedValue([
+                  {
+                    id: 42,
+                    status: "preparing",
+                    paymentType: "cash",
+                    paymentId: 100,
+                    couponId: null,
+                  },
+                ]),
+              })),
+            })),
+          })),
+        })),
+        update: vi.fn(() => ({ set })),
+      };
+
+      vi.spyOn(db, "transaction").mockImplementation(async (cb: any) =>
+        cb(mockTx as any)
+      );
+
+      const updated = await orderService.updateOrderStatus(42, "delievered", 99);
+
+      expect(updated.status).toBe("delievered");
+      expect(set).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: "completed",
+          paidAt: expect.any(Date),
+          paymentDate: expect.any(Date),
+          failedAt: null,
+          failureCode: null,
+          failureDescription: null,
+        })
+      );
+    });
+
+    it("does not complete an online payment when its order is delivered", async () => {
+      const set = vi.fn(() => ({
+        where: vi.fn(() => ({
+          returning: vi.fn().mockResolvedValue([
+            { id: 42, status: "delievered" },
+          ]),
+        })),
+      }));
+      const mockTx = {
+        select: vi.fn(() => ({
+          from: vi.fn(() => ({
+            where: vi.fn(() => ({
+              for: vi.fn(() => ({
+                limit: vi.fn().mockResolvedValue([
+                  {
+                    id: 42,
+                    status: "preparing",
+                    paymentType: "razorpay",
+                    paymentId: 100,
+                    couponId: null,
+                  },
+                ]),
+              })),
+            })),
+          })),
+        })),
+        update: vi.fn(() => ({ set })),
+      };
+
+      vi.spyOn(db, "transaction").mockImplementation(async (cb: any) =>
+        cb(mockTx as any)
+      );
+
+      await orderService.updateOrderStatus(42, "delievered", 99);
+
+      expect(mockTx.update).toHaveBeenCalledTimes(1);
+      expect(set).not.toHaveBeenCalledWith(
+        expect.objectContaining({ status: "completed" })
+      );
+    });
+
     it("rejects illegal state transition", async () => {
       const mockTx = {
         select: vi.fn(() => ({

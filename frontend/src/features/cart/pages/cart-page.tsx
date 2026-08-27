@@ -99,11 +99,13 @@ export const CartPage = () => {
       id: notificationId,
       title: "Item removed",
       message: (
-        <div className="flex items-center justify-between gap-4">
-          <span>{item.product.name} was removed from your cart.</span>
+        <div className="flex items-center justify-between gap-3 pt-0.5">
+          <span className="text-xs sm:text-sm text-ink-muted leading-snug">
+            {item.product.name} was removed from your cart.
+          </span>
           <button
             type="button"
-            className="min-h-9 font-bold text-brand"
+            className="inline-flex items-center px-2.5 py-1 text-xs font-semibold text-brand hover:text-brand-hover bg-brand-soft hover:bg-brand-100 rounded-full transition-colors shrink-0 cursor-pointer"
             onClick={() => undoRemoval(item.id, notificationId)}
           >
             Undo

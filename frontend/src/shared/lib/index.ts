@@ -1,4 +1,4 @@
-export { success, error, info, warning } from "./notifications";
+export { success, error, info, warning, toast } from "./notifications";
 export {
   APP_CURRENCY,
   APP_CURRENCY_SYMBOL,

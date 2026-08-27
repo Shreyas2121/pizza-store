@@ -1,6 +1,6 @@
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "../../db";
-import { ordersTable } from "../../db/schema";
+import { ordersTable, paymentsTable } from "../../db/schema";
 import { AppError } from "../../utils/error";
 import type { OrderStatus } from "../../utils/types";
 import cartService from "../cart/cart.service";
@@ -166,6 +166,44 @@ class OrderService {
 
         if (order.couponId) {
           await checkoutService.releaseCouponReservation(order.id, tx);
+        }
+      }
+
+      if (status === "delievered" && order.paymentType === "cash") {
+        if (!order.paymentId) {
+          throw new AppError(
+            "COD order has no linked payment",
+            409,
+            "COD_PAYMENT_NOT_FOUND"
+          );
+        }
+
+        const paidAt = new Date();
+        const [completedPayment] = await tx
+          .update(paymentsTable)
+          .set({
+            status: "completed",
+            paidAt,
+            paymentDate: paidAt,
+            failedAt: null,
+            failureCode: null,
+            failureDescription: null,
+            updatedAt: paidAt,
+          })
+          .where(
+            and(
+              eq(paymentsTable.id, order.paymentId),
+              eq(paymentsTable.provider, "cod")
+            )
+          )
+          .returning({ id: paymentsTable.id });
+
+        if (!completedPayment) {
+          throw new AppError(
+            "COD payment not found",
+            409,
+            "COD_PAYMENT_NOT_FOUND"
+          );
         }
       }
 

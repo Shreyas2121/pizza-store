@@ -19,7 +19,13 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
         <BrowserRouter>
           <MantineProvider theme={theme}>
             <ModalsProvider>
-              <Notifications position="top-right" autoClose={4000} />
+              <Notifications
+                position="bottom-right"
+                autoClose={4000}
+                zIndex={9999}
+                limit={5}
+                containerWidth={400}
+              />
               {children}
             </ModalsProvider>
           </MantineProvider>

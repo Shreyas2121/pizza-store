@@ -185,7 +185,8 @@ export const theme = createTheme({
     },
     Notification: {
       defaultProps: {
-        radius: "md",
+        radius: "lg",
+        withBorder: true,
       },
     },
   },

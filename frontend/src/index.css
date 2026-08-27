@@ -159,3 +159,168 @@
     @apply flex flex-col items-center justify-center text-center p-10 bg-surface rounded-card border border-dashed border-border my-6;
   }
 }
+
+/* ============================================================
+   Shadcn-Inspired Premium Toast Notifications
+   ============================================================ */
+
+.mantine-Notifications-root {
+  position: fixed !important;
+  bottom: 1.5rem !important;
+  right: 1.5rem !important;
+  z-index: 9999 !important;
+  max-width: 420px !important;
+  width: calc(100vw - 2rem) !important;
+  padding: 0 !important;
+  pointer-events: none !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0.625rem !important;
+}
+
+@media (max-width: 640px) {
+  .mantine-Notifications-root {
+    bottom: 1rem !important;
+    right: 1rem !important;
+    left: 1rem !important;
+    width: auto !important;
+    max-width: none !important;
+  }
+}
+
+.mantine-Notification-root {
+  pointer-events: auto !important;
+  background: rgba(255, 253, 248, 0.98) !important;
+  border: 1px solid #E5DACE !important;
+  border-radius: 1rem !important;
+  padding: 0.875rem 1rem !important;
+  box-shadow: 0 12px 32px -4px rgba(32, 26, 23, 0.12),
+              0 4px 12px -2px rgba(32, 26, 23, 0.06),
+              0 0 0 1px rgba(229, 218, 206, 0.6) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.2s ease !important;
+  overflow: hidden !important;
+  animation: toast-slide-up 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+}
+
+.mantine-Notification-root:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 16px 36px -4px rgba(32, 26, 23, 0.16),
+              0 6px 16px -2px rgba(32, 26, 23, 0.08),
+              0 0 0 1px rgba(200, 62, 43, 0.2) !important;
+  border-color: #D8CAB9 !important;
+}
+
+/* Remove default Mantine colored left border strip */
+.mantine-Notification-root::before {
+  display: none !important;
+}
+
+/* Icon badge */
+.mantine-Notification-icon {
+  width: 2.25rem !important;
+  height: 2.25rem !important;
+  min-width: 2.25rem !important;
+  border-radius: 0.625rem !important;
+  margin-right: 0.875rem !important;
+  margin-top: 0.125rem !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background-color: #F1EADF !important;
+  border: 1px solid #E5DACE !important;
+  color: #201A17 !important;
+  flex-shrink: 0 !important;
+}
+
+/* Type-specific Icon badges */
+.mantine-Notification-root[data-color="basil"] .mantine-Notification-icon,
+.toast-success .mantine-Notification-icon {
+  background-color: #E4F0E7 !important;
+  border-color: #C3DEC9 !important;
+  color: #39734E !important;
+}
+
+.mantine-Notification-root[data-color="red"] .mantine-Notification-icon,
+.mantine-Notification-root[data-color="danger"] .mantine-Notification-icon,
+.toast-error .mantine-Notification-icon {
+  background-color: #FDF2F0 !important;
+  border-color: #F3C5BA !important;
+  color: #B42318 !important;
+}
+
+.mantine-Notification-root[data-color="yellow"] .mantine-Notification-icon,
+.mantine-Notification-root[data-color="gold"] .mantine-Notification-icon,
+.toast-warning .mantine-Notification-icon {
+  background-color: #FEF3C7 !important;
+  border-color: #FDE68A !important;
+  color: #B45309 !important;
+}
+
+.mantine-Notification-root[data-color="brand"] .mantine-Notification-icon,
+.toast-info .mantine-Notification-icon {
+  background-color: #F9E4DE !important;
+  border-color: #F3C5BA !important;
+  color: #C83E2B !important;
+}
+
+/* Content layout */
+.mantine-Notification-body {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  margin-right: 0.5rem !important;
+  flex: 1 !important;
+  min-width: 0 !important;
+}
+
+.mantine-Notification-title {
+  font-family: 'Inter', sans-serif !important;
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+  color: #201A17 !important;
+  line-height: 1.25rem !important;
+  letter-spacing: -0.01em !important;
+  margin-bottom: 0.125rem !important;
+}
+
+.mantine-Notification-description {
+  font-family: 'Inter', sans-serif !important;
+  font-size: 0.8125rem !important;
+  color: #6F665F !important;
+  line-height: 1.35 !important;
+}
+
+/* Close button */
+.mantine-Notification-closeButton {
+  color: #8C827A !important;
+  border-radius: 0.5rem !important;
+  width: 1.75rem !important;
+  height: 1.75rem !important;
+  min-width: 1.75rem !important;
+  transition: all 0.15s ease !important;
+  align-self: flex-start !important;
+  margin-top: -0.125rem !important;
+  margin-right: -0.25rem !important;
+}
+
+.mantine-Notification-closeButton:hover {
+  background-color: #F1EADF !important;
+  color: #201A17 !important;
+  transform: scale(1.08);
+}
+
+@keyframes toast-slide-up {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 16px, 0) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+

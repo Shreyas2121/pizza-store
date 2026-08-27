@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import { db } from "../db";
+import { checkDatabaseConnection, closeDatabase, db } from "../db";
 import {
   usersTable,
   categoriesTable,
@@ -23,6 +23,12 @@ import { seedDefaultStore } from "./default-store";
  * Usage: pnpm run seed
  */
 async function seed() {
+  console.log("⏳ [Seed] Verifying database connection...");
+  const isConnected = await checkDatabaseConnection();
+  if (!isConnected) {
+    throw new Error("Cannot seed database without an active database connection.");
+  }
+
   console.log("🌱 Starting full database seed...\n");
 
   // ──────────────────────────────────────────────
@@ -445,10 +451,12 @@ async function seed() {
     `   Store: ${defaultStore.store.name}, ${defaultStore.productsMapped} new product mappings, delivery pincode ${defaultStore.store.pincode}`
   );
 
+  await closeDatabase().catch(() => {});
   process.exit(0);
 }
 
-seed().catch((err) => {
+seed().catch(async (err) => {
   console.error("❌ Seed failed:", err);
+  await closeDatabase().catch(() => {});
   process.exit(1);
 });

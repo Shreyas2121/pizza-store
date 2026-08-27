@@ -1,5 +1,5 @@
 import { eq, isNull } from "drizzle-orm";
-import { db } from "../db";
+import { checkDatabaseConnection, closeDatabase, db } from "../db";
 import {
   cartTable,
   deliveryZonesTable,
@@ -108,7 +108,12 @@ export async function seedDefaultStore() {
 }
 
 async function run() {
-  console.log("Seeding the default store and backfilling legacy data...");
+  console.log("⏳ [Store Seed] Checking database connection...");
+  const isConnected = await checkDatabaseConnection();
+  if (!isConnected) {
+    throw new Error("Cannot seed store without a healthy database connection.");
+  }
+  console.log("🏬 [Store Seed] Seeding the default store and backfilling legacy data...");
   const result = await seedDefaultStore();
 
   console.log(`${result.storeCreated ? "Created" : "Reused"} store: ${result.store.name} (#${result.store.id})`);
@@ -121,9 +126,13 @@ async function run() {
 
 if (require.main === module) {
   run()
-    .then(() => process.exit(0))
-    .catch((cause) => {
+    .then(async () => {
+      await closeDatabase().catch(() => {});
+      process.exit(0);
+    })
+    .catch(async (cause) => {
       console.error("Default store migration failed:", cause);
+      await closeDatabase().catch(() => {});
       process.exit(1);
     });
 }
