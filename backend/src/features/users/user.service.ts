@@ -1,25 +1,39 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { db } from "../../db";
 import { addressTable, ordersTable, usersTable } from "../../db/schema";
 import { AppError } from "../../utils/error";
 
 class UserService {
   async createUser(user: typeof usersTable.$inferInsert) {
-    const email = user.email;
+    const email = normalizeEmail(user.email);
 
     const existingUser = await this.getUserByEmail(email);
     if (existingUser) {
       throw new AppError(`User with email ${email} already exists`, 409);
     }
 
-    const [u] = await db.insert(usersTable).values(user).returning();
+    const [u] = await db.insert(usersTable).values({ ...user, email }).returning();
 
     return u;
   }
 
   async getUserByEmail(email: string) {
+    const normalizedEmail = normalizeEmail(email);
     return db.query.usersTable.findFirst({
-      where: eq(usersTable.email, email),
+      where: sql`lower(${usersTable.email}) = ${normalizedEmail}`,
+    });
+  }
+
+  async getPrincipalUserById(id: number) {
+    return db.query.usersTable.findFirst({
+      columns: {
+        id: true,
+        email: true,
+        role: true,
+        tokenVersion: true,
+        isActive: true,
+      },
+      where: eq(usersTable.id, id),
     });
   }
 
@@ -78,5 +92,7 @@ class UserService {
     });
   }
 }
+
+export const normalizeEmail = (email: string) => email.trim().toLowerCase();
 
 export default new UserService();

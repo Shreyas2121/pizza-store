@@ -15,7 +15,7 @@ cartRoutes.post(
   asyncHandler(async (req: Auth, res) => {
     const { productId, storeId, cIds } = req.body;
 
-    const userId = req.user!.id;
+    const userId = req.principal!.userId;
     const newCids = cIds ? cIds : [];
 
     const result = await cartService.addToCart({
@@ -37,7 +37,7 @@ cartRoutes.post(
 cartRoutes.get(
   "/count",
   asyncHandler(async (req: Auth, res) => {
-    const userId = req.user!.id;
+    const userId = req.principal!.userId;
     const count = await cartService.getCartCount(userId);
     res.status(200).json({ data: count });
   }),
@@ -46,7 +46,7 @@ cartRoutes.get(
 cartRoutes.get(
   "/",
   asyncHandler(async (req: Auth, res) => {
-    const userId = req.user!.id;
+    const userId = req.principal!.userId;
 
     const cart = await cartService.getCart(userId);
 
@@ -85,7 +85,7 @@ cartRoutes.get(
   "/checkout",
   authenticateUser,
   asyncHandler(async (req: Auth, res) => {
-    const userId = req.user!.id;
+    const userId = req.principal!.userId;
 
     const cart = await cartService.getCart(userId);
 
@@ -113,7 +113,7 @@ cartRoutes.patch(
   authenticateUser,
   validateBody(updateCartItemSchema),
   asyncHandler(async (req: Auth, res) => {
-    const userId = req.user!.id;
+    const userId = req.principal!.userId;
     const { cartItemId, productId, type } = req.body;
 
     await cartService.updateCartItemByType({
@@ -134,7 +134,7 @@ cartRoutes.patch(
   authenticateUser,
   validateBody(updateCartCustomizationSchema),
   asyncHandler(async (req: Auth, res) => {
-    await cartService.updateCartItemCustomizations(req.body.cartItemId, req.user!.id, req.body.cIds);
+    await cartService.updateCartItemCustomizations(req.body.cartItemId, req.principal!.userId, req.body.cIds);
     res.json({ message: "Customizations updated" });
   })
 );
@@ -144,7 +144,7 @@ cartRoutes.delete(
   authenticateUser,
   asyncHandler(async (req: Auth, res) => {
     const id = parseIntegerParam(req.params.id, "Cart item ID");
-    const userId = req.user!.id;
+    const userId = req.principal!.userId;
 
     await cartService.assertCartItemOwner(id, userId);
 

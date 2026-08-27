@@ -5,11 +5,12 @@ import { ModalsProvider } from "@mantine/modals";
 import { Notifications } from "@mantine/notifications";
 import { theme } from "@/shared/config";
 import { QueryProvider } from "./query-provider";
-import { setAuthTokenGetter } from "@/shared/api";
+import { setAuthTokenGetter, setUnauthorizedHandler } from "@/shared/api";
 import { useUser } from "@/features/auth";
 
 
 setAuthTokenGetter(() => useUser.getState().token);
+setUnauthorizedHandler(() => useUser.getState().logout());
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
 

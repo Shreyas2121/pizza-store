@@ -1,4 +1,9 @@
-export { apiClient, setAuthTokenGetter, API } from "./api-client";
+export {
+  apiClient,
+  setAuthTokenGetter,
+  setUnauthorizedHandler,
+  API,
+} from "./api-client";
 export {
   createQuery,
   createSuspenseQuery,

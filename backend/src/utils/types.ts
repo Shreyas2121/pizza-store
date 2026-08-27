@@ -20,9 +20,10 @@ import {
   auditLogsTable,
 } from "../db/schema";
 import { NextFunction, Request, Response } from "express";
+import type { AuthPrincipal, PlatformRole } from "../features/auth/auth.types";
 
 export type AddressType = "Home" | "Work" | "Other";
-export type Role = "admin" | "user";
+export type Role = PlatformRole;
 export type StoreRole = "manager" | "operator" | "inventory_staff";
 export type StoreMembershipStatus = "active" | "suspended" | "revoked";
 export type AuditOutcome = "success" | "failure" | "denied";
@@ -111,6 +112,8 @@ export type StoreStaffInvitation = typeof storeStaffInvitationsTable.$inferSelec
 
 export type AuditLog = typeof auditLogsTable.$inferSelect;
 
-export interface Auth extends Request {
-  user?: User;
+export interface AuthenticatedRequest extends Request {
+  principal?: AuthPrincipal;
 }
+
+export type Auth = AuthenticatedRequest;

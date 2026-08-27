@@ -17,7 +17,7 @@ chatRoutes.post(
   "/request",
   authenticateUser,
   asyncHandler(async (req: Auth, res) => {
-    const userId = req.user!.id;
+    const userId = req.principal!.userId;
 
     const title = req.body.title as string;
 
@@ -43,10 +43,10 @@ chatRoutes.get(
   asyncHandler(async (req: Auth, res) => {
     let userId: number;
     if (req.query.userId) {
-      if (req.user!.role !== "admin") throw new AppError("Unauthorized", 403);
+      if (req.principal!.platformRole !== "admin") throw new AppError("Unauthorized", 403);
       userId = parseInt(req.query.userId as string);
     } else {
-      userId = req.user!.id;
+      userId = req.principal!.userId;
     }
     const activeChat = await chatService.getActiveChat(userId);
 
@@ -102,10 +102,10 @@ chatRoutes.get(
   asyncHandler(async (req: Auth, res) => {
     let userId: number;
     if (req.query.userId) {
-      if (req.user!.role !== "admin") throw new AppError("Unauthorized", 403);
+      if (req.principal!.platformRole !== "admin") throw new AppError("Unauthorized", 403);
       userId = parseInt(req.query.userId as string);
     } else {
-      userId = req.user!.id;
+      userId = req.principal!.userId;
     }
 
     const activeChat = await chatService.getActiveChat(userId);
@@ -136,14 +136,14 @@ chatRoutes.post(
   "/message",
   authenticateUser,
   asyncHandler(async (req: Auth, res) => {
-    const userId = req.user!.id;
+    const userId = req.principal!.userId;
 
     const data = req.body;
 
     const session = await chatService.getActiveChatBySessionId(data.sessionId);
 
     if (!session) throw new AppError("Session not found", 404);
-    if (req.user!.role !== "admin" && session.userId !== userId) {
+    if (req.principal!.platformRole !== "admin" && session.userId !== userId) {
       throw new AppError("Unauthorized", 403);
     }
 

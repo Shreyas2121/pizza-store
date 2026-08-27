@@ -1,37 +1,34 @@
 import { AppError, asyncHandler } from "../utils/error";
-import jwt from "jsonwebtoken";
-import { env } from "../utils/zodSchema";
-import { Auth, User } from "../utils/types";
+import authenticationService from "../features/auth/auth.service";
+import type { AuthenticatedRequest } from "../utils/types";
 
-export const authenticateAdmin = asyncHandler((req: Auth, res, next) => {
-  let exists = req.header("Authorization")?.startsWith("Bearer ");
-
-  if (!exists) {
-    return res.status(401).json({ message: "Access denied, no token provided." });
+export const authenticateUser = asyncHandler(async (req: AuthenticatedRequest, res, next) => {
+  const authorization = req.header("Authorization");
+  if (!authorization?.startsWith("Bearer ")) {
+    return res.status(401).json({
+      message: "Access denied, no token provided.",
+      code: "AUTH_TOKEN_MISSING",
+    });
   }
 
-  const token = req.header("Authorization")?.replace("Bearer ", "") as string;
-
-  const decoded = jwt.verify(token, env.JWT_SECRET) as User;
-  if (decoded.role !== "admin") {
-    throw new AppError("Unauthorized", 403);
+  const token = authorization.slice("Bearer ".length).trim();
+  if (!token) {
+    return res.status(401).json({
+      message: "Access denied, no token provided.",
+      code: "AUTH_TOKEN_MISSING",
+    });
   }
 
-  req.user = decoded;
+  req.principal = await authenticationService.authenticateToken(token);
   next();
 });
 
-export const authenticateUser = asyncHandler((req: Auth, res, next) => {
-  let exists = req.header("Authorization")?.startsWith("Bearer ");
-
-  if (!exists) {
-    return res.status(401).json({ message: "Access denied, no token provided." });
-  }
-
-  const token = req.header("Authorization")?.replace("Bearer ", "") as string;
-
-  const decoded = jwt.verify(token, env.JWT_SECRET) as User;
-
-  req.user = decoded;
-  next();
-});
+export const authenticateAdmin = [
+  authenticateUser,
+  asyncHandler((req: AuthenticatedRequest, _res, next) => {
+    if (req.principal?.platformRole !== "admin") {
+      throw new AppError("Permission denied.", 403, "PERMISSION_DENIED");
+    }
+    next();
+  }),
+];

@@ -61,7 +61,7 @@ paymentRoutes.post(
   validateBody(verifyRazorpayPaymentSchema),
   asyncHandler(async (req: Auth, res) => {
     const data = await paymentService.verifyRazorpayPayment({
-      userId: req.user!.id,
+      userId: req.principal!.userId,
       localOrderId: req.body.localOrderId,
       razorpayOrderId: req.body.razorpay_order_id,
       razorpayPaymentId: req.body.razorpay_payment_id,
@@ -86,7 +86,7 @@ paymentRoutes.post(
   validateBody(initiateRazorpayOrderSchema),
   asyncHandler(async (req: Auth, res) => {
     const data = await paymentService.initiateRazorpayOrder({
-      userId: req.user!.id,
+      userId: req.principal!.userId,
       addressId: req.body.addressId,
       couponCode: req.body.couponCode,
       clientRequestId: req.body.clientRequestId,
@@ -112,7 +112,7 @@ paymentRoutes.get(
     );
     const data = await paymentService.getRazorpayOrderStatus(
       localOrderId,
-      req.user!.id
+      req.principal!.userId
     );
 
     res.json({ data });
@@ -129,7 +129,7 @@ paymentRoutes.post(
     );
     const data = await paymentService.retryRazorpayOrder(
       localOrderId,
-      req.user!.id
+      req.principal!.userId
     );
 
     res.json({ data, message: "Online payment is ready" });

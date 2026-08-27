@@ -18,7 +18,7 @@ orderRoutes.post(
   authenticateUser,
   validateBody(createOrderSchema),
   asyncHandler(async (req: Auth, res) => {
-    const userId = req.user!.id;
+    const userId = req.principal!.userId;
 
     const data = req.body;
 
@@ -51,7 +51,7 @@ orderRoutes.get(
   "/",
   authenticateUser,
   asyncHandler(async (req: Auth, res) => {
-    const userId = req.user!.id;
+    const userId = req.principal!.userId;
 
     const query = req.query;
 
@@ -88,7 +88,7 @@ orderRoutes.get(
     const order = await orderService.getOrderDetails(orderId);
 
     if (!order) throw new AppError("Order not found.");
-    if (req.user!.role !== "admin" && order.userId !== req.user!.id) {
+    if (req.principal!.platformRole !== "admin" && order.userId !== req.principal!.userId) {
       throw new AppError("Order not found.", 404);
     }
 
@@ -118,7 +118,7 @@ orderRoutes.patch(
 
     const status = req.body.status as OrderStatus;
 
-    await orderService.updateOrderStatus(id, status, req.user?.id);
+    await orderService.updateOrderStatus(id, status, req.principal?.userId);
 
     res.json({
       message: "Updated",

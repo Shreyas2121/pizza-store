@@ -48,7 +48,7 @@ inventoryRoutes.post(
     const data = await inventoryService.bulkRestockProducts(
       storeId,
       items,
-      req.user!.id
+      req.principal!.userId
     );
 
     res.json({ data, message: "Products restocked successfully" });
@@ -63,7 +63,7 @@ inventoryRoutes.post(
     const body = restockInventorySchema.parse(req.body);
     const data = await inventoryService.restockProduct(storeId, productId, {
       ...body,
-      createdBy: req.user!.id,
+      createdBy: req.principal!.userId,
     });
 
     res.json({ data, message: "Product restocked successfully" });
@@ -78,7 +78,7 @@ inventoryRoutes.post(
     const body = adjustInventorySchema.parse(req.body);
     const data = await inventoryService.adjustProduct(storeId, productId, {
       ...body,
-      createdBy: req.user!.id,
+      createdBy: req.principal!.userId,
     });
 
     if (data.alert) {

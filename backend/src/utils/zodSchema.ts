@@ -11,6 +11,10 @@ const envSchema = z.object({
   DB_PASSWORD: z.string().optional(),
   DB_NAME: z.string().optional(),
   JWT_SECRET: z.string(),
+  JWT_ALGORITHM: z.literal("HS256").default("HS256"),
+  JWT_ISSUER: z.string().min(1).default("pizzastore-api"),
+  JWT_AUDIENCE: z.string().min(1).default("pizzastore-web"),
+  JWT_EXPIRES_IN: z.enum(["4h", "6h", "8h"]).default("6h"),
   FE_URL: z.string(),
   RAZORPAY_KEY_ID: z.string().min(1).optional(),
   RAZORPAY_KEY_SECRET: z.string().min(1).optional(),
@@ -55,15 +59,21 @@ export const userSchema = z.object({
   profilePicture: z.url().optional(),
 });
 
+const normalizedEmailSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .pipe(z.email("Invalid email format"));
+
 export const registerSchema = z.object({
   fname: z.string().min(1, "First name is required"),
   lname: z.string().min(1, "Last name is required"),
-  email: z.email("Invalid email format"),
+  email: normalizedEmailSchema,
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
 export const loginSchema = z.object({
-  email: z.email("Invalid email format"),
+  email: normalizedEmailSchema,
   password: z.string().min(1, "Password is required"),
 });
 
