@@ -16,10 +16,12 @@ import { chatRoutes } from "./features/chat/chat.routes";
 import { storeRoutes } from "./features/stores/stores.routes";
 import { inventoryRoutes } from "./features/inventory/inventory.routes";
 import { systemMaintenanceRoutes } from "./features/system-maintenance/system-maintenance.routes";
+import { accessRoutes } from "./features/access/access.routes";
 
 export const mainRoutes = Router();
 
 mainRoutes.use("/user", userRoutes);
+mainRoutes.use("/access", accessRoutes);
 mainRoutes.use("/category", categoryRoutes);
 mainRoutes.use("/product", productRoutes);
 mainRoutes.use("/customize", customizationRoutes);
