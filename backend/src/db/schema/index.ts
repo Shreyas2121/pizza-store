@@ -18,4 +18,6 @@ export * from "./payment-event.schema";
 export * from "./order.schema";
 export * from "./inventory.schema";
 export * from "./chat.schema";
+export * from "./access.schema";
+export * from "./audit.schema";
 export * from "./_relations";

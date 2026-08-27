@@ -9,6 +9,7 @@ import {
 
 const expectedApplicationTables = [
   "addresses",
+  "audit_logs",
   "cart",
   "cart_item_customizations",
   "cart_items",
@@ -32,7 +33,9 @@ const expectedApplicationTables = [
   "payments",
   "product_customization_group_mapping",
   "products",
+  "store_memberships",
   "store_products",
+  "store_staff_invitations",
   "stores",
 ];
 

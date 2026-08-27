@@ -2,6 +2,7 @@ import { eq, getTableName, ne, sql } from "drizzle-orm";
 import { db } from "../../db";
 import {
   addressTable,
+  auditLogsTable,
   cartItemCustomizationsTable,
   cartItemsTable,
   cartTable,
@@ -25,7 +26,9 @@ import {
   paymentsTable,
   productCustomizationGroupMappingTable,
   productsTable,
+  storeMembershipsTable,
   storeProductsTable,
+  storeStaffInvitationsTable,
   storesTable,
   usersTable,
 } from "../../db/schema";
@@ -34,6 +37,7 @@ import type { TransactionType } from "../../utils/types";
 
 const applicationDataTables = [
   addressTable,
+  auditLogsTable,
   cartItemCustomizationsTable,
   cartItemsTable,
   cartTable,
@@ -57,7 +61,9 @@ const applicationDataTables = [
   paymentsTable,
   productCustomizationGroupMappingTable,
   productsTable,
+  storeMembershipsTable,
   storeProductsTable,
+  storeStaffInvitationsTable,
   storesTable,
 ] as const;
 
