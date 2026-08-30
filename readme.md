@@ -42,6 +42,7 @@ See [architecture.md](docs/architecture.md) for component boundaries and [databa
 | [database-schema.md](docs/database-schema.md) | All tables, columns, relations, constraints, and Drizzle schema conventions |
 | [api-reference.md](docs/api-reference.md) | Complete REST API endpoint reference with request/response shapes |
 | [setup.md](docs/setup.md) | Local development environment setup, database provisioning, and seeding |
+| [store-staff-authorization.md](docs/store-staff-authorization.md) | Staff role matrix, lifecycle operations, deployment, rollback, and security verification |
 | [razorpay-runbook.md](docs/razorpay-runbook.md) | Online payment lifecycle, inventory reservations, monitoring, and reconciliation |
 
 ## Application in one workflow
