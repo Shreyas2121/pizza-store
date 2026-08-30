@@ -3,7 +3,7 @@ import axios from "axios";
 import { CheckCircle2, KeyRound } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
-import { LoginForm, useUser } from "@/features/auth";
+import { LoginForm, RegisterForm, useUser } from "@/features/auth";
 import { error, success } from "@/shared/lib";
 import { useAcceptInvitation } from "../api/staff.queries";
 
@@ -23,6 +23,7 @@ export function AcceptStaffInvitationPage() {
   const { isLoggedIn, user } = useUser();
   const accept = useAcceptInvitation();
   const [accepted, setAccepted] = useState(false);
+  const [authMode, setAuthMode] = useState<"login" | "register">("login");
   const token = params.get("token") ?? "";
 
   if (!token && !accepted) {
@@ -36,7 +37,11 @@ export function AcceptStaffInvitationPage() {
           <Alert color="blue" mb="lg" icon={<KeyRound size={18} />} title="Authentication required">
             Sign in with the invited email address, or create an account first. The invitation will remain on this page.
           </Alert>
-          <LoginForm />
+          {authMode === "login" ? (
+            <LoginForm onModeChange={setAuthMode} />
+          ) : (
+            <RegisterForm onModeChange={setAuthMode} />
+          )}
         </Paper>
       </div>
     );

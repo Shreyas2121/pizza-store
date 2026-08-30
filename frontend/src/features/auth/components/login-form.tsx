@@ -9,10 +9,15 @@ import { useUser } from "../model/auth.store";
 import { loginSchema, TLogin } from "../model/auth.schema";
 import { useAuthModalStore } from "@/shared/model";
 import { success } from "@/shared/lib";
+import type { AuthMode } from "./auth-header";
 
 const authModalOptions = { size: 440, padding: "lg" as const, radius: "lg" as const };
 
-export const LoginForm = () => {
+interface LoginFormProps {
+  onModeChange?: (mode: AuthMode) => void;
+}
+
+export const LoginForm = ({ onModeChange }: LoginFormProps = {}) => {
   const loginM = useLogin();
   const { openModal, closeModal } = useAuthModalStore();
   const { login } = useUser();
@@ -21,7 +26,13 @@ export const LoginForm = () => {
     defaultValues: { email: "", password: "" },
   });
 
-  const showRegister = () => openModal({ title: "", content: <RegisterForm />, options: authModalOptions });
+  const showRegister = () => {
+    if (onModeChange) {
+      onModeChange("register");
+      return;
+    }
+    openModal({ title: "", content: <RegisterForm />, options: authModalOptions });
+  };
 
   const onSubmit = (data: TLogin) => {
     loginM.mutate(data, {
