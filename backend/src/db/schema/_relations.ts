@@ -32,6 +32,11 @@ import {
   inventoryReservationsTable,
 } from "./inventory.schema";
 import { chatSessionsTable, chatMessagesTable } from "./chat.schema";
+import {
+  storeMembershipsTable,
+  storeStaffInvitationsTable,
+} from "./access.schema";
+import { auditLogsTable } from "./audit.schema";
 
 /**
  * All Drizzle relations live here to avoid circular imports between
@@ -53,6 +58,17 @@ export const usersRelations = relations(usersTable, ({ many, one }) => ({
   orders: many(ordersTable),
   couponRedemptions: many(couponRedemptionsTable),
   inventoryMovements: many(inventoryMovementsTable),
+  storeMemberships: many(storeMembershipsTable, {
+    relationName: "storeMembershipUser",
+  }),
+  createdStoreMemberships: many(storeMembershipsTable, {
+    relationName: "storeMembershipCreatedBy",
+  }),
+  updatedStoreMemberships: many(storeMembershipsTable, {
+    relationName: "storeMembershipUpdatedBy",
+  }),
+  invitedStaffInvitations: many(storeStaffInvitationsTable),
+  auditLogs: many(auditLogsTable),
 }));
 
 export const addressesRelations = relations(addressTable, ({ many, one }) => ({
@@ -95,6 +111,9 @@ export const storesRelations = relations(storesTable, ({ many }) => ({
   deliveryZones: many(deliveryZonesTable),
   orders: many(ordersTable),
   carts: many(cartTable),
+  memberships: many(storeMembershipsTable),
+  staffInvitations: many(storeStaffInvitationsTable),
+  auditLogs: many(auditLogsTable),
 }));
 
 export const storeProductsRelations = relations(
@@ -397,3 +416,61 @@ export const chatMessagesRelations = relations(
     }),
   })
 );
+
+// ──────────────────────────────────────────────
+// Access & Staff relations
+// ──────────────────────────────────────────────
+
+export const storeMembershipsRelations = relations(
+  storeMembershipsTable,
+  ({ one }) => ({
+    user: one(usersTable, {
+      fields: [storeMembershipsTable.userId],
+      references: [usersTable.id],
+      relationName: "storeMembershipUser",
+    }),
+    store: one(storesTable, {
+      fields: [storeMembershipsTable.storeId],
+      references: [storesTable.id],
+    }),
+    createdByUser: one(usersTable, {
+      fields: [storeMembershipsTable.createdBy],
+      references: [usersTable.id],
+      relationName: "storeMembershipCreatedBy",
+    }),
+    updatedByUser: one(usersTable, {
+      fields: [storeMembershipsTable.updatedBy],
+      references: [usersTable.id],
+      relationName: "storeMembershipUpdatedBy",
+    }),
+  })
+);
+
+export const storeStaffInvitationsRelations = relations(
+  storeStaffInvitationsTable,
+  ({ one }) => ({
+    store: one(storesTable, {
+      fields: [storeStaffInvitationsTable.storeId],
+      references: [storesTable.id],
+    }),
+    invitedByUser: one(usersTable, {
+      fields: [storeStaffInvitationsTable.invitedBy],
+      references: [usersTable.id],
+    }),
+  })
+);
+
+// ──────────────────────────────────────────────
+// Audit relations
+// ──────────────────────────────────────────────
+
+export const auditLogsRelations = relations(auditLogsTable, ({ one }) => ({
+  actorUser: one(usersTable, {
+    fields: [auditLogsTable.actorUserId],
+    references: [usersTable.id],
+  }),
+  store: one(storesTable, {
+    fields: [auditLogsTable.storeId],
+    references: [storesTable.id],
+  }),
+}));

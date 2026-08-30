@@ -7,7 +7,8 @@ export const orderKeys = {
   all: ["order"] as const,
   list: (status?: OrderStatus) => ["order-all", status ?? "all"] as const,
   single: (id: number) => ["order-single", id] as const,
-  adminAll: (status: OrderStatus) => ["order-adminAll", status] as const,
+  adminAll: (status: OrderStatus, storeId?: number | null) =>
+    ["order-adminAll", status, storeId] as const,
 };
 
 export const useCreateOrder = () => {
@@ -35,12 +36,15 @@ export const useGetOrder = (orderId: number) => {
   );
 };
 
-export const useGetAdminOrders = (status: OrderStatus) => {
+export const useGetAdminOrders = (status: OrderStatus, storeId?: number | null) => {
   return createQuery<OrdersAdmin[]>(
-    orderKeys.adminAll(status),
+    orderKeys.adminAll(status, storeId),
     "/order/admin/all",
     "data",
-    { status },
+    {
+      status,
+      ...(storeId ? { storeId } : {}),
+    },
     { placeholderData: keepPreviousData }
   );
 };
@@ -61,6 +65,9 @@ export const useOrderUpdateStatus = () => {
     onSuccess: (res) => {
       client.invalidateQueries({
         queryKey: orderKeys.single(res.data),
+      });
+      client.invalidateQueries({
+        queryKey: ["order-adminAll"],
       });
     },
   });

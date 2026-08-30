@@ -2,9 +2,9 @@ import { lazy } from "react";
 import { Route } from "react-router";
 import { AdminLayout, MainLayout, ProfileLayout } from "../layouts";
 import { ProtectedRoutes } from "./guards/protected-route";
-import { AdminProtectedRoute } from "./guards/admin-route";
+import { StaffProtectedRoute } from "./guards/staff-route";
+import { PlatformAdminProtectedRoute } from "./guards/platform-admin-route";
 import { NotFoundPage as NotFound } from "./not-found-page";
-
 
 const Home = lazy(() => import("@/features/catalog").then((m) => ({ default: m.HomePage })));
 const AdminProducts = lazy(() => import("@/features/catalog").then((m) => ({ default: m.AdminProductsPage })));
@@ -32,11 +32,15 @@ const AdminSystem = lazy(() => import("@/features/system-maintenance").then((m) 
 const AdminStores = lazy(() => import("@/features/store").then((m) => ({ default: m.AdminStoresPage })));
 const AdminStoreProducts = lazy(() => import("@/features/store").then((m) => ({ default: m.AdminStoreProductsPage })));
 const AdminStoreDeliveryZones = lazy(() => import("@/features/store").then((m) => ({ default: m.AdminStoreDeliveryZonesPage })));
+const AdminStaff = lazy(() => import("@/features/staff").then((m) => ({ default: m.AdminStaffPage })));
+const AcceptStaffInvitation = lazy(() => import("@/features/staff").then((m) => ({ default: m.AcceptStaffInvitationPage })));
+const AdminAudit = lazy(() => import("@/features/audit").then((m) => ({ default: m.AdminAuditPage })));
 
 export const AppRoutes = () => (
   <>
     <Route element={<MainLayout />}>
       <Route path="/" element={<Home />} />
+      <Route path="/staff-invitations/accept" element={<AcceptStaffInvitation />} />
       <Route
         path="/cart"
         element={
@@ -71,25 +75,111 @@ export const AppRoutes = () => (
     <Route
       path="/admin"
       element={
-        <AdminProtectedRoute>
+        <StaffProtectedRoute>
           <AdminLayout />
-        </AdminProtectedRoute>
+        </StaffProtectedRoute>
       }
     >
       <Route index element={<AdminHome />} />
-      <Route path="/admin/products" element={<AdminProducts />} />
-      <Route path="/admin/product/new" element={<AdminNewProduct />} />
-      <Route path="/admin/customization" element={<AdminCustomization />} />
-      <Route path="/admin/menu" element={<AdminMenu />} />
-      <Route path="/admin/orders" element={<AdminOrders />} />
-      <Route path="/admin/inventory" element={<AdminInventory />} />
-      <Route path="/admin/system" element={<AdminSystem />} />
+      <Route
+        path="/admin/products"
+        element={
+          <PlatformAdminProtectedRoute>
+            <AdminProducts />
+          </PlatformAdminProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/product/new"
+        element={
+          <PlatformAdminProtectedRoute>
+            <AdminNewProduct />
+          </PlatformAdminProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/customization"
+        element={
+          <PlatformAdminProtectedRoute>
+            <AdminCustomization />
+          </PlatformAdminProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/menu"
+        element={
+          <PlatformAdminProtectedRoute>
+            <AdminMenu />
+          </PlatformAdminProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/orders"
+        element={
+          <StaffProtectedRoute requiredPermission="orders.read">
+            <AdminOrders />
+          </StaffProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/inventory"
+        element={
+          <StaffProtectedRoute requiredPermission="inventory.read">
+            <AdminInventory />
+          </StaffProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/system"
+        element={
+          <PlatformAdminProtectedRoute>
+            <AdminSystem />
+          </PlatformAdminProtectedRoute>
+        }
+      />
       <Route path="/admin/stores" element={<AdminStores />} />
       <Route path="/admin/stores/:id/products" element={<AdminStoreProducts />} />
       <Route path="/admin/stores/:id/delivery-zones" element={<AdminStoreDeliveryZones />} />
-      <Route path="/admin/order/:id" element={<AdminOrderDetails />} />
-      <Route path="/admin/support" element={<AdminSupport />} />
-      <Route path="/admin/support/:id" element={<AdminChat />} />
+      <Route
+        path="/admin/staff"
+        element={
+          <StaffProtectedRoute requiredPermission="store.staff.read">
+            <AdminStaff />
+          </StaffProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/audit"
+        element={
+          <StaffProtectedRoute requiredPermission="store.audit.read">
+            <AdminAudit />
+          </StaffProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/order/:id"
+        element={
+          <StaffProtectedRoute requiredPermission="orders.read">
+            <AdminOrderDetails />
+          </StaffProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/support"
+        element={
+          <PlatformAdminProtectedRoute>
+            <AdminSupport />
+          </PlatformAdminProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/support/:id"
+        element={
+          <PlatformAdminProtectedRoute>
+            <AdminChat />
+          </PlatformAdminProtectedRoute>
+        }
+      />
     </Route>
 
     {/* Catch-all 404 Route */}

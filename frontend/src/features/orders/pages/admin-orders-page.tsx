@@ -8,13 +8,16 @@ import { OrderStatus as OrderStatusType, orderStatus } from "../model/order.type
 import { formatDate, formatPrice } from "@/shared/lib";
 import { PageHeader, TableSkeleton } from "@/shared/ui";
 import { OrderStatus as StatusPill } from "../components/order-status";
-
+import { useStaffActiveStore } from "@/features/access";
 import { DataTable } from "@/shared/ui";
-
 
 export const AdminOrdersPage = () => {
   const [selectedStatus, setSelectedStatus] = useState<OrderStatusType>("pending");
-  const { data: orders, isLoading, isError, isFetching } = useGetAdminOrders(selectedStatus);
+  const { activeStoreId } = useStaffActiveStore();
+  const { data: orders, isLoading, isError, isFetching } = useGetAdminOrders(
+    selectedStatus,
+    activeStoreId
+  );
   const filter = (
     <div className="flex w-full items-end gap-2 sm:w-auto">
       <Select

@@ -1,12 +1,4 @@
-import { Navigate } from "react-router";
-import { useUser } from "@/features/auth";
+import { StaffProtectedRoute } from "./staff-route";
 
-export function AdminProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, isLoggedIn } = useUser();
-
-  if (!isLoggedIn || user?.role !== "admin") {
-    return <Navigate to="/" replace />;
-  }
-
-  return <>{children}</>;
-}
+export const AdminProtectedRoute = StaffProtectedRoute;
+export default AdminProtectedRoute;

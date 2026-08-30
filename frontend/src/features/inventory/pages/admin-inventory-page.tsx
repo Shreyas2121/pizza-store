@@ -17,6 +17,8 @@ import type {
   InventoryStatusFilter,
 } from "../model/inventory.types";
 
+import { useStaffActiveStore } from "@/features/access";
+
 const statusOptions = [
   { value: "all", label: "All stock statuses" },
   { value: "low_stock", label: "Low stock" },
@@ -27,6 +29,7 @@ const pageSizeOptions = ["10", "20", "50"];
 
 export function AdminInventoryPage() {
   const stores = useAdminStores();
+  const { activeStoreId } = useStaffActiveStore();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialStatusParam = searchParams.get("status");
   const initialStatus: InventoryStatusFilter =
@@ -34,8 +37,14 @@ export function AdminInventoryPage() {
       ? initialStatusParam
       : "all";
 
-  const [storeId, setStoreId] = useState<number | null>(null);
+  const [storeId, setStoreId] = useState<number | null>(activeStoreId);
   const [status, setStatus] = useState<InventoryStatusFilter>(initialStatus);
+
+  useEffect(() => {
+    if (activeStoreId) {
+      setStoreId(activeStoreId);
+    }
+  }, [activeStoreId]);
 
   useEffect(() => {
     const param = searchParams.get("status");

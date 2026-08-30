@@ -14,6 +14,7 @@
     "seed:orders": "ts-node src/scripts/order.ts",
     "seed:catalog": "ts-node src/scripts/catalog.ts",
     "seed:default-store": "ts-node src/scripts/default-store.ts",
+    "seed:staff": "ts-node src/scripts/staff.ts",
     "payments:reconcile": "ts-node src/scripts/reconcile-payments.ts",
     "inventory:reconcile-reservations": "ts-node src/scripts/reconcile-inventory-reservations.ts",
     "seed": "ts-node src/scripts/seed.ts",

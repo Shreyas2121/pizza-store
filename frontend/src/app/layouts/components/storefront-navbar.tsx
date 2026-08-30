@@ -8,6 +8,7 @@ import { useGetCartCount } from "@/features/cart";
 import { success } from "@/shared/lib";
 import BrandLockup from "./brand-lockup";
 import { useStoreStore } from "@/features/store";
+import { isPlatformAdmin, useAccessMe } from "@/features/access";
 
 const primaryLinks = [
   { label: "Menu", to: "/#menu" },
@@ -21,10 +22,14 @@ export function StorefrontNavbar() {
   const { openModal } = useAuthModalStore();
   const location = useLocation();
   const { data } = useGetCartCount(isLoggedIn);
+  const { data: access } = useAccessMe();
   const cartCount = data ?? 0;
   const userPincode = useStoreStore((state) => state.userPincode);
   const openPincodeModal = useStoreStore((state) => state.openPincodeModal);
   const initials = user ? `${user.fname?.[0] ?? ""}${user.lname?.[0] ?? ""}`.toUpperCase() : "";
+  const platformAdmin = isPlatformAdmin(access);
+  const canAccessOperations = platformAdmin || (access?.memberships.length ?? 0) > 0;
+  const operationsLabel = platformAdmin ? "Admin dashboard" : "Operations dashboard";
 
   useEffect(() => setMobileOpen(false), [location.pathname, location.search, location.hash]);
 
@@ -93,7 +98,7 @@ export function StorefrontNavbar() {
                   <AccountMenu.Item component={Link} to="/profile" leftSection={<User size={17} />}>Account</AccountMenu.Item>
                   <AccountMenu.Item component={Link} to="/orders" leftSection={<ClipboardList size={17} />}>Orders</AccountMenu.Item>
                   <AccountMenu.Item component={Link} to="/address" leftSection={<MapPin size={17} />}>Addresses</AccountMenu.Item>
-                  {user?.role === "admin" && <AccountMenu.Item component={Link} to="/admin" leftSection={<LayoutDashboard size={17} />}>Admin dashboard</AccountMenu.Item>}
+                  {canAccessOperations && <AccountMenu.Item component={Link} to="/admin" leftSection={<LayoutDashboard size={17} />}>{operationsLabel}</AccountMenu.Item>}
                   <AccountMenu.Divider />
                   <AccountMenu.Item color="red" leftSection={<LogOut size={17} />} onClick={handleLogout}>Log out</AccountMenu.Item>
                 </AccountMenu.Dropdown>
@@ -151,7 +156,7 @@ export function StorefrontNavbar() {
               <div className="grid grid-cols-2 gap-3">
                 <Link to="/profile" className="secondary-button min-h-12 gap-2"><User size={18} /> Account</Link>
                 <Link to="/address" className="secondary-button min-h-12 gap-2"><MapPin size={18} /> Addresses</Link>
-                {user?.role === "admin" && <Link to="/admin" className="secondary-button col-span-2 min-h-12 gap-2"><LayoutDashboard size={18} /> Admin dashboard</Link>}
+                {canAccessOperations && <Link to="/admin" className="secondary-button col-span-2 min-h-12 gap-2"><LayoutDashboard size={18} /> {operationsLabel}</Link>}
               </div>
             </>
           )}

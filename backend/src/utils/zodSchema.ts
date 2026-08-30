@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 dotenv.config({ quiet: true });
 
 const envSchema = z.object({
+  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.string().min(4).max(4),
   DATABASE_URL: z.string().optional(),
   DB_HOST: z.string().optional(),
@@ -11,6 +12,11 @@ const envSchema = z.object({
   DB_PASSWORD: z.string().optional(),
   DB_NAME: z.string().optional(),
   JWT_SECRET: z.string(),
+  JWT_ALGORITHM: z.literal("HS256").default("HS256"),
+  JWT_ISSUER: z.string().min(1).default("pizzastore-api"),
+  JWT_AUDIENCE: z.string().min(1).default("pizzastore-web"),
+  JWT_EXPIRES_IN: z.enum(["4h", "6h", "8h"]).default("6h"),
+  STAFF_INVITATION_EXPIRY_HOURS: z.coerce.number().int().min(1).max(168).default(48),
   FE_URL: z.string(),
   RAZORPAY_KEY_ID: z.string().min(1).optional(),
   RAZORPAY_KEY_SECRET: z.string().min(1).optional(),
@@ -55,15 +61,21 @@ export const userSchema = z.object({
   profilePicture: z.url().optional(),
 });
 
+const normalizedEmailSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .pipe(z.email("Invalid email format"));
+
 export const registerSchema = z.object({
   fname: z.string().min(1, "First name is required"),
   lname: z.string().min(1, "Last name is required"),
-  email: z.email("Invalid email format"),
+  email: normalizedEmailSchema,
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
 export const loginSchema = z.object({
-  email: z.email("Invalid email format"),
+  email: normalizedEmailSchema,
   password: z.string().min(1, "Password is required"),
 });
 
@@ -194,6 +206,33 @@ export const createStoreSchema = z.object({
 });
 
 export const updateStoreSchema = createStoreSchema.partial();
+
+export const managerUpdateStoreSchema = z
+  .object({
+    name: z.string().min(1, "Store name is required").optional(),
+    address: z.string().min(1, "Address is required").optional(),
+    city: z.string().min(1, "City is required").optional(),
+    state: z.string().min(1, "State is required").optional(),
+    pincode: z.string().min(1, "Pincode is required").optional(),
+    phone: z.string().min(1, "Phone number is required").optional(),
+    email: z
+      .string()
+      .email("Invalid email format")
+      .optional()
+      .nullable()
+      .or(z.literal("")),
+    latitude: z.number().optional().nullable(),
+    longitude: z.number().optional().nullable(),
+    opensAt: z
+      .string()
+      .regex(timeRegex, "Opening time must be in HH:MM format (24h)")
+      .optional(),
+    closesAt: z
+      .string()
+      .regex(timeRegex, "Closing time must be in HH:MM format (24h)")
+      .optional(),
+  })
+  .strict();
 
 const deliveryPincodeSchema = z
   .string()

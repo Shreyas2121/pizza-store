@@ -1,10 +1,8 @@
-import jwt from "jsonwebtoken";
 import userService from "./user.service";
 import { Router } from "express";
 import { AppError, asyncHandler } from "../../utils/error";
 import {
   createAddressSchema,
-  env,
   loginSchema,
   registerSchema,
 } from "../../utils/zodSchema";
@@ -13,6 +11,8 @@ import { authenticateUser } from "../../middleware/authenticateUser";
 import { validateBody } from "../../middleware/validateBody";
 import { parseIntegerParam } from "../../utils/request";
 import { Auth } from "../../utils/types";
+import authenticationService from "../auth/auth.service";
+import { toSafeUserDto } from "../auth/auth.types";
 
 export const userRoutes = Router();
 
@@ -27,19 +27,10 @@ userRoutes.post(
       password: hashedPassword,
     });
 
-    const { password, ...userWithoutPassword } = user;
-
-    const token = jwt.sign(
-      {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-      },
-      env.JWT_SECRET
-    );
+    const token = authenticationService.issueAccessToken(user);
 
     res.status(201).json({
-      data: { user: userWithoutPassword, token },
+      data: { user: toSafeUserDto(user), token },
     });
   })
 );
@@ -50,7 +41,7 @@ userRoutes.patch(
   validateBody(createAddressSchema),
   asyncHandler(async (req: Auth, res) => {
     const addressId = parseIntegerParam(req.params.addressId, "Address ID");
-    const [address] = await userService.updateUserAddress(addressId, req.user!.id, req.body);
+    const [address] = await userService.updateUserAddress(addressId, req.principal!.userId, req.body);
     if (!address) throw new AppError("Address not found.", 404);
     res.json({ data: { address, message: "Address updated." } });
   })
@@ -61,7 +52,7 @@ userRoutes.delete(
   authenticateUser,
   asyncHandler(async (req: Auth, res) => {
     const addressId = parseIntegerParam(req.params.addressId, "Address ID");
-    const [deleted] = await userService.deleteUserAddress(addressId, req.user!.id);
+    const [deleted] = await userService.deleteUserAddress(addressId, req.principal!.userId);
     if (!deleted) throw new AppError("Address not found.", 404);
     res.json({ data: { id: deleted.id, message: "Address deleted." } });
   })
@@ -77,17 +68,12 @@ userRoutes.post(
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    const token = jwt.sign(
-      {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-      },
-      env.JWT_SECRET
-    );
-    const { password: userPassword, ...userWithoutPassword } = user;
+    if (!user.isActive) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+    const token = authenticationService.issueAccessToken(user);
     res.json({
-      data: { user: userWithoutPassword, token },
+      data: { user: toSafeUserDto(user), token },
     });
   })
 );
@@ -96,7 +82,7 @@ userRoutes.get(
   "/address",
   authenticateUser,
   asyncHandler(async (req: Auth, res) => {
-    const userId = req.user!.id;
+    const userId = req.principal!.userId;
 
     const addresses = await userService.getUserAddress(userId);
 
@@ -113,7 +99,7 @@ userRoutes.post(
   asyncHandler(async (req: Auth, res) => {
     const data = req.body;
 
-    const userId = req.user!.id;
+    const userId = req.principal!.userId;
 
     const [address] = await userService.createUserAddress({
       ...data,
@@ -133,12 +119,12 @@ userRoutes.get(
   "",
   authenticateUser,
   asyncHandler(async (req: Auth, res) => {
-    const userId = req.user!.id;
+    const userId = req.principal!.userId;
 
     const user = await userService.getUserById(userId);
 
     res.json({
-      data: user,
+      data: user ? toSafeUserDto(user) : null,
     });
   })
 );

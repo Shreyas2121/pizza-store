@@ -1,10 +1,14 @@
 import { Router } from "express";
-import { authenticateAdmin } from "../../middleware/authenticateUser";
+import { authenticateAdmin, authenticateUser } from "../../middleware/authenticateUser";
+import { fromParam, requireStorePermission } from "../access/access.middleware";
+import authorizationService, { permissionDenied } from "../access/access.service";
 import { AppError, asyncHandler } from "../../utils/error";
 import { parseIntegerParam, requireRouteParam } from "../../utils/request";
+import type { AuthenticatedRequest } from "../../utils/types";
 import {
   addDeliveryZonesSchema,
   createStoreSchema,
+  managerUpdateStoreSchema,
   mapStoreProductsSchema,
   resolveStoreSchema,
   updateStoreProductSchema,
@@ -15,24 +19,25 @@ import storeService from "./stores.service";
 export const storeRoutes = Router();
 
 // ──────────────────────────────────────────────
-// Admin Endpoints
+// Store Management Endpoints
 // ──────────────────────────────────────────────
 
-// List all stores with pagination and search
+// List stores with pagination and search (scoped by assignment for staff, all for admin)
 storeRoutes.get(
   "/",
-  authenticateAdmin,
-  asyncHandler(async (req, res) => {
+  authenticateUser,
+  asyncHandler(async (req: AuthenticatedRequest, res) => {
     const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
     const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 10;
     const search = req.query.search ? (req.query.search as string) : undefined;
-    
+
     let isActive: boolean | undefined = undefined;
     if (req.query.isActive !== undefined) {
       isActive = req.query.isActive === "true" || req.query.isActive === "1";
     }
 
     const result = await storeService.getStores({
+      principal: req.principal,
       page,
       limit,
       search,
@@ -46,37 +51,45 @@ storeRoutes.get(
   })
 );
 
-// Get select options for admin dropdowns
+// Get select options for dropdowns (scoped by assignment for staff, all active for admin)
 storeRoutes.get(
   "/select",
-  authenticateAdmin,
-  asyncHandler(async (req, res) => {
-    const stores = await storeService.getStoresSelect();
+  authenticateUser,
+  asyncHandler(async (req: AuthenticatedRequest, res) => {
+    const stores = await storeService.getStoresSelect(req.principal);
     res.json({ data: stores });
   })
 );
 
-// Create a new store
+// Create a new store (platform-admin only)
 storeRoutes.post(
   "/",
-  authenticateAdmin,
-  asyncHandler(async (req, res) => {
+  authenticateUser,
+  asyncHandler(async (req: AuthenticatedRequest, res) => {
+    authorizationService.requirePlatformAdmin(
+      req.principal,
+      "platform.stores.create"
+    );
+
     const validatedData = createStoreSchema.parse(req.body);
-    const store = await storeService.createStore({
-      name: validatedData.name,
-      slug: validatedData.slug,
-      address: validatedData.address,
-      city: validatedData.city,
-      state: validatedData.state,
-      pincode: validatedData.pincode,
-      phone: validatedData.phone,
-      email: validatedData.email || null,
-      latitude: validatedData.latitude ?? null,
-      longitude: validatedData.longitude ?? null,
-      opensAt: validatedData.opensAt,
-      closesAt: validatedData.closesAt,
-      isActive: validatedData.isActive ?? true,
-    });
+    const store = await storeService.createStore(
+      {
+        name: validatedData.name,
+        slug: validatedData.slug,
+        address: validatedData.address,
+        city: validatedData.city,
+        state: validatedData.state,
+        pincode: validatedData.pincode,
+        phone: validatedData.phone,
+        email: validatedData.email || null,
+        latitude: validatedData.latitude ?? null,
+        longitude: validatedData.longitude ?? null,
+        opensAt: validatedData.opensAt,
+        closesAt: validatedData.closesAt,
+        isActive: validatedData.isActive ?? true,
+      },
+      req.principal
+    );
 
     res.status(201).json({
       data: store,
@@ -85,7 +98,7 @@ storeRoutes.post(
   })
 );
 
-// Resolve the active, open store serving a pincode
+// Resolve the active, open store serving a pincode (public)
 storeRoutes.post(
   "/resolve",
   asyncHandler(async (req, res) => {
@@ -98,13 +111,15 @@ storeRoutes.post(
 
 // ──────────────────────────────────────────────
 // Store-product mapping
+// ──────────────────────────────────────────────
 
 storeRoutes.get(
   "/:id/products",
-  authenticateAdmin,
-  asyncHandler(async (req, res) => {
+  authenticateUser,
+  requireStorePermission("store.products.read", fromParam("id")),
+  asyncHandler(async (req: AuthenticatedRequest, res) => {
     const storeId = parseIntegerParam(req.params.id, "Store ID");
-    const mappings = await storeService.getStoreProducts(storeId);
+    const mappings = await storeService.getStoreProducts(storeId, req.principal);
 
     res.json({ data: mappings });
   })
@@ -112,13 +127,15 @@ storeRoutes.get(
 
 storeRoutes.post(
   "/:id/products",
-  authenticateAdmin,
-  asyncHandler(async (req, res) => {
+  authenticateUser,
+  requireStorePermission("store.products.mapping.manage", fromParam("id")),
+  asyncHandler(async (req: AuthenticatedRequest, res) => {
     const storeId = parseIntegerParam(req.params.id, "Store ID");
     const mappings = mapStoreProductsSchema.parse(req.body);
     const storeProducts = await storeService.mapStoreProducts(
       storeId,
-      mappings
+      mappings,
+      req.principal
     );
 
     res.status(201).json({
@@ -130,15 +147,17 @@ storeRoutes.post(
 
 storeRoutes.put(
   "/:id/products/:productId",
-  authenticateAdmin,
-  asyncHandler(async (req, res) => {
+  authenticateUser,
+  asyncHandler(async (req: AuthenticatedRequest, res) => {
     const storeId = parseIntegerParam(req.params.id, "Store ID");
     const productId = parseIntegerParam(req.params.productId, "Product ID");
     const data = updateStoreProductSchema.parse(req.body);
+
     const mapping = await storeService.updateStoreProduct(
       storeId,
       productId,
-      data
+      data,
+      req.principal
     );
 
     res.json({
@@ -150,11 +169,16 @@ storeRoutes.put(
 
 storeRoutes.delete(
   "/:id/products/:productId",
-  authenticateAdmin,
-  asyncHandler(async (req, res) => {
+  authenticateUser,
+  requireStorePermission("store.products.mapping.manage", fromParam("id")),
+  asyncHandler(async (req: AuthenticatedRequest, res) => {
     const storeId = parseIntegerParam(req.params.id, "Store ID");
     const productId = parseIntegerParam(req.params.productId, "Product ID");
-    const mapping = await storeService.deleteStoreProduct(storeId, productId);
+    const mapping = await storeService.deleteStoreProduct(
+      storeId,
+      productId,
+      req.principal
+    );
 
     res.json({
       data: mapping,
@@ -163,14 +187,17 @@ storeRoutes.delete(
   })
 );
 
+// ──────────────────────────────────────────────
 // Delivery zone management
+// ──────────────────────────────────────────────
 
 storeRoutes.get(
   "/:id/delivery-zones",
-  authenticateAdmin,
-  asyncHandler(async (req, res) => {
+  authenticateUser,
+  requireStorePermission("store.delivery_zones.read", fromParam("id")),
+  asyncHandler(async (req: AuthenticatedRequest, res) => {
     const storeId = parseIntegerParam(req.params.id, "Store ID");
-    const zones = await storeService.getDeliveryZones(storeId);
+    const zones = await storeService.getDeliveryZones(storeId, req.principal);
 
     res.json({ data: zones });
   })
@@ -178,11 +205,16 @@ storeRoutes.get(
 
 storeRoutes.post(
   "/:id/delivery-zones",
-  authenticateAdmin,
-  asyncHandler(async (req, res) => {
+  authenticateUser,
+  requireStorePermission("store.delivery_zones.manage", fromParam("id")),
+  asyncHandler(async (req: AuthenticatedRequest, res) => {
     const storeId = parseIntegerParam(req.params.id, "Store ID");
     const { pincodes } = addDeliveryZonesSchema.parse(req.body);
-    const result = await storeService.addDeliveryZones(storeId, pincodes);
+    const result = await storeService.addDeliveryZones(
+      storeId,
+      pincodes,
+      req.principal
+    );
 
     res.status(201).json({
       data: result.zones,
@@ -197,11 +229,16 @@ storeRoutes.post(
 
 storeRoutes.delete(
   "/:id/delivery-zones/:zoneId",
-  authenticateAdmin,
-  asyncHandler(async (req, res) => {
+  authenticateUser,
+  requireStorePermission("store.delivery_zones.manage", fromParam("id")),
+  asyncHandler(async (req: AuthenticatedRequest, res) => {
     const storeId = parseIntegerParam(req.params.id, "Store ID");
     const zoneId = parseIntegerParam(req.params.zoneId, "Delivery zone ID");
-    const zone = await storeService.deleteDeliveryZone(storeId, zoneId);
+    const zone = await storeService.deleteDeliveryZone(
+      storeId,
+      zoneId,
+      req.principal
+    );
 
     res.json({
       data: zone,
@@ -210,7 +247,8 @@ storeRoutes.delete(
   })
 );
 
-// Detail Endpoints
+// ──────────────────────────────────────────────
+// Detail Endpoints (Public)
 // ──────────────────────────────────────────────
 
 // Get store by slug
@@ -243,13 +281,23 @@ storeRoutes.get(
   })
 );
 
-// Update a store
+// Update a store (platform-admin or store manager with allow-listed fields)
 storeRoutes.put(
   "/:id",
-  authenticateAdmin,
-  asyncHandler(async (req, res) => {
+  authenticateUser,
+  asyncHandler(async (req: AuthenticatedRequest, res) => {
     const id = parseIntegerParam(req.params.id, "Store ID");
-    const validatedData = updateStoreSchema.parse(req.body);
+    const isPlatformAdmin = req.principal?.platformRole === "admin";
+
+    let validatedData: Record<string, any>;
+    if (isPlatformAdmin) {
+      validatedData = updateStoreSchema.parse(req.body);
+    } else {
+      if (req.body.slug !== undefined || req.body.isActive !== undefined) {
+        throw permissionDenied();
+      }
+      validatedData = managerUpdateStoreSchema.parse(req.body);
+    }
 
     const updatePayload: Record<string, any> = {};
     if (validatedData.name !== undefined) updatePayload.name = validatedData.name;
@@ -266,7 +314,11 @@ storeRoutes.put(
     if (validatedData.closesAt !== undefined) updatePayload.closesAt = validatedData.closesAt;
     if (validatedData.isActive !== undefined) updatePayload.isActive = validatedData.isActive;
 
-    const store = await storeService.updateStore(id, updatePayload);
+    const store = await storeService.updateStore(
+      id,
+      updatePayload,
+      req.principal
+    );
 
     res.json({
       data: store,
@@ -275,15 +327,19 @@ storeRoutes.put(
   })
 );
 
-// Delete / deactivate a store
+// Delete / deactivate a store (platform-admin only)
 storeRoutes.delete(
   "/:id",
-  authenticateAdmin,
-  asyncHandler(async (req, res) => {
+  authenticateUser,
+  asyncHandler(async (req: AuthenticatedRequest, res) => {
     const id = parseIntegerParam(req.params.id, "Store ID");
     const permanent = req.query.permanent === "true";
 
-    const result = await storeService.deleteStore(id, { permanent });
+    const result = await storeService.deleteStore(
+      id,
+      { permanent },
+      req.principal
+    );
 
     res.json({
       data: result,

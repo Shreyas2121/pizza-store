@@ -24,6 +24,10 @@ import {
   usersTable,
 } from "../../db/schema";
 import { AppError } from "../../utils/error";
+import type { AuthPrincipal } from "../auth/auth.types";
+import authorizationService, { AuthorizationService } from "../access/access.service";
+import auditService from "../audit/audit.service";
+import type { AuditWriter } from "../audit/audit.types";
 import type {
   InventoryChangeType,
   StockStatus,
@@ -66,6 +70,11 @@ interface BulkRestockItem {
 }
 
 class InventoryService {
+  constructor(
+    private readonly authorization: AuthorizationService = authorizationService,
+    private readonly audit: AuditWriter = auditService
+  ) {}
+
   private activeReservationsSubquery() {
     return db
       .select({
@@ -530,7 +539,12 @@ class InventoryService {
       );
   }
 
-  async getStoreInventory(storeId: number, input: InventoryListInput) {
+  async getStoreInventory(storeId: number, input: InventoryListInput, actor: AuthPrincipal) {
+    await this.authorization.requireStorePermission({
+      principal: actor,
+      storeId,
+      permission: "inventory.read",
+    });
     await this.assertStoreExists(storeId);
 
     const activeReservations = this.activeReservationsSubquery();
@@ -622,7 +636,12 @@ class InventoryService {
     };
   }
 
-  async getProductInventory(storeId: number, productId: number) {
+  async getProductInventory(storeId: number, productId: number, actor: AuthPrincipal) {
+    await this.authorization.requireStorePermission({
+      principal: actor,
+      storeId,
+      permission: "inventory.read",
+    });
     const activeReservations = this.activeReservationsSubquery();
     const reservedQuantity = sql<number>`coalesce(${activeReservations.reservedQuantity}, 0)::integer`;
     const availableQuantity = sql<number | null>`case
@@ -682,12 +701,17 @@ class InventoryService {
       productId,
       page: 1,
       limit: 20,
-    });
+    }, actor);
 
     return { ...item, recentMovements: movements.items };
   }
 
-  async getMovements(storeId: number, input: MovementListInput) {
+  async getMovements(storeId: number, input: MovementListInput, actor: AuthPrincipal) {
+    await this.authorization.requireStorePermission({
+      principal: actor,
+      storeId,
+      permission: "inventory.read",
+    });
     await this.assertStoreExists(storeId);
 
     const conditions: SQL[] = [eq(storeProductsTable.storeId, storeId)];
@@ -762,9 +786,17 @@ class InventoryService {
   async restockProduct(
     storeId: number,
     productId: number,
-    data: { quantityAdded: number; reason?: string; createdBy: number }
+    data: { quantityAdded: number; reason?: string },
+    actor: AuthPrincipal
   ) {
     return await db.transaction(async (tx) => {
+      await this.authorization.requireStorePermission({
+        principal: actor,
+        storeId,
+        permission: "inventory.restock",
+        tx,
+        lockMembership: true,
+      });
       const mapping = await this.lockSingleStoreProduct(storeId, productId, tx);
       const change = calculateRestock(
         mapping.onHandQuantity,
@@ -788,7 +820,19 @@ class InventoryService {
         previousQuantity: change.previousQuantity,
         newQuantity: change.newQuantity,
         reason: data.reason ?? null,
-        createdBy: data.createdBy,
+        createdBy: actor.userId,
+      });
+
+      await this.audit.write({
+        tx,
+        actor,
+        storeId,
+        action: "inventory.restocked",
+        resourceType: "store_product",
+        resourceId: mapping.id,
+        before: { onHandQuantity: change.previousQuantity },
+        after: { onHandQuantity: change.newQuantity },
+        metadata: { productId },
       });
 
       return {
@@ -805,7 +849,7 @@ class InventoryService {
   async bulkRestockProducts(
     storeId: number,
     items: BulkRestockItem[],
-    createdBy: number,
+    actor: AuthPrincipal,
     transaction?: TransactionType
   ) {
     if (items.length === 0) {
@@ -833,6 +877,13 @@ class InventoryService {
     }
 
     const execute = async (tx: TransactionType) => {
+      await this.authorization.requireStorePermission({
+        principal: actor,
+        storeId,
+        permission: "inventory.restock",
+        tx,
+        lockMembership: true,
+      });
       const lockedMappings = await this.lockStoreProducts(
         storeId,
         productIds,
@@ -888,9 +939,19 @@ class InventoryService {
           previousQuantity: change.previousQuantity,
           newQuantity: change.newQuantity,
           reason: input.reason ?? null,
-          createdBy,
+          createdBy: actor.userId,
         }))
       );
+
+      await this.audit.write({
+        tx,
+        actor,
+        storeId,
+        action: "inventory.bulk_restocked",
+        resourceType: "store",
+        resourceId: storeId,
+        metadata: { productCount: prepared.length },
+      });
 
       return {
         updatedCount: prepared.length,
@@ -909,9 +970,17 @@ class InventoryService {
   async adjustProduct(
     storeId: number,
     productId: number,
-    data: { targetQuantity: number; reason: string; createdBy: number }
+    data: { targetQuantity: number; reason: string },
+    actor: AuthPrincipal
   ) {
     return await db.transaction(async (tx) => {
+      await this.authorization.requireStorePermission({
+        principal: actor,
+        storeId,
+        permission: "inventory.adjust",
+        tx,
+        lockMembership: true,
+      });
       const mapping = await this.lockSingleStoreProduct(storeId, productId, tx);
       const reservedQuantities = await this.getActiveReservedQuantities(
         [mapping.id],
@@ -936,7 +1005,19 @@ class InventoryService {
         previousQuantity: change.previousQuantity,
         newQuantity: change.newQuantity,
         reason: data.reason,
-        createdBy: data.createdBy,
+        createdBy: actor.userId,
+      });
+
+      await this.audit.write({
+        tx,
+        actor,
+        storeId,
+        action: "inventory.adjusted",
+        resourceType: "store_product",
+        resourceId: mapping.id,
+        before: { onHandQuantity: change.previousQuantity },
+        after: { onHandQuantity: change.newQuantity },
+        metadata: { productId },
       });
 
       const productNameInfo = await this.getProductName(productId, tx);
@@ -967,14 +1048,37 @@ class InventoryService {
     });
   }
 
-  async updateThreshold(storeId: number, productId: number, threshold: number) {
+  async updateThreshold(
+    storeId: number,
+    productId: number,
+    threshold: number,
+    actor: AuthPrincipal
+  ) {
     return await db.transaction(async (tx) => {
+      await this.authorization.requireStorePermission({
+        principal: actor,
+        storeId,
+        permission: "inventory.threshold.update",
+        tx,
+        lockMembership: true,
+      });
       const mapping = await this.lockSingleStoreProduct(storeId, productId, tx);
       const [updated] = await tx
         .update(storeProductsTable)
         .set({ lowStockThreshold: threshold, updatedAt: new Date() })
         .where(eq(storeProductsTable.id, mapping.id))
         .returning();
+      await this.audit.write({
+        tx,
+        actor,
+        storeId,
+        action: "inventory.threshold_updated",
+        resourceType: "store_product",
+        resourceId: mapping.id,
+        before: { lowStockThreshold: mapping.lowStockThreshold },
+        after: { lowStockThreshold: threshold },
+        metadata: { productId },
+      });
       return updated;
     });
   }

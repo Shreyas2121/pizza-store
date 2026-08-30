@@ -1,6 +1,6 @@
 import { Pizza } from "lucide-react";
 
-type AuthMode = "login" | "register";
+export type AuthMode = "login" | "register";
 
 export const AuthHeader = ({ mode, onChange }: { mode: AuthMode; onChange: (mode: AuthMode) => void }) => {
   return (

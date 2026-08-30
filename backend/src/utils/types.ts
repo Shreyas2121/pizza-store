@@ -15,11 +15,18 @@ import {
   customizationOptionsTable,
   storesTable,
   storeProductsTable,
+  storeMembershipsTable,
+  storeStaffInvitationsTable,
+  auditLogsTable,
 } from "../db/schema";
 import { NextFunction, Request, Response } from "express";
+import type { AuthPrincipal, PlatformRole } from "../features/auth/auth.types";
 
 export type AddressType = "Home" | "Work" | "Other";
-export type Role = "admin" | "user";
+export type Role = PlatformRole;
+export type StoreRole = "manager" | "operator" | "inventory_staff";
+export type StoreMembershipStatus = "active" | "suspended" | "revoked";
+export type AuditOutcome = "success" | "failure" | "denied";
 export type CustomizationType = "single" | "multiple";
 export type OrderStatus =
   | "awaiting_payment"
@@ -99,6 +106,14 @@ export type CustomizationGroup = typeof customizationGroupsTable.$inferSelect;
 
 export type CustomizationOption = typeof customizationOptionsTable.$inferSelect;
 
-export interface Auth extends Request {
-  user?: User;
+export type StoreMembership = typeof storeMembershipsTable.$inferSelect;
+
+export type StoreStaffInvitation = typeof storeStaffInvitationsTable.$inferSelect;
+
+export type AuditLog = typeof auditLogsTable.$inferSelect;
+
+export interface AuthenticatedRequest extends Request {
+  principal?: AuthPrincipal;
 }
+
+export type Auth = AuthenticatedRequest;

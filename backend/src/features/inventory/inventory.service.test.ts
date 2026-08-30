@@ -9,7 +9,12 @@ import type { TransactionType } from "../../utils/types";
 import { InventoryService } from "./inventory.service";
 
 describe("InventoryService unit tests", () => {
-  const service = new InventoryService();
+  const service = new InventoryService(undefined, { write: vi.fn() });
+  const inventoryActor = {
+    userId: 99,
+    email: "admin@example.com",
+    platformRole: "admin" as const,
+  };
 
   afterEach(() => {
     vi.restoreAllMocks();
@@ -458,6 +463,80 @@ describe("InventoryService unit tests", () => {
   });
 
   describe("bulkRestockProducts", () => {
+    it("re-authorizes inside the write transaction and attributes movement and audit actors", async () => {
+      const requireStorePermission = vi.fn().mockResolvedValue({ access: "membership" });
+      const write = vi.fn().mockResolvedValue(undefined);
+      const securedService = new InventoryService(
+        { requireStorePermission } as any,
+        { write }
+      );
+      const inserted: Array<{ table: unknown; values: unknown }> = [];
+      const mockTx = {
+        update: vi.fn(() => ({
+          set: vi.fn(() => ({ where: vi.fn().mockResolvedValue([]) })),
+        })),
+        insert: vi.fn((table: unknown) => ({
+          values: vi.fn((values: unknown) => {
+            inserted.push({ table, values });
+            return Promise.resolve();
+          }),
+        })),
+      } as unknown as TransactionType;
+      vi.spyOn(securedService, "lockStoreProducts").mockResolvedValue([
+        { id: 10, storeId: 1, productId: 1, onHandQuantity: 5 },
+      ] as any);
+      const actor = { userId: 77, email: "staff@example.com", platformRole: "user" as const };
+
+      await securedService.bulkRestockProducts(
+        1,
+        [{ productId: 1, quantityAdded: 2 }],
+        actor,
+        mockTx
+      );
+
+      expect(requireStorePermission).toHaveBeenCalledWith({
+        principal: actor,
+        storeId: 1,
+        permission: "inventory.restock",
+        tx: mockTx,
+        lockMembership: true,
+      });
+      expect(inserted[0].values).toEqual([
+        expect.objectContaining({ createdBy: 77 }),
+      ]);
+      expect(write).toHaveBeenCalledWith(expect.objectContaining({
+        tx: mockTx,
+        actor,
+        storeId: 1,
+        action: "inventory.bulk_restocked",
+        metadata: { productCount: 1 },
+      }));
+    });
+
+    it("propagates audit failures so the surrounding transaction can roll back", async () => {
+      const auditFailure = new Error("audit unavailable");
+      const securedService = new InventoryService(
+        { requireStorePermission: vi.fn().mockResolvedValue({}) } as any,
+        { write: vi.fn().mockRejectedValue(auditFailure) }
+      );
+      const mockTx = {
+        update: vi.fn(() => ({
+          set: vi.fn(() => ({ where: vi.fn().mockResolvedValue([]) })),
+        })),
+        insert: vi.fn(() => ({ values: vi.fn().mockResolvedValue(undefined) })),
+      } as unknown as TransactionType;
+      vi.spyOn(securedService, "lockStoreProducts").mockResolvedValue([
+        { id: 10, storeId: 1, productId: 1, onHandQuantity: 5 },
+      ] as any);
+
+      await expect(securedService.bulkRestockProducts(
+        1,
+        [{ productId: 1, quantityAdded: 2 }],
+        { userId: 77, email: "staff@example.com", platformRole: "user" },
+        mockTx
+      )).rejects.toBe(auditFailure);
+    });
+
     it("uses the shared lock helper and applies all prepared changes", async () => {
       const updates: Array<Record<string, unknown>> = [];
       const insertedMovements: unknown[] = [];
@@ -488,7 +567,7 @@ describe("InventoryService unit tests", () => {
           { productId: 2, quantityAdded: 4, reason: "Delivery" },
           { productId: 1, quantityAdded: 3 },
         ],
-        99,
+        inventoryActor,
         mockTx
       );
 
@@ -546,7 +625,7 @@ describe("InventoryService unit tests", () => {
             { productId: 1, quantityAdded: 2 },
             { productId: 2, quantityAdded: 2 },
           ],
-          99,
+          inventoryActor,
           mockTx
         )
       ).rejects.toMatchObject({
@@ -568,7 +647,7 @@ describe("InventoryService unit tests", () => {
             { productId: 1, quantityAdded: 1 },
             { productId: 1, quantityAdded: 2 },
           ],
-          99,
+          inventoryActor,
           mockTx
         )
       ).rejects.toMatchObject({ code: "DUPLICATE_PRODUCT_IDS" });
@@ -579,7 +658,7 @@ describe("InventoryService unit tests", () => {
             productId: index + 1,
             quantityAdded: 1,
           })),
-          99,
+          inventoryActor,
           mockTx
         )
       ).rejects.toMatchObject({ code: "BULK_RESTOCK_LIMIT_EXCEEDED" });

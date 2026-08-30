@@ -105,7 +105,7 @@ couponRoutes.post(
   validateBody(validateCouponSchema),
   asyncHandler(async (req: Auth, res) => {
     const { code } = req.body;
-    const total = await checkoutService.getCartSubtotalRupees(req.user!.id);
+    const total = await checkoutService.getCartSubtotalRupees(req.principal!.userId);
     const coupon = await couponService.validateCoupon({ code, total });
     res.json({ data: coupon });
   })

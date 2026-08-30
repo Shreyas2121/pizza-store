@@ -16,10 +16,14 @@ import { chatRoutes } from "./features/chat/chat.routes";
 import { storeRoutes } from "./features/stores/stores.routes";
 import { inventoryRoutes } from "./features/inventory/inventory.routes";
 import { systemMaintenanceRoutes } from "./features/system-maintenance/system-maintenance.routes";
+import { accessRoutes } from "./features/access/access.routes";
+import { staffInvitationRoutes, staffRoutes } from "./features/staff/staff.routes";
+import { globalAuditRoutes, storeAuditRoutes } from "./features/audit/audit.routes";
 
 export const mainRoutes = Router();
 
 mainRoutes.use("/user", userRoutes);
+mainRoutes.use("/access", accessRoutes);
 mainRoutes.use("/category", categoryRoutes);
 mainRoutes.use("/product", productRoutes);
 mainRoutes.use("/customize", customizationRoutes);
@@ -30,9 +34,13 @@ mainRoutes.use("/payments", paymentRoutes);
 mainRoutes.use("/coupon", couponRoutes);
 mainRoutes.use("/dashboard", dashRoutes);
 mainRoutes.use("/chat", chatRoutes);
+mainRoutes.use("/stores", staffRoutes);
+mainRoutes.use("/stores", storeAuditRoutes);
 mainRoutes.use("/stores", storeRoutes);
 mainRoutes.use("/store", storeRoutes);
 mainRoutes.use("/inventory", inventoryRoutes);
 mainRoutes.use("/admin/system", systemMaintenanceRoutes);
+mainRoutes.use("/audit", globalAuditRoutes);
+mainRoutes.use("/staff-invitations", staffInvitationRoutes);
 
 mainRoutes.use("/uploads", static_(path.resolve(__dirname, "../uploads")));

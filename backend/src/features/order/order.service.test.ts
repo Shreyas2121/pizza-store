@@ -1,19 +1,135 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { db } from "../../db";
 import { AppError } from "../../utils/error";
+import type { AuthPrincipal } from "../auth/auth.types";
+import { AuthorizationService } from "../access/access.service";
+import type { AccessRepository, MembershipAccessRecord } from "../access/access.types";
+import type { AuditWriter, WriteAuditInput } from "../audit/audit.types";
 import cartService from "../cart/cart.service";
 import checkoutService from "../checkout/checkout.service";
 import inventoryService from "../inventory/inventory.service";
 import paymentService from "../payments/payment.service";
-import orderService from "./order.service";
+import { OrderService } from "./order.service";
+
+const adminActor: AuthPrincipal = {
+  userId: 1,
+  email: "admin@example.com",
+  platformRole: "admin",
+  tokenVersion: 0,
+};
+
+const managerActor: AuthPrincipal = {
+  userId: 10,
+  email: "manager@example.com",
+  platformRole: "user",
+  tokenVersion: 0,
+};
+
+const operatorActor: AuthPrincipal = {
+  userId: 20,
+  email: "operator@example.com",
+  platformRole: "user",
+  tokenVersion: 0,
+};
+
+const inventoryActor: AuthPrincipal = {
+  userId: 30,
+  email: "inventory@example.com",
+  platformRole: "user",
+  tokenVersion: 0,
+};
+
+const store2ManagerActor: AuthPrincipal = {
+  userId: 40,
+  email: "store2manager@example.com",
+  platformRole: "user",
+  tokenVersion: 0,
+};
+
+const memberships: MembershipAccessRecord[] = [
+  {
+    membershipId: 101,
+    userId: 10,
+    storeId: 1,
+    role: "manager",
+    status: "active",
+    storeIsActive: true,
+    storeName: "Store 1",
+    storeSlug: "store-1",
+  },
+  {
+    membershipId: 102,
+    userId: 20,
+    storeId: 1,
+    role: "operator",
+    status: "active",
+    storeIsActive: true,
+    storeName: "Store 1",
+    storeSlug: "store-1",
+  },
+  {
+    membershipId: 103,
+    userId: 30,
+    storeId: 1,
+    role: "inventory_staff",
+    status: "active",
+    storeIsActive: true,
+    storeName: "Store 1",
+    storeSlug: "store-1",
+  },
+  {
+    membershipId: 104,
+    userId: 40,
+    storeId: 2,
+    role: "manager",
+    status: "active",
+    storeIsActive: true,
+    storeName: "Store 2",
+    storeSlug: "store-2",
+  },
+];
+
+const createTestHarness = () => {
+  const accessRepo: AccessRepository = {
+    findMembership: vi.fn(async ({ userId, storeId }) =>
+      memberships.find(
+        (m) => m.userId === userId && m.storeId === storeId
+      )
+    ),
+    listMemberships: vi.fn(async ({ userId }) =>
+      memberships.filter((m) => m.userId === userId)
+    ),
+  };
+
+  const authService = new AuthorizationService(accessRepo, { warn: vi.fn() });
+  const writtenAudits: WriteAuditInput[] = [];
+  const auditService: AuditWriter = {
+    write: vi.fn(async (input: WriteAuditInput) => {
+      writtenAudits.push(input);
+    }),
+  };
+
+  const orderService = new OrderService(authService, auditService);
+
+  return {
+    orderService,
+    authService,
+    auditService,
+    writtenAudits,
+    accessRepo,
+  };
+};
 
 describe("OrderService unit tests", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.restoreAllMocks();
   });
 
   describe("createOrder (COD)", () => {
     it("builds quote, creates payment & order, deducts COD stock atomically, and clears cart", async () => {
+      const { orderService } = createTestHarness();
+
       const mockQuote = {
         cart: { storeId: 1, items: [] },
         totalPaise: 50000,
@@ -64,6 +180,7 @@ describe("OrderService unit tests", () => {
 
       expect(result).toEqual({
         id: 42,
+        storeId: 1,
         paymentId: 100,
         totalPrice: 500,
         lowStockAlerts: expect.any(Array),
@@ -81,20 +198,243 @@ describe("OrderService unit tests", () => {
     });
   });
 
-  describe("updateOrderStatus", () => {
-    it("locks order row, validates state transition, and restores stock on cancellation", async () => {
+  describe("getAdminOrders", () => {
+    it("returns orders filtered by storeId and status", async () => {
+      const { orderService } = createTestHarness();
+
+      const mockOrders = [
+        { id: 1, storeId: 1, status: "pending", totalPrice: 300 },
+      ];
+
+      vi.spyOn(db.query.ordersTable, "findMany").mockResolvedValue(mockOrders as any);
+
+      const orders = await orderService.getAdminOrders({
+        status: "pending",
+        storeId: 1,
+      });
+
+      expect(orders).toEqual(mockOrders);
+    });
+
+    it("returns global orders when storeId is omitted for platform admin", async () => {
+      const { orderService } = createTestHarness();
+
+      const mockOrders = [
+        { id: 1, storeId: 1, status: "pending", totalPrice: 300 },
+        { id: 2, storeId: 2, status: "pending", totalPrice: 450 },
+      ];
+
+      vi.spyOn(db.query.ordersTable, "findMany").mockResolvedValue(mockOrders as any);
+
+      const orders = await orderService.getAdminOrders({
+        status: "pending",
+      });
+
+      expect(orders).toHaveLength(2);
+    });
+  });
+
+  describe("updateOrderStatus authorization & lifecycle", () => {
+    it("authorizes manager on assigned store, updates status, and writes audit log", async () => {
+      const { orderService, writtenAudits } = createTestHarness();
+
+      const orderInDb = {
+        id: 42,
+        storeId: 1,
+        userId: 7,
+        status: "pending",
+        paymentType: "razorpay",
+        paymentId: 100,
+        couponId: null,
+      };
+
+      const updatedOrder = {
+        ...orderInDb,
+        status: "preparing",
+      };
+
       const mockTx = {
         select: vi.fn(() => ({
           from: vi.fn(() => ({
             where: vi.fn(() => ({
               for: vi.fn(() => ({
-                limit: vi.fn().mockResolvedValue([
-                  {
-                    id: 42,
-                    status: "pending",
-                    couponId: null,
-                  },
-                ]),
+                limit: vi.fn().mockResolvedValue([orderInDb]),
+              })),
+            })),
+          })),
+        })),
+        update: vi.fn(() => ({
+          set: vi.fn(() => ({
+            where: vi.fn(() => ({
+              returning: vi.fn().mockResolvedValue([updatedOrder]),
+            })),
+          })),
+        })),
+      };
+
+      vi.spyOn(db, "transaction").mockImplementation(async (cb: any) =>
+        cb(mockTx as any)
+      );
+
+      const result = await orderService.updateOrderStatus(
+        42,
+        "preparing",
+        managerActor
+      );
+
+      expect(result.status).toBe("preparing");
+      expect(writtenAudits).toHaveLength(1);
+      expect(writtenAudits[0]).toMatchObject({
+        storeId: 1,
+        action: "order.status.updated",
+        resourceType: "order",
+        resourceId: 42,
+        before: { status: "pending" },
+        after: { status: "preparing" },
+      });
+    });
+
+    it("authorizes operator on assigned store", async () => {
+      const { orderService } = createTestHarness();
+
+      const orderInDb = {
+        id: 42,
+        storeId: 1,
+        userId: 7,
+        status: "pending",
+        paymentType: "razorpay",
+        paymentId: 100,
+        couponId: null,
+      };
+
+      const updatedOrder = {
+        ...orderInDb,
+        status: "preparing",
+      };
+
+      const mockTx = {
+        select: vi.fn(() => ({
+          from: vi.fn(() => ({
+            where: vi.fn(() => ({
+              for: vi.fn(() => ({
+                limit: vi.fn().mockResolvedValue([orderInDb]),
+              })),
+            })),
+          })),
+        })),
+        update: vi.fn(() => ({
+          set: vi.fn(() => ({
+            where: vi.fn(() => ({
+              returning: vi.fn().mockResolvedValue([updatedOrder]),
+            })),
+          })),
+        })),
+      };
+
+      vi.spyOn(db, "transaction").mockImplementation(async (cb: any) =>
+        cb(mockTx as any)
+      );
+
+      const result = await orderService.updateOrderStatus(
+        42,
+        "preparing",
+        operatorActor
+      );
+
+      expect(result.status).toBe("preparing");
+    });
+
+    it("denies inventory staff from updating order status", async () => {
+      const { orderService } = createTestHarness();
+
+      const orderInDb = {
+        id: 42,
+        storeId: 1,
+        userId: 7,
+        status: "pending",
+        paymentType: "cash",
+        paymentId: 100,
+        couponId: null,
+      };
+
+      const mockTx = {
+        select: vi.fn(() => ({
+          from: vi.fn(() => ({
+            where: vi.fn(() => ({
+              for: vi.fn(() => ({
+                limit: vi.fn().mockResolvedValue([orderInDb]),
+              })),
+            })),
+          })),
+        })),
+      };
+
+      vi.spyOn(db, "transaction").mockImplementation(async (cb: any) =>
+        cb(mockTx as any)
+      );
+
+      await expect(
+        orderService.updateOrderStatus(42, "preparing", inventoryActor)
+      ).rejects.toMatchObject({
+        status: 403,
+        code: "PERMISSION_DENIED",
+      });
+    });
+
+    it("denies manager from updating an order belonging to another store", async () => {
+      const { orderService } = createTestHarness();
+
+      // Order is for Store 1, but caller is manager of Store 2 only
+      const orderInDb = {
+        id: 42,
+        storeId: 1,
+        userId: 7,
+        status: "pending",
+        paymentType: "cash",
+        paymentId: 100,
+        couponId: null,
+      };
+
+      const mockTx = {
+        select: vi.fn(() => ({
+          from: vi.fn(() => ({
+            where: vi.fn(() => ({
+              for: vi.fn(() => ({
+                limit: vi.fn().mockResolvedValue([orderInDb]),
+              })),
+            })),
+          })),
+        })),
+      };
+
+      vi.spyOn(db, "transaction").mockImplementation(async (cb: any) =>
+        cb(mockTx as any)
+      );
+
+      await expect(
+        orderService.updateOrderStatus(42, "preparing", store2ManagerActor)
+      ).rejects.toMatchObject({
+        status: 403,
+        code: "PERMISSION_DENIED",
+      });
+    });
+
+    it("locks order row, validates state transition, and restores stock on cancellation", async () => {
+      const { orderService } = createTestHarness();
+
+      const orderInDb = {
+        id: 42,
+        storeId: 1,
+        status: "pending",
+        couponId: null,
+      };
+
+      const mockTx = {
+        select: vi.fn(() => ({
+          from: vi.fn(() => ({
+            where: vi.fn(() => ({
+              for: vi.fn(() => ({
+                limit: vi.fn().mockResolvedValue([orderInDb]),
               })),
             })),
           })),
@@ -120,16 +460,18 @@ describe("OrderService unit tests", () => {
         undefined as any
       );
 
-      const updated = await orderService.updateOrderStatus(42, "cancelled", 99);
+      const updated = await orderService.updateOrderStatus(42, "cancelled", adminActor);
 
       expect(updated.status).toBe("cancelled");
       expect(inventoryService.restoreStockForOrder).toHaveBeenCalledWith(
-        { orderId: 42, createdBy: 99 },
+        { orderId: 42, createdBy: adminActor.userId },
         mockTx
       );
     });
 
     it("treats duplicate status update as a no-op", async () => {
+      const { orderService } = createTestHarness();
+
       const mockTx = {
         select: vi.fn(() => ({
           from: vi.fn(() => ({
@@ -138,6 +480,7 @@ describe("OrderService unit tests", () => {
                 limit: vi.fn().mockResolvedValue([
                   {
                     id: 42,
+                    storeId: 1,
                     status: "cancelled",
                   },
                 ]),
@@ -154,13 +497,15 @@ describe("OrderService unit tests", () => {
         .spyOn(inventoryService, "restoreStockForOrder")
         .mockResolvedValue(undefined as any);
 
-      const result = await orderService.updateOrderStatus(42, "cancelled");
+      const result = await orderService.updateOrderStatus(42, "cancelled", adminActor);
 
-      expect(result).toEqual({ id: 42, status: "cancelled" });
+      expect(result).toEqual({ id: 42, storeId: 1, status: "cancelled" });
       expect(restoreSpy).not.toHaveBeenCalled();
     });
 
     it("marks the linked COD payment completed when the order is delivered", async () => {
+      const { orderService } = createTestHarness();
+
       const set = vi.fn((values: Record<string, unknown>) => ({
         where: vi.fn(() => ({
           returning: vi.fn().mockResolvedValue(
@@ -178,6 +523,7 @@ describe("OrderService unit tests", () => {
                 limit: vi.fn().mockResolvedValue([
                   {
                     id: 42,
+                    storeId: 1,
                     status: "preparing",
                     paymentType: "cash",
                     paymentId: 100,
@@ -195,7 +541,7 @@ describe("OrderService unit tests", () => {
         cb(mockTx as any)
       );
 
-      const updated = await orderService.updateOrderStatus(42, "delievered", 99);
+      const updated = await orderService.updateOrderStatus(42, "delievered", adminActor);
 
       expect(updated.status).toBe("delievered");
       expect(set).toHaveBeenCalledWith(
@@ -211,6 +557,8 @@ describe("OrderService unit tests", () => {
     });
 
     it("does not complete an online payment when its order is delivered", async () => {
+      const { orderService } = createTestHarness();
+
       const set = vi.fn(() => ({
         where: vi.fn(() => ({
           returning: vi.fn().mockResolvedValue([
@@ -226,6 +574,7 @@ describe("OrderService unit tests", () => {
                 limit: vi.fn().mockResolvedValue([
                   {
                     id: 42,
+                    storeId: 1,
                     status: "preparing",
                     paymentType: "razorpay",
                     paymentId: 100,
@@ -243,7 +592,7 @@ describe("OrderService unit tests", () => {
         cb(mockTx as any)
       );
 
-      await orderService.updateOrderStatus(42, "delievered", 99);
+      await orderService.updateOrderStatus(42, "delievered", adminActor);
 
       expect(mockTx.update).toHaveBeenCalledTimes(1);
       expect(set).not.toHaveBeenCalledWith(
@@ -252,6 +601,8 @@ describe("OrderService unit tests", () => {
     });
 
     it("rejects illegal state transition", async () => {
+      const { orderService } = createTestHarness();
+
       const mockTx = {
         select: vi.fn(() => ({
           from: vi.fn(() => ({
@@ -260,6 +611,7 @@ describe("OrderService unit tests", () => {
                 limit: vi.fn().mockResolvedValue([
                   {
                     id: 42,
+                    storeId: 1,
                     status: "delievered",
                   },
                 ]),
@@ -274,7 +626,7 @@ describe("OrderService unit tests", () => {
       );
 
       await expect(
-        orderService.updateOrderStatus(42, "cancelled")
+        orderService.updateOrderStatus(42, "cancelled", adminActor)
       ).rejects.toThrowError(
         expect.objectContaining({
           code: "INVALID_ORDER_STATUS_TRANSITION",

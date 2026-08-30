@@ -106,7 +106,12 @@ pnpm run seed:addresses
 
 # Seed sample orders with items and customizations
 pnpm run seed:orders
+
+# Optionally assign existing users as development store staff
+pnpm run seed:staff -- --actor=admin@pizzastore.com --store=mumbai-central --member=manager:manager@example.com
 ```
+
+The staff seed is development-only, creates no accounts or passwords, and requires existing users and stores. See the [store staff authorization runbook](./store-staff-authorization.md) for all arguments, role rules, migration preflight, and deployment order.
 
 ### Start the development server
 
@@ -224,6 +229,7 @@ For step-by-step credential creation during development, see the
 | `seed:users` | `tsx src/scripts/users.ts` | Seed user accounts |
 | `seed:addresses` | `tsx src/scripts/address.ts` | Seed delivery addresses |
 | `seed:orders` | `tsx src/scripts/order.ts` | Seed sample orders |
+| `seed:staff` | `ts-node src/scripts/staff.ts` | Idempotently assign existing users to a store in development only |
 
 ### Frontend (`frontend/package.json`)
 
