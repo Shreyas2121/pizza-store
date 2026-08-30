@@ -32,11 +32,15 @@ const AdminSystem = lazy(() => import("@/features/system-maintenance").then((m) 
 const AdminStores = lazy(() => import("@/features/store").then((m) => ({ default: m.AdminStoresPage })));
 const AdminStoreProducts = lazy(() => import("@/features/store").then((m) => ({ default: m.AdminStoreProductsPage })));
 const AdminStoreDeliveryZones = lazy(() => import("@/features/store").then((m) => ({ default: m.AdminStoreDeliveryZonesPage })));
+const AdminStaff = lazy(() => import("@/features/staff").then((m) => ({ default: m.AdminStaffPage })));
+const AcceptStaffInvitation = lazy(() => import("@/features/staff").then((m) => ({ default: m.AcceptStaffInvitationPage })));
+const AdminAudit = lazy(() => import("@/features/audit").then((m) => ({ default: m.AdminAuditPage })));
 
 export const AppRoutes = () => (
   <>
     <Route element={<MainLayout />}>
       <Route path="/" element={<Home />} />
+      <Route path="/staff-invitations/accept" element={<AcceptStaffInvitation />} />
       <Route
         path="/cart"
         element={
@@ -136,6 +140,22 @@ export const AppRoutes = () => (
       <Route path="/admin/stores" element={<AdminStores />} />
       <Route path="/admin/stores/:id/products" element={<AdminStoreProducts />} />
       <Route path="/admin/stores/:id/delivery-zones" element={<AdminStoreDeliveryZones />} />
+      <Route
+        path="/admin/staff"
+        element={
+          <StaffProtectedRoute requiredPermission="store.staff.read">
+            <AdminStaff />
+          </StaffProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/audit"
+        element={
+          <StaffProtectedRoute requiredPermission="store.audit.read">
+            <AdminAudit />
+          </StaffProtectedRoute>
+        }
+      />
       <Route
         path="/admin/order/:id"
         element={

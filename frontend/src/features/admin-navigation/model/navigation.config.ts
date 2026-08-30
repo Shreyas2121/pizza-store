@@ -8,6 +8,8 @@ import {
   ShieldAlert,
   Sliders,
   Store,
+  ScrollText,
+  Users,
 } from "lucide-react";
 
 export interface SidebarLinkConfig {
@@ -52,6 +54,18 @@ export const sidebarLinks: SidebarLinkConfig[] = [
     to: "/admin/orders",
     icon: ShoppingCart,
     requiredPermission: "orders.read",
+  },
+  {
+    label: "Staff",
+    to: "/admin/staff",
+    icon: Users,
+    requiredPermission: "store.staff.read",
+  },
+  {
+    label: "Audit",
+    to: "/admin/audit",
+    icon: ScrollText,
+    requiredPermission: "store.audit.read",
   },
   {
     label: "Menu",

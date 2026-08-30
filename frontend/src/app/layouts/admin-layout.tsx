@@ -25,6 +25,8 @@ const pageNames: Record<string, string> = {
   "/admin/inventory": "Inventory",
   "/admin/system": "System maintenance",
   "/admin/support": "Support queue",
+  "/admin/staff": "Store staff",
+  "/admin/audit": "Audit history",
 };
 
 export const AdminLayout = () => {
@@ -50,6 +52,8 @@ export const AdminLayout = () => {
     queryClient.invalidateQueries({ queryKey: ["order-adminAll"] });
     queryClient.invalidateQueries({ queryKey: ["inventory"] });
     queryClient.invalidateQueries({ queryKey: ["stores"] });
+    queryClient.invalidateQueries({ queryKey: ["staff"] });
+    queryClient.invalidateQueries({ queryKey: ["audit"] });
   };
 
   const title = useMemo(
