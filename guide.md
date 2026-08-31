@@ -8,6 +8,8 @@
 
 > Testing decision (31 August 2026): automated tests are backend-only. Frontend changes require lint, TypeScript/Vite build, and documented manual acceptance checks; do not add a frontend test framework unless the user later changes this decision.
 
+> Data decision (31 August 2026): this portfolio supports fresh databases only. Existing local/demo rows are disposable; implement reproducible schema migrations and deterministic seeds, but do not build backfills, dual stored-data paths, or production upgrade support.
+
 ## 1. Purpose and authority
 
 This guide converts `plan.md` into an execution sequence. It does not replace the plan’s business definitions, accounting policy, data model, acceptance criteria, or confirmed product decisions.
@@ -51,10 +53,10 @@ docs(finance): add overhaul plan and implementation guide
 
 ### 2.2 Commit rules
 
-- One commit must represent one coherent, reviewable behavior or one backward-compatible schema expansion.
+- One commit must represent one coherent, reviewable behavior or one schema change that leaves a fresh installation runnable.
 - Do not implement an entire phase in one commit.
 - Do not mix unrelated cleanup, formatting, dependency upgrades, or UI redesign into finance commits.
-- Schema and its generated migration belong in the same commit. A data backfill may be a separate commit/migration.
+- Schema and its generated migration belong in the same commit. This project does not preserve existing database rows; update deterministic seed/reset behavior instead of adding data backfills.
 - Tests for behavior belong in the same commit as the behavior.
 - Documentation/API-reference changes belong with the contract they describe, plus a final consolidation pass.
 - Never commit failing tests, type errors, generated junk, secrets, local `.env` files, database dumps, payment payloads, or private receipt/payroll data.
@@ -214,24 +216,24 @@ There is intentionally no frontend `test` or `test:e2e` requirement. For every c
 ### 6.2 Gate levels
 
 - **Commit gate:** backend changes require relevant backend tests and typecheck; frontend changes require lint/build and recorded manual acceptance checks.
-- **Schema/migration gate:** clean database forward migration, constraint/backfill verification, backend full tests/typecheck/build.
+- **Schema/migration gate:** create an empty database through the complete migration chain, verify constraints and deterministic seed/reset, then run backend full tests/typecheck/build.
 - **Phase gate:** backend full suite/typecheck/build; frontend lint/build plus documented manual UI checks; deterministic finance fixture reconciliation; docs updated.
-- **Release gate:** fresh clone/install, database migration from baseline and current schema, seed/demo reset, all backend tests, documented end-to-end manual demo scenarios, and no open critical reconciliation mismatch.
+- **Release gate:** fresh clone/install, empty-database migration through head, deterministic seed/demo reset, all backend tests, documented end-to-end manual demo scenarios, and no open critical reconciliation mismatch.
 
 If an unrelated pre-existing test fails, verify it on the parent commit and report it. Do not hide, delete, skip, or weaken the test.
 
 ## 7. Migration rules
 
-- Use expand -> dual write -> backfill -> verify -> switch reads -> observe -> contract.
+- **Fresh-database policy:** existing local/demo rows are disposable. Finance implementation does not preserve, convert, backfill, or verify pre-overhaul data.
+- Migrations are still required: a fresh clone must create the complete schema deterministically from an empty PostgreSQL database. “No data migration” does not mean `db:push` or undocumented manual SQL.
 - Never use `db:push` as the committed migration strategy.
 - Update Drizzle schemas, run `pnpm run db:generate`, and inspect SQL/snapshots/journal.
-- Do not hand-edit generated snapshots casually. If generated SQL needs a data migration/check, use a reviewed custom SQL migration pattern consistent with existing migrations.
+- Do not hand-edit generated snapshots casually. If generated SQL needs a schema constraint/check, use a reviewed custom SQL migration pattern consistent with existing migrations.
 - Never change an already committed/applied migration. Add a new migration.
-- Each destructive contract migration must be a later commit after new reads are proven.
-- Backfills must be deterministic, idempotent where practical, and report unmatched/ambiguous legacy rows.
-- Never derive historical order prices from today’s catalog.
-- Provide forward recovery; do not promise rollback when a data transformation cannot be safely reversed.
-- Because this is a deterministic demo, test both migration from the current database shape and fresh migration from baseline.
+- Direct destructive schema cutovers are allowed when their target code, schema, reset instructions, and seed data land coherently. Never delete source files or rewrite Git history as part of a database reset.
+- Do not add dual writes, legacy-data adapters, discrepancy reports, backup/restore work, or rollback code solely to preserve disposable rows.
+- Preserve API compatibility only where the guide explicitly requires it; API contracts and stored-data migration are separate concerns.
+- Test one supported path: empty database -> complete migration chain -> deterministic seed -> application validation.
 
 ## 8. Commit sequence overview
 
@@ -242,7 +244,7 @@ Do not skip phase gates. Commits may be split further if a diff becomes large; d
 | Bootstrap | B01 | Planning documents and branch foundation |
 | Immediate fix | Q01 | Truthful current GOV dashboard |
 | Phase 0 | P0.1-P0.6 | Decisions, fixtures, contracts, authorization, characterization |
-| Phase 1 | P1.1-P1.10 | Exact authoritative order pricing |
+| Phase 1 | P1.1-P1.9 | Exact authoritative order pricing |
 | Phase 2 | P2.1-P2.10 | Attempts, refunds, simulator, settlement reconciliation |
 | Phase 3 | P3.1-P3.9 | Outbox contracts, costs, COD cash, expenses |
 | Phase 4 | P4.1-P4.9 | Balanced ledger, posting, periods, trial balance |
@@ -315,7 +317,7 @@ Document:
 - New `/api/v1/finance/*` contracts
 - Coupon preview/final checkout consolidation
 - Existing order/payment endpoint compatibility
-- Feature flags, dual reads/writes, deprecation policy, and stable error codes
+- Frontend/API feature flags, compatibility adapters, deprecation policy, and stable error codes; no stored-data dual reads/writes
 - Final finance/payroll role-permission matrix and actor-level segregation rules
 
 ### P0.4 — `test(payments): characterize reconciliation behavior`
@@ -378,34 +380,34 @@ Scope:
 - Add stable quote DTO/version and parity tests.
 - Keep old endpoint response compatibility through adapters.
 
-### P1.3 — `feat(finance): expand order money schema`
+### P1.3 — `feat(finance): add exact order money schema`
 
 Scope:
 
-- Add nullable paise/currency/pricing-version/recognition timestamp columns to orders.
+- Add paise/currency/pricing-version/recognition timestamp columns to orders. Columns may be temporarily nullable only when needed to keep this individual commit runnable before the code cutover.
 - Add order-line/customization snapshot columns from the plan.
-- Add checks that are valid before backfill; defer `NOT NULL` until verified.
+- Add final-value checks that are valid for newly written rows.
 - Generate and review migration.
 
-No read cutover in this commit.
+No legacy-row conversion or read cutover in this commit.
 
-### P1.4 — `feat(finance): dual-write exact order snapshots`
+### P1.4 — `feat(finance): cut orders over to exact snapshots`
 
 Scope:
 
-- Make `createOrderSnapshot` write paise columns directly from the quote.
-- Continue legacy rupee writes temporarily from the same source for compatibility.
+- Make `createOrderSnapshot` write paise columns directly from the quote and switch order/customer/admin reads through exact DTO mappers.
+- Keep existing API response compatibility through presentation adapters where required, not legacy database writes.
 - Never use `paiseToRupees` as the authoritative stored path.
 - Add customized, discounted, zero-total, and boundary tests.
 
-### P1.5 — `chore(finance): backfill and verify order paise`
+### P1.5 — `refactor(finance): remove legacy order money fields`
 
 Scope:
 
-- Backfill legacy order/item/customization values deterministically.
-- Produce verification queries/report for legacy-vs-new discrepancies.
-- Mark unknown legacy tax/delivery/cost honestly; do not invent values.
-- Test migration from a representative pre-finance database fixture.
+- Make final paise/snapshot columns required.
+- Remove unused floating-point order/item/customization columns and code paths directly.
+- Update reset/seed fixtures and schema/API documentation.
+- Test the complete migration chain and deterministic seed from an empty database.
 
 ### P1.6 — `feat(delivery): add store-scoped effective pricing`
 
@@ -414,7 +416,7 @@ Scope:
 - Replace the global delivery-price singleton with store-scoped effective-dated rules.
 - Include delivery fee in server quote and persisted order snapshot.
 - Define rule selection, minimum/free-delivery behavior if needed, overlap constraints, and seed data.
-- Keep a compatibility read for legacy global config until cutover.
+- Remove the legacy global configuration in the same fresh-only schema/code cutover; do not add a compatibility read for stored rows.
 
 ### P1.7 — `feat(tax): add tax-inclusive demo rules`
 
@@ -440,28 +442,17 @@ Scope:
 
 Scope:
 
-- Expand acceptance to `delievered`, `delivered`, and `out_for_delivery`.
-- Normalize API output, write only canonical values, backfill legacy rows, then tighten checks.
-- Temporarily preserve `preparing -> delivered`; make current UI use `preparing -> out_for_delivery -> delivered`.
+- Replace misspelled `delievered` with canonical `delivered` and add `out_for_delivery` across TypeScript, Zod, database checks, seeds, API DTOs, and frontend types.
+- Use `preparing -> out_for_delivery -> delivered`; do not retain legacy spelling or direct-transition compatibility for disposable rows/clients.
 - Fire collection/recognition events only once at `delivered`.
-- Add transition, migration, compatibility, COD, and idempotency tests.
-
-### P1.10 — `refactor(finance): switch reads to exact order amounts`
-
-Scope:
-
-- Switch order/customer/admin reads to paise snapshots through DTO mappers.
-- Add dual-read mismatch instrumentation before removing legacy reads.
-- Make new paise columns required where backfill proved safe.
-- Keep physical removal of legacy floating columns for a later contract migration after all consumers are verified.
-- Update schema/API docs.
+- Add transition, fresh-migration, COD, and idempotency tests.
 
 Phase 1 gate:
 
 - No authoritative calculation/persistence uses float rupees.
 - Preview equals final checkout under all fixtures.
 - Delivery/tax/discount allocations reconcile exactly.
-- Fresh and upgrade migrations pass.
+- Empty-database migration through head and deterministic seed pass.
 - Backend suite/typecheck/build and frontend lint/build pass; affected checkout/order screens have documented manual verification.
 
 ## 12. Phase 2 — payment attempts, refunds, and settlements
@@ -475,7 +466,7 @@ Split behind P0.4 characterization tests into focused verification, finalization
 Scope:
 
 - Add order-to-many payment-attempt schema and relations.
-- Preserve existing payment IDs/provider references through migration.
+- Replace the one-payment shape directly for the fresh database while preserving public endpoint behavior through adapters where required.
 - Add indexes/unique keys/checks and compatibility repository adapters.
 - Do not remove `orders.paymentId` until all consumers move.
 
@@ -828,7 +819,7 @@ After each commit, provide this exact information to the next agent/user:
 Commit: <hash or proposed commit title>
 Objective: <one sentence>
 Changed: <key files/modules and behavior>
-Schema/migration: <migration name, forward/backfill/contract behavior, or none>
+Schema/migration: <migration name and fresh-schema/reset behavior, or none>
 Invariants verified: <list>
 Tests run: <exact commands and results>
 Not run: <commands and reason>
@@ -844,13 +835,13 @@ Do not say “all tests pass” without listing commands. Do not call a phase co
 
 Pause implementation and inform the user before proceeding when:
 
-- The current schema/data makes a planned backfill ambiguous or destructive.
+- A migration cannot create the intended schema deterministically from an empty database.
 - A requested change would alter money representation, rounding, recognition timing, tax mode, owner-vs-marketplace model, or ledger posting policy.
 - A new dependency or infrastructure service materially changes setup/deployment.
 - Existing authorization cannot express a required privacy boundary without redesign.
 - Lock ordering or concurrent workflows create a deadlock/data-loss risk not covered by the plan.
 - A provider/API behavior contradicts the planned state machine.
-- A migration would rewrite historical financial meaning rather than preserve it.
+- A proposed shortcut would bypass committed migrations or make reset/seed nondeterministic.
 - A phase gate exposes unexplained reconciliation or trial-balance differences.
 - Completing the commit requires deleting user work, rewriting git history, using live payment credentials, or making external changes not explicitly authorized.
 
@@ -868,7 +859,7 @@ Routine implementation details that preserve approved behavior do not require pe
 
 - Active implementation branch is `feature/financial-overhaul`.
 - Working tree contains no accidental files or secrets.
-- All migrations apply from current pre-finance database and clean baseline.
+- All migrations apply through head on an empty database, followed by deterministic seed/reset.
 - All backend tests/typecheck/build pass.
 - Frontend lint/build pass and all required manual UI/demo scenarios are recorded as passed.
 - Deterministic demo works without network or payment credentials.

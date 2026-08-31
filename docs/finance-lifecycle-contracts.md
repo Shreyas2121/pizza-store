@@ -10,7 +10,7 @@ This document defines target contracts for P1-P6. It does not claim they are imp
 
 Today, orders use `awaiting_payment`, `pending`, `preparing`, misspelled `delievered`, and `cancelled`; `preparing` goes directly to `delievered`. Payments are one-per-order with `pending`, `processing`, `completed`, `failed`, and `refunded`. Refund, settlement, cash-session, expense, pay-run, outbox, fiscal-period, and journal aggregates do not exist yet.
 
-Later commits must use migrations and compatibility adapters described in `guide.md`; they must not make documentation true by pretending the planned schema already exists.
+Later commits must use reviewed schema migrations and the fresh-database reset/seed policy described in `guide.md`. They must not make documentation true by pretending the planned schema already exists. Existing API response adapters may remain where explicitly required, but no stored rows need conversion or compatibility handling.
 
 ## State-machine rules
 
@@ -31,7 +31,6 @@ stateDiagram-v2
     pending --> preparing
     pending --> cancelled
     preparing --> out_for_delivery
-    preparing --> delivered: temporary migration compatibility
     preparing --> cancelled
     out_for_delivery --> delivered
     out_for_delivery --> cancelled: fulfilment policy permits
@@ -39,7 +38,7 @@ stateDiagram-v2
     cancelled --> [*]
 ```
 
-Only canonical `delivered` emits recognition. The legacy `delievered` spelling is accepted only during P1.9 migration, normalized on reads, and never written afterward. A post-delivery monetary correction uses a refund or recognition-reversal event; it does not change the order back to `cancelled`.
+Only canonical `delivered` emits recognition. P1.9 removes the legacy `delievered` spelling directly and recreates the disposable database; it is neither accepted nor normalized afterward. A post-delivery monetary correction uses a refund or recognition-reversal event; it does not change the order back to `cancelled`.
 
 ### Payment attempt
 

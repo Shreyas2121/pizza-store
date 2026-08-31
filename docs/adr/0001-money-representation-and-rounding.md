@@ -45,7 +45,7 @@ Rejected because input order can change across database queries or clients. Stab
 - Services must use checked money primitives rather than ordinary arithmetic scattered across modules.
 - Aggregate DTOs deliberately differ from bounded transaction DTOs: aggregate paise values are strings.
 - Callers must parse aggregate strings with `BigInt` or a decimal-string-aware presentation helper.
-- Migration from legacy rupee floats requires deterministic rounding and discrepancy reporting; historical values cannot be reconstructed from today's catalogue.
+- Under the fresh-database policy, legacy rupee-float rows are discarded and deterministically reseeded; no historical conversion or discrepancy report is required.
 - Supporting another currency or materially larger transactions requires a new decision about minor units, persistence type, parsing, and serialization.
 
 ## Examples

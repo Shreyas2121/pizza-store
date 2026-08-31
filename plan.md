@@ -648,8 +648,7 @@ Exit criteria:
 Deliverables:
 
 - New shared money primitives and boundary serializers
-- Add paise columns alongside legacy rupee columns
-- Backfill using deterministic rounding; generate a migration discrepancy report
+- Add final paise/snapshot columns and cut code over without preserving disposable pre-overhaul rows
 - Persist full order/item/customization pricing snapshots
 - Change `createOrderSnapshot` to persist `subtotalPaise`, `discountPaise`, and `grandTotalPaise` directly; rupee conversion is presentation-only
 - Replace both coupon-validation paths with one shared paise-based policy used by preview and checkout
@@ -658,8 +657,8 @@ Deliverables:
 - Add effective-dated demo tax rules and persist inclusive-tax breakdown snapshots
 - Central server quote endpoint used by checkout UI
 - Remove checkout/cart client-side discount and total calculation; render the versioned server quote
-- Migrate order status `delievered` to `delivered` and introduce `out_for_delivery` as described in Section 10
-- Dual-read comparison instrumentation, then cut reads to paise columns
+- Replace order status `delievered` with `delivered` and introduce `out_for_delivery` as described in Section 10
+- Remove legacy floating-point columns and reads after the exact-code cutover
 
 Exit criteria:
 
@@ -668,7 +667,7 @@ Exit criteria:
 - Coupon preview and final checkout use the same policy and return the same result.
 - Order totals satisfy database/application invariants for normal, customized, discounted, and zero-total cases.
 - Inclusive tax, discount allocation, and rounding fixtures reconcile exactly to the stored order total.
-- Legacy backfill variance is zero or documented per row.
+- Empty-database migration through head and deterministic seed reproduce the expected fixtures.
 
 ### Phase 2 — Payment attempts, refunds, and settlements
 
@@ -779,27 +778,22 @@ CBIC Rule 46 guidance includes invoice particulars such as supplier/recipient de
 
 ## 10. Migration and rollout strategy
 
-Use an expand/backfill/verify/switch/contract sequence; do not replace all money fields in one migration.
+This portfolio supports fresh databases only. Existing local/demo data is disposable and will be reset rather than migrated.
 
-1. **Expand**: add nullable paise/snapshot columns and new tables without changing old reads.
-2. **Dual write**: write legacy and new columns temporarily from one calculation path.
-3. **Backfill**: convert historical values in bounded batches; record source value, result, and discrepancy.
-4. **Verify**: compare order totals, payment amounts, item sums, discounts, and dashboard aggregates.
-5. **Switch**: enable new reads behind a feature flag by environment/store.
-6. **Observe**: monitor mismatches, posting lag, unbalanced attempts, webhook failures, and reconciliation issues.
-7. **Contract**: make new columns non-null, remove dual writes, then remove legacy floating columns in a later release.
+1. **Model**: update Drizzle schema with final constraints and generate a reviewed migration.
+2. **Cut over code**: switch authoritative writes and reads to the new contract without legacy stored-data adapters.
+3. **Remove legacy shape**: drop unused columns/tables and compatibility code as soon as the staged commits remain runnable.
+4. **Recreate**: apply the complete committed migration chain to an empty PostgreSQL database.
+5. **Seed**: load deterministic demo fixtures using only the final schema and policies.
+6. **Verify**: reconcile order totals, payments, refunds, settlements, cash, ledger, and reports against expected fixtures.
 
-Specific compatibility decisions:
+Schema migrations remain mandatory for reproducible setup; `db:push` and undocumented manual schema edits remain prohibited. Already committed migrations are not rewritten. The supported recovery path is to recreate and reseed the database, not restore or transform pre-overhaul rows.
 
-- Do not rewrite historical orders from current catalog prices.
-- Backfill missing subtotal as `legacy total + legacy discount` only when that is provably the old formula; mark tax/delivery/cost as unknown rather than inventing precision.
-- Preserve the existing payment and webhook IDs during payment-table evolution.
-- Support the misspelled `delievered` value during rollout, migrate it to `delivered`, then remove compatibility code.
-- Create a database backup/restore rehearsal and a down/forward recovery runbook before destructive column removal.
+API compatibility is a separate concern. Existing public endpoints may retain adapters during the UI rollout, but they must read final authoritative fields and must not cause dual database writes.
 
 ### 10.1 Order-status migration
 
-Treat status cleanup as an explicit migration because delivery is the revenue/COGS recognition trigger.
+Treat status cleanup as an explicit schema/code cutover because delivery is the revenue/COGS recognition trigger. No legacy rows or clients need compatibility.
 
 Target flow:
 
@@ -809,15 +803,12 @@ awaiting_payment -> pending -> preparing -> out_for_delivery -> delivered
           +-------------+-----------+---------------+-> cancelled (subject to fulfilment policy)
 ```
 
-Rollout:
+Cutover:
 
-1. Expand TypeScript/Zod/database checks to accept legacy `delievered`, canonical `delivered`, and `out_for_delivery`.
-2. Make API responses normalize legacy rows to `delivered` while writes use only canonical values.
-3. Backfill historical `delievered` rows in one explicit migration and verify counts before/after.
-4. Temporarily allow `preparing -> delivered` for in-flight compatibility, but make the UI use `preparing -> out_for_delivery -> delivered`.
-5. Record COD collection and revenue/COGS only on `delivered`, never on `out_for_delivery`.
-6. Remove legacy spelling and direct-transition compatibility after old clients/data are gone.
-7. Test every allowed/denied transition and confirm financial events fire once at the canonical delivery boundary.
+1. Replace `delievered` with canonical `delivered` and add `out_for_delivery` across TypeScript, Zod, database checks, seeds, API DTOs, and frontend types in one coherent commit.
+2. Use `preparing -> out_for_delivery -> delivered`; do not retain the misspelled value or direct-transition compatibility.
+3. Record COD collection and revenue/COGS only on `delivered`, never on `out_for_delivery`.
+4. Recreate and seed an empty database, test every allowed/denied transition, and confirm financial events fire once at the canonical delivery boundary.
 
 ## 11. Testing strategy
 
@@ -1002,6 +993,9 @@ These decisions are based on the project owner's answers and now define the impl
 
 10. **Delivery priority: production-style depth.**  
     Complete the reliable core through Phase 5 before payroll-lite. Forecasting, AI insights, recipe inventory, and statutory integrations remain outside the initial portfolio release until exact-money, ledger, authorization, and reconciliation tests pass.
+
+11. **Data lifecycle: fresh database only.**
+    Existing local/demo rows are disposable. Keep committed Drizzle migrations and deterministic seeds so a fresh clone can build the database from zero, but do not spend implementation effort on backfills, stored-data dual writes, backup/restore, or production upgrade compatibility. Public API compatibility remains a separate decision.
 
 ### Resulting demo persona and story
 
