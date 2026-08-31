@@ -1,4 +1,4 @@
-import type { StoreAccessSummary, UserAccessResponse } from "./access.types";
+import type { ActiveAccessRole, StoreAccessSummary, UserAccessResponse } from "./access.types";
 
 export const isPlatformAdmin = (access?: UserAccessResponse | null): boolean => {
   return access?.platformRole === "admin";
@@ -29,7 +29,7 @@ export const getAccessibleStores = (
 export const getActiveMembershipRole = (
   access: UserAccessResponse | null | undefined,
   storeId: number | null | undefined
-): "manager" | "operator" | "inventory_staff" | "admin" | null => {
+): ActiveAccessRole | null => {
   if (!access) return null;
   if (access.platformRole === "admin") return "admin";
   if (!storeId) return null;

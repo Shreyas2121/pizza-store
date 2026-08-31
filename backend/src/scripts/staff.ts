@@ -8,7 +8,7 @@ import {
 import auditService from "../features/audit/audit.service";
 import { isStoreRole } from "../features/access/access.permissions";
 import type { AuthPrincipal } from "../features/auth/auth.types";
-import type { StoreRole } from "../utils/types";
+import { STORE_ROLES, type StoreRole } from "../utils/types";
 import { env } from "../utils/zodSchema";
 
 export interface StaffSeedAssignment {
@@ -60,7 +60,9 @@ export const parseStaffSeedArgs = (args: string[]): StaffSeedConfig => {
       const separator = value.indexOf(":");
       const role = value.slice(0, separator);
       if (separator <= 0 || !isStoreRole(role)) {
-        throw new Error("--member must use manager|operator|inventory_staff:<email>.");
+        throw new Error(
+          `--member must use ${STORE_ROLES.join("|")}:<email>.`
+        );
       }
       assignments.push({
         role,

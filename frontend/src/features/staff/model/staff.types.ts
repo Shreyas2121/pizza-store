@@ -1,4 +1,6 @@
-export type StaffRole = "manager" | "operator" | "inventory_staff";
+import type { StoreRole } from "../../access/model/access.types";
+
+export type StaffRole = StoreRole;
 export type StaffStatus = "active" | "suspended" | "revoked";
 
 export interface StaffMember {

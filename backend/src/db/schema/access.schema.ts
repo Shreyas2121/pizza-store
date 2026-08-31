@@ -64,7 +64,7 @@ export const storeMembershipsTable = pgTable(
     ),
     check(
       "store_memberships_role_valid",
-      sql`${table.role} in ('manager', 'operator', 'inventory_staff')`
+      sql`${table.role} in ('manager', 'finance_manager', 'payroll_manager', 'operator', 'inventory_staff')`
     ),
     check(
       "store_memberships_status_valid",
@@ -104,7 +104,7 @@ export const storeStaffInvitationsTable = pgTable(
       .where(sql`${table.acceptedAt} is null and ${table.revokedAt} is null`),
     check(
       "store_staff_invitations_role_valid",
-      sql`${table.role} in ('manager', 'operator', 'inventory_staff')`
+      sql`${table.role} in ('manager', 'finance_manager', 'payroll_manager', 'operator', 'inventory_staff')`
     ),
     check(
       "store_staff_invitations_token_hash_format",

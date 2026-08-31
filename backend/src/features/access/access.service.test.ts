@@ -76,13 +76,13 @@ describe("AuthorizationService", () => {
       service.requireStorePermission({
         principal: principal("admin"),
         storeId: 99,
-        permission: "inventory.restock",
+        permission: "finance.period.close",
       })
     ).resolves.toEqual({
       access: "platform",
       userId: 17,
       storeId: 99,
-      permission: "inventory.restock",
+      permission: "finance.period.close",
     });
     expect(repository.findMembership).not.toHaveBeenCalled();
   });
@@ -104,6 +104,40 @@ describe("AuthorizationService", () => {
       membershipId: 12,
       membershipRole: "operator",
     });
+  });
+
+  it.each([
+    ["manager", "finance.expenses.approve", true],
+    ["manager", "finance.expenses.pay", false],
+    ["manager", "payroll.read", false],
+    ["operator", "finance.refunds.create", true],
+    ["operator", "finance.refunds.approve", false],
+    ["finance_manager", "finance.ledger.post", true],
+    ["finance_manager", "finance.period.close", false],
+    ["finance_manager", "payroll.read", false],
+    ["payroll_manager", "payroll.pay", true],
+    ["payroll_manager", "finance.overview.read", false],
+    ["inventory_staff", "finance.overview.read", false],
+  ] as const)("enforces %s access to %s", async (role, permission, allowed) => {
+    const { service } = createHarness([membership(role)]);
+    const authorization = service.requireStorePermission({
+      principal: principal(),
+      storeId: 3,
+      permission,
+    });
+
+    if (allowed) {
+      await expect(authorization).resolves.toMatchObject({
+        access: "membership",
+        membershipRole: role,
+        permission,
+      });
+    } else {
+      await expect(authorization).rejects.toMatchObject({
+        status: 403,
+        code: "PERMISSION_DENIED",
+      });
+    }
   });
 
   it.each([
@@ -269,6 +303,22 @@ describe("AuthorizationService", () => {
       memberships: [],
     });
   });
+
+  it.each([
+    ["finance_manager", "finance.ledger.post", "payroll.read"],
+    ["payroll_manager", "payroll.pay", "finance.overview.read"],
+  ] as const)(
+    "returns the least-privilege permission DTO for %s",
+    async (role, allowedPermission, deniedPermission) => {
+      const { service } = createHarness([membership(role)]);
+
+      const dto = await service.getCurrentAccess(principal());
+
+      expect(dto.memberships[0]).toMatchObject({ role });
+      expect(dto.memberships[0].permissions).toContain(allowedPermission);
+      expect(dto.memberships[0].permissions).not.toContain(deniedPermission);
+    }
+  );
 
   it("returns a platform-wide marker without materializing memberships for admin", async () => {
     const { service, repository } = createHarness([membership()]);

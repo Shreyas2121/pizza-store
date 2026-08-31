@@ -39,6 +39,20 @@ const inventoryPrincipal: AuthPrincipal = {
   tokenVersion: 1,
 };
 
+const financePrincipal: AuthPrincipal = {
+  userId: 31,
+  email: "finance@example.com",
+  platformRole: "user",
+  tokenVersion: 1,
+};
+
+const payrollPrincipal: AuthPrincipal = {
+  userId: 32,
+  email: "payroll@example.com",
+  platformRole: "user",
+  tokenVersion: 1,
+};
+
 const customerPrincipal: AuthPrincipal = {
   userId: 99,
   email: "customer@example.com",
@@ -86,6 +100,26 @@ const memberships: MembershipAccessRecord[] = [
   },
   {
     membershipId: 104,
+    userId: 31,
+    storeId: 1,
+    role: "finance_manager",
+    status: "active",
+    storeIsActive: true,
+    storeName: "Store 1",
+    storeSlug: "store-1",
+  },
+  {
+    membershipId: 105,
+    userId: 32,
+    storeId: 1,
+    role: "payroll_manager",
+    status: "active",
+    storeIsActive: true,
+    storeName: "Store 1",
+    storeSlug: "store-1",
+  },
+  {
+    membershipId: 106,
     userId: 40,
     storeId: 1,
     role: "operator",
@@ -95,7 +129,7 @@ const memberships: MembershipAccessRecord[] = [
     storeSlug: "store-1",
   },
   {
-    membershipId: 105,
+    membershipId: 107,
     userId: 40,
     storeId: 2,
     role: "inventory_staff",
@@ -105,7 +139,7 @@ const memberships: MembershipAccessRecord[] = [
     storeSlug: "store-2",
   },
   {
-    membershipId: 106,
+    membershipId: 108,
     userId: 50,
     storeId: 3,
     role: "manager",
@@ -115,7 +149,7 @@ const memberships: MembershipAccessRecord[] = [
     storeSlug: "store-3",
   },
   {
-    membershipId: 107,
+    membershipId: 109,
     userId: 60,
     storeId: 4,
     role: "manager",
@@ -180,6 +214,27 @@ describe("Realtime Rooms & Authorization", () => {
         "user:30",
         "store:1:operations",
         "store:1:inventory",
+      ]);
+    });
+
+    it("derives order and inventory lookup rooms for finance manager", () => {
+      const financeMemberships = memberships.filter(
+        (membership) => membership.userId === financePrincipal.userId
+      );
+      expect(deriveRoomsForPrincipal(financePrincipal, financeMemberships)).toEqual([
+        "user:31",
+        "store:1:operations",
+        "store:1:orders",
+        "store:1:inventory",
+      ]);
+    });
+
+    it("keeps payroll manager out of general store operation rooms", () => {
+      const payrollMemberships = memberships.filter(
+        (membership) => membership.userId === payrollPrincipal.userId
+      );
+      expect(deriveRoomsForPrincipal(payrollPrincipal, payrollMemberships)).toEqual([
+        "user:32",
       ]);
     });
 

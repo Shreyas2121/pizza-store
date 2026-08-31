@@ -411,8 +411,12 @@ export class StaffService {
 
   private assertCanManageRole(context: StoreAuthorizationContext, role: StoreRole) {
     if (context.access === "platform") return;
-    if (role === "manager") {
-      throw new AppError("Managers cannot manage manager memberships.", 403, "MANAGER_ROLE_RESTRICTED");
+    if (["manager", "finance_manager", "payroll_manager"].includes(role)) {
+      throw new AppError(
+        "Store managers cannot manage privileged store roles.",
+        403,
+        "MANAGER_ROLE_RESTRICTED"
+      );
     }
   }
 

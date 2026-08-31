@@ -1,5 +1,5 @@
 import type { PlatformRole } from "../auth/auth.types";
-import type { StoreRole } from "../../utils/types";
+import { STORE_ROLES, type StoreRole } from "../../utils/types";
 
 export const STORE_PERMISSIONS = [
   "dashboard.operations.read",
@@ -20,6 +20,25 @@ export const STORE_PERMISSIONS = [
   "store.staff.read",
   "store.staff.manage",
   "store.audit.read",
+  "finance.overview.read",
+  "finance.sales.read",
+  "finance.expenses.read",
+  "finance.expenses.create",
+  "finance.expenses.approve",
+  "finance.expenses.pay",
+  "finance.refunds.create",
+  "finance.refunds.approve",
+  "finance.cash.manage",
+  "finance.settlements.read",
+  "finance.reconciliation.manage",
+  "finance.ledger.read",
+  "finance.ledger.post",
+  "finance.period.close",
+  "payroll.read",
+  "payroll.manage",
+  "payroll.calculate",
+  "payroll.approve",
+  "payroll.pay",
 ] as const;
 
 export type Permission = (typeof STORE_PERMISSIONS)[number];
@@ -39,13 +58,70 @@ export const PLATFORM_CAPABILITIES = [
 export type PlatformCapability = (typeof PLATFORM_CAPABILITIES)[number];
 
 export const STORE_ROLE_PERMISSIONS = {
-  manager: [...STORE_PERMISSIONS],
+  manager: [
+    "dashboard.operations.read",
+    "dashboard.finance.read",
+    "orders.read",
+    "orders.update_status",
+    "inventory.read",
+    "inventory.restock",
+    "inventory.adjust",
+    "inventory.threshold.update",
+    "store.profile.update",
+    "store.products.read",
+    "store.products.mapping.manage",
+    "store.products.price.update",
+    "store.products.availability.update",
+    "store.delivery_zones.read",
+    "store.delivery_zones.manage",
+    "store.staff.read",
+    "store.staff.manage",
+    "store.audit.read",
+    "finance.overview.read",
+    "finance.sales.read",
+    "finance.expenses.read",
+    "finance.expenses.create",
+    "finance.expenses.approve",
+    "finance.refunds.create",
+    "finance.refunds.approve",
+    "finance.cash.manage",
+    "finance.settlements.read",
+  ],
+  finance_manager: [
+    "dashboard.operations.read",
+    "dashboard.finance.read",
+    "orders.read",
+    "inventory.read",
+    "store.products.read",
+    "finance.overview.read",
+    "finance.sales.read",
+    "finance.expenses.read",
+    "finance.expenses.create",
+    "finance.expenses.approve",
+    "finance.expenses.pay",
+    "finance.refunds.create",
+    "finance.refunds.approve",
+    "finance.cash.manage",
+    "finance.settlements.read",
+    "finance.reconciliation.manage",
+    "finance.ledger.read",
+    "finance.ledger.post",
+  ],
+  payroll_manager: [
+    "payroll.read",
+    "payroll.manage",
+    "payroll.calculate",
+    "payroll.approve",
+    "payroll.pay",
+  ],
   operator: [
     "dashboard.operations.read",
     "orders.read",
     "orders.update_status",
     "inventory.read",
     "store.products.read",
+    "finance.refunds.create",
+    "finance.cash.manage",
   ],
   inventory_staff: [
     "dashboard.operations.read",
@@ -59,13 +135,14 @@ export const STORE_ROLE_PERMISSIONS = {
 } as const satisfies Record<StoreRole, readonly Permission[]>;
 
 const permissionSet = new Set<string>(STORE_PERMISSIONS);
+const storeRoleSet = new Set<string>(STORE_ROLES);
 const platformCapabilitySet = new Set<string>(PLATFORM_CAPABILITIES);
 
 export const isPermission = (value: unknown): value is Permission =>
   typeof value === "string" && permissionSet.has(value);
 
 export const isStoreRole = (value: unknown): value is StoreRole =>
-  value === "manager" || value === "operator" || value === "inventory_staff";
+  typeof value === "string" && storeRoleSet.has(value);
 
 export const isPlatformCapability = (
   value: unknown

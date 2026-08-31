@@ -20,7 +20,8 @@ JWTs contain identity and token-version claims, not memberships or permissions. 
 | --- | --- | --- | --- | --- | --- | --- |
 | Operations dashboard | All/global or store | Assigned store | Assigned store | No | Assigned store | Assigned store |
 | Finance overview & P&L | All/global or store | Assigned store | Assigned store | No | No | No |
-| Expenses (create/approve) | All stores | Assigned store (threshold) | Assigned store | No | No | No |
+| Expenses (create) | All stores | Assigned store | Assigned store | No | No | No |
+| Expenses (approve) | All stores | Assigned store (threshold) | Assigned store | No | No | No |
 | Expenses (pay/post) | All stores | No | Assigned store | No | No | No |
 | Refunds (request/approve) | All stores | Assigned store (threshold) | Assigned store | No | Request only | No |
 | Cash sessions (close/reopen) | All stores | Assigned store | Assigned store | No | Movements only | No |
@@ -29,7 +30,8 @@ JWTs contain identity and token-version claims, not memberships or permissions. 
 | Fiscal period close/reopen | All stores | No | No | No | No | No |
 | Standard product costs | All stores | Assigned store | Assigned store | No | No | Read only |
 | Payroll profiles & pay runs | All stores | No | No | Assigned store | No | No |
-| Read/update orders | All stores | Assigned store | Assigned store | No | Assigned store | No |
+| Read orders | All stores | Assigned store | Assigned store | No | Assigned store | No |
+| Update order status | All stores | Assigned store | No | No | Assigned store | No |
 | Read inventory | All stores | Assigned store | Assigned store | No | Assigned store | Assigned store |
 | Restock/adjust/threshold inventory | All stores | Assigned store | No | No | No | Assigned store |
 | Read store-product mappings | All stores | Assigned store | Assigned store | No | Assigned store | Assigned store |
@@ -39,7 +41,7 @@ JWTs contain identity and token-version claims, not memberships or permissions. 
 | Manage delivery zones | All stores | Assigned store | No | No | No | No |
 | Read store staff and audit | All stores | Assigned store | No | No | No | No |
 | Manage operators/inventory staff | All stores | Assigned store | No | No | No | No |
-| Grant, change, or revoke managers | Yes | No | No | No | No | No |
+| Grant, change, or revoke manager/finance/payroll roles | Yes | No | No | No | No | No |
 | Global catalog/coupons/payments/support/system | Yes | No | No | No | No | No |
 
 The canonical permission strings and role mapping live in `backend/src/features/access/access.permissions.ts`. Detailed finance/payroll segregation of duties and error codes are mapped in [Finance API compatibility and rollout map](finance-api-compatibility-rollout.md). UI visibility is only a convenience; backend policy remains authoritative.
@@ -51,7 +53,7 @@ The canonical permission strings and role mapping live in `backend/src/features/
 1. Select the target store in the operations workspace.
 2. Open **Staff** and choose **Assign user**.
 3. Enter the existing account email and an allowed role.
-4. Managers can assign only `operator` or `inventory_staff`; platform admins can also assign `manager`.
+4. Managers can assign only `operator` or `inventory_staff`; platform admins can assign every store role.
 
 Assignment reuses a prior membership row and reactivates suspended or revoked membership. It never changes the user's platform role.
 
@@ -68,7 +70,7 @@ Resend creates a replacement invitation and revokes the previous pending invitat
 
 ### Change, suspend, reactivate, or revoke
 
-- Managers can change only lower-privilege roles in their assigned store.
+- Managers can change only `operator` and `inventory_staff` roles in their assigned store.
 - Platform admins can manage all store roles.
 - Suspension is reversible. Revocation retains the membership row and ends access.
 - A user cannot elevate their own membership.
@@ -96,9 +98,9 @@ Clients provide only the bearer token in `socket.handshake.auth`. The server aut
 | `user:{userId}` | The authenticated user |
 | `platform-admin` | Platform admins |
 | `platform-support` | Platform support/admin audience |
-| `store:{storeId}:operations` | All active staff for that store |
-| `store:{storeId}:orders` | Store managers and operators |
-| `store:{storeId}:inventory` | Store managers and inventory staff |
+| `store:{storeId}:operations` | Managers, finance managers, operators, and inventory staff |
+| `store:{storeId}:orders` | Store managers, finance managers, and operators |
+| `store:{storeId}:inventory` | Store managers, finance managers, and inventory staff |
 
 Rooms are delivery audiences, never authorization evidence. Order, inventory, support, chat, and payment events target their authoritative user/store audiences; sensitive events do not use global broadcasts.
 
@@ -112,6 +114,8 @@ pnpm run seed:staff -- \
   --actor=admin@pizzastore.com \
   --store=mumbai-central \
   --member=manager:manager@example.com \
+  --member=finance_manager:finance@example.com \
+  --member=payroll_manager:payroll@example.com \
   --member=operator:operator@example.com \
   --member=inventory_staff:stock@example.com
 ```
@@ -131,44 +135,20 @@ The seed intentionally does not run as part of `seed`, `seed:catalog`, migration
 
 ## Migration deployment
 
-Migration `backend/migrations/0005_aberrant_captain_midlands.sql` adds token versioning, case-insensitive email uniqueness, store memberships, invitations, and audit logs.
+Migration `backend/migrations/0005_aberrant_captain_midlands.sql` adds the authorization tables. Migration `backend/migrations/0006_blushing_lenny_balinger.sql` extends both role checks with finance and payroll managers.
 
-### Preflight
-
-Back up the database and run this before applying the migration:
-
-```sql
-SELECT lower(email), count(*)
-FROM users
-GROUP BY lower(email)
-HAVING count(*) > 1;
-```
-
-If any rows are returned, stop. Reconcile duplicate accounts manually before creating the unique `lower(email)` index. Do not automatically merge users, orders, addresses, or credentials.
+This portfolio supports fresh databases only. Existing local/demo data is disposable: do not build account reconciliation, role backfills, or compatibility paths for old rows. Migrations are still mandatory because a fresh clone must reproduce the schema from an empty PostgreSQL database.
 
 ### Deployment order
 
-1. Deploy the database backup and complete the duplicate-email preflight.
-2. Apply committed migrations with `pnpm run db:migrate`. Do not regenerate migration SQL during deployment.
-3. Deploy the backend. Confirm JWT issuer/audience/expiry, frontend URL, and invitation delivery configuration.
-4. Deploy the frontend in the same release window so Socket.IO handshake authentication and capability navigation remain compatible.
-5. Sign in as an existing platform admin and verify `/api/v1/access/me`, global navigation, and store selection.
-6. Assign a replacement manager before removing an existing final manager.
-7. Complete the two-store security matrix below before broad staff rollout.
-
-Existing platform admins remain usable because `users.role` is unchanged and `token_version` defaults to `0`.
+1. Create an empty database and apply committed migrations with `pnpm run db:migrate`.
+2. Run the deterministic seed/reset flow; do not use `db:push` as a substitute.
+3. Deploy the backend and frontend together, then verify `/api/v1/access/me`, role selection, and navigation.
+4. Complete the two-store security matrix below.
 
 ## Rollback
 
-Prefer an application rollback that keeps the migrated schema and data:
-
-1. Stop staff assignment/invitation changes and retain a database backup.
-2. Roll back frontend and backend together to a version compatible with the deployed Socket.IO handshake.
-3. Leave `store_memberships`, `store_staff_invitations`, `audit_logs`, and `users.token_version` intact. Older code ignores additive tables/columns, and preserving them avoids destroying staff/audit history.
-4. Keep authorization endpoints unavailable until the authorization-aware backend is restored.
-5. Diagnose and forward-fix, then redeploy in the documented order.
-
-Do not drop authorization tables or the case-insensitive email index as an incident response. A schema rollback requires a separately reviewed data-preservation migration and restore plan.
+For this fresh-only portfolio, reset the disposable database, check out the intended application revision, and rerun that revision's committed migration chain and deterministic seeds. Do not hand-edit migration history or use `db:push` to imitate a rollback.
 
 ## Verification evidence and limitations
 
@@ -188,16 +168,17 @@ The repository currently has backend unit tests with mocked repositories/service
 
 Redis adapters, Kafka, PostgreSQL RLS, custom roles, and external policy engines are deliberately deferred.
 
-Commit verification recorded on 2026-08-30:
+P0.6 verification recorded on 2026-08-31:
 
 | Check | Result |
 | --- | --- |
-| Backend type-check | Passed |
-| Backend unit suite | 20 files, 201 tests passed |
-| Staff seed configuration tests | 5 tests passed |
+| Backend unit suite | 23 files, 281 tests passed |
+| Focused P0.6 authorization suite | 6 files, 95 tests passed |
+| Backend type-check and production build | Passed |
 | Frontend lint | Passed with 0 errors and 3 pre-existing Fast Refresh warnings |
 | Frontend production build | Passed; existing bundle-size and Browserslist age warnings remain |
-| Migration/seed execution | Not run |
+| Generated role-check migration review | Passed; only the two intended role constraints change |
+| Empty-database migration/seed execution | Not run; no isolated disposable PostgreSQL target was configured |
 | Manual two-store matrix | Not run; requires isolated migrated data as described below |
 
 ### Manual two-store security matrix
@@ -208,6 +189,8 @@ Run this against an isolated staging/local database after migration, never a sha
 - [ ] Store 1 manager receives no Store 2 rows, counts, or events.
 - [ ] Store 1 operator can read/update Store 1 orders and only read inventory.
 - [ ] Store 1 inventory staff can manage inventory/availability but cannot read orders or finance.
+- [ ] Store 1 finance manager can execute store finance work but cannot close periods or read payroll.
+- [ ] Store 1 payroll manager can execute payroll work but cannot read finance, orders, or inventory.
 - [ ] Customer has no staff access.
 - [ ] Manager cannot grant managers, deactivate stores, reconcile payments, manage support, or clear data.
 - [ ] Guessed cross-store order, movement, membership, and invitation IDs return `404`.

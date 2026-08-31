@@ -1,6 +1,7 @@
 import type { Server, Socket } from "socket.io";
 import type { AuthPrincipal } from "../auth/auth.types";
 import type { MembershipAccessRecord } from "../access/access.types";
+import { roleHasPermission } from "../access/access.permissions";
 
 export const RealtimeRooms = {
   user: (userId: number) => `user:${userId}`,
@@ -31,14 +32,14 @@ export function deriveRoomsForPrincipal(
       continue;
     }
 
-    rooms.add(RealtimeRooms.storeOperations(membership.storeId));
+    if (roleHasPermission(membership.role, "dashboard.operations.read")) {
+      rooms.add(RealtimeRooms.storeOperations(membership.storeId));
+    }
 
-    if (membership.role === "manager") {
+    if (["manager", "finance_manager", "operator"].includes(membership.role)) {
       rooms.add(RealtimeRooms.storeOrders(membership.storeId));
-      rooms.add(RealtimeRooms.storeInventory(membership.storeId));
-    } else if (membership.role === "operator") {
-      rooms.add(RealtimeRooms.storeOrders(membership.storeId));
-    } else if (membership.role === "inventory_staff") {
+    }
+    if (["manager", "finance_manager", "inventory_staff"].includes(membership.role)) {
       rooms.add(RealtimeRooms.storeInventory(membership.storeId));
     }
   }

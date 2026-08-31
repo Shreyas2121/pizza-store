@@ -1,0 +1,4 @@
+ALTER TABLE "store_memberships" DROP CONSTRAINT "store_memberships_role_valid";--> statement-breakpoint
+ALTER TABLE "store_staff_invitations" DROP CONSTRAINT "store_staff_invitations_role_valid";--> statement-breakpoint
+ALTER TABLE "store_memberships" ADD CONSTRAINT "store_memberships_role_valid" CHECK ("store_memberships"."role" in ('manager', 'finance_manager', 'payroll_manager', 'operator', 'inventory_staff'));--> statement-breakpoint
+ALTER TABLE "store_staff_invitations" ADD CONSTRAINT "store_staff_invitations_role_valid" CHECK ("store_staff_invitations"."role" in ('manager', 'finance_manager', 'payroll_manager', 'operator', 'inventory_staff'));

@@ -464,7 +464,7 @@ Role membership alone is necessary but **not sufficient** to execute high-risk o
 ## 8. Summary of rollout checklist
 
 - [x] Operational dashboard maintains Gross Order Value semantics (Q01).
-- [ ] Phase 0.6 introduces `finance_manager` and `payroll_manager` store roles and the permission foundation.
+- [x] Phase 0.6 introduces `finance_manager` and `payroll_manager` store roles and the permission foundation.
 - [ ] Phase 1 introduces `pricing.service.ts`, server quote endpoint, and canonical `delivered`/`out_for_delivery` lifecycle.
 - [ ] Phase 2 decomposes payment reconciliation and introduces payment attempts, refunds, and settlement reconciliation.
 - [ ] Phase 3 establishes cash sessions, standard product costs, vendors, and expenses.

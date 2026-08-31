@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { AppError } from "../../utils/error";
-import type { StoreRole, TransactionType } from "../../utils/types";
+import { STORE_ROLES, type StoreRole, type TransactionType } from "../../utils/types";
 import type { AuthPrincipal } from "../auth/auth.types";
 import type { AuditWriter } from "../audit/audit.types";
 import { StaffService, createInvitationToken, hashInvitationToken, invitationTokenMatches } from "./staff.service";
@@ -196,7 +196,7 @@ const createHarness = (options: {
 };
 
 describe("StaffService membership lifecycle", () => {
-  it.each(["manager", "operator", "inventory_staff"] as StoreRole[])(
+  it.each(STORE_ROLES)(
     "allows platform admin to assign %s",
     async (role) => {
       const { service, getMemberships, audit } = createHarness();
@@ -216,16 +216,23 @@ describe("StaffService membership lifecycle", () => {
     }
   );
 
-  it("blocks manager grants, cross-store management, and self assignment", async () => {
+  it.each(["manager", "finance_manager", "payroll_manager"] as StoreRole[])(
+    "blocks a store manager from granting privileged role %s",
+    async (role) => {
+      const harness = createHarness();
+      await expect(
+        harness.service.assignStaff({
+          principal: actor("user"),
+          storeId: 3,
+          email: "staff@example.com",
+          role,
+        })
+      ).rejects.toMatchObject({ code: "MANAGER_ROLE_RESTRICTED" });
+    }
+  );
+
+  it("blocks cross-store management and self assignment", async () => {
     const managerHarness = createHarness();
-    await expect(
-      managerHarness.service.assignStaff({
-        principal: actor("user"),
-        storeId: 3,
-        email: "staff@example.com",
-        role: "manager",
-      })
-    ).rejects.toMatchObject({ code: "MANAGER_ROLE_RESTRICTED" });
     await expect(
       managerHarness.service.assignStaff({
         principal: actor("user"),
@@ -245,13 +252,16 @@ describe("StaffService membership lifecycle", () => {
     ).rejects.toMatchObject({ code: "SELF_ROLE_CHANGE_NOT_ALLOWED" });
   });
 
-  it("prevents a manager from modifying a manager membership", async () => {
-    const existing = member({ role: "manager", userId: 30 });
-    const { service } = createHarness({ memberships: [existing] });
-    await expect(
-      service.updateStaff({ principal: actor("user"), storeId: 3, membershipId: existing.id, status: "suspended" })
-    ).rejects.toMatchObject({ code: "MANAGER_ROLE_RESTRICTED" });
-  });
+  it.each(["manager", "finance_manager", "payroll_manager"] as StoreRole[])(
+    "prevents a store manager from modifying a %s membership",
+    async (role) => {
+      const existing = member({ role, userId: 30 });
+      const { service } = createHarness({ memberships: [existing] });
+      await expect(
+        service.updateStaff({ principal: actor("user"), storeId: 3, membershipId: existing.id, status: "suspended" })
+      ).rejects.toMatchObject({ code: "MANAGER_ROLE_RESTRICTED" });
+    }
+  );
 
   it("protects the last active manager", async () => {
     const existing = member({ role: "manager" });

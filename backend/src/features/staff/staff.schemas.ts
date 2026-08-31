@@ -1,10 +1,7 @@
 import { z } from "zod";
+import { STORE_ROLES } from "../../utils/types";
 
-export const staffRoleSchema = z.enum([
-  "manager",
-  "operator",
-  "inventory_staff",
-]);
+export const staffRoleSchema = z.enum(STORE_ROLES);
 
 const normalizedEmailSchema = z
   .string()

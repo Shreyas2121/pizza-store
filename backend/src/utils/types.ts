@@ -24,7 +24,14 @@ import type { AuthPrincipal, PlatformRole } from "../features/auth/auth.types";
 
 export type AddressType = "Home" | "Work" | "Other";
 export type Role = PlatformRole;
-export type StoreRole = "manager" | "operator" | "inventory_staff";
+export const STORE_ROLES = [
+  "manager",
+  "finance_manager",
+  "payroll_manager",
+  "operator",
+  "inventory_staff",
+] as const;
+export type StoreRole = (typeof STORE_ROLES)[number];
 export type StoreMembershipStatus = "active" | "suspended" | "revoked";
 export type AuditOutcome = "success" | "failure" | "denied";
 export type CustomizationType = "single" | "multiple";

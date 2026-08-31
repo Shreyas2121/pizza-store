@@ -9,6 +9,7 @@ import {
   isPlatformAdmin,
   useAccessMe,
   useStaffActiveStore,
+  type ActiveAccessRole,
 } from "@/features/access";
 
 type AdminSidebarProps = {
@@ -18,9 +19,11 @@ type AdminSidebarProps = {
   onToggleCollapse: () => void;
 };
 
-const roleDisplayNames: Record<string, string> = {
+const roleDisplayNames: Record<ActiveAccessRole, string> = {
   admin: "Administrator",
   manager: "Store Manager",
+  finance_manager: "Finance Manager",
+  payroll_manager: "Payroll Manager",
   operator: "Store Operator",
   inventory_staff: "Inventory Staff",
 };

@@ -31,9 +31,17 @@ import type { InvitationCreateResponse, StaffMember, StaffRole, StaffStatus } fr
 
 const roleLabels: Record<StaffRole, string> = {
   manager: "Manager",
+  finance_manager: "Finance manager",
+  payroll_manager: "Payroll manager",
   operator: "Operator",
   inventory_staff: "Inventory staff",
 };
+
+const privilegedRoles = new Set<StaffRole>([
+  "manager",
+  "finance_manager",
+  "payroll_manager",
+]);
 
 const statusColors: Record<StaffStatus, string> = {
   active: "green",
@@ -59,14 +67,20 @@ export function AdminStaffPage() {
   const { activeStoreId } = useStaffActiveStore();
   const { data: access } = useAccessMe();
   const activeRole = getActiveMembershipRole(access, activeStoreId);
-  const canManageManagers = activeRole === "admin";
+  const canManagePrivilegedRoles = activeRole === "admin";
   const roleOptions = useMemo(
     () => [
-      ...(canManageManagers ? [{ value: "manager", label: "Manager" }] : []),
+      ...(canManagePrivilegedRoles
+        ? [
+            { value: "manager", label: "Manager" },
+            { value: "finance_manager", label: "Finance manager" },
+            { value: "payroll_manager", label: "Payroll manager" },
+          ]
+        : []),
       { value: "operator", label: "Operator" },
       { value: "inventory_staff", label: "Inventory staff" },
     ],
-    [canManageManagers]
+    [canManagePrivilegedRoles]
   );
   const [status, setStatus] = useState<StaffStatus>("active");
   const [staffPage, setStaffPage] = useState(1);
@@ -163,9 +177,9 @@ export function AdminStaffPage() {
         action={<Group gap="sm"><Button variant="default" leftSection={<UserPlus size={16} />} onClick={() => setFormMode("assign")}>Assign user</Button><Button leftSection={<MailPlus size={16} />} onClick={() => setFormMode("invite")}>Invite staff</Button></Group>}
       />
 
-      {!canManageManagers && (
+      {!canManagePrivilegedRoles && (
         <Alert mb="md" color="blue" icon={<ShieldCheck size={18} />}>
-          Store managers can manage operators and inventory staff. Manager grants and removals require a platform administrator.
+          Store managers can manage operators and inventory staff. Manager, finance, and payroll role changes require a platform administrator.
         </Alert>
       )}
       {developmentUrl && (
@@ -192,12 +206,12 @@ export function AdminStaffPage() {
                 {staff.data?.data.map((member) => (
                   <Table.Tr key={member.id}>
                     <Table.Td><Text fw={600}>{member.user.fname} {member.user.lname}</Text><Text size="xs" c="dimmed">{member.user.email}</Text></Table.Td>
-                    <Table.Td>{!canManageManagers && member.role === "manager" ? <Badge variant="light">{roleLabels[member.role]}</Badge> : <Select aria-label={`Role for ${member.user.email}`} size="xs" w={160} data={roleOptions} value={member.role} disabled={update.isPending} onChange={(value) => value && updateMember(member, { role: value as StaffRole })} />}</Table.Td>
+                    <Table.Td>{!canManagePrivilegedRoles && privilegedRoles.has(member.role) ? <Badge variant="light">{roleLabels[member.role]}</Badge> : <Select aria-label={`Role for ${member.user.email}`} size="xs" w={180} data={roleOptions} value={member.role} disabled={update.isPending} onChange={(value) => value && updateMember(member, { role: value as StaffRole })} />}</Table.Td>
                     <Table.Td><Badge color={statusColors[member.status]} variant="light">{member.status}</Badge></Table.Td>
                     <Table.Td><Text size="sm">{formatDateTime(member.revokedAt ?? member.suspendedAt ?? member.activatedAt)}</Text></Table.Td>
                     <Table.Td><Group gap="xs">
-                      {member.status === "active" ? <Button size="xs" variant="default" disabled={!canManageManagers && member.role === "manager"} onClick={() => updateMember(member, { status: "suspended" })}>Suspend</Button> : member.status === "suspended" ? <Button size="xs" variant="default" onClick={() => updateMember(member, { status: "active" })}>Reactivate</Button> : null}
-                      {member.status !== "revoked" && <Button size="xs" color="red" variant="subtle" leftSection={<UserX size={14} />} disabled={!canManageManagers && member.role === "manager"} onClick={() => revokeMember(member)}>Revoke</Button>}
+                      {member.status === "active" ? <Button size="xs" variant="default" disabled={!canManagePrivilegedRoles && privilegedRoles.has(member.role)} onClick={() => updateMember(member, { status: "suspended" })}>Suspend</Button> : member.status === "suspended" ? <Button size="xs" variant="default" disabled={!canManagePrivilegedRoles && privilegedRoles.has(member.role)} onClick={() => updateMember(member, { status: "active" })}>Reactivate</Button> : null}
+                      {member.status !== "revoked" && <Button size="xs" color="red" variant="subtle" leftSection={<UserX size={14} />} disabled={!canManagePrivilegedRoles && privilegedRoles.has(member.role)} onClick={() => revokeMember(member)}>Revoke</Button>}
                     </Group></Table.Td>
                   </Table.Tr>
                 ))}

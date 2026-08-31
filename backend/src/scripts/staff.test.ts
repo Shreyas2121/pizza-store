@@ -10,12 +10,16 @@ describe("staff seed configuration", () => {
       "--actor=ADMIN@example.com",
       "--store=mumbai-central",
       "--member=manager:Manager@example.com",
+      "--member=finance_manager:finance@example.com",
+      "--member=payroll_manager:payroll@example.com",
       "--member=inventory_staff:stock@example.com",
     ])).toEqual({
       actorEmail: "admin@example.com",
       storeSlug: "mumbai-central",
       assignments: [
         { role: "manager", email: "manager@example.com" },
+        { role: "finance_manager", email: "finance@example.com" },
+        { role: "payroll_manager", email: "payroll@example.com" },
         { role: "inventory_staff", email: "stock@example.com" },
       ],
     });
