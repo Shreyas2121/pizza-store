@@ -10,4 +10,4 @@ Architecture decision records (ADRs) capture financial rules that code, migratio
 | [ADR-004](0004-tax-inclusive-demo-policy.md) | Tax-inclusive demo calculation and compliance boundary | Accepted |
 | [ADR-005](0005-store-timezone-business-date-financial-year.md) | Store timezone, business date, and Indian financial year | Accepted |
 
-Related lifecycle, event-envelope, reversal, and lock-order contracts are documented in [Finance lifecycle and event contracts](../finance-lifecycle-contracts.md). API endpoints, compatibility rollout, error codes, and permission matrices are documented in [Finance API compatibility and rollout map](../finance-api-compatibility-rollout.md).
+Related lifecycle, event-envelope, reversal, and lock-order contracts are documented in [Finance lifecycle and event contracts](../finance-lifecycle-contracts.md). API endpoints, compatibility rollout, error codes, and permission matrices are documented in [Finance API compatibility and rollout map](../finance-api-compatibility-rollout.md). Deterministic reference fixtures and expected results are documented in [Deterministic two-store financial fixtures](../two-store-financial-fixtures.md).
