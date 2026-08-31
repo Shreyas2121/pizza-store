@@ -43,6 +43,7 @@ See [architecture.md](docs/architecture.md) for component boundaries and [databa
 | [api-reference.md](docs/api-reference.md) | Complete REST API endpoint reference with request/response shapes |
 | [setup.md](docs/setup.md) | Local development environment setup, database provisioning, and seeding |
 | [Architecture decision records](docs/adr/README.md) | Accepted financial semantics for money, recognition, tax, and business dates |
+| [Finance lifecycle and event contracts](docs/finance-lifecycle-contracts.md) | Planned state machines, event payloads, reversals, and database lock order |
 | [store-staff-authorization.md](docs/store-staff-authorization.md) | Staff role matrix, lifecycle operations, deployment, rollback, and security verification |
 | [razorpay-runbook.md](docs/razorpay-runbook.md) | Online payment lifecycle, inventory reservations, monitoring, and reconciliation |
 

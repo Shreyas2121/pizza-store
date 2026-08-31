@@ -417,8 +417,11 @@ Minimum chart of accounts:
 - Cash on Hand
 - Razorpay Clearing
 - Bank
+- Customer Advances / Order Clearing
 - Refunds Payable
-- GST/Tax Payable (only when tax is enabled)
+- Demo Tax Payable (only when tax is enabled)
+- Payroll Payable and configured Payroll Deductions Payable
+- Owner's Equity / Opening Balance
 - Sales Revenue
 - Delivery Revenue
 - Discounts / Contra Revenue
@@ -426,10 +429,11 @@ Minimum chart of accounts:
 - Inventory or COGS Clearing
 - Cost of Goods Sold
 - Payment Gateway Fees
+- Gateway Fee Tax Expense (the demo does not claim input tax credit)
 - Operating Expense accounts
 - Payroll Expense
-- Payroll Payable
 - Cash Over/Short
+- Rounding Gain/Loss
 
 Example delivered Razorpay order for ₹500 net sales, ₹25 tax, with ₹180 COGS:
 
@@ -441,7 +445,7 @@ At delivery:   Dr Customer/Order Clearing 525
                Dr Cost of Goods Sold 180 Cr Inventory/COGS Clearing 180
 At settlement: Dr Bank [net]
                Dr Gateway Fee [fee]
-               Dr Input Tax on Fee [tax]
+               Dr Gateway Fee Tax Expense [tax]
                  Cr Razorpay Clearing [gross]
 ```
 

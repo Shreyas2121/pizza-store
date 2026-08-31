@@ -6,8 +6,8 @@ Architecture decision records (ADRs) capture financial rules that code, migratio
 | --- | --- | --- |
 | [ADR-001](0001-money-representation-and-rounding.md) | Money representation, limits, rounding, and allocation | Accepted |
 | [ADR-002](0002-revenue-cogs-recognition-and-refunds.md) | Revenue/COGS recognition and refunds | Accepted |
-| ADR-003 | Ledger accounts and posting rules (planned in P0.2) | Planned |
+| [ADR-003](0003-ledger-accounts-and-posting-rules.md) | Ledger accounts and posting rules | Accepted |
 | [ADR-004](0004-tax-inclusive-demo-policy.md) | Tax-inclusive demo calculation and compliance boundary | Accepted |
 | [ADR-005](0005-store-timezone-business-date-financial-year.md) | Store timezone, business date, and Indian financial year | Accepted |
 
-The numbering intentionally reserves ADR-003 for the ledger decision delivered by P0.2.
+Related lifecycle, event-envelope, reversal, and lock-order contracts are documented in [Finance lifecycle and event contracts](../finance-lifecycle-contracts.md).
