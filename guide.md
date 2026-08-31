@@ -163,12 +163,12 @@ Every agent must preserve these:
 grandTotalPaise = itemsSubtotalPaise
                 - discountPaise
                 + deliveryFeePaise
-                + taxPaise
                 + roundingAdjustmentPaise
 
 sum(line discount allocations) = order discountPaise
 sum(line tax amounts)           = order taxPaise
-sum(line totals) + delivery/tax adjustments = order grandTotalPaise
+taxPaise is included in customer-facing amounts and is never added again
+sum(line totals) + delivery adjustments = order grandTotalPaise
 processed refunds <= captured amount
 sum(journal debits) = sum(journal credits)
 posted records are corrected by reversal, never overwrite/delete

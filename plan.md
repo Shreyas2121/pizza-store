@@ -157,7 +157,8 @@ For this food-delivery application:
 - Recognize food and delivery revenue when an order becomes `delivered`.
 - Treat Razorpay capture as a collection event, not a revenue event.
 - Treat COD delivery plus staff confirmation as collection, then reconcile it through a cash session.
-- Reverse revenue and COGS through explicit reversal entries for cancelled/refunded fulfilled orders; never delete or overwrite posted journal entries.
+- Reverse recognized revenue and tax through explicit reversal entries for finalized refunds or post-delivery cancellations; never delete or overwrite posted journal entries.
+- A refund does not prove that goods returned to inventory. Reverse COGS only from a separate, explicit fulfilment/inventory-return event supported by the operational facts.
 - Use the store’s configured timezone for operational cutoffs, while storing timestamps as UTC.
 - Use the Indian financial year (1 April to 31 March) as a supported reporting preset; retain arbitrary date ranges.
 
@@ -288,11 +289,10 @@ Invariant:
 grandTotalPaise = itemsSubtotalPaise
                 - discountPaise
                 + deliveryFeePaise
-                + taxPaise
                 + roundingAdjustmentPaise
 ```
 
-The sum of item-level discount/tax/cost allocations must equal the order-level values exactly.
+`itemsSubtotalPaise`, `discountPaise`, and `deliveryFeePaise` are customer-facing tax-inclusive amounts. `taxPaise` is the included liability component and is not added again. The sum of item-level discount/tax/cost allocations must equal the order-level values exactly.
 
 ### 6.2 Payments and refunds
 
@@ -834,7 +834,7 @@ Use property-based tests for invariants such as:
 sum(allocations) = source amount
 sum(debits) = sum(credits)
 processed refunds <= captured amount
-grand total = subtotal - discount + delivery + tax + rounding
+grand total = tax-inclusive subtotal - tax-inclusive discount + tax-inclusive delivery + rounding
 new journal + reversal journal has zero net account effect
 ```
 
