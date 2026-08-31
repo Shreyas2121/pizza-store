@@ -1057,6 +1057,69 @@ Send a message in a chat session.
 
 ---
 
+## Finance & Management Accounting
+
+Target financial endpoints mounted under `/api/v1/finance/*` and `/api/v1/checkout/quote`. Detailed request/response schemas, rollout transitions, error codes, and permission matrices are documented in [Finance API compatibility and rollout map](finance-api-compatibility-rollout.md).
+
+### Pricing & Server Quote
+- `POST /checkout/quote` — Authoritative paise pricing, tax extraction, and discount calculation.
+- `POST /coupons/validate` 🔒 — Consolidated coupon preview calling identical paise quote policy.
+
+### Reports & P&L
+- `GET /finance/overview` 🔒 — Recognized revenue, collections, COGS, gross margin, operating results, and drill-downs.
+- `GET /finance/profit-and-loss` 🔒 — Multi-period store and consolidated income statement.
+- `GET /finance/sales` 🔒 — Sales, discount allocations, and delivery revenue breakdown.
+- `GET /finance/margins` 🔒 — Product and store contribution margin analysis.
+- `GET /finance/exports/:reportType` 🔒 — CSV exports with formula-injection mitigation.
+
+### General Ledger & Fiscal Periods
+- `GET /finance/ledger/accounts` 🔒 — Chart of accounts master.
+- `GET /finance/ledger/journals` 🔒 — Store-scoped journal entries with cursor pagination.
+- `GET /finance/ledger/journals/:id` 🔒 — Journal entry detail and balanced line breakdown.
+- `GET /finance/ledger/trial-balance` 🔒 — Double-entry trial balance (debits = credits = 0 net).
+- `POST /finance/ledger/manual-journals` 🔒 — Post audited manual adjustment journal.
+- `POST /finance/ledger/journals/:id/reverse` 🔒 — Post linked reversal journal for an open period.
+- `GET /finance/fiscal-periods` 🔒 — List fiscal periods and statuses.
+- `POST /finance/fiscal-periods/:id/close` 🔒 — Lock fiscal period against backdated posting.
+- `POST /finance/fiscal-periods/:id/reopen` 🔒 — Controlled reopen with mandatory audit reason.
+
+### Refunds & Reconciliation
+- `GET /finance/refunds` 🔒 — List refunds and line item allocations.
+- `POST /finance/orders/:orderId/refunds` 🔒 — Request full/partial refund with line allocations.
+- `POST /finance/refunds/:id/approve` 🔒 — Manager/finance approval of refund request.
+- `POST /finance/refunds/:id/reject` 🔒 — Reject refund request.
+- `GET /finance/settlements` 🔒 — List Razorpay settlement batches.
+- `GET /finance/settlements/:id` 🔒 — Settlement batch detail, fee breakdown, and matched lines.
+- `POST /finance/settlements/import` 🔒 — Import settlement fixture or test provider sync.
+- `GET /finance/reconciliation/issues` 🔒 — Reconciliation mismatch and observation issue queue.
+- `POST /finance/reconciliation/issues/:id/resolve` 🔒 — Resolve reconciliation issue with audit note.
+
+### Cash Management
+- `GET /finance/cash-sessions` 🔒 — List store cash sessions.
+- `GET /finance/cash-sessions/current` 🔒 — Get currently open store session.
+- `POST /finance/cash-sessions/open` 🔒 — Open cash session with initial float.
+- `POST /finance/cash-sessions/:id/movements` 🔒 — Record manual cash in/out or adjustment.
+- `POST /finance/cash-sessions/:id/close` 🔒 — Close session with counted cash and variance.
+- `POST /finance/cash-sessions/:id/reopen` 🔒 — Controlled session reopen.
+
+### Costs, Vendors, and Expenses
+- `GET /finance/costs/products` 🔒 — Standard unit cost history.
+- `POST /finance/costs/products` 🔒 — Set effective-dated standard product cost.
+- `GET /finance/vendors` 🔒 / `POST /finance/vendors` 🔒 / `PUT /finance/vendors/:id` 🔒 — Vendor master.
+- `GET /finance/expenses/categories` 🔒 / `POST /finance/expenses/categories` 🔒 — Expense categories.
+- `GET /finance/expenses` 🔒 / `POST /finance/expenses` 🔒 — Draft expense records with allocations.
+- `POST /finance/expenses/:id/submit` 🔒 / `POST /finance/expenses/:id/approve` 🔒 / `POST /finance/expenses/:id/pay` 🔒 / `POST /finance/expenses/:id/void` 🔒 — Expense lifecycle.
+- `GET /finance/expenses/:id/attachments/:attachmentId` 🔒 — Authorized private receipt download.
+
+### Payroll-Lite (Operating Cost)
+- `GET /finance/payroll/profiles` 🔒 / `POST /finance/payroll/profiles` 🔒 — Employee finance profiles.
+- `GET /finance/payroll/compensation` 🔒 / `POST /finance/payroll/compensation` 🔒 — Effective compensation structure.
+- `GET /finance/payroll/pay-runs` 🔒 / `POST /finance/payroll/pay-runs` 🔒 — Pay-run lifecycle.
+- `POST /finance/payroll/pay-runs/:id/calculate` 🔒 / `POST /finance/payroll/pay-runs/:id/approve` 🔒 / `POST /finance/payroll/pay-runs/:id/pay` 🔒 / `POST /finance/payroll/pay-runs/:id/void` 🔒.
+- `GET /finance/payroll/pay-runs/:id/statements/:employeeId` 🔒 — Demo payslip statement view.
+
+---
+
 ## Authentication legend
 
 | Symbol | Meaning |

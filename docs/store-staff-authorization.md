@@ -7,7 +7,7 @@ This runbook describes the implemented store-scoped authorization boundary, staf
 Platform and store authority are separate:
 
 - `users.role` is the platform role and remains `admin | user`.
-- `store_memberships.role` is a store role: `manager | operator | inventory_staff`.
+- `store_memberships.role` is a store role: `manager | finance_manager | payroll_manager | operator | inventory_staff`.
 - Staff users retain `users.role = user`. A user can have active memberships in multiple stores.
 - Platform admins do not need membership rows and bypass store permissions, but platform-only capabilities still require `users.role = admin`.
 - Membership status is `active | suspended | revoked`. Only active memberships for active stores grant access.
@@ -16,24 +16,33 @@ JWTs contain identity and token-version claims, not memberships or permissions. 
 
 ## Permission matrix
 
-| Capability | Platform admin | Manager | Operator | Inventory staff |
-| --- | --- | --- | --- | --- |
-| Operations dashboard | All/global or store | Assigned store | Assigned store | Assigned store |
-| Finance dashboard | All/global or store | Assigned store | No | No |
-| Read/update orders | All stores | Assigned store | Assigned store | No |
-| Read inventory | All stores | Assigned store | Assigned store | Assigned store |
-| Restock/adjust/threshold inventory | All stores | Assigned store | No | Assigned store |
-| Read store-product mappings | All stores | Assigned store | Assigned store | Assigned store |
-| Map/remove products and update price | All stores | Assigned store | No | No |
-| Update manual availability | All stores | Assigned store | No | Assigned store |
-| Update safe store profile fields | All stores | Assigned store | No | No |
-| Manage delivery zones | All stores | Assigned store | No | No |
-| Read store staff and audit | All stores | Assigned store | No | No |
-| Manage operators/inventory staff | All stores | Assigned store | No | No |
-| Grant, change, or revoke managers | Yes | No | No | No |
-| Global catalog/coupons/payments/support/system | Yes | No | No | No |
+| Capability | Platform admin | Manager | Finance manager | Payroll manager | Operator | Inventory staff |
+| --- | --- | --- | --- | --- | --- | --- |
+| Operations dashboard | All/global or store | Assigned store | Assigned store | No | Assigned store | Assigned store |
+| Finance overview & P&L | All/global or store | Assigned store | Assigned store | No | No | No |
+| Expenses (create/approve) | All stores | Assigned store (threshold) | Assigned store | No | No | No |
+| Expenses (pay/post) | All stores | No | Assigned store | No | No | No |
+| Refunds (request/approve) | All stores | Assigned store (threshold) | Assigned store | No | Request only | No |
+| Cash sessions (close/reopen) | All stores | Assigned store | Assigned store | No | Movements only | No |
+| Settlements & Reconciliation | All stores | Assigned store (read) | Assigned store | No | No | No |
+| General ledger & posting | All stores | No | Assigned store | No | No | No |
+| Fiscal period close/reopen | All stores | No | No | No | No | No |
+| Standard product costs | All stores | Assigned store | Assigned store | No | No | Read only |
+| Payroll profiles & pay runs | All stores | No | No | Assigned store | No | No |
+| Read/update orders | All stores | Assigned store | Assigned store | No | Assigned store | No |
+| Read inventory | All stores | Assigned store | Assigned store | No | Assigned store | Assigned store |
+| Restock/adjust/threshold inventory | All stores | Assigned store | No | No | No | Assigned store |
+| Read store-product mappings | All stores | Assigned store | Assigned store | No | Assigned store | Assigned store |
+| Map/remove products and update price | All stores | Assigned store | No | No | No | No |
+| Update manual availability | All stores | Assigned store | No | No | No | Assigned store |
+| Update safe store profile fields | All stores | Assigned store | No | No | No | No |
+| Manage delivery zones | All stores | Assigned store | No | No | No | No |
+| Read store staff and audit | All stores | Assigned store | No | No | No | No |
+| Manage operators/inventory staff | All stores | Assigned store | No | No | No | No |
+| Grant, change, or revoke managers | Yes | No | No | No | No | No |
+| Global catalog/coupons/payments/support/system | Yes | No | No | No | No | No |
 
-The canonical permission strings and role mapping live in `backend/src/features/access/access.permissions.ts`. UI visibility is only a convenience; backend policy remains authoritative.
+The canonical permission strings and role mapping live in `backend/src/features/access/access.permissions.ts`. Detailed finance/payroll segregation of duties and error codes are mapped in [Finance API compatibility and rollout map](finance-api-compatibility-rollout.md). UI visibility is only a convenience; backend policy remains authoritative.
 
 ## Staff workflows
 
