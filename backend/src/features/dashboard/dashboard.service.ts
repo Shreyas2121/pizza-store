@@ -7,6 +7,7 @@ import {
   gte,
   isNotNull,
   lte,
+  notInArray,
   sql,
 } from "drizzle-orm";
 import { db } from "../../db";
@@ -17,7 +18,7 @@ import {
   storeProductsTable,
 } from "../../db/schema";
 import { differenceInCalendarDays, subDays } from "date-fns";
-import { GroupT } from "../../utils/types";
+import { GroupT, OrderStatus } from "../../utils/types";
 import { AppError } from "../../utils/error";
 import { groupToTrunc } from "../../constants";
 import { formatNumber, formatPrice } from "../../utils";
@@ -32,10 +33,16 @@ interface ChartsProp extends Props {
   group: GroupT;
 }
 
-const getOrderFilters = ({ from, to, storeId }: Props) =>
+export const EXCLUDED_DASHBOARD_ORDER_STATUSES: OrderStatus[] = [
+  "cancelled",
+  "awaiting_payment",
+];
+
+export const getEligibleOrderFilters = ({ from, to, storeId }: Props) =>
   and(
     lte(ordersTable.orderDate, to ?? new Date()),
     gte(ordersTable.orderDate, from ?? subDays(new Date(), 15)),
+    notInArray(ordersTable.status, EXCLUDED_DASHBOARD_ORDER_STATUSES),
     storeId === undefined ? undefined : eq(ordersTable.storeId, storeId)
   );
 
@@ -47,7 +54,7 @@ class DashboardService {
           total: sql`COALESCE(SUM(total_price), 0) as total_revenue`,
         })
         .from(ordersTable)
-        .where(getOrderFilters({ from, to, storeId }))
+        .where(getEligibleOrderFilters({ from, to, storeId }))
     )[0].total as number;
   }
 
@@ -58,7 +65,7 @@ class DashboardService {
           userId: ordersTable.userId,
         })
         .from(ordersTable)
-        .where(getOrderFilters({ from, to, storeId }))
+        .where(getEligibleOrderFilters({ from, to, storeId }))
     ).length;
   }
 
@@ -69,7 +76,7 @@ class DashboardService {
           totalOrders: count(ordersTable.id),
         })
         .from(ordersTable)
-        .where(getOrderFilters({ from, to, storeId }))
+        .where(getEligibleOrderFilters({ from, to, storeId }))
     )[0].totalOrders;
   }
 
@@ -133,10 +140,10 @@ class DashboardService {
         period: sql<string>`date_trunc(${sql.raw(`'${truncUnit}'`)}, ${
           ordersTable.orderDate
         })`,
-        revenue: sql<number>`sum(${ordersTable.totalPrice})`,
+        revenue: sql<number>`COALESCE(sum(${ordersTable.totalPrice}), 0)`,
       })
       .from(ordersTable)
-      .where(getOrderFilters({ from, to, storeId }))
+      .where(getEligibleOrderFilters({ from, to, storeId }))
       .groupBy(
         sql`date_trunc(${sql.raw(`'${truncUnit}'`)}, ${ordersTable.orderDate})`
       )
@@ -163,7 +170,7 @@ class DashboardService {
         orders: count(ordersTable.id),
       })
       .from(ordersTable)
-      .where(getOrderFilters({ from, to, storeId }))
+      .where(getEligibleOrderFilters({ from, to, storeId }))
       .groupBy(
         sql`date_trunc(${sql.raw(`'${truncUnit}'`)}, ${ordersTable.orderDate})`
       )
@@ -283,8 +290,8 @@ class DashboardService {
     const previousAOV =
       previousTotalOrders === 0 ? 0 : previousRevenue / previousTotalOrders;
 
-    const revenueCard = {
-      label: "Revenue",
+    const grossOrderValueCard = {
+      label: "Gross Order Value",
       data: renderRes("price", currentRevenue, previousRevenue, {
         name: "indian-rupee",
         color: "green",
@@ -300,7 +307,7 @@ class DashboardService {
     };
 
     return [
-      revenueCard,
+      grossOrderValueCard,
       activeUsersCard,
       totalOrdersCard,
       aovCard,

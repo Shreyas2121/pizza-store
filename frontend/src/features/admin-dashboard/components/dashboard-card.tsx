@@ -8,7 +8,7 @@ export const DashboardCard = ({ card }: { card: DashCard }) => {
   const isLowStockCard = card.label === "Low Stock Items";
   const neutral = percentage === "N/A";
   const tint =
-    card.label === "Revenue"
+    card.label === "Gross Order Value" || card.label === "Revenue"
       ? "bg-brand-soft text-brand"
       : card.label === "Total Orders"
         ? "bg-basil-soft text-basil"

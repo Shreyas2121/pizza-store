@@ -981,7 +981,7 @@ metric and its comparison period to one store.
 {
   "data": [
     {
-      "label": "Revenue",
+      "label": "Gross Order Value",
       "data": {
         "current": "₹25,000",
         "previous": "₹20,000",

@@ -122,11 +122,11 @@ export const AdminDashboardPage = () => {
       <div className="mt-6 grid gap-5 xl:grid-cols-[1.45fr_1fr]">
         <section
           className="rounded-card border border-border bg-surface p-4 shadow-subtle sm:p-5"
-          aria-labelledby="revenue-chart-title"
+          aria-labelledby="gov-chart-title"
         >
           <div className="mb-4">
-            <h2 id="revenue-chart-title" className="text-card-title-scale">
-              Revenue trend
+            <h2 id="gov-chart-title" className="text-card-title-scale">
+              Gross order value trend
             </h2>
             <p className="mt-1 text-sm text-ink-muted">
               Gross order value grouped {group}.
@@ -136,7 +136,7 @@ export const AdminDashboardPage = () => {
             <ChartSkeleton />
           ) : chartsQuery.isError || !charts?.revenueOverTime?.length ? (
             <div className="flex h-80 items-center justify-center text-sm text-ink-muted">
-              No revenue data for this period.
+              No gross order value data for this period.
             </div>
           ) : (
             <LineChart
@@ -147,7 +147,7 @@ export const AdminDashboardPage = () => {
               gridAxis="y"
               withLegend
               valueFormatter={(value) => formatPrice(value)}
-              series={[{ name: "revenue", label: "Revenue", color: "brand.6" }]}
+              series={[{ name: "revenue", label: "Gross order value", color: "brand.6" }]}
             />
           )}
         </section>

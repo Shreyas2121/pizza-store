@@ -1,10 +1,52 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { db } from "../../db";
-import dashboardService from "./dashboard.service";
+import { ordersTable } from "../../db/schema";
+import dashboardService, {
+  EXCLUDED_DASHBOARD_ORDER_STATUSES,
+  getEligibleOrderFilters,
+} from "./dashboard.service";
 
 describe("DashboardService unit tests", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+  });
+
+  describe("getEligibleOrderFilters", () => {
+    it("defines excluded statuses as cancelled and awaiting_payment", () => {
+      expect(EXCLUDED_DASHBOARD_ORDER_STATUSES).toEqual([
+        "cancelled",
+        "awaiting_payment",
+      ]);
+    });
+
+    it("generates SQL condition excluding cancelled and awaiting_payment orders with date bounds", () => {
+      const from = new Date("2026-08-01T00:00:00.000Z");
+      const to = new Date("2026-08-15T23:59:59.999Z");
+
+      const filter = getEligibleOrderFilters({ from, to });
+      const query = db.select().from(ordersTable).where(filter).toSQL();
+
+      expect(query.sql).toContain('"orders"."status" not in ($3, $4)');
+      expect(query.params).toContain("cancelled");
+      expect(query.params).toContain("awaiting_payment");
+      expect(query.params).toContain(from.toISOString());
+      expect(query.params).toContain(to.toISOString());
+    });
+
+    it("includes storeId filter when storeId is provided", () => {
+      const from = new Date("2026-08-01T00:00:00.000Z");
+      const to = new Date("2026-08-15T23:59:59.999Z");
+
+      const filter = getEligibleOrderFilters({ from, to, storeId: 5 });
+      const query = db.select().from(ordersTable).where(filter).toSQL();
+
+      expect(query.sql).toContain('"orders"."store_id" = $5');
+      expect(query.params).toContain(5);
+      expect(query.params).toContain("cancelled");
+      expect(query.params).toContain("awaiting_payment");
+      expect(query.params).toContain(from.toISOString());
+      expect(query.params).toContain(to.toISOString());
+    });
   });
 
   describe("getLowStockItemsCount", () => {
@@ -50,7 +92,7 @@ describe("DashboardService unit tests", () => {
   });
 
   describe("getDashboardMetrics", () => {
-    it("returns all 5 metric cards including finance metrics when includeFinance is true", async () => {
+    it("returns all 5 metric cards with Gross Order Value when includeFinance is true", async () => {
       vi.spyOn(dashboardService, "getTotalRevenue").mockResolvedValue(50000);
       vi.spyOn(dashboardService, "getActiveUsers").mockResolvedValue(120);
       vi.spyOn(dashboardService, "getTotalOrders").mockResolvedValue(80);
@@ -65,12 +107,26 @@ describe("DashboardService unit tests", () => {
 
       expect(metrics).toHaveLength(5);
       expect(metrics.map((m) => m.label)).toEqual([
-        "Revenue",
+        "Gross Order Value",
         "Active Users",
         "Total Orders",
         "Average Order Value",
         "Low Stock Items",
       ]);
+
+      const govCard = metrics.find((m) => m.label === "Gross Order Value");
+      expect(govCard).toBeDefined();
+      expect(govCard?.data.icon).toEqual({
+        name: "indian-rupee",
+        color: "green",
+      });
+
+      const aovCard = metrics.find((m) => m.label === "Average Order Value");
+      expect(aovCard).toBeDefined();
+      expect(aovCard?.data.icon).toEqual({
+        name: "credit-card",
+        color: "teal",
+      });
 
       const lowStockCard = metrics.find((m) => m.label === "Low Stock Items");
       expect(lowStockCard).toBeDefined();
@@ -132,6 +188,23 @@ describe("DashboardService unit tests", () => {
       expect(getTotalOrdersSpy).toHaveBeenCalledWith(
         expect.objectContaining({ storeId: 3 })
       );
+    });
+
+    it("handles zero total orders gracefully for AOV calculation without division by zero errors", async () => {
+      vi.spyOn(dashboardService, "getTotalRevenue").mockResolvedValue(0);
+      vi.spyOn(dashboardService, "getActiveUsers").mockResolvedValue(0);
+      vi.spyOn(dashboardService, "getTotalOrders").mockResolvedValue(0);
+      vi.spyOn(dashboardService, "getLowStockItemsCount").mockResolvedValue(0);
+
+      const metrics = await dashboardService.getDashboardMetrics({
+        from: "2026-08-01",
+        to: "2026-08-15",
+        includeFinance: true,
+      });
+
+      const aovCard = metrics.find((m) => m.label === "Average Order Value");
+      expect(aovCard).toBeDefined();
+      expect(aovCard?.data.current).toBe("₹0.00");
     });
   });
 });
