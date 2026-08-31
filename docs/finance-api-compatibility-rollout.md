@@ -53,6 +53,8 @@ Previously, coupon preview (`coupon.service.ts#validateCoupon`) and checkout cal
 - `buildQuote` calculated paise, converted to rupees via `paiseToRupees`, and `createOrderSnapshot` wrote floating rupees to `orders.total_price`.
 - The frontend recomputed discount percentages and delivery fees in browser JavaScript.
 
+P1.2 centralizes item totals, coupon eligibility, discount rounding/capping, and line allocation in `pricing.service.ts`. The legacy coupon-validation response keeps its existing coupon fields and adds exact quote fields. The public quote endpoint and removal of browser-side calculation remain intentionally scheduled for P1.8.
+
 ### 3.2 Target quote contract (`POST /api/v1/checkout/quote`)
 
 All pricing, discount allocation, tax extraction, and delivery fee calculation is centralized in `pricing.service.ts` operating strictly in integer paise.

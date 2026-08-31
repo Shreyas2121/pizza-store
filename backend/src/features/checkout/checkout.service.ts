@@ -16,43 +16,30 @@ import { paiseToRupees, rupeesToPaise } from "../../utils/money";
 import type { CouponRedemptionStatus, TransactionType } from "../../utils/types";
 import cartService from "../cart/cart.service";
 import inventoryService from "../inventory/inventory.service";
+import pricingService, {
+  type PricingItemInput,
+} from "../pricing/pricing.service";
 import { formatStoreTime, isStoreOpen } from "../stores/store-hours";
 
 type CheckoutCart = NonNullable<
   Awaited<ReturnType<typeof cartService.getCart>>
 >;
 
-const safeAdd = (left: number, right: number) => {
-  const result = left + right;
-  if (!Number.isSafeInteger(result)) {
-    throw new AppError("Cart total is too large", 400);
-  }
-  return result;
-};
-
-export const calculateCartSubtotalPaise = (cart: CheckoutCart) => {
+export const toPricingItems = (cart: CheckoutCart): PricingItemInput[] => {
   try {
-    return cart.items.reduce((subtotal, item) => {
-      if (!Number.isInteger(item.quantity) || item.quantity <= 0) {
-        throw new AppError("Cart contains an invalid quantity", 409);
-      }
-
-      const extrasPaise = item.customizations.reduce(
-        (sum, customization) =>
-          safeAdd(sum, rupeesToPaise(customization.price)),
-        0
-      );
-      const unitPricePaise = safeAdd(rupeesToPaise(item.price), extrasPaise);
-      const lineTotalPaise = unitPricePaise * item.quantity;
-
-      if (!Number.isSafeInteger(lineTotalPaise)) {
-        throw new AppError("Cart total is too large", 400);
-      }
-
-      return safeAdd(subtotal, lineTotalPaise);
-    }, 0);
+    return cart.items.map((item) => ({
+      lineId: item.id,
+      productId: item.productId,
+      productName: item.product.name,
+      quantity: item.quantity,
+      baseUnitPricePaise: rupeesToPaise(item.price),
+      customizations: item.customizations.map((customization) => ({
+        customizationOptionId: customization.customizationOptionId,
+        name: customization.customizationOption.name,
+        pricePaise: rupeesToPaise(customization.price),
+      })),
+    }));
   } catch (error) {
-    if (error instanceof AppError) throw error;
     if (error instanceof RangeError) {
       throw new AppError("Cart contains invalid pricing", 409);
     }
@@ -147,14 +134,14 @@ class CheckoutService {
       tx
     );
 
-    const subtotalPaise = calculateCartSubtotalPaise(cart);
-    const coupon = couponCode
-      ? await this.getValidCoupon(couponCode, subtotalPaise, tx)
-      : null;
-    const discountPaise = coupon
-      ? this.calculateDiscountPaise(coupon, subtotalPaise)
-      : 0;
-    const totalPaise = subtotalPaise - discountPaise;
+    const { quote: pricingQuote, couponRecord: coupon } =
+      await pricingService.buildQuote(
+        { items: toPricingItems(cart), couponCode },
+        { executor: tx, lockCoupon: true }
+      );
+    const subtotalPaise = pricingQuote.itemsSubtotalPaise;
+    const discountPaise = pricingQuote.discountPaise;
+    const totalPaise = pricingQuote.grandTotalPaise;
 
     return {
       cart,
@@ -166,16 +153,20 @@ class CheckoutService {
       discountRupees: paiseToRupees(discountPaise),
       totalPaise,
       totalRupees: paiseToRupees(totalPaise),
+      pricingQuote,
       stockAllocations,
     };
   }
 
-  async getCartSubtotalRupees(userId: number) {
+  async previewCoupon(userId: number, couponCode: string) {
     const cart = await cartService.getCart(userId);
     if (!cart || cart.items.length === 0) {
       throw new AppError("Cart is empty", 400);
     }
-    return paiseToRupees(calculateCartSubtotalPaise(cart));
+    return await pricingService.buildQuote({
+      items: toPricingItems(cart),
+      couponCode,
+    });
   }
 
   async createOrderSnapshot(
@@ -416,79 +407,6 @@ class CheckoutService {
     }
   }
 
-  private async getValidCoupon(
-    code: string,
-    subtotalPaise: number,
-    tx: TransactionType
-  ) {
-    const normalizedCode = code.trim().toUpperCase();
-    const [coupon] = await tx
-      .select()
-      .from(couponsTable)
-      .where(eq(couponsTable.code, normalizedCode))
-      .for("update")
-      .limit(1);
-
-    if (!coupon) throw new AppError("Coupon not found", 404);
-
-    const now = new Date();
-    if (!coupon.isActive) throw new AppError("Coupon is not active", 400);
-    if (now < coupon.startDate || now > coupon.endDate) {
-      throw new AppError("Coupon is expired or not yet valid", 400);
-    }
-    if (!Number.isFinite(coupon.discountValue) || coupon.discountValue <= 0) {
-      throw new AppError("Coupon has an invalid discount", 400);
-    }
-
-    if (!Number.isFinite(coupon.minOrderValue) || coupon.minOrderValue < 0) {
-      throw new AppError("Coupon has an invalid minimum order value", 400);
-    }
-    const minimumPaise = rupeesToPaise(coupon.minOrderValue);
-    if (subtotalPaise < minimumPaise) {
-      throw new AppError(
-        `Minimum order value of ${coupon.minOrderValue} not met`,
-        400
-      );
-    }
-
-    const [usage] = await tx
-      .select({ active: count(couponRedemptionsTable.id) })
-      .from(couponRedemptionsTable)
-      .where(
-        and(
-          eq(couponRedemptionsTable.couponId, coupon.id),
-          inArray(couponRedemptionsTable.status, ["reserved", "consumed"])
-        )
-      );
-    const activeUsage = Math.max(coupon.redemptionCount, Number(usage.active));
-    if (coupon.maxRedemptions >= 0 && activeUsage >= coupon.maxRedemptions) {
-      throw new AppError("Coupon maximum redemption limit reached", 400);
-    }
-
-    return coupon;
-  }
-
-  private calculateDiscountPaise(
-    coupon: typeof couponsTable.$inferSelect,
-    subtotalPaise: number
-  ) {
-    if (
-      coupon.discountType !== "percentage" &&
-      coupon.discountType !== "fixed"
-    ) {
-      throw new AppError("Coupon has an invalid discount type", 400);
-    }
-
-    const rawDiscount =
-      coupon.discountType === "percentage"
-        ? Math.round((subtotalPaise * coupon.discountValue) / 100)
-        : rupeesToPaise(coupon.discountValue);
-
-    if (!Number.isSafeInteger(rawDiscount) || rawDiscount < 0) {
-      throw new AppError("Coupon has an invalid discount", 400);
-    }
-    return Math.min(rawDiscount, subtotalPaise);
-  }
 }
 
 export default new CheckoutService();

@@ -3,11 +3,12 @@ import { AppError } from "../../utils/error";
 import type { TransactionType } from "../../utils/types";
 import cartService from "../cart/cart.service";
 import inventoryService from "../inventory/inventory.service";
+import pricingService from "../pricing/pricing.service";
 import checkoutService from "./checkout.service";
 
 describe("CheckoutService stock integration", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.restoreAllMocks();
   });
 
   it("locks cart, validates available stock, and returns stockAllocations in quote", async () => {
@@ -80,6 +81,12 @@ describe("CheckoutService stock integration", () => {
     );
 
     expect(quote.stockAllocations).toEqual(mockAllocations);
+    expect(quote.pricingQuote).toMatchObject({
+      quoteVersion: "2026-08-31-01",
+      itemsSubtotalPaise: 40_000,
+      discountPaise: 0,
+      grandTotalPaise: 40_000,
+    });
     expect(inventoryService.validateAndLockStock).toHaveBeenCalledWith(
       1,
       mockCart.items,
@@ -159,5 +166,59 @@ describe("CheckoutService stock integration", () => {
         status: 409,
       })
     );
+  });
+
+  it("uses the canonical pricing policy for coupon preview", async () => {
+    const mockCart = {
+      id: 1,
+      userId: 10,
+      storeId: 1,
+      items: [
+        {
+          id: 101,
+          productId: 1,
+          quantity: 1,
+          price: 200,
+          product: { name: "Margherita" },
+          customizations: [],
+        },
+      ],
+    };
+    vi.spyOn(cartService, "getCart").mockResolvedValue(mockCart as any);
+    const pricingResult = {
+      quote: {
+        quoteVersion: "2026-08-31-01",
+        currency: "INR",
+        pricingPolicyVersion: 1,
+        itemsSubtotalPaise: 20_000,
+        discountPaise: 2_000,
+        deliveryFeePaise: 0,
+        roundingAdjustmentPaise: 0,
+        grandTotalPaise: 18_000,
+        items: [],
+        coupon: { id: 7, code: "SAVE10", discountPaise: 2_000, applied: true },
+      },
+      couponRecord: { id: 7, code: "SAVE10" },
+    };
+    const buildQuote = vi
+      .spyOn(pricingService, "buildQuote")
+      .mockResolvedValue(pricingResult as any);
+
+    await expect(checkoutService.previewCoupon(10, "save10")).resolves.toBe(
+      pricingResult
+    );
+    expect(buildQuote).toHaveBeenCalledWith({
+      items: [
+        {
+          lineId: 101,
+          productId: 1,
+          productName: "Margherita",
+          quantity: 1,
+          baseUnitPricePaise: 20_000,
+          customizations: [],
+        },
+      ],
+      couponCode: "save10",
+    });
   });
 });

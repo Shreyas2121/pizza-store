@@ -736,9 +736,25 @@ cart subtotal. Checkout always locks and revalidates the coupon before use.
 **Response `200`:**
 ```json
 {
-  "data": { "id": 1, "code": "SAVE20", "discountType": "percentage", "discountValue": 20, ... }
+  "data": {
+    "id": 1,
+    "code": "SAVE20",
+    "discountType": "percentage",
+    "discountValue": 20,
+    "quoteVersion": "2026-08-31-01",
+    "currency": "INR",
+    "pricingPolicyVersion": 1,
+    "itemsSubtotalPaise": 50000,
+    "discountPaise": 10000,
+    "discountAmount": 100,
+    "grandTotalPaise": 40000
+  }
 }
 ```
+
+Existing coupon fields remain unchanged. The additive quote fields come from the
+same integer-paise policy used by final checkout; `discountAmount` is the legacy
+rupee presentation value.
 
 Coupon redemption is internal to the order transaction. The former public
 `POST /coupon/redeem` endpoint has been removed to prevent replay and

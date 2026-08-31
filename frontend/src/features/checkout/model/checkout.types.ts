@@ -46,6 +46,16 @@ export type Coupon = {
   maxRedemptions: number;
 };
 
+export type CouponPreview = Coupon & {
+  quoteVersion: string;
+  currency: "INR";
+  pricingPolicyVersion: number;
+  itemsSubtotalPaise: number;
+  discountPaise: number;
+  discountAmount: number;
+  grandTotalPaise: number;
+};
+
 export type RazorpayFailure = {
   code: string | null;
   description: string | null;
