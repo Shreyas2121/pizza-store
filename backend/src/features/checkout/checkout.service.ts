@@ -12,7 +12,7 @@ import {
   storeProductsTable,
 } from "../../db/schema";
 import { AppError } from "../../utils/error";
-import { paiseToRupees, rupeesToPaise } from "../../utils/money";
+import { rupeesToPaise } from "../../utils/money";
 import type { CouponRedemptionStatus, TransactionType } from "../../utils/types";
 import cartService from "../cart/cart.service";
 import inventoryService from "../inventory/inventory.service";
@@ -139,20 +139,13 @@ class CheckoutService {
         { items: toPricingItems(cart), couponCode },
         { executor: tx, lockCoupon: true }
       );
-    const subtotalPaise = pricingQuote.itemsSubtotalPaise;
-    const discountPaise = pricingQuote.discountPaise;
-    const totalPaise = pricingQuote.grandTotalPaise;
-
     return {
       cart,
       address,
       coupon,
-      subtotalPaise,
-      subtotalRupees: paiseToRupees(subtotalPaise),
-      discountPaise,
-      discountRupees: paiseToRupees(discountPaise),
-      totalPaise,
-      totalRupees: paiseToRupees(totalPaise),
+      subtotalPaise: pricingQuote.itemsSubtotalPaise,
+      discountPaise: pricingQuote.discountPaise,
+      totalPaise: pricingQuote.grandTotalPaise,
       pricingQuote,
       stockAllocations,
     };
@@ -174,6 +167,10 @@ class CheckoutService {
     data: CreateOrderSnapshotInput,
     tx: TransactionType
   ) {
+    const pricingQuote = quote.pricingQuote;
+    const taxableAmountPaise =
+      pricingQuote.itemsSubtotalPaise - pricingQuote.discountPaise
+      + pricingQuote.deliveryFeePaise;
     const [order] = await tx
       .insert(ordersTable)
       .values({
@@ -181,22 +178,37 @@ class CheckoutService {
         addressId: data.addressId,
         storeId: quote.cart.storeId!,
         couponId: quote.coupon?.id ?? null,
-        discountAmount: quote.discountRupees,
-        totalPrice: quote.totalRupees,
+        itemsSubtotalPaise: pricingQuote.itemsSubtotalPaise,
+        discountPaise: pricingQuote.discountPaise,
+        deliveryFeePaise: pricingQuote.deliveryFeePaise,
+        taxableAmountPaise,
+        taxPaise: 0,
+        roundingAdjustmentPaise: pricingQuote.roundingAdjustmentPaise,
+        grandTotalPaise: pricingQuote.grandTotalPaise,
+        currency: pricingQuote.currency,
+        quoteVersion: pricingQuote.quoteVersion,
+        pricingPolicyVersion: pricingQuote.pricingPolicyVersion,
         paymentType: data.paymentType,
         paymentId: data.paymentId,
         status: data.status,
       })
       .returning();
 
-    for (const item of quote.cart.items) {
+    for (const item of pricingQuote.items) {
       const [orderItem] = await tx
         .insert(orderItemsTable)
         .values({
           orderId: order.id,
           productId: item.productId,
           quantity: item.quantity,
-          price: item.price,
+          productName: item.productName,
+          unitPricePaise: item.unitPricePaise,
+          lineSubtotalPaise: item.lineSubtotalPaise,
+          discountAllocationPaise: item.discountAllocationPaise,
+          taxRateBps: 0,
+          taxableAmountPaise: item.lineTotalPaise,
+          taxPaise: 0,
+          lineTotalPaise: item.lineTotalPaise,
         })
         .returning();
 
@@ -205,7 +217,8 @@ class CheckoutService {
           item.customizations.map((customization) => ({
             customizationOptionId: customization.customizationOptionId,
             orderItemId: orderItem.id,
-            price: customization.price,
+            customizationName: customization.name,
+            pricePaise: customization.pricePaise,
           }))
         );
       }

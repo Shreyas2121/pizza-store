@@ -58,7 +58,7 @@ class PaymentRepository {
         userId: ordersTable.userId,
         storeId: ordersTable.storeId,
         storeName: storesTable.name,
-        totalPrice: ordersTable.totalPrice,
+        grandTotalPaise: ordersTable.grandTotalPaise,
         couponId: ordersTable.couponId,
         provider: paymentsTable.provider,
         amountPaise: paymentsTable.amountPaise,

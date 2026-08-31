@@ -14,6 +14,7 @@ import checkoutService from "../checkout/checkout.service";
 import inventoryService from "../inventory/inventory.service";
 import paymentService from "../payments/payment.service";
 import { assertValidOrderTransition } from "./order.logic";
+import { orderGrandTotalRupees, toOrderResponse } from "./order.mapper";
 
 interface CreateCodOrderData {
   userId: number;
@@ -79,23 +80,24 @@ class OrderService {
         id: order.id,
         storeId: order.storeId,
         paymentId: payment.id,
-        totalPrice: order.totalPrice,
+        totalPrice: orderGrandTotalRupees(order),
         lowStockAlerts,
       };
     });
   }
 
   async getOrders(userId: number, status?: OrderStatus) {
-    return await db.query.ordersTable.findMany({
+    const orders = await db.query.ordersTable.findMany({
       where: status
         ? and(eq(ordersTable.status, status), eq(ordersTable.userId, userId))
         : eq(ordersTable.userId, userId),
       orderBy: desc(ordersTable.orderDate),
     });
+    return orders.map(toOrderResponse);
   }
 
   async getAllUserOrders(userId: number) {
-    return await db.query.ordersTable.findMany({
+    const orders = await db.query.ordersTable.findMany({
       where: eq(ordersTable.userId, userId),
       orderBy: desc(ordersTable.orderDate),
       with: {
@@ -111,10 +113,11 @@ class OrderService {
         },
       },
     });
+    return orders.map(toOrderResponse);
   }
 
   async getOrderDetails(orderId: number) {
-    return await db.query.ordersTable.findFirst({
+    const order = await db.query.ordersTable.findFirst({
       where: eq(ordersTable.id, orderId),
       with: {
         address: true,
@@ -133,6 +136,7 @@ class OrderService {
         store: true,
       },
     });
+    return order ? toOrderResponse(order) : undefined;
   }
 
   async getAdminOrders({
@@ -150,7 +154,7 @@ class OrderService {
       conditions.push(eq(ordersTable.storeId, storeId));
     }
 
-    return await db.query.ordersTable.findMany({
+    const orders = await db.query.ordersTable.findMany({
       where: conditions.length > 0 ? and(...conditions) : undefined,
       orderBy: desc(ordersTable.orderDate),
       with: {
@@ -158,6 +162,7 @@ class OrderService {
         store: true,
       },
     });
+    return orders.map(toOrderResponse);
   }
 
   async updateOrderStatus(

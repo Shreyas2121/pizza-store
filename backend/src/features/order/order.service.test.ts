@@ -158,7 +158,7 @@ describe("OrderService unit tests", () => {
       vi.spyOn(checkoutService, "createOrderSnapshot").mockResolvedValue({
         id: 42,
         storeId: 1,
-        totalPrice: 500,
+        grandTotalPaise: 50_000,
       } as any);
       vi.spyOn(inventoryService, "deductStockForCod").mockResolvedValue([
         {
@@ -198,12 +198,84 @@ describe("OrderService unit tests", () => {
     });
   });
 
+  describe("customer order reads", () => {
+    it("maps list totals from exact paise snapshots", async () => {
+      const { orderService } = createTestHarness();
+      vi.spyOn(db.query.ordersTable, "findMany").mockResolvedValue([
+        {
+          id: 1,
+          userId: 7,
+          discountPaise: 2_000,
+          grandTotalPaise: 18_000,
+          discountAmount: 999,
+          totalPrice: 999,
+        },
+      ] as any);
+
+      await expect(orderService.getOrders(7)).resolves.toEqual([
+        expect.objectContaining({
+          id: 1,
+          discountAmount: 20,
+          totalPrice: 180,
+        }),
+      ]);
+    });
+
+    it("maps detail names and prices from line/customization snapshots", async () => {
+      const { orderService } = createTestHarness();
+      vi.spyOn(db.query.ordersTable, "findFirst").mockResolvedValue({
+        id: 1,
+        userId: 7,
+        discountPaise: 0,
+        grandTotalPaise: 25_000,
+        items: [
+          {
+            productName: "Snapshot Pizza",
+            unitPricePaise: 25_000,
+            product: { name: "Current Pizza" },
+            orderItemCustomizations: [
+              {
+                customizationName: "Snapshot Cheese",
+                pricePaise: 5_000,
+                customizationOption: { name: "Current Cheese" },
+              },
+            ],
+          },
+        ],
+      } as any);
+
+      const order = await orderService.getOrderDetails(1);
+
+      expect(order).toMatchObject({
+        totalPrice: 250,
+        items: [
+          {
+            price: 200,
+            product: { name: "Snapshot Pizza" },
+            orderItemCustomizations: [
+              {
+                price: 50,
+                customizationOption: { name: "Snapshot Cheese" },
+              },
+            ],
+          },
+        ],
+      });
+    });
+  });
+
   describe("getAdminOrders", () => {
     it("returns orders filtered by storeId and status", async () => {
       const { orderService } = createTestHarness();
 
       const mockOrders = [
-        { id: 1, storeId: 1, status: "pending", totalPrice: 300 },
+        {
+          id: 1,
+          storeId: 1,
+          status: "pending",
+          discountPaise: 0,
+          grandTotalPaise: 30_000,
+        },
       ];
 
       vi.spyOn(db.query.ordersTable, "findMany").mockResolvedValue(mockOrders as any);
@@ -213,15 +285,33 @@ describe("OrderService unit tests", () => {
         storeId: 1,
       });
 
-      expect(orders).toEqual(mockOrders);
+      expect(orders).toEqual([
+        expect.objectContaining({
+          id: 1,
+          discountAmount: 0,
+          totalPrice: 300,
+        }),
+      ]);
     });
 
     it("returns global orders when storeId is omitted for platform admin", async () => {
       const { orderService } = createTestHarness();
 
       const mockOrders = [
-        { id: 1, storeId: 1, status: "pending", totalPrice: 300 },
-        { id: 2, storeId: 2, status: "pending", totalPrice: 450 },
+        {
+          id: 1,
+          storeId: 1,
+          status: "pending",
+          discountPaise: 0,
+          grandTotalPaise: 30_000,
+        },
+        {
+          id: 2,
+          storeId: 2,
+          status: "pending",
+          discountPaise: 0,
+          grandTotalPaise: 45_000,
+        },
       ];
 
       vi.spyOn(db.query.ordersTable, "findMany").mockResolvedValue(mockOrders as any);

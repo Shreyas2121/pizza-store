@@ -24,6 +24,7 @@ import type {
   LocalRazorpayAttempt,
   VerifyRazorpayPaymentInput,
 } from "./payment.types";
+import { orderGrandTotalRupees } from "../order/order.mapper";
 
 class PaymentReconciliationService {
   async verifyRazorpayPayment(data: VerifyRazorpayPaymentInput) {
@@ -258,7 +259,7 @@ class PaymentReconciliationService {
         return {
           localOrderId: record.order.id,
           localPaymentId: record.payment.id,
-          totalPrice: record.order.totalPrice,
+          totalPrice: orderGrandTotalRupees(record.order),
           paymentStatus: record.payment.status,
           orderStatus: record.order.status,
           finalizedNow: false,
@@ -325,7 +326,7 @@ class PaymentReconciliationService {
       return {
         localOrderId: record.order.id,
         localPaymentId: record.payment.id,
-        totalPrice: record.order.totalPrice,
+        totalPrice: orderGrandTotalRupees(record.order),
         paymentStatus: "completed" as const,
         orderStatus: "pending" as const,
         finalizedNow: true,
@@ -696,7 +697,7 @@ class PaymentReconciliationService {
         return {
           localOrderId: record.order.id,
           localPaymentId: record.payment.id,
-          totalPrice: record.order.totalPrice,
+          totalPrice: orderGrandTotalRupees(record.order),
           paymentStatus: record.payment.status,
           orderStatus: record.order.status,
           finalizedNow: false,
@@ -724,7 +725,7 @@ class PaymentReconciliationService {
       return {
         localOrderId: record.order.id,
         localPaymentId: record.payment.id,
-        totalPrice: record.order.totalPrice,
+        totalPrice: orderGrandTotalRupees(record.order),
         paymentStatus: "failed" as const,
         orderStatus: record.order.status,
         finalizedNow: false,

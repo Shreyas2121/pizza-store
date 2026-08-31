@@ -27,7 +27,7 @@ describe("PaymentReconciliationService characterization tests", () => {
     userId: 5,
     storeId: 1,
     storeName: "Main Store",
-    totalPrice: 450,
+    grandTotalPaise: 45_000,
     couponId: 10,
     amountPaise: 45000,
     currency: "INR",
@@ -465,7 +465,7 @@ describe("PaymentReconciliationService characterization tests", () => {
         order: {
           id: 100,
           userId: 5,
-          totalPrice: 450,
+          grandTotalPaise: 45_000,
           status: "pending",
           couponId: 10,
         },
@@ -525,7 +525,7 @@ describe("PaymentReconciliationService characterization tests", () => {
         order: {
           id: 100,
           userId: 5,
-          totalPrice: 450,
+          grandTotalPaise: 45_000,
           status: "pending",
           couponId: null,
         },
@@ -577,7 +577,7 @@ describe("PaymentReconciliationService characterization tests", () => {
         order: {
           id: 100,
           userId: 5,
-          totalPrice: 450,
+          grandTotalPaise: 45_000,
           status: "cancelled", // ineligible status
           couponId: null,
         },
@@ -629,7 +629,7 @@ describe("PaymentReconciliationService characterization tests", () => {
         order: {
           id: 100,
           userId: 5,
-          totalPrice: 450,
+          grandTotalPaise: 45_000,
           status: "awaiting_payment",
           couponId: null,
         },
@@ -948,7 +948,7 @@ describe("PaymentReconciliationService characterization tests", () => {
       const mockRecord = {
         order: {
           id: 100,
-          totalPrice: 450,
+          grandTotalPaise: 45_000,
           status: "pending",
         },
         payment: {
@@ -996,7 +996,7 @@ describe("PaymentReconciliationService characterization tests", () => {
       const mockRecord = {
         order: {
           id: 100,
-          totalPrice: 450,
+          grandTotalPaise: 45_000,
           status: "awaiting_payment",
         },
         payment: {

@@ -223,7 +223,7 @@ class PaymentService {
           userId: order.userId,
           storeId: order.storeId,
           storeName: quote.cart.store!.name,
-          totalPrice: order.totalPrice,
+          grandTotalPaise: order.grandTotalPaise,
           couponId: order.couponId,
           provider: payment.provider,
           amountPaise: payment.amountPaise,

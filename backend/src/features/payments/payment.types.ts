@@ -31,7 +31,7 @@ export interface LocalRazorpayAttempt {
   userId: number;
   storeId: number;
   storeName: string;
-  totalPrice: number;
+  grandTotalPaise: number | null;
   couponId: number | null;
   provider: "cod" | "razorpay";
   amountPaise: number;

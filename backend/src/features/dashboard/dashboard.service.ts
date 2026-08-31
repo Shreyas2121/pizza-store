@@ -22,6 +22,7 @@ import { GroupT, OrderStatus } from "../../utils/types";
 import { AppError } from "../../utils/error";
 import { groupToTrunc } from "../../constants";
 import { formatNumber, formatPrice } from "../../utils";
+import { parseAggregatePaise } from "../../utils/money";
 
 interface Props {
   from?: Date;
@@ -48,14 +49,13 @@ export const getEligibleOrderFilters = ({ from, to, storeId }: Props) =>
 
 class DashboardService {
   async getTotalRevenue({ from, to, storeId }: Props) {
-    return (
-      await db
-        .select({
-          total: sql`COALESCE(SUM(total_price), 0) as total_revenue`,
-        })
-        .from(ordersTable)
-        .where(getEligibleOrderFilters({ from, to, storeId }))
-    )[0].total as number;
+    const [result] = await db
+      .select({
+        totalPaise: sql<string>`COALESCE(SUM(${ordersTable.grandTotalPaise}), 0)::text`,
+      })
+      .from(ordersTable)
+      .where(getEligibleOrderFilters({ from, to, storeId }));
+    return this.aggregatePaiseToRupees(result.totalPaise);
   }
 
   async getActiveUsers({ from, to, storeId }: Props) {
@@ -135,12 +135,12 @@ class DashboardService {
       throw new AppError(`Invalid group: ${group}`);
     }
 
-    return await db
+    const rows = await db
       .select({
         period: sql<string>`date_trunc(${sql.raw(`'${truncUnit}'`)}, ${
           ordersTable.orderDate
         })`,
-        revenue: sql<number>`COALESCE(sum(${ordersTable.totalPrice}), 0)`,
+        revenuePaise: sql<string>`COALESCE(sum(${ordersTable.grandTotalPaise}), 0)::text`,
       })
       .from(ordersTable)
       .where(getEligibleOrderFilters({ from, to, storeId }))
@@ -154,6 +154,10 @@ class DashboardService {
           })`
         )
       );
+    return rows.map(({ period, revenuePaise }) => ({
+      period,
+      revenue: this.aggregatePaiseToRupees(revenuePaise),
+    }));
   }
 
   async getOrdersOverTime({ group, from, to, storeId }: ChartsProp) {
@@ -181,6 +185,19 @@ class DashboardService {
           })`
         )
       );
+  }
+
+  private aggregatePaiseToRupees(value: string | number | bigint) {
+    const paise = parseAggregatePaise(value);
+    const numericPaise = Number(paise);
+    if (!Number.isSafeInteger(numericPaise)) {
+      throw new AppError(
+        "Dashboard total exceeds the safe compatibility response range",
+        500,
+        "DASHBOARD_TOTAL_OUT_OF_RANGE"
+      );
+    }
+    return numericPaise / 100;
   }
 
   async getDashboardMetrics(

@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppError } from "../../utils/error";
+import {
+  orderItemCustomizationsTable,
+  orderItemsTable,
+  ordersTable,
+} from "../../db/schema";
 import type { TransactionType } from "../../utils/types";
 import cartService from "../cart/cart.service";
 import inventoryService from "../inventory/inventory.service";
@@ -219,6 +224,173 @@ describe("CheckoutService stock integration", () => {
         },
       ],
       couponCode: "save10",
+    });
+  });
+});
+
+describe("CheckoutService exact order snapshots", () => {
+  const createInsertHarness = () => {
+    const writes = new Map<unknown, unknown>();
+    let orderItemId = 900;
+    const tx = {
+      insert: vi.fn((table: unknown) => ({
+        values: vi.fn((values: unknown) => {
+          writes.set(table, values);
+          return {
+            returning: vi.fn().mockResolvedValue(
+              table === ordersTable
+                ? [{ id: 42, storeId: 1, userId: 10, ...(values as object) }]
+                : [{ id: orderItemId++, ...(values as object) }]
+            ),
+          };
+        }),
+      })),
+    } as unknown as TransactionType;
+    return { tx, writes };
+  };
+
+  const createQuote = (overrides: Record<string, unknown> = {}) => ({
+    cart: { storeId: 1 },
+    coupon: { id: 7 },
+    pricingQuote: {
+      quoteVersion: "2026-08-31-01",
+      currency: "INR",
+      pricingPolicyVersion: 1,
+      itemsSubtotalPaise: 50_000,
+      discountPaise: 10_000,
+      deliveryFeePaise: 0,
+      roundingAdjustmentPaise: 0,
+      grandTotalPaise: 40_000,
+      items: [
+        {
+          lineId: 101,
+          productId: 1,
+          productName: "Margherita",
+          quantity: 2,
+          unitPricePaise: 25_000,
+          lineSubtotalPaise: 50_000,
+          discountAllocationPaise: 10_000,
+          lineTotalPaise: 40_000,
+          customizations: [
+            {
+              customizationOptionId: 8,
+              name: "Extra cheese",
+              pricePaise: 5_000,
+            },
+          ],
+        },
+      ],
+      coupon: { id: 7, code: "SAVE20", discountPaise: 10_000, applied: true },
+      ...overrides,
+    },
+  });
+
+  it("persists customized and discounted values directly from the quote", async () => {
+    const { tx, writes } = createInsertHarness();
+
+    await checkoutService.createOrderSnapshot(
+      createQuote() as any,
+      {
+        userId: 10,
+        addressId: 3,
+        paymentId: 5,
+        paymentType: "cash",
+        status: "pending",
+      },
+      tx
+    );
+
+    expect(writes.get(ordersTable)).toMatchObject({
+      itemsSubtotalPaise: 50_000,
+      discountPaise: 10_000,
+      taxableAmountPaise: 40_000,
+      taxPaise: 0,
+      grandTotalPaise: 40_000,
+      currency: "INR",
+      quoteVersion: "2026-08-31-01",
+      pricingPolicyVersion: 1,
+    });
+    expect(writes.get(ordersTable)).not.toHaveProperty("discountAmount");
+    expect(writes.get(ordersTable)).not.toHaveProperty("totalPrice");
+    expect(writes.get(orderItemsTable)).toMatchObject({
+      productName: "Margherita",
+      unitPricePaise: 25_000,
+      lineSubtotalPaise: 50_000,
+      discountAllocationPaise: 10_000,
+      taxableAmountPaise: 40_000,
+      taxPaise: 0,
+      lineTotalPaise: 40_000,
+    });
+    expect(writes.get(orderItemsTable)).not.toHaveProperty("price");
+    expect(writes.get(orderItemCustomizationsTable)).toEqual([
+      expect.objectContaining({
+        customizationName: "Extra cheese",
+        pricePaise: 5_000,
+      }),
+    ]);
+  });
+
+  it.each([
+    {
+      label: "zero-total",
+      subtotal: 20_000,
+      discount: 20_000,
+      total: 0,
+      unit: 20_000,
+      quantity: 1,
+    },
+    {
+      label: "order-boundary",
+      subtotal: 500_000,
+      discount: 0,
+      total: 500_000,
+      unit: 100_000,
+      quantity: 5,
+    },
+  ])("persists the $label exact boundary", async (testCase) => {
+    const { tx, writes } = createInsertHarness();
+    const quote = createQuote({
+      itemsSubtotalPaise: testCase.subtotal,
+      discountPaise: testCase.discount,
+      grandTotalPaise: testCase.total,
+      items: [
+        {
+          lineId: 101,
+          productId: 1,
+          productName: "Boundary Pizza",
+          quantity: testCase.quantity,
+          unitPricePaise: testCase.unit,
+          lineSubtotalPaise: testCase.subtotal,
+          discountAllocationPaise: testCase.discount,
+          lineTotalPaise: testCase.total,
+          customizations: [],
+        },
+      ],
+    });
+
+    await checkoutService.createOrderSnapshot(
+      quote as any,
+      {
+        userId: 10,
+        addressId: 3,
+        paymentId: 5,
+        paymentType: "cash",
+        status: "pending",
+      },
+      tx
+    );
+
+    expect(writes.get(ordersTable)).toMatchObject({
+      itemsSubtotalPaise: testCase.subtotal,
+      discountPaise: testCase.discount,
+      taxableAmountPaise: testCase.total,
+      grandTotalPaise: testCase.total,
+    });
+    expect(writes.get(orderItemsTable)).toMatchObject({
+      unitPricePaise: testCase.unit,
+      lineSubtotalPaise: testCase.subtotal,
+      discountAllocationPaise: testCase.discount,
+      lineTotalPaise: testCase.total,
     });
   });
 });
