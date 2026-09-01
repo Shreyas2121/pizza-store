@@ -296,17 +296,28 @@ Per-order coupon reservation state used to prevent concurrent oversubscription. 
 | `id` | integer | PK | |
 | `user_id` | integer | FK → users, NOT NULL | |
 | `order_date` | timestamptz | default `now()` | |
-| `discount_amount` | double precision | NOT NULL | Computed discount at checkout |
 | `coupon_id` | integer | FK → coupons, nullable | |
-| `total_price` | double precision | NOT NULL, default `0` | Final price after discount |
-| `status` | text | NOT NULL, default `"pending"` | Also supports `"awaiting_payment"` for unpaid online orders |
+| `items_subtotal_paise` | integer | NOT NULL | Subtotal of all order lines in integer paise |
+| `discount_paise` | integer | NOT NULL | Coupon discount in integer paise |
+| `delivery_fee_paise` | integer | NOT NULL | Delivery fee in integer paise |
+| `taxable_amount_paise` | integer | NOT NULL | Net taxable base amount in integer paise |
+| `tax_paise` | integer | NOT NULL | Extracted inclusive tax in integer paise |
+| `rounding_adjustment_paise` | integer | NOT NULL | Rounding adjustment in integer paise |
+| `grand_total_paise` | integer | NOT NULL | Authoritative payable total in integer paise |
+| `currency` | text | NOT NULL | ISO 4217 currency (`INR`) |
+| `quoteVersion` | text | NOT NULL | Authoritative pricing quote version |
+| `pricing_policy_version` | integer | NOT NULL | Pricing policy revision integer |
+| `recognized_at` | timestamptz | nullable | Revenue and COGS recognition timestamp (set on delivery) |
+| `cancelled_at` | timestamptz | nullable | Cancellation timestamp |
+| `delivered_at` | timestamptz | nullable | Delivery completion timestamp |
+| `status` | text | NOT NULL, default `"pending"` | `"pending"`, `"preparing"`, `"ready"`, `"out_for_delivery"`, `"delievered"`, `"cancelled"`, `"awaiting_payment"` |
 | `payment_type` | text | NOT NULL, default `"cash"` | `"cash"` or `"razorpay"` |
-| `payment_id` | integer | FK → payments, nullable | |
+| `payment_id` | integer | FK → payments, unique, nullable | |
 | `address_id` | integer | FK → addresses, nullable | |
 | `store_id` | integer | FK → stores, NOT NULL | Fulfilling store |
 | `created_at`, `updated_at` | timestamptz | | |
 
-Relations: belongs to user, payment, coupon, address; one-to-many with order items.
+Relations: belongs to user, payment, coupon, address, store; one-to-many with order items.
 
 ### `order_items`
 
@@ -316,10 +327,20 @@ Relations: belongs to user, payment, coupon, address; one-to-many with order ite
 | `order_id` | integer | FK → orders, NOT NULL | |
 | `product_id` | integer | FK → products, NOT NULL | |
 | `quantity` | integer | NOT NULL, default `1` | |
-| `price` | double precision | NOT NULL, default `0` | Price snapshot |
+| `product_name` | text | NOT NULL | Product name snapshot |
+| `unit_price_paise` | integer | NOT NULL | Effective unit price in paise (base + customizations) |
+| `line_subtotal_paise` | integer | NOT NULL | `unit_price_paise * quantity` |
+| `discount_allocation_paise` | integer | NOT NULL | Proportionally allocated discount in paise |
+| `tax_rate_bps` | integer | NOT NULL | Applicable tax rate in basis points (e.g. 500 = 5%) |
+| `taxable_amount_paise` | integer | NOT NULL | Taxable portion of line total |
+| `tax_paise` | integer | NOT NULL | Tax portion of line total |
+| `line_total_paise` | integer | NOT NULL | Final line total (`line_subtotal_paise - discount_allocation_paise`) |
+| `unit_cost_paise` | integer | nullable | Standard inventory unit cost snapshot |
+| `line_cost_paise` | integer | nullable | Standard inventory line cost snapshot (`unit_cost_paise * quantity`) |
+| `hsn_sac_code` | text | nullable | HSN/SAC classification code snapshot |
 | `created_at`, `updated_at` | timestamptz | | |
 
-Relations: one-to-many with order item customizations.
+Relations: belongs to order, product; one-to-many with order item customizations.
 
 ### `order_item_customizations`
 
@@ -328,7 +349,8 @@ Relations: one-to-many with order item customizations.
 | `id` | integer | PK | |
 | `order_item_id` | integer | FK → order_items, NOT NULL | |
 | `customization_option_id` | integer | FK → customization_options, NOT NULL | |
-| `price` | double precision | NOT NULL | Price snapshot |
+| `customization_name` | text | NOT NULL | Customization option name snapshot |
+| `price_paise` | integer | NOT NULL | Customization unit price in integer paise |
 | `created_at`, `updated_at` | timestamptz | | |
 
 ### `delivery_zones`

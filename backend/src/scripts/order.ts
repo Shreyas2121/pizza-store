@@ -12,6 +12,7 @@ import {
   storesTable,
 } from "../db/schema";
 import { eq } from "drizzle-orm";
+import { rupeesToPaise } from "../utils/money";
 
 (async function seedOrders() {
   console.log(`Seeding Orders...`);
@@ -75,7 +76,6 @@ import { eq } from "drizzle-orm";
       const [{ id: orderId }] = await db
         .insert(ordersTable)
         .values({
-          discountAmount: 0,
           userId,
           storeId: store.id,
           addressId: addressExists.id,
@@ -84,11 +84,20 @@ import { eq } from "drizzle-orm";
             to: "2025-02-28T00:00:00.000Z",
           }),
           status: "delievered",
-          totalPrice: 0,
+          itemsSubtotalPaise: 0,
+          discountPaise: 0,
+          deliveryFeePaise: 0,
+          taxableAmountPaise: 0,
+          taxPaise: 0,
+          roundingAdjustmentPaise: 0,
+          grandTotalPaise: 0,
+          currency: "INR",
+          quoteVersion: "seed-order-v1",
+          pricingPolicyVersion: 1,
         })
         .returning();
 
-      let orderTotal = 0;
+      let orderTotalPaise = 0;
 
       const itemCount = faker.number.int({
         min: 1,
@@ -105,27 +114,22 @@ import { eq } from "drizzle-orm";
 
         insertedProducts.add(randomProduct.id);
 
-        let basePrice = randomProduct.price;
+        const baseUnitPricePaise = rupeesToPaise(randomProduct.price);
         const quantity = faker.number.int({
           min: 1,
           max: 2,
         });
 
-        const [{ id: orderItemId }] = await db
-          .insert(orderItemsTable)
-          .values({
-            orderId,
-            productId: randomProduct.id,
-            price: basePrice,
-            quantity,
-          })
-          .returning();
-
         const productGroups = updatedGroups.filter((grp) =>
           grp.mapping.some((p) => p.productId === randomProduct.id)
         );
 
-        let groupedPrice = 0;
+        let customizationUnitPricePaise = 0;
+        const customizationsToInsert: Array<{
+          optionId: number;
+          name: string;
+          pricePaise: number;
+        }> = [];
 
         for (const group of productGroups) {
           let pickCount = 0;
@@ -152,23 +156,55 @@ import { eq } from "drizzle-orm";
             const options = pickRandomOptions(group.options, pickCount);
 
             for (const op of options) {
-              groupedPrice += op.price ?? 0;
-              await db.insert(orderItemCustomizationsTable).values({
-                customizationOptionId: op.id,
-                orderItemId,
-                price: op.price ?? 0,
+              const optionPricePaise = rupeesToPaise(op.price ?? 0);
+              customizationUnitPricePaise += optionPricePaise;
+              customizationsToInsert.push({
+                optionId: op.id,
+                name: op.name,
+                pricePaise: optionPricePaise,
               });
             }
           }
         }
 
-        orderTotal = orderTotal + (basePrice + groupedPrice) * quantity;
+        const unitPricePaise = baseUnitPricePaise + customizationUnitPricePaise;
+        const lineSubtotalPaise = unitPricePaise * quantity;
+
+        const [{ id: orderItemId }] = await db
+          .insert(orderItemsTable)
+          .values({
+            orderId,
+            productId: randomProduct.id,
+            quantity,
+            productName: randomProduct.name,
+            unitPricePaise,
+            lineSubtotalPaise,
+            discountAllocationPaise: 0,
+            taxRateBps: 0,
+            taxableAmountPaise: lineSubtotalPaise,
+            taxPaise: 0,
+            lineTotalPaise: lineSubtotalPaise,
+          })
+          .returning();
+
+        for (const cust of customizationsToInsert) {
+          await db.insert(orderItemCustomizationsTable).values({
+            customizationOptionId: cust.optionId,
+            orderItemId,
+            customizationName: cust.name,
+            pricePaise: cust.pricePaise,
+          });
+        }
+
+        orderTotalPaise += lineSubtotalPaise;
       }
 
       await db
         .update(ordersTable)
         .set({
-          totalPrice: orderTotal,
+          itemsSubtotalPaise: orderTotalPaise,
+          taxableAmountPaise: orderTotalPaise,
+          grandTotalPaise: orderTotalPaise,
         })
         .where(eq(ordersTable.id, orderId));
     }
