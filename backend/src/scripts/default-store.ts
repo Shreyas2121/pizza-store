@@ -8,6 +8,7 @@ import {
   productsTable,
   storeProductsTable,
   storesTable,
+  taxRulesTable,
 } from "../db/schema";
 
 const DEFAULT_STORE = {
@@ -115,6 +116,37 @@ export async function seedDefaultStore() {
       })
       .returning({ id: deliveryPricingRulesTable.id });
 
+    const defaultTaxRules = await tx
+      .insert(taxRulesTable)
+      .values([
+        {
+          storeId: store.id,
+          component: "item" as const,
+          version: 1,
+          rateBps: 500,
+          hsnSacCode: "21069099-DEMO",
+          effectiveFrom: "2020-01-01",
+          effectiveTo: null,
+        },
+        {
+          storeId: store.id,
+          component: "delivery" as const,
+          version: 1,
+          rateBps: 500,
+          hsnSacCode: "996331-DEMO",
+          effectiveFrom: "2020-01-01",
+          effectiveTo: null,
+        },
+      ])
+      .onConflictDoNothing({
+        target: [
+          taxRulesTable.storeId,
+          taxRulesTable.component,
+          taxRulesTable.version,
+        ],
+      })
+      .returning({ id: taxRulesTable.id });
+
     return {
       store,
       storeCreated,
@@ -125,6 +157,7 @@ export async function seedDefaultStore() {
       defaultZoneCreated: defaultZone.length === 1,
       defaultDeliveryPricingRuleCreated:
         defaultDeliveryPricingRule.length === 1,
+      defaultTaxRulesCreated: defaultTaxRules.length,
     };
   });
 }
@@ -147,6 +180,7 @@ async function run() {
   console.log(result.defaultDeliveryPricingRuleCreated
     ? "Created the default delivery pricing rule."
     : "Default delivery pricing rule already exists.");
+  console.log(`Created ${result.defaultTaxRulesCreated} default demo tax rules.`);
 }
 
 if (require.main === module) {

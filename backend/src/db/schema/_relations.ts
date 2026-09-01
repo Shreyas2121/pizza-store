@@ -38,6 +38,7 @@ import {
   storeStaffInvitationsTable,
 } from "./access.schema";
 import { auditLogsTable } from "./audit.schema";
+import { taxRulesTable } from "./tax.schema";
 
 /**
  * All Drizzle relations live here to avoid circular imports between
@@ -111,6 +112,7 @@ export const storesRelations = relations(storesTable, ({ many }) => ({
   products: many(storeProductsTable),
   deliveryZones: many(deliveryZonesTable),
   deliveryPricingRules: many(deliveryPricingRulesTable),
+  taxRules: many(taxRulesTable),
   orders: many(ordersTable),
   carts: many(cartTable),
   memberships: many(storeMembershipsTable),
@@ -153,6 +155,15 @@ export const deliveryPricingRulesRelations = relations(
     }),
   })
 );
+
+export const taxRulesRelations = relations(taxRulesTable, ({ one, many }) => ({
+  store: one(storesTable, {
+    fields: [taxRulesTable.storeId],
+    references: [storesTable.id],
+  }),
+  deliveryOrders: many(ordersTable),
+  orderItems: many(orderItemsTable),
+}));
 
 // ──────────────────────────────────────────────
 // Customization relations
@@ -335,6 +346,10 @@ export const orderRelations = relations(ordersTable, ({ many, one }) => ({
     fields: [ordersTable.deliveryPricingRuleId],
     references: [deliveryPricingRulesTable.id],
   }),
+  deliveryTaxRule: one(taxRulesTable, {
+    fields: [ordersTable.deliveryTaxRuleId],
+    references: [taxRulesTable.id],
+  }),
   inventoryMovements: many(inventoryMovementsTable),
   inventoryReservations: many(inventoryReservationsTable),
 }));
@@ -349,6 +364,10 @@ export const orderItemsTableRelations = relations(
     product: one(productsTable, {
       fields: [orderItemsTable.productId],
       references: [productsTable.id],
+    }),
+    taxRule: one(taxRulesTable, {
+      fields: [orderItemsTable.taxRuleId],
+      references: [taxRulesTable.id],
     }),
     orderItemCustomizations: many(orderItemCustomizationsTable),
   })

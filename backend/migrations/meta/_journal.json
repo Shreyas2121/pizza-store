@@ -78,6 +78,13 @@
       "when": 1788281403852,
       "tag": "0010_eager_shiver_man",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1788282474645,
+      "tag": "0011_familiar_pestilence",
+      "breakpoints": true
     }
   ]
 }

@@ -136,7 +136,12 @@ class CheckoutService {
 
     const { quote: pricingQuote, couponRecord: coupon } =
       await pricingService.buildQuote(
-        { storeId: cart.storeId, items: toPricingItems(cart), couponCode },
+        {
+          storeId: cart.storeId,
+          items: toPricingItems(cart),
+          couponCode,
+          destinationState: address.state,
+        },
         { executor: tx, lockCoupon: true }
       );
     return {
@@ -169,9 +174,6 @@ class CheckoutService {
     tx: TransactionType
   ) {
     const pricingQuote = quote.pricingQuote;
-    const taxableAmountPaise =
-      pricingQuote.itemsSubtotalPaise - pricingQuote.discountPaise
-      + pricingQuote.deliveryFeePaise;
     const [order] = await tx
       .insert(ordersTable)
       .values({
@@ -182,8 +184,8 @@ class CheckoutService {
         itemsSubtotalPaise: pricingQuote.itemsSubtotalPaise,
         discountPaise: pricingQuote.discountPaise,
         deliveryFeePaise: pricingQuote.deliveryFeePaise,
-        taxableAmountPaise,
-        taxPaise: 0,
+        taxableAmountPaise: pricingQuote.taxableAmountPaise,
+        taxPaise: pricingQuote.taxPaise,
         roundingAdjustmentPaise: pricingQuote.roundingAdjustmentPaise,
         grandTotalPaise: pricingQuote.grandTotalPaise,
         currency: pricingQuote.currency,
@@ -193,6 +195,17 @@ class CheckoutService {
         deliveryPricingRuleVersion: pricingQuote.deliveryPricing.ruleVersion,
         pricingBusinessDate: pricingQuote.deliveryPricing.businessDate,
         pricingTimezone: pricingQuote.deliveryPricing.timezone,
+        taxCalculationPolicyVersion: pricingQuote.tax.calculationPolicyVersion,
+        taxDisclaimer: pricingQuote.tax.disclaimer,
+        taxIsDemo: pricingQuote.tax.isDemo,
+        placeOfSupplyState: pricingQuote.tax.placeOfSupplyState,
+        deliveryTaxRuleId: pricingQuote.tax.deliveryRule.ruleId,
+        deliveryTaxRuleVersion: pricingQuote.tax.deliveryRule.ruleVersion,
+        deliveryTaxRateBps: pricingQuote.tax.deliveryRule.rateBps,
+        deliveryTaxableAmountPaise:
+          pricingQuote.tax.deliveryRule.taxableAmountPaise,
+        deliveryTaxPaise: pricingQuote.tax.deliveryRule.taxPaise,
+        deliveryHsnSacCode: pricingQuote.tax.deliveryRule.hsnSacCode,
         paymentType: data.paymentType,
         paymentId: data.paymentId,
         status: data.status,
@@ -210,10 +223,13 @@ class CheckoutService {
           unitPricePaise: item.unitPricePaise,
           lineSubtotalPaise: item.lineSubtotalPaise,
           discountAllocationPaise: item.discountAllocationPaise,
-          taxRateBps: 0,
-          taxableAmountPaise: item.lineTotalPaise,
-          taxPaise: 0,
+          taxRuleId: item.taxRuleId,
+          taxRuleVersion: item.taxRuleVersion,
+          taxRateBps: item.taxRateBps,
+          taxableAmountPaise: item.taxableAmountPaise,
+          taxPaise: item.taxPaise,
           lineTotalPaise: item.lineTotalPaise,
+          hsnSacCode: item.hsnSacCode,
         })
         .returning();
 

@@ -61,14 +61,16 @@ describe("CheckoutService stock integration", () => {
     );
     vi.spyOn(pricingService, "buildQuote").mockResolvedValue({
       quote: {
-        quoteVersion: "2026-09-01-01",
+        quoteVersion: "2026-09-01-02",
         currency: "INR",
-        pricingPolicyVersion: 2,
+        pricingPolicyVersion: 3,
         itemsSubtotalPaise: 40_000,
         discountPaise: 0,
         deliveryFeePaise: 4_000,
         roundingAdjustmentPaise: 0,
         grandTotalPaise: 44_000,
+        taxableAmountPaise: 41_905,
+        taxPaise: 2_095,
         items: [],
         coupon: null,
         deliveryPricing: {
@@ -80,6 +82,27 @@ describe("CheckoutService stock integration", () => {
           standardFeePaise: 4_000,
           freeDeliveryThresholdPaise: 50_000,
           freeDeliveryApplied: false,
+        },
+        tax: {
+          calculationPolicyVersion: 1,
+          isDemo: true,
+          disclaimer: "Portfolio demo — not a statutory tax invoice",
+          placeOfSupplyState: "Maharashtra",
+          placeOfSupplySource: "delivery_address",
+          itemRule: {
+            ruleId: 21,
+            ruleVersion: 2,
+            rateBps: 500,
+            hsnSacCode: "21069099-DEMO",
+          },
+          deliveryRule: {
+            ruleId: 22,
+            ruleVersion: 2,
+            rateBps: 500,
+            hsnSacCode: "996331-DEMO",
+            taxableAmountPaise: 3_810,
+            taxPaise: 190,
+          },
         },
       },
       couponRecord: null,
@@ -112,11 +135,13 @@ describe("CheckoutService stock integration", () => {
 
     expect(quote.stockAllocations).toEqual(mockAllocations);
     expect(quote.pricingQuote).toMatchObject({
-      quoteVersion: "2026-09-01-01",
+      quoteVersion: "2026-09-01-02",
       itemsSubtotalPaise: 40_000,
       discountPaise: 0,
       deliveryFeePaise: 4_000,
       grandTotalPaise: 44_000,
+      taxableAmountPaise: 41_905,
+      taxPaise: 2_095,
     });
     expect(inventoryService.validateAndLockStock).toHaveBeenCalledWith(
       1,
@@ -280,14 +305,16 @@ describe("CheckoutService exact order snapshots", () => {
     cart: { storeId: 1 },
     coupon: { id: 7 },
     pricingQuote: {
-      quoteVersion: "2026-09-01-01",
+      quoteVersion: "2026-09-01-02",
       currency: "INR",
-      pricingPolicyVersion: 2,
+      pricingPolicyVersion: 3,
       itemsSubtotalPaise: 50_000,
       discountPaise: 10_000,
       deliveryFeePaise: 4_000,
       roundingAdjustmentPaise: 0,
       grandTotalPaise: 44_000,
+      taxableAmountPaise: 41_905,
+      taxPaise: 2_095,
       items: [
         {
           lineId: 101,
@@ -297,7 +324,13 @@ describe("CheckoutService exact order snapshots", () => {
           unitPricePaise: 25_000,
           lineSubtotalPaise: 50_000,
           discountAllocationPaise: 10_000,
+          taxRuleId: 21,
+          taxRuleVersion: 2,
+          taxRateBps: 500,
+          taxableAmountPaise: 38_095,
+          taxPaise: 1_905,
           lineTotalPaise: 40_000,
+          hsnSacCode: "21069099-DEMO",
           customizations: [
             {
               customizationOptionId: 8,
@@ -317,6 +350,27 @@ describe("CheckoutService exact order snapshots", () => {
         standardFeePaise: 4_000,
         freeDeliveryThresholdPaise: 50_000,
         freeDeliveryApplied: false,
+      },
+      tax: {
+        calculationPolicyVersion: 1,
+        isDemo: true,
+        disclaimer: "Portfolio demo — not a statutory tax invoice",
+        placeOfSupplyState: "Maharashtra",
+        placeOfSupplySource: "delivery_address",
+        itemRule: {
+          ruleId: 21,
+          ruleVersion: 2,
+          rateBps: 500,
+          hsnSacCode: "21069099-DEMO",
+        },
+        deliveryRule: {
+          ruleId: 22,
+          ruleVersion: 2,
+          rateBps: 500,
+          hsnSacCode: "996331-DEMO",
+          taxableAmountPaise: 3_810,
+          taxPaise: 190,
+        },
       },
       ...overrides,
     },
@@ -341,16 +395,26 @@ describe("CheckoutService exact order snapshots", () => {
       itemsSubtotalPaise: 50_000,
       discountPaise: 10_000,
       deliveryFeePaise: 4_000,
-      taxableAmountPaise: 44_000,
-      taxPaise: 0,
+      taxableAmountPaise: 41_905,
+      taxPaise: 2_095,
       grandTotalPaise: 44_000,
       currency: "INR",
-      quoteVersion: "2026-09-01-01",
-      pricingPolicyVersion: 2,
+      quoteVersion: "2026-09-01-02",
+      pricingPolicyVersion: 3,
       deliveryPricingRuleId: 11,
       deliveryPricingRuleVersion: 3,
       pricingBusinessDate: "2026-09-01",
       pricingTimezone: "Asia/Kolkata",
+      taxCalculationPolicyVersion: 1,
+      taxDisclaimer: "Portfolio demo — not a statutory tax invoice",
+      taxIsDemo: true,
+      placeOfSupplyState: "Maharashtra",
+      deliveryTaxRuleId: 22,
+      deliveryTaxRuleVersion: 2,
+      deliveryTaxRateBps: 500,
+      deliveryTaxableAmountPaise: 3_810,
+      deliveryTaxPaise: 190,
+      deliveryHsnSacCode: "996331-DEMO",
     });
     expect(writes.get(ordersTable)).not.toHaveProperty("discountAmount");
     expect(writes.get(ordersTable)).not.toHaveProperty("totalPrice");
@@ -359,9 +423,13 @@ describe("CheckoutService exact order snapshots", () => {
       unitPricePaise: 25_000,
       lineSubtotalPaise: 50_000,
       discountAllocationPaise: 10_000,
-      taxableAmountPaise: 40_000,
-      taxPaise: 0,
+      taxRuleId: 21,
+      taxRuleVersion: 2,
+      taxRateBps: 500,
+      taxableAmountPaise: 38_095,
+      taxPaise: 1_905,
       lineTotalPaise: 40_000,
+      hsnSacCode: "21069099-DEMO",
     });
     expect(writes.get(orderItemsTable)).not.toHaveProperty("price");
     expect(writes.get(orderItemCustomizationsTable)).toEqual([
@@ -395,7 +463,18 @@ describe("CheckoutService exact order snapshots", () => {
       itemsSubtotalPaise: testCase.subtotal,
       discountPaise: testCase.discount,
       deliveryFeePaise: 0,
+      taxableAmountPaise: testCase.total,
+      taxPaise: 0,
       grandTotalPaise: testCase.total,
+      tax: {
+        ...createQuote().pricingQuote.tax,
+        deliveryRule: {
+          ...createQuote().pricingQuote.tax.deliveryRule,
+          rateBps: 0,
+          taxableAmountPaise: 0,
+          taxPaise: 0,
+        },
+      },
       items: [
         {
           lineId: 101,
@@ -405,7 +484,13 @@ describe("CheckoutService exact order snapshots", () => {
           unitPricePaise: testCase.unit,
           lineSubtotalPaise: testCase.subtotal,
           discountAllocationPaise: testCase.discount,
+          taxRuleId: 21,
+          taxRuleVersion: 2,
+          taxRateBps: 0,
+          taxableAmountPaise: testCase.total,
+          taxPaise: 0,
           lineTotalPaise: testCase.total,
+          hsnSacCode: "21069099-DEMO",
           customizations: [],
         },
       ],

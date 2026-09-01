@@ -15,6 +15,9 @@ type CouponRecord = NonNullable<
 type DeliveryPricingRule = Awaited<
   ReturnType<PricingRepository["findDeliveryPricingRules"]>
 >[number];
+type TaxRule = Awaited<
+  ReturnType<PricingRepository["findTaxRules"]>
+>[number];
 
 const now = new Date("2026-08-31T10:00:00.000Z");
 
@@ -49,6 +52,22 @@ const deliveryRule = (
   ...overrides,
 });
 
+const taxRule = (component: "item" | "delivery", overrides: Partial<TaxRule> = {}): TaxRule => ({
+  id: component === "item" ? 21 : 22,
+  storeId: 1,
+  component,
+  version: 2,
+  rateBps: 500,
+  hsnSacCode: component === "item" ? "21069099-DEMO" : "996331-DEMO",
+  isDemo: true,
+  disclaimer: "Portfolio demo — not a statutory tax invoice",
+  effectiveFrom: "2026-08-01",
+  effectiveTo: null,
+  createdAt: new Date("2026-08-01T00:00:00.000Z"),
+  updatedAt: new Date("2026-08-01T00:00:00.000Z"),
+  ...overrides,
+});
+
 const items: PricingItemInput[] = [
   {
     lineId: 2,
@@ -74,13 +93,20 @@ const createHarness = (
   couponRecord: CouponRecord | null = coupon(),
   activeUses = 0,
   rules: DeliveryPricingRule[] = [deliveryRule()],
-  timezone: string | undefined = "Asia/Kolkata"
+  storeContext: { timezone: string; state: string } | undefined = {
+    timezone: "Asia/Kolkata",
+    state: "Maharashtra",
+  },
+  taxRules: TaxRule[] = [taxRule("item"), taxRule("delivery")]
 ) => {
   const repository: PricingRepository = {
     findCoupon: vi.fn(async () => couponRecord ?? undefined),
     countActiveCouponUses: vi.fn(async () => activeUses),
-    findStoreTimezone: vi.fn(async () => timezone),
+    findStorePricingContext: vi.fn(async () => storeContext),
     findDeliveryPricingRules: vi.fn(async () => rules),
+    findTaxRules: vi.fn(async (_storeId, component) =>
+      taxRules.filter((rule) => rule.component === component)
+    ),
   };
   return { service: new PricingService(repository), repository };
 };
@@ -105,6 +131,8 @@ describe("PricingService", () => {
       deliveryFeePaise: 4_000,
       roundingAdjustmentPaise: 0,
       grandTotalPaise: 31_000,
+      taxableAmountPaise: 29_524,
+      taxPaise: 1_476,
       coupon: {
         id: 7,
         code: "SAVE10",
@@ -121,6 +149,27 @@ describe("PricingService", () => {
         freeDeliveryThresholdPaise: 50_000,
         freeDeliveryApplied: false,
       },
+      tax: {
+        calculationPolicyVersion: 1,
+        isDemo: true,
+        disclaimer: "Portfolio demo — not a statutory tax invoice",
+        placeOfSupplyState: "Maharashtra",
+        placeOfSupplySource: "store_estimate",
+        itemRule: {
+          ruleId: 21,
+          ruleVersion: 2,
+          rateBps: 500,
+          hsnSacCode: "21069099-DEMO",
+        },
+        deliveryRule: {
+          ruleId: 22,
+          ruleVersion: 2,
+          rateBps: 500,
+          hsnSacCode: "996331-DEMO",
+          taxableAmountPaise: 3_810,
+          taxPaise: 190,
+        },
+      },
     });
     expect(result.quote.items).toEqual([
       expect.objectContaining({
@@ -129,6 +178,8 @@ describe("PricingService", () => {
         lineSubtotalPaise: 21_000,
         discountAllocationPaise: 2_100,
         lineTotalPaise: 18_900,
+        taxableAmountPaise: 18_000,
+        taxPaise: 900,
       }),
       expect.objectContaining({
         lineId: 1,
@@ -136,6 +187,8 @@ describe("PricingService", () => {
         lineSubtotalPaise: 9_000,
         discountAllocationPaise: 900,
         lineTotalPaise: 8_100,
+        taxableAmountPaise: 7_714,
+        taxPaise: 386,
       }),
     ]);
     expect(
@@ -147,6 +200,13 @@ describe("PricingService", () => {
     expect(
       result.quote.items.reduce((sum, item) => sum + item.lineTotalPaise, 0)
     ).toBe(result.quote.grandTotalPaise - result.quote.deliveryFeePaise);
+    expect(
+      result.quote.items.reduce((sum, item) => sum + item.taxPaise, 0)
+      + result.quote.tax.deliveryRule.taxPaise
+    ).toBe(result.quote.taxPaise);
+    expect(result.quote.taxableAmountPaise + result.quote.taxPaise).toBe(
+      result.quote.grandTotalPaise
+    );
   });
 
   it("uses half-away-from-zero percentage rounding and caps fixed discounts", async () => {
@@ -277,6 +337,41 @@ describe("PricingService", () => {
       "2026-09-01",
       expect.objectContaining({ lock: false })
     );
+  });
+
+  it("uses delivery address state as place of supply without changing inclusive totals", async () => {
+    const { service } = createHarness(null);
+    const result = await service.buildQuote({
+      storeId: 1,
+      items,
+      destinationState: "Karnataka",
+      now,
+    });
+    expect(result.quote.grandTotalPaise).toBe(34_000);
+    expect(result.quote.tax).toMatchObject({
+      placeOfSupplyState: "Karnataka",
+      placeOfSupplySource: "delivery_address",
+    });
+    expect(result.quote.taxableAmountPaise + result.quote.taxPaise).toBe(
+      result.quote.grandTotalPaise
+    );
+  });
+
+  it.each([
+    [[], "TAX_RULE_NOT_FOUND", 422],
+    [[taxRule("item"), taxRule("item", { id: 23, version: 3 })], "TAX_RULE_OVERLAP", 500],
+  ] as const)("rejects invalid item tax rule selection %#", async (itemRules, code, status) => {
+    const { service } = createHarness(
+      null,
+      0,
+      [deliveryRule()],
+      { timezone: "Asia/Kolkata", state: "Maharashtra" },
+      [...itemRules, taxRule("delivery")]
+    );
+    await expect(service.buildQuote({ storeId: 1, items, now })).rejects.toMatchObject({
+      code,
+      status,
+    });
   });
 
   it.each([

@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   check,
   integer,
   pgTable,
@@ -14,6 +15,7 @@ import { paymentsTable } from "./payment.schema";
 import { couponsTable } from "./coupon.schema";
 import { customizationOptionsTable } from "./customization.schema";
 import { deliveryPricingRulesTable, storesTable } from "./store.schema";
+import { taxRulesTable } from "./tax.schema";
 
 export const ordersTable = pgTable(
   "orders",
@@ -38,6 +40,18 @@ export const ordersTable = pgTable(
     deliveryPricingRuleVersion: integer("delivery_pricing_rule_version").notNull(),
     pricingBusinessDate: text("pricing_business_date").notNull(),
     pricingTimezone: text("pricing_timezone").notNull(),
+    taxCalculationPolicyVersion: integer("tax_calculation_policy_version").notNull(),
+    taxDisclaimer: text("tax_disclaimer").notNull(),
+    taxIsDemo: boolean("tax_is_demo").notNull(),
+    placeOfSupplyState: text("place_of_supply_state").notNull(),
+    deliveryTaxRuleId: integer("delivery_tax_rule_id")
+      .references(() => taxRulesTable.id)
+      .notNull(),
+    deliveryTaxRuleVersion: integer("delivery_tax_rule_version").notNull(),
+    deliveryTaxRateBps: integer("delivery_tax_rate_bps").notNull(),
+    deliveryTaxableAmountPaise: integer("delivery_taxable_amount_paise").notNull(),
+    deliveryTaxPaise: integer("delivery_tax_paise").notNull(),
+    deliveryHsnSacCode: text("delivery_hsn_sac_code").notNull(),
     recognizedAt: timestamp("recognized_at", { withTimezone: true }),
     cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
     deliveredAt: timestamp("delivered_at", { withTimezone: true }),
@@ -96,6 +110,22 @@ export const ordersTable = pgTable(
       "orders_pricing_timezone_present",
       sql`nullif(btrim(${table.pricingTimezone}), '') is not null`
     ),
+    check(
+      "orders_tax_metadata_valid",
+      sql`${table.taxCalculationPolicyVersion} > 0
+        and ${table.taxIsDemo} = true
+        and ${table.taxDisclaimer} = 'Portfolio demo — not a statutory tax invoice'
+        and nullif(btrim(${table.placeOfSupplyState}), '') is not null`
+    ),
+    check(
+      "orders_delivery_tax_snapshot_valid",
+      sql`${table.deliveryTaxRuleVersion} > 0
+        and ${table.deliveryTaxRateBps} between 0 and 10000
+        and ${table.deliveryTaxableAmountPaise} >= 0
+        and ${table.deliveryTaxPaise} >= 0
+        and ${table.deliveryTaxableAmountPaise}::bigint + ${table.deliveryTaxPaise}::bigint = ${table.deliveryFeePaise}::bigint
+        and nullif(btrim(${table.deliveryHsnSacCode}), '') is not null`
+    ),
   ]
 );
 
@@ -110,13 +140,15 @@ export const orderItemsTable = pgTable(
     unitPricePaise: integer("unit_price_paise").notNull(),
     lineSubtotalPaise: integer("line_subtotal_paise").notNull(),
     discountAllocationPaise: integer("discount_allocation_paise").notNull(),
+    taxRuleId: integer("tax_rule_id").references(() => taxRulesTable.id).notNull(),
+    taxRuleVersion: integer("tax_rule_version").notNull(),
     taxRateBps: integer("tax_rate_bps").notNull(),
     taxableAmountPaise: integer("taxable_amount_paise").notNull(),
     taxPaise: integer("tax_paise").notNull(),
     lineTotalPaise: integer("line_total_paise").notNull(),
     unitCostPaise: integer("unit_cost_paise"),
     lineCostPaise: integer("line_cost_paise"),
-    hsnSacCode: text("hsn_sac_code"),
+    hsnSacCode: text("hsn_sac_code").notNull(),
     createdAt,
     updatedAt,
   },
@@ -137,7 +169,7 @@ export const orderItemsTable = pgTable(
     ),
     check(
       "order_items_tax_rate_valid",
-      sql`${table.taxRateBps} between 0 and 10000`
+      sql`${table.taxRateBps} between 0 and 10000 and ${table.taxRuleVersion} > 0`
     ),
     check(
       "order_items_subtotal_reconciles",

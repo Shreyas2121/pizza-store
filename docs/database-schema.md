@@ -312,6 +312,14 @@ Per-order coupon reservation state used to prevent concurrent oversubscription. 
 | `delivery_pricing_rule_version` | integer | NOT NULL, > 0 | Selected rule version snapshot |
 | `pricing_business_date` | text | NOT NULL, `YYYY-MM-DD` | Store-local date used for effective-rule selection |
 | `pricing_timezone` | text | NOT NULL | Store timezone snapshotted when the quote was built |
+| `tax_calculation_policy_version` | integer | NOT NULL, > 0 | Inclusive-tax calculation policy snapshot |
+| `tax_disclaimer` | text | NOT NULL, exact demo disclaimer | `Portfolio demo — not a statutory tax invoice` |
+| `tax_is_demo` | boolean | NOT NULL, `true` | Prevents statutory claims |
+| `place_of_supply_state` | text | NOT NULL | Delivery-address state snapshotted at checkout |
+| `delivery_tax_rule_id`, `delivery_tax_rule_version` | integer | FK → tax_rules / NOT NULL | Applied delivery tax rule snapshot |
+| `delivery_tax_rate_bps` | integer | NOT NULL, 0–10000 | Included delivery tax rate |
+| `delivery_taxable_amount_paise`, `delivery_tax_paise` | integer | NOT NULL, >= 0 | Components reconciling exactly to `delivery_fee_paise` |
+| `delivery_hsn_sac_code` | text | NOT NULL | Demo delivery classification snapshot |
 | `recognized_at` | timestamptz | nullable | Revenue and COGS recognition timestamp (set on delivery) |
 | `cancelled_at` | timestamptz | nullable | Cancellation timestamp |
 | `delivered_at` | timestamptz | nullable | Delivery completion timestamp |
@@ -336,13 +344,15 @@ Relations: belongs to user, payment, coupon, address, store, and delivery pricin
 | `unit_price_paise` | integer | NOT NULL | Effective unit price in paise (base + customizations) |
 | `line_subtotal_paise` | integer | NOT NULL | `unit_price_paise * quantity` |
 | `discount_allocation_paise` | integer | NOT NULL | Proportionally allocated discount in paise |
+| `tax_rule_id` | integer | FK → tax_rules, NOT NULL | Applied item rule snapshot reference |
+| `tax_rule_version` | integer | NOT NULL, > 0 | Applied item rule version snapshot |
 | `tax_rate_bps` | integer | NOT NULL | Applicable tax rate in basis points (e.g. 500 = 5%) |
 | `taxable_amount_paise` | integer | NOT NULL | Taxable portion of line total |
 | `tax_paise` | integer | NOT NULL | Tax portion of line total |
 | `line_total_paise` | integer | NOT NULL | Final line total (`line_subtotal_paise - discount_allocation_paise`) |
 | `unit_cost_paise` | integer | nullable | Standard inventory unit cost snapshot |
 | `line_cost_paise` | integer | nullable | Standard inventory line cost snapshot (`unit_cost_paise * quantity`) |
-| `hsn_sac_code` | text | nullable | HSN/SAC classification code snapshot |
+| `hsn_sac_code` | text | NOT NULL | Fictional/demo HSN/SAC classification snapshot |
 | `created_at`, `updated_at` | timestamptz | | |
 
 Relations: belongs to order, product; one-to-many with order item customizations.
@@ -382,6 +392,23 @@ Unique constraint: `(store_id, pincode)`.
 | `created_at`, `updated_at` | timestamptz | | |
 
 Unique constraints: `(store_id, version)` and `(store_id, effective_from)`. An exclusion constraint prevents overlapping effective ranges for the same store. Orders snapshot the selected rule ID/version, business date, timezone, and charged fee.
+
+### `tax_rules`
+
+| Column | Type | Constraints | Notes |
+| --- | --- | --- | --- |
+| `id` | integer | PK | |
+| `store_id` | integer | FK → stores, NOT NULL | Store-scoped rule stream |
+| `component` | text | NOT NULL, `item` or `delivery` | Item and delivery rules are selected separately |
+| `version` | integer | NOT NULL, > 0 | Immutable version within store/component |
+| `rate_bps` | integer | NOT NULL, 0–10000 | Fictional inclusive demo rate |
+| `hsn_sac_code` | text | NOT NULL | Fictional/demo classification metadata |
+| `is_demo` | boolean | NOT NULL, `true` | Compliance boundary |
+| `disclaimer` | text | exact required disclaimer | Never represents a statutory tax invoice |
+| `effective_from`, `effective_to` | date | valid inclusive range | Selected using store business date |
+| `created_at`, `updated_at` | timestamptz | | |
+
+Unique constraints version and effective start within `(store_id, component)`. A GiST exclusion constraint rejects overlapping effective ranges. Missing or overlapping rules fail quote construction; tax is extracted from inclusive amounts and never added to the customer total.
 
 ### `chat_sessions`
 

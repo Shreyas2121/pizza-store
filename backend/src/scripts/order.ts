@@ -11,9 +11,11 @@ import {
   deliveryPricingRulesTable,
   productsTable,
   storesTable,
+  taxRulesTable,
+  DEMO_TAX_DISCLAIMER,
 } from "../db/schema";
 import { eq } from "drizzle-orm";
-import { rupeesToPaise } from "../utils/money";
+import { calculateInclusiveTax, rupeesToPaise } from "../utils/money";
 
 (async function seedOrders() {
   console.log(`Seeding Orders...`);
@@ -65,6 +67,15 @@ import { rupeesToPaise } from "../utils/money";
     console.error("No delivery pricing rule found. Seed the default store first.");
     process.exit(1);
   }
+  const taxRules = await db.query.taxRulesTable.findMany({
+    where: eq(taxRulesTable.storeId, store.id),
+  });
+  const itemTaxRule = taxRules.find((rule) => rule.component === "item");
+  const deliveryTaxRule = taxRules.find((rule) => rule.component === "delivery");
+  if (!itemTaxRule || !deliveryTaxRule) {
+    console.error("Item and delivery demo tax rules are required. Seed the default store first.");
+    process.exit(1);
+  }
 
   const COUNTS = [2, 5, 10, 20, 30];
 
@@ -108,10 +119,22 @@ import { rupeesToPaise } from "../utils/money";
           deliveryPricingRuleVersion: deliveryPricingRule.version,
           pricingBusinessDate: orderDate.toISOString().slice(0, 10),
           pricingTimezone: store.timezone,
+          taxCalculationPolicyVersion: 1,
+          taxDisclaimer: DEMO_TAX_DISCLAIMER,
+          taxIsDemo: true,
+          placeOfSupplyState: store.state,
+          deliveryTaxRuleId: deliveryTaxRule.id,
+          deliveryTaxRuleVersion: deliveryTaxRule.version,
+          deliveryTaxRateBps: deliveryTaxRule.rateBps,
+          deliveryTaxableAmountPaise: 0,
+          deliveryTaxPaise: 0,
+          deliveryHsnSacCode: deliveryTaxRule.hsnSacCode,
         })
         .returning();
 
       let orderTotalPaise = 0;
+      let orderTaxableAmountPaise = 0;
+      let orderTaxPaise = 0;
 
       const itemCount = faker.number.int({
         min: 1,
@@ -183,6 +206,10 @@ import { rupeesToPaise } from "../utils/money";
 
         const unitPricePaise = baseUnitPricePaise + customizationUnitPricePaise;
         const lineSubtotalPaise = unitPricePaise * quantity;
+        const lineTax = calculateInclusiveTax(
+          lineSubtotalPaise,
+          itemTaxRule.rateBps
+        );
 
         const [{ id: orderItemId }] = await db
           .insert(orderItemsTable)
@@ -194,10 +221,13 @@ import { rupeesToPaise } from "../utils/money";
             unitPricePaise,
             lineSubtotalPaise,
             discountAllocationPaise: 0,
-            taxRateBps: 0,
-            taxableAmountPaise: lineSubtotalPaise,
-            taxPaise: 0,
+            taxRuleId: itemTaxRule.id,
+            taxRuleVersion: itemTaxRule.version,
+            taxRateBps: itemTaxRule.rateBps,
+            taxableAmountPaise: lineTax.taxableAmountPaise,
+            taxPaise: lineTax.taxPaise,
             lineTotalPaise: lineSubtotalPaise,
+            hsnSacCode: itemTaxRule.hsnSacCode,
           })
           .returning();
 
@@ -211,13 +241,16 @@ import { rupeesToPaise } from "../utils/money";
         }
 
         orderTotalPaise += lineSubtotalPaise;
+        orderTaxableAmountPaise += lineTax.taxableAmountPaise;
+        orderTaxPaise += lineTax.taxPaise;
       }
 
       await db
         .update(ordersTable)
         .set({
           itemsSubtotalPaise: orderTotalPaise,
-          taxableAmountPaise: orderTotalPaise,
+          taxableAmountPaise: orderTaxableAmountPaise,
+          taxPaise: orderTaxPaise,
           grandTotalPaise: orderTotalPaise,
         })
         .where(eq(ordersTable.id, orderId));

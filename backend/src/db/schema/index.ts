@@ -20,4 +20,5 @@ export * from "./inventory.schema";
 export * from "./chat.schema";
 export * from "./access.schema";
 export * from "./audit.schema";
+export * from "./tax.schema";
 export * from "./_relations";

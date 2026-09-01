@@ -37,6 +37,7 @@ const expectedApplicationTables = [
   "store_products",
   "store_staff_invitations",
   "stores",
+  "tax_rules",
 ];
 
 const createTransaction = (requestingRole: "admin" | "user" = "admin") => {

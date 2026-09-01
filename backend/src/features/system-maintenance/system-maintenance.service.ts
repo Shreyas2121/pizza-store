@@ -30,6 +30,7 @@ import {
   storeProductsTable,
   storeStaffInvitationsTable,
   storesTable,
+  taxRulesTable,
   usersTable,
 } from "../../db/schema";
 import { AppError } from "../../utils/error";
@@ -66,6 +67,7 @@ const applicationDataTables = [
   storeProductsTable,
   storeStaffInvitationsTable,
   storesTable,
+  taxRulesTable,
 ] as const;
 
 export const APPLICATION_DATA_TABLE_NAMES = applicationDataTables.map((table) =>

@@ -5,6 +5,9 @@ import {
   couponsTable,
   deliveryPricingRulesTable,
   storesTable,
+  taxRulesTable,
+  DEMO_TAX_DISCLAIMER,
+  type DemoTaxComponent,
 } from "../../db/schema";
 import { AppError } from "../../utils/error";
 import {
@@ -12,6 +15,7 @@ import {
   addPaise,
   allocateProportional,
   calculateBasisPoints,
+  calculateInclusiveTax,
   multiplyPaiseByQuantity,
   roundHalfAwayFromZero,
   rupeesToPaise,
@@ -19,8 +23,9 @@ import {
 } from "../../utils/money";
 import type { DatabaseType, TransactionType } from "../../utils/types";
 
-export const QUOTE_VERSION = "2026-09-01-01" as const;
-export const PRICING_POLICY_VERSION = 2 as const;
+export const QUOTE_VERSION = "2026-09-01-02" as const;
+export const PRICING_POLICY_VERSION = 3 as const;
+export const TAX_CALCULATION_POLICY_VERSION = 1 as const;
 
 export interface PricingCustomizationInput {
   customizationOptionId: number;
@@ -45,6 +50,12 @@ export interface PricingQuoteItem {
   unitPricePaise: number;
   lineSubtotalPaise: number;
   discountAllocationPaise: number;
+  taxRuleId: number;
+  taxRuleVersion: number;
+  taxRateBps: number;
+  taxableAmountPaise: number;
+  taxPaise: number;
+  hsnSacCode: string;
   lineTotalPaise: number;
   customizations: PricingCustomizationInput[];
 }
@@ -58,6 +69,8 @@ export interface PricingQuote {
   deliveryFeePaise: number;
   roundingAdjustmentPaise: 0;
   grandTotalPaise: number;
+  taxableAmountPaise: number;
+  taxPaise: number;
   items: PricingQuoteItem[];
   coupon: {
     id: number;
@@ -75,10 +88,30 @@ export interface PricingQuote {
     freeDeliveryThresholdPaise: number | null;
     freeDeliveryApplied: boolean;
   };
+  tax: {
+    calculationPolicyVersion: typeof TAX_CALCULATION_POLICY_VERSION;
+    isDemo: true;
+    disclaimer: typeof DEMO_TAX_DISCLAIMER;
+    placeOfSupplyState: string;
+    placeOfSupplySource: "delivery_address" | "store_estimate";
+    itemRule: TaxRuleSnapshot;
+    deliveryRule: TaxRuleSnapshot & {
+      taxableAmountPaise: number;
+      taxPaise: number;
+    };
+  };
+}
+
+interface TaxRuleSnapshot {
+  ruleId: number;
+  ruleVersion: number;
+  rateBps: number;
+  hsnSacCode: string;
 }
 
 type CouponRecord = typeof couponsTable.$inferSelect;
 type DeliveryPricingRuleRecord = typeof deliveryPricingRulesTable.$inferSelect;
+type TaxRuleRecord = typeof taxRulesTable.$inferSelect;
 type PricingExecutor = DatabaseType | TransactionType;
 
 export interface PricingRepository {
@@ -90,15 +123,21 @@ export interface PricingRepository {
     couponId: number,
     executor?: PricingExecutor
   ): Promise<number>;
-  findStoreTimezone(
+  findStorePricingContext(
     storeId: number,
     executor?: PricingExecutor
-  ): Promise<string | undefined>;
+  ): Promise<{ timezone: string; state: string } | undefined>;
   findDeliveryPricingRules(
     storeId: number,
     businessDate: string,
     options: { executor?: PricingExecutor; lock: boolean }
   ): Promise<DeliveryPricingRuleRecord[]>;
+  findTaxRules(
+    storeId: number,
+    component: DemoTaxComponent,
+    businessDate: string,
+    options: { executor?: PricingExecutor; lock: boolean }
+  ): Promise<TaxRuleRecord[]>;
 }
 
 export class DrizzlePricingRepository implements PricingRepository {
@@ -133,13 +172,13 @@ export class DrizzlePricingRepository implements PricingRepository {
     return Number(usage.active);
   }
 
-  async findStoreTimezone(storeId: number, executor: PricingExecutor = db) {
+  async findStorePricingContext(storeId: number, executor: PricingExecutor = db) {
     const [store] = await executor
-      .select({ timezone: storesTable.timezone })
+      .select({ timezone: storesTable.timezone, state: storesTable.state })
       .from(storesTable)
       .where(eq(storesTable.id, storeId))
       .limit(1);
-    return store?.timezone;
+    return store;
   }
 
   async findDeliveryPricingRules(
@@ -165,12 +204,39 @@ export class DrizzlePricingRepository implements PricingRepository {
       ? await query.for("update").limit(2)
       : await query.limit(2);
   }
+
+  async findTaxRules(
+    storeId: number,
+    component: DemoTaxComponent,
+    businessDate: string,
+    options: { executor?: PricingExecutor; lock: boolean }
+  ) {
+    const executor = options.executor ?? db;
+    const query = executor
+      .select()
+      .from(taxRulesTable)
+      .where(
+        and(
+          eq(taxRulesTable.storeId, storeId),
+          eq(taxRulesTable.component, component),
+          lte(taxRulesTable.effectiveFrom, businessDate),
+          or(
+            isNull(taxRulesTable.effectiveTo),
+            gte(taxRulesTable.effectiveTo, businessDate)
+          )
+        )
+      );
+    return options.lock
+      ? await query.for("update").limit(2)
+      : await query.limit(2);
+  }
 }
 
 export interface BuildPricingQuoteInput {
   storeId: number;
   items: PricingItemInput[];
   couponCode?: string | null;
+  destinationState?: string | null;
   now?: Date;
 }
 
@@ -218,7 +284,7 @@ export class PricingService {
     const discountPaise = couponRecord
       ? this.calculateDiscountPaise(couponRecord, itemsSubtotalPaise)
       : 0;
-    const deliveryPricing = await this.getDeliveryPricing(
+    const pricingContext = await this.getPricingContext(
       input.storeId,
       input.now ?? new Date(),
       options
@@ -235,14 +301,25 @@ export class PricingService {
     );
     const items = pricedItems.map((item): PricingQuoteItem => {
       const discountAllocationPaise = allocationsByLine.get(item.lineId) ?? 0;
+      const lineTotalPaise = subtractPaise(
+        item.lineSubtotalPaise,
+        discountAllocationPaise,
+        { domainCap: MONEY_CAPS.ORDER_AMOUNT }
+      );
+      const tax = calculateInclusiveTax(
+        lineTotalPaise,
+        pricingContext.itemTaxRule.rateBps
+      );
       return {
         ...item,
         discountAllocationPaise,
-        lineTotalPaise: subtractPaise(
-          item.lineSubtotalPaise,
-          discountAllocationPaise,
-          { domainCap: MONEY_CAPS.ORDER_AMOUNT }
-        ),
+        lineTotalPaise,
+        taxRuleId: pricingContext.itemTaxRule.id,
+        taxRuleVersion: pricingContext.itemTaxRule.version,
+        taxRateBps: pricingContext.itemTaxRule.rateBps,
+        taxableAmountPaise: tax.taxableAmountPaise,
+        taxPaise: tax.taxPaise,
+        hsnSacCode: pricingContext.itemTaxRule.hsnSacCode,
       };
     });
     const netItemsPaise = subtractPaise(
@@ -251,11 +328,35 @@ export class PricingService {
       { domainCap: MONEY_CAPS.ORDER_AMOUNT }
     );
     const freeDeliveryApplied =
-      deliveryPricing.rule.freeDeliveryThresholdPaise !== null
-      && netItemsPaise >= deliveryPricing.rule.freeDeliveryThresholdPaise;
+      pricingContext.deliveryPricingRule.freeDeliveryThresholdPaise !== null
+      && netItemsPaise >= pricingContext.deliveryPricingRule.freeDeliveryThresholdPaise;
     const deliveryFeePaise = freeDeliveryApplied
       ? 0
-      : deliveryPricing.rule.deliveryFeePaise;
+      : pricingContext.deliveryPricingRule.deliveryFeePaise;
+    const deliveryTax = calculateInclusiveTax(
+      deliveryFeePaise,
+      pricingContext.deliveryTaxRule.rateBps
+    );
+    const itemTaxableAmountPaise = addPaise(
+      items.map((item) => item.taxableAmountPaise),
+      MONEY_CAPS.ORDER_AMOUNT,
+      "Item taxable amount"
+    );
+    const itemTaxPaise = addPaise(
+      items.map((item) => item.taxPaise),
+      MONEY_CAPS.ORDER_AMOUNT,
+      "Item tax"
+    );
+    const taxableAmountPaise = addPaise(
+      [itemTaxableAmountPaise, deliveryTax.taxableAmountPaise],
+      MONEY_CAPS.ORDER_AMOUNT,
+      "Order taxable amount"
+    );
+    const taxPaise = addPaise(
+      [itemTaxPaise, deliveryTax.taxPaise],
+      MONEY_CAPS.ORDER_AMOUNT,
+      "Order tax"
+    );
     let grandTotalPaise: number;
     try {
       grandTotalPaise = addPaise(
@@ -280,6 +381,8 @@ export class PricingService {
         deliveryFeePaise,
         roundingAdjustmentPaise: 0,
         grandTotalPaise,
+        taxableAmountPaise,
+        taxPaise,
         items,
         coupon: couponRecord
           ? {
@@ -290,22 +393,37 @@ export class PricingService {
             }
           : null,
         deliveryPricing: {
-          ruleId: deliveryPricing.rule.id,
-          ruleVersion: deliveryPricing.rule.version,
+          ruleId: pricingContext.deliveryPricingRule.id,
+          ruleVersion: pricingContext.deliveryPricingRule.version,
           storeId: input.storeId,
-          businessDate: deliveryPricing.businessDate,
-          timezone: deliveryPricing.timezone,
-          standardFeePaise: deliveryPricing.rule.deliveryFeePaise,
+          businessDate: pricingContext.businessDate,
+          timezone: pricingContext.store.timezone,
+          standardFeePaise: pricingContext.deliveryPricingRule.deliveryFeePaise,
           freeDeliveryThresholdPaise:
-            deliveryPricing.rule.freeDeliveryThresholdPaise,
+            pricingContext.deliveryPricingRule.freeDeliveryThresholdPaise,
           freeDeliveryApplied,
+        },
+        tax: {
+          calculationPolicyVersion: TAX_CALCULATION_POLICY_VERSION,
+          isDemo: true,
+          disclaimer: DEMO_TAX_DISCLAIMER,
+          placeOfSupplyState:
+            input.destinationState?.trim() || pricingContext.store.state,
+          placeOfSupplySource: input.destinationState?.trim()
+            ? "delivery_address"
+            : "store_estimate",
+          itemRule: this.taxRuleSnapshot(pricingContext.itemTaxRule),
+          deliveryRule: {
+            ...this.taxRuleSnapshot(pricingContext.deliveryTaxRule),
+            ...deliveryTax,
+          },
         },
       },
       couponRecord,
     };
   }
 
-  private async getDeliveryPricing(
+  private async getPricingContext(
     storeId: number,
     now: Date,
     options: BuildPricingQuoteOptions
@@ -317,15 +435,15 @@ export class PricingService {
         "DELIVERY_PRICING_STORE_INVALID"
       );
     }
-    const timezone = await this.repository.findStoreTimezone(
+    const store = await this.repository.findStorePricingContext(
       storeId,
       options.executor
     );
-    if (!timezone) {
+    if (!store) {
       throw new AppError("Store not found", 404, "STORE_NOT_FOUND");
     }
-    const businessDate = this.businessDateFor(now, timezone);
-    const rules = await this.repository.findDeliveryPricingRules(
+    const businessDate = this.businessDateFor(now, store.timezone);
+    const deliveryRules = await this.repository.findDeliveryPricingRules(
       storeId,
       businessDate,
       {
@@ -333,21 +451,85 @@ export class PricingService {
         lock: options.lockCoupon ?? false,
       }
     );
-    if (rules.length === 0) {
+    if (deliveryRules.length === 0) {
       throw new AppError(
         "Delivery pricing is not configured for this store and date",
         422,
         "DELIVERY_PRICING_RULE_NOT_FOUND"
       );
     }
-    if (rules.length > 1) {
+    if (deliveryRules.length > 1) {
       throw new AppError(
         "Delivery pricing rules overlap for this store and date",
         500,
         "DELIVERY_PRICING_RULE_OVERLAP"
       );
     }
-    return { rule: rules[0], businessDate, timezone };
+    const itemTaxRule = await this.getTaxRule(
+      storeId,
+      "item",
+      businessDate,
+      options
+    );
+    const deliveryTaxRule = await this.getTaxRule(
+      storeId,
+      "delivery",
+      businessDate,
+      options
+    );
+    return {
+      store,
+      businessDate,
+      deliveryPricingRule: deliveryRules[0],
+      itemTaxRule,
+      deliveryTaxRule,
+    };
+  }
+
+  private async getTaxRule(
+    storeId: number,
+    component: DemoTaxComponent,
+    businessDate: string,
+    options: BuildPricingQuoteOptions
+  ) {
+    const rules = await this.repository.findTaxRules(
+      storeId,
+      component,
+      businessDate,
+      { executor: options.executor, lock: options.lockCoupon ?? false }
+    );
+    if (rules.length === 0) {
+      throw new AppError(
+        `Demo ${component} tax rule is not configured for this store and date`,
+        422,
+        "TAX_RULE_NOT_FOUND"
+      );
+    }
+    if (rules.length > 1) {
+      throw new AppError(
+        `Demo ${component} tax rules overlap for this store and date`,
+        500,
+        "TAX_RULE_OVERLAP"
+      );
+    }
+    const [rule] = rules;
+    if (!rule.isDemo || rule.disclaimer !== DEMO_TAX_DISCLAIMER) {
+      throw new AppError(
+        "Demo tax rule metadata is invalid",
+        500,
+        "TAX_RULE_METADATA_INVALID"
+      );
+    }
+    return rule;
+  }
+
+  private taxRuleSnapshot(rule: TaxRuleRecord): TaxRuleSnapshot {
+    return {
+      ruleId: rule.id,
+      ruleVersion: rule.version,
+      rateBps: rule.rateBps,
+      hsnSacCode: rule.hsnSacCode,
+    };
   }
 
   private businessDateFor(now: Date, timezone: string) {
