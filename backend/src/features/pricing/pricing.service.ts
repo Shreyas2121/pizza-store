@@ -1,6 +1,11 @@
-import { and, count, eq, inArray } from "drizzle-orm";
+import { and, count, eq, gte, inArray, isNull, lte, or } from "drizzle-orm";
 import { db } from "../../db";
-import { couponRedemptionsTable, couponsTable } from "../../db/schema";
+import {
+  couponRedemptionsTable,
+  couponsTable,
+  deliveryPricingRulesTable,
+  storesTable,
+} from "../../db/schema";
 import { AppError } from "../../utils/error";
 import {
   MONEY_CAPS,
@@ -14,8 +19,8 @@ import {
 } from "../../utils/money";
 import type { DatabaseType, TransactionType } from "../../utils/types";
 
-export const QUOTE_VERSION = "2026-08-31-01" as const;
-export const PRICING_POLICY_VERSION = 1 as const;
+export const QUOTE_VERSION = "2026-09-01-01" as const;
+export const PRICING_POLICY_VERSION = 2 as const;
 
 export interface PricingCustomizationInput {
   customizationOptionId: number;
@@ -50,7 +55,7 @@ export interface PricingQuote {
   pricingPolicyVersion: typeof PRICING_POLICY_VERSION;
   itemsSubtotalPaise: number;
   discountPaise: number;
-  deliveryFeePaise: 0;
+  deliveryFeePaise: number;
   roundingAdjustmentPaise: 0;
   grandTotalPaise: number;
   items: PricingQuoteItem[];
@@ -60,9 +65,20 @@ export interface PricingQuote {
     discountPaise: number;
     applied: true;
   } | null;
+  deliveryPricing: {
+    ruleId: number;
+    ruleVersion: number;
+    storeId: number;
+    businessDate: string;
+    timezone: string;
+    standardFeePaise: number;
+    freeDeliveryThresholdPaise: number | null;
+    freeDeliveryApplied: boolean;
+  };
 }
 
 type CouponRecord = typeof couponsTable.$inferSelect;
+type DeliveryPricingRuleRecord = typeof deliveryPricingRulesTable.$inferSelect;
 type PricingExecutor = DatabaseType | TransactionType;
 
 export interface PricingRepository {
@@ -74,6 +90,15 @@ export interface PricingRepository {
     couponId: number,
     executor?: PricingExecutor
   ): Promise<number>;
+  findStoreTimezone(
+    storeId: number,
+    executor?: PricingExecutor
+  ): Promise<string | undefined>;
+  findDeliveryPricingRules(
+    storeId: number,
+    businessDate: string,
+    options: { executor?: PricingExecutor; lock: boolean }
+  ): Promise<DeliveryPricingRuleRecord[]>;
 }
 
 export class DrizzlePricingRepository implements PricingRepository {
@@ -107,9 +132,43 @@ export class DrizzlePricingRepository implements PricingRepository {
       );
     return Number(usage.active);
   }
+
+  async findStoreTimezone(storeId: number, executor: PricingExecutor = db) {
+    const [store] = await executor
+      .select({ timezone: storesTable.timezone })
+      .from(storesTable)
+      .where(eq(storesTable.id, storeId))
+      .limit(1);
+    return store?.timezone;
+  }
+
+  async findDeliveryPricingRules(
+    storeId: number,
+    businessDate: string,
+    options: { executor?: PricingExecutor; lock: boolean }
+  ) {
+    const executor = options.executor ?? db;
+    const query = executor
+      .select()
+      .from(deliveryPricingRulesTable)
+      .where(
+        and(
+          eq(deliveryPricingRulesTable.storeId, storeId),
+          lte(deliveryPricingRulesTable.effectiveFrom, businessDate),
+          or(
+            isNull(deliveryPricingRulesTable.effectiveTo),
+            gte(deliveryPricingRulesTable.effectiveTo, businessDate)
+          )
+        )
+      );
+    return options.lock
+      ? await query.for("update").limit(2)
+      : await query.limit(2);
+  }
 }
 
 export interface BuildPricingQuoteInput {
+  storeId: number;
   items: PricingItemInput[];
   couponCode?: string | null;
   now?: Date;
@@ -159,6 +218,11 @@ export class PricingService {
     const discountPaise = couponRecord
       ? this.calculateDiscountPaise(couponRecord, itemsSubtotalPaise)
       : 0;
+    const deliveryPricing = await this.getDeliveryPricing(
+      input.storeId,
+      input.now ?? new Date(),
+      options
+    );
     const allocations = allocateProportional(
       discountPaise,
       pricedItems.map((item) => ({
@@ -181,11 +245,30 @@ export class PricingService {
         ),
       };
     });
-    const grandTotalPaise = subtractPaise(
+    const netItemsPaise = subtractPaise(
       itemsSubtotalPaise,
       discountPaise,
       { domainCap: MONEY_CAPS.ORDER_AMOUNT }
     );
+    const freeDeliveryApplied =
+      deliveryPricing.rule.freeDeliveryThresholdPaise !== null
+      && netItemsPaise >= deliveryPricing.rule.freeDeliveryThresholdPaise;
+    const deliveryFeePaise = freeDeliveryApplied
+      ? 0
+      : deliveryPricing.rule.deliveryFeePaise;
+    let grandTotalPaise: number;
+    try {
+      grandTotalPaise = addPaise(
+        [netItemsPaise, deliveryFeePaise],
+        MONEY_CAPS.ORDER_AMOUNT,
+        "Order grand total"
+      );
+    } catch (cause) {
+      if (cause instanceof RangeError || cause instanceof TypeError) {
+        throw new AppError("Cart total is too large", 400);
+      }
+      throw cause;
+    }
 
     return {
       quote: {
@@ -194,7 +277,7 @@ export class PricingService {
         pricingPolicyVersion: PRICING_POLICY_VERSION,
         itemsSubtotalPaise,
         discountPaise,
-        deliveryFeePaise: 0,
+        deliveryFeePaise,
         roundingAdjustmentPaise: 0,
         grandTotalPaise,
         items,
@@ -206,9 +289,89 @@ export class PricingService {
               applied: true,
             }
           : null,
+        deliveryPricing: {
+          ruleId: deliveryPricing.rule.id,
+          ruleVersion: deliveryPricing.rule.version,
+          storeId: input.storeId,
+          businessDate: deliveryPricing.businessDate,
+          timezone: deliveryPricing.timezone,
+          standardFeePaise: deliveryPricing.rule.deliveryFeePaise,
+          freeDeliveryThresholdPaise:
+            deliveryPricing.rule.freeDeliveryThresholdPaise,
+          freeDeliveryApplied,
+        },
       },
       couponRecord,
     };
+  }
+
+  private async getDeliveryPricing(
+    storeId: number,
+    now: Date,
+    options: BuildPricingQuoteOptions
+  ) {
+    if (!Number.isSafeInteger(storeId) || storeId <= 0) {
+      throw new AppError(
+        "Store pricing context is invalid",
+        400,
+        "DELIVERY_PRICING_STORE_INVALID"
+      );
+    }
+    const timezone = await this.repository.findStoreTimezone(
+      storeId,
+      options.executor
+    );
+    if (!timezone) {
+      throw new AppError("Store not found", 404, "STORE_NOT_FOUND");
+    }
+    const businessDate = this.businessDateFor(now, timezone);
+    const rules = await this.repository.findDeliveryPricingRules(
+      storeId,
+      businessDate,
+      {
+        executor: options.executor,
+        lock: options.lockCoupon ?? false,
+      }
+    );
+    if (rules.length === 0) {
+      throw new AppError(
+        "Delivery pricing is not configured for this store and date",
+        422,
+        "DELIVERY_PRICING_RULE_NOT_FOUND"
+      );
+    }
+    if (rules.length > 1) {
+      throw new AppError(
+        "Delivery pricing rules overlap for this store and date",
+        500,
+        "DELIVERY_PRICING_RULE_OVERLAP"
+      );
+    }
+    return { rule: rules[0], businessDate, timezone };
+  }
+
+  private businessDateFor(now: Date, timezone: string) {
+    if (Number.isNaN(now.getTime())) {
+      throw new AppError("Pricing time is invalid", 400, "PRICING_TIME_INVALID");
+    }
+    try {
+      const parts = new Intl.DateTimeFormat("en-CA", {
+        timeZone: timezone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).formatToParts(now);
+      const value = Object.fromEntries(
+        parts.map((part) => [part.type, part.value])
+      );
+      return `${value.year}-${value.month}-${value.day}`;
+    } catch {
+      throw new AppError(
+        "Store timezone configuration is invalid",
+        500,
+        "STORE_TIMEZONE_INVALID"
+      );
+    }
   }
 
   private priceItems(items: PricingItemInput[]) {

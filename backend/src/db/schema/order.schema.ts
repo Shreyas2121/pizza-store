@@ -13,7 +13,7 @@ import { productsTable } from "./catalog.schema";
 import { paymentsTable } from "./payment.schema";
 import { couponsTable } from "./coupon.schema";
 import { customizationOptionsTable } from "./customization.schema";
-import { storesTable } from "./store.schema";
+import { deliveryPricingRulesTable, storesTable } from "./store.schema";
 
 export const ordersTable = pgTable(
   "orders",
@@ -32,6 +32,12 @@ export const ordersTable = pgTable(
     currency: text().$type<PaymentCurrency>().notNull(),
     quoteVersion: text("quote_version").notNull(),
     pricingPolicyVersion: integer("pricing_policy_version").notNull(),
+    deliveryPricingRuleId: integer("delivery_pricing_rule_id")
+      .references(() => deliveryPricingRulesTable.id)
+      .notNull(),
+    deliveryPricingRuleVersion: integer("delivery_pricing_rule_version").notNull(),
+    pricingBusinessDate: text("pricing_business_date").notNull(),
+    pricingTimezone: text("pricing_timezone").notNull(),
     recognizedAt: timestamp("recognized_at", { withTimezone: true }),
     cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
     deliveredAt: timestamp("delivered_at", { withTimezone: true }),
@@ -77,6 +83,18 @@ export const ordersTable = pgTable(
     check(
       "orders_pricing_policy_version_positive",
       sql`${table.pricingPolicyVersion} > 0`
+    ),
+    check(
+      "orders_delivery_pricing_rule_version_positive",
+      sql`${table.deliveryPricingRuleVersion} > 0`
+    ),
+    check(
+      "orders_pricing_business_date_valid",
+      sql`${table.pricingBusinessDate} ~ '^\\d{4}-\\d{2}-\\d{2}$'`
+    ),
+    check(
+      "orders_pricing_timezone_present",
+      sql`nullif(btrim(${table.pricingTimezone}), '') is not null`
     ),
   ]
 );

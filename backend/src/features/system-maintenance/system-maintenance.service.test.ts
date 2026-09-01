@@ -20,7 +20,7 @@ const expectedApplicationTables = [
   "coupons",
   "customization_groups",
   "customization_options",
-  "delivery_price",
+  "delivery_pricing_rules",
   "delivery_zones",
   "inventory_movements",
   "inventory_reservations",

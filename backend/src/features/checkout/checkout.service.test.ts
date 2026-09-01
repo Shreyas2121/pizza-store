@@ -59,6 +59,31 @@ describe("CheckoutService stock integration", () => {
     vi.spyOn(inventoryService, "validateAndLockStock").mockResolvedValue(
       mockAllocations
     );
+    vi.spyOn(pricingService, "buildQuote").mockResolvedValue({
+      quote: {
+        quoteVersion: "2026-09-01-01",
+        currency: "INR",
+        pricingPolicyVersion: 2,
+        itemsSubtotalPaise: 40_000,
+        discountPaise: 0,
+        deliveryFeePaise: 4_000,
+        roundingAdjustmentPaise: 0,
+        grandTotalPaise: 44_000,
+        items: [],
+        coupon: null,
+        deliveryPricing: {
+          ruleId: 11,
+          ruleVersion: 1,
+          storeId: 1,
+          businessDate: "2026-09-01",
+          timezone: "Asia/Kolkata",
+          standardFeePaise: 4_000,
+          freeDeliveryThresholdPaise: 50_000,
+          freeDeliveryApplied: false,
+        },
+      },
+      couponRecord: null,
+    } as any);
 
     const mockTx = {
       select: vi.fn(() => ({
@@ -87,10 +112,11 @@ describe("CheckoutService stock integration", () => {
 
     expect(quote.stockAllocations).toEqual(mockAllocations);
     expect(quote.pricingQuote).toMatchObject({
-      quoteVersion: "2026-08-31-01",
+      quoteVersion: "2026-09-01-01",
       itemsSubtotalPaise: 40_000,
       discountPaise: 0,
-      grandTotalPaise: 40_000,
+      deliveryFeePaise: 4_000,
+      grandTotalPaise: 44_000,
     });
     expect(inventoryService.validateAndLockStock).toHaveBeenCalledWith(
       1,
@@ -213,6 +239,7 @@ describe("CheckoutService stock integration", () => {
       pricingResult
     );
     expect(buildQuote).toHaveBeenCalledWith({
+      storeId: 1,
       items: [
         {
           lineId: 101,
@@ -253,14 +280,14 @@ describe("CheckoutService exact order snapshots", () => {
     cart: { storeId: 1 },
     coupon: { id: 7 },
     pricingQuote: {
-      quoteVersion: "2026-08-31-01",
+      quoteVersion: "2026-09-01-01",
       currency: "INR",
-      pricingPolicyVersion: 1,
+      pricingPolicyVersion: 2,
       itemsSubtotalPaise: 50_000,
       discountPaise: 10_000,
-      deliveryFeePaise: 0,
+      deliveryFeePaise: 4_000,
       roundingAdjustmentPaise: 0,
-      grandTotalPaise: 40_000,
+      grandTotalPaise: 44_000,
       items: [
         {
           lineId: 101,
@@ -281,6 +308,16 @@ describe("CheckoutService exact order snapshots", () => {
         },
       ],
       coupon: { id: 7, code: "SAVE20", discountPaise: 10_000, applied: true },
+      deliveryPricing: {
+        ruleId: 11,
+        ruleVersion: 3,
+        storeId: 1,
+        businessDate: "2026-09-01",
+        timezone: "Asia/Kolkata",
+        standardFeePaise: 4_000,
+        freeDeliveryThresholdPaise: 50_000,
+        freeDeliveryApplied: false,
+      },
       ...overrides,
     },
   });
@@ -303,12 +340,17 @@ describe("CheckoutService exact order snapshots", () => {
     expect(writes.get(ordersTable)).toMatchObject({
       itemsSubtotalPaise: 50_000,
       discountPaise: 10_000,
-      taxableAmountPaise: 40_000,
+      deliveryFeePaise: 4_000,
+      taxableAmountPaise: 44_000,
       taxPaise: 0,
-      grandTotalPaise: 40_000,
+      grandTotalPaise: 44_000,
       currency: "INR",
-      quoteVersion: "2026-08-31-01",
-      pricingPolicyVersion: 1,
+      quoteVersion: "2026-09-01-01",
+      pricingPolicyVersion: 2,
+      deliveryPricingRuleId: 11,
+      deliveryPricingRuleVersion: 3,
+      pricingBusinessDate: "2026-09-01",
+      pricingTimezone: "Asia/Kolkata",
     });
     expect(writes.get(ordersTable)).not.toHaveProperty("discountAmount");
     expect(writes.get(ordersTable)).not.toHaveProperty("totalPrice");
@@ -352,6 +394,7 @@ describe("CheckoutService exact order snapshots", () => {
     const quote = createQuote({
       itemsSubtotalPaise: testCase.subtotal,
       discountPaise: testCase.discount,
+      deliveryFeePaise: 0,
       grandTotalPaise: testCase.total,
       items: [
         {

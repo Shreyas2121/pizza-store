@@ -96,10 +96,11 @@ Relations: belongs to category; many-to-many with customization groups (via mapp
 | `email` | text | nullable | Store contact email |
 | `latitude`, `longitude` | double precision | nullable | Reserved for distance-based resolution |
 | `opens_at`, `closes_at` | text | NOT NULL | Local operating times in `HH:mm` format |
+| `timezone` | text | NOT NULL, default `Asia/Kolkata` | Validated IANA timezone used to derive business dates |
 | `is_active` | boolean | NOT NULL, default `true` | |
 | `created_at`, `updated_at` | timestamptz | | |
 
-Relations: one-to-many with store products, delivery zones, carts, and orders.
+Relations: one-to-many with store products, delivery zones, delivery pricing rules, carts, and orders.
 
 ### `store_products`
 
@@ -305,8 +306,12 @@ Per-order coupon reservation state used to prevent concurrent oversubscription. 
 | `rounding_adjustment_paise` | integer | NOT NULL | Rounding adjustment in integer paise |
 | `grand_total_paise` | integer | NOT NULL | Authoritative payable total in integer paise |
 | `currency` | text | NOT NULL | ISO 4217 currency (`INR`) |
-| `quoteVersion` | text | NOT NULL | Authoritative pricing quote version |
+| `quote_version` | text | NOT NULL | Authoritative pricing quote version |
 | `pricing_policy_version` | integer | NOT NULL | Pricing policy revision integer |
+| `delivery_pricing_rule_id` | integer | FK → delivery_pricing_rules, NOT NULL | Selected effective delivery rule snapshot reference |
+| `delivery_pricing_rule_version` | integer | NOT NULL, > 0 | Selected rule version snapshot |
+| `pricing_business_date` | text | NOT NULL, `YYYY-MM-DD` | Store-local date used for effective-rule selection |
+| `pricing_timezone` | text | NOT NULL | Store timezone snapshotted when the quote was built |
 | `recognized_at` | timestamptz | nullable | Revenue and COGS recognition timestamp (set on delivery) |
 | `cancelled_at` | timestamptz | nullable | Cancellation timestamp |
 | `delivered_at` | timestamptz | nullable | Delivery completion timestamp |
@@ -317,7 +322,7 @@ Per-order coupon reservation state used to prevent concurrent oversubscription. 
 | `store_id` | integer | FK → stores, NOT NULL | Fulfilling store |
 | `created_at`, `updated_at` | timestamptz | | |
 
-Relations: belongs to user, payment, coupon, address, store; one-to-many with order items.
+Relations: belongs to user, payment, coupon, address, store, and delivery pricing rule; one-to-many with order items.
 
 ### `order_items`
 
@@ -364,14 +369,19 @@ Relations: belongs to order, product; one-to-many with order item customizations
 
 Unique constraint: `(store_id, pincode)`.
 
-### `delivery_price`
+### `delivery_pricing_rules`
 
 | Column | Type | Constraints | Notes |
 | --- | --- | --- | --- |
 | `id` | integer | PK | |
-| `delivery_charge` | double precision | NOT NULL | |
-| `min_order` | double precision | NOT NULL, default `0` | Minimum order for free delivery |
+| `store_id` | integer | FK → stores, NOT NULL | Pricing is store-scoped |
+| `version` | integer | NOT NULL, > 0 | Immutable rule version within the store |
+| `delivery_fee_paise` | integer | NOT NULL, >= 0 | Standard tax-inclusive fee |
+| `free_delivery_threshold_paise` | integer | nullable, > 0 | Free when post-discount item value meets this threshold; `NULL` disables free delivery |
+| `effective_from`, `effective_to` | date | start NOT NULL, valid inclusive range | Selected using the store business date |
 | `created_at`, `updated_at` | timestamptz | | |
+
+Unique constraints: `(store_id, version)` and `(store_id, effective_from)`. An exclusion constraint prevents overlapping effective ranges for the same store. Orders snapshot the selected rule ID/version, business date, timezone, and charged fee.
 
 ### `chat_sessions`
 

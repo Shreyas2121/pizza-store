@@ -136,7 +136,7 @@ class CheckoutService {
 
     const { quote: pricingQuote, couponRecord: coupon } =
       await pricingService.buildQuote(
-        { items: toPricingItems(cart), couponCode },
+        { storeId: cart.storeId, items: toPricingItems(cart), couponCode },
         { executor: tx, lockCoupon: true }
       );
     return {
@@ -157,6 +157,7 @@ class CheckoutService {
       throw new AppError("Cart is empty", 400);
     }
     return await pricingService.buildQuote({
+      storeId: cart.storeId!,
       items: toPricingItems(cart),
       couponCode,
     });
@@ -188,6 +189,10 @@ class CheckoutService {
         currency: pricingQuote.currency,
         quoteVersion: pricingQuote.quoteVersion,
         pricingPolicyVersion: pricingQuote.pricingPolicyVersion,
+        deliveryPricingRuleId: pricingQuote.deliveryPricing.ruleId,
+        deliveryPricingRuleVersion: pricingQuote.deliveryPricing.ruleVersion,
+        pricingBusinessDate: pricingQuote.deliveryPricing.businessDate,
+        pricingTimezone: pricingQuote.deliveryPricing.timezone,
         paymentType: data.paymentType,
         paymentId: data.paymentId,
         status: data.status,

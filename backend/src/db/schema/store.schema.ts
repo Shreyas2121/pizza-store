@@ -1,6 +1,7 @@
 import {
   boolean,
   check,
+  date,
   doublePrecision,
   integer,
   pgTable,
@@ -31,6 +32,7 @@ export const storesTable = pgTable("stores", {
   longitude: doublePrecision(),
   opensAt: text("opens_at").notNull(),
   closesAt: text("closes_at").notNull(),
+  timezone: text().notNull().default("Asia/Kolkata"),
   isActive,
   createdAt,
   updatedAt,
@@ -98,13 +100,42 @@ export const deliveryZonesTable = pgTable(
 );
 
 // ──────────────────────────────────────────────
-// Delivery Price
+// Store-scoped delivery pricing
 // ──────────────────────────────────────────────
 
-export const deliveryPrice = pgTable("delivery_price", {
-  id,
-  deliveryCharge: doublePrecision("delivery_charge").notNull(),
-  minOrder: doublePrecision("min_order").default(0).notNull(),
-  createdAt,
-  updatedAt,
-});
+export const deliveryPricingRulesTable = pgTable(
+  "delivery_pricing_rules",
+  {
+    id,
+    storeId: integer("store_id")
+      .references(() => storesTable.id)
+      .notNull(),
+    version: integer().notNull(),
+    deliveryFeePaise: integer("delivery_fee_paise").notNull(),
+    freeDeliveryThresholdPaise: integer("free_delivery_threshold_paise"),
+    effectiveFrom: date("effective_from", { mode: "string" }).notNull(),
+    effectiveTo: date("effective_to", { mode: "string" }),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    unique("delivery_pricing_rules_store_version_unique").on(
+      table.storeId,
+      table.version
+    ),
+    unique("delivery_pricing_rules_store_effective_from_unique").on(
+      table.storeId,
+      table.effectiveFrom
+    ),
+    check("delivery_pricing_rules_version_positive", sql`${table.version} > 0`),
+    check(
+      "delivery_pricing_rules_amounts_valid",
+      sql`${table.deliveryFeePaise} >= 0
+        and (${table.freeDeliveryThresholdPaise} is null or ${table.freeDeliveryThresholdPaise} > 0)`
+    ),
+    check(
+      "delivery_pricing_rules_effective_range_valid",
+      sql`${table.effectiveTo} is null or ${table.effectiveTo} >= ${table.effectiveFrom}`
+    ),
+  ]
+);

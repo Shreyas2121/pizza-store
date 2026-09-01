@@ -7,6 +7,7 @@ import {
   storesTable,
   storeProductsTable,
   deliveryZonesTable,
+  deliveryPricingRulesTable,
 } from "./store.schema";
 import {
   customizationGroupsTable,
@@ -109,6 +110,7 @@ export const productsRelations = relations(productsTable, ({ many, one }) => ({
 export const storesRelations = relations(storesTable, ({ many }) => ({
   products: many(storeProductsTable),
   deliveryZones: many(deliveryZonesTable),
+  deliveryPricingRules: many(deliveryPricingRulesTable),
   orders: many(ordersTable),
   carts: many(cartTable),
   memberships: many(storeMembershipsTable),
@@ -137,6 +139,16 @@ export const deliveryZonesRelations = relations(
   ({ one }) => ({
     store: one(storesTable, {
       fields: [deliveryZonesTable.storeId],
+      references: [storesTable.id],
+    }),
+  })
+);
+
+export const deliveryPricingRulesRelations = relations(
+  deliveryPricingRulesTable,
+  ({ one }) => ({
+    store: one(storesTable, {
+      fields: [deliveryPricingRulesTable.storeId],
       references: [storesTable.id],
     }),
   })
@@ -318,6 +330,10 @@ export const orderRelations = relations(ordersTable, ({ many, one }) => ({
   couponRedemption: one(couponRedemptionsTable, {
     fields: [ordersTable.id],
     references: [couponRedemptionsTable.orderId],
+  }),
+  deliveryPricingRule: one(deliveryPricingRulesTable, {
+    fields: [ordersTable.deliveryPricingRuleId],
+    references: [deliveryPricingRulesTable.id],
   }),
   inventoryMovements: many(inventoryMovementsTable),
   inventoryReservations: many(inventoryReservationsTable),

@@ -8,6 +8,7 @@ import {
   orderItemCustomizationsTable,
   orderItemsTable,
   ordersTable,
+  deliveryPricingRulesTable,
   productsTable,
   storesTable,
 } from "../db/schema";
@@ -56,6 +57,14 @@ import { rupeesToPaise } from "../utils/money";
     console.error("No active store found. Skipping orders seeding.");
     process.exit(0);
   }
+  const deliveryPricingRule = await db.query.deliveryPricingRulesTable.findFirst({
+    where: eq(deliveryPricingRulesTable.storeId, store.id),
+    orderBy: deliveryPricingRulesTable.version,
+  });
+  if (!deliveryPricingRule) {
+    console.error("No delivery pricing rule found. Seed the default store first.");
+    process.exit(1);
+  }
 
   const COUNTS = [2, 5, 10, 20, 30];
 
@@ -73,16 +82,17 @@ import { rupeesToPaise } from "../utils/money";
     }
 
     for (let i = 0; i < numOrdersForUser; i++) {
+      const orderDate = faker.date.between({
+        from: "2024-01-01T00:00:00.000Z",
+        to: "2025-02-28T00:00:00.000Z",
+      });
       const [{ id: orderId }] = await db
         .insert(ordersTable)
         .values({
           userId,
           storeId: store.id,
           addressId: addressExists.id,
-          orderDate: faker.date.between({
-            from: "2024-01-01T00:00:00.000Z",
-            to: "2025-02-28T00:00:00.000Z",
-          }),
+          orderDate,
           status: "delievered",
           itemsSubtotalPaise: 0,
           discountPaise: 0,
@@ -94,6 +104,10 @@ import { rupeesToPaise } from "../utils/money";
           currency: "INR",
           quoteVersion: "seed-order-v1",
           pricingPolicyVersion: 1,
+          deliveryPricingRuleId: deliveryPricingRule.id,
+          deliveryPricingRuleVersion: deliveryPricingRule.version,
+          pricingBusinessDate: orderDate.toISOString().slice(0, 10),
+          pricingTimezone: store.timezone,
         })
         .returning();
 

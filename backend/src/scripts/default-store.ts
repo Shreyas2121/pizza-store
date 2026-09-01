@@ -2,6 +2,7 @@ import { eq, isNull } from "drizzle-orm";
 import { checkDatabaseConnection, closeDatabase, db } from "../db";
 import {
   cartTable,
+  deliveryPricingRulesTable,
   deliveryZonesTable,
   ordersTable,
   productsTable,
@@ -22,6 +23,7 @@ const DEFAULT_STORE = {
   longitude: 72.8354,
   opensAt: "09:00",
   closesAt: "23:00",
+  timezone: "Asia/Kolkata",
   isActive: true,
 } as const;
 
@@ -95,6 +97,24 @@ export async function seedDefaultStore() {
       })
       .returning({ id: deliveryZonesTable.id });
 
+    const defaultDeliveryPricingRule = await tx
+      .insert(deliveryPricingRulesTable)
+      .values({
+        storeId: store.id,
+        version: 1,
+        deliveryFeePaise: 4_000,
+        freeDeliveryThresholdPaise: 50_000,
+        effectiveFrom: "2020-01-01",
+        effectiveTo: null,
+      })
+      .onConflictDoNothing({
+        target: [
+          deliveryPricingRulesTable.storeId,
+          deliveryPricingRulesTable.version,
+        ],
+      })
+      .returning({ id: deliveryPricingRulesTable.id });
+
     return {
       store,
       storeCreated,
@@ -103,6 +123,8 @@ export async function seedDefaultStore() {
       ordersBackfilled: migratedOrders.length,
       cartsBackfilled: migratedCarts.length,
       defaultZoneCreated: defaultZone.length === 1,
+      defaultDeliveryPricingRuleCreated:
+        defaultDeliveryPricingRule.length === 1,
     };
   });
 }
@@ -122,6 +144,9 @@ async function run() {
   console.log(`Backfilled ${result.ordersBackfilled} orders.`);
   console.log(`Backfilled ${result.cartsBackfilled} carts.`);
   console.log(result.defaultZoneCreated ? "Created the default 400001 delivery zone." : "Default delivery zone already exists.");
+  console.log(result.defaultDeliveryPricingRuleCreated
+    ? "Created the default delivery pricing rule."
+    : "Default delivery pricing rule already exists.");
 }
 
 if (require.main === module) {
