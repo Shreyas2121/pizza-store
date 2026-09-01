@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppError } from "../../utils/error";
 import {
+  customizationOptionsTable,
   orderItemCustomizationsTable,
   orderItemsTable,
   ordersTable,
+  productsTable,
 } from "../../db/schema";
 import type { TransactionType } from "../../utils/types";
 import cartService from "../cart/cart.service";
@@ -519,6 +521,196 @@ describe("CheckoutService exact order snapshots", () => {
       lineSubtotalPaise: testCase.subtotal,
       discountAllocationPaise: testCase.discount,
       lineTotalPaise: testCase.total,
+    });
+  });
+});
+
+describe("CheckoutService calculatePublicQuote", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("calculates authoritative quote from provided items and customization options", async () => {
+    const mockQuote = {
+      quoteVersion: "2026-09-01-02",
+      currency: "INR",
+      pricingPolicyVersion: 3,
+      itemsSubtotalPaise: 45_000,
+      discountPaise: 5_000,
+      deliveryFeePaise: 4_000,
+      roundingAdjustmentPaise: 0,
+      grandTotalPaise: 44_000,
+      taxableAmountPaise: 41_905,
+      taxPaise: 2_095,
+      items: [],
+      coupon: {
+        id: 1,
+        code: "SAVE50",
+        discountPaise: 5_000,
+        applied: true,
+      },
+      deliveryPricing: {
+        ruleId: 11,
+        ruleVersion: 1,
+        storeId: 1,
+        businessDate: "2026-09-01",
+        timezone: "Asia/Kolkata",
+        standardFeePaise: 4_000,
+        freeDeliveryThresholdPaise: 50_000,
+        freeDeliveryApplied: false,
+      },
+      tax: {
+        calculationPolicyVersion: 1,
+        isDemo: true,
+        disclaimer: "Portfolio demo — not a statutory tax invoice",
+        placeOfSupplyState: "Karnataka",
+        placeOfSupplySource: "delivery_address",
+        itemRule: {
+          ruleId: 21,
+          ruleVersion: 2,
+          rateBps: 500,
+          hsnSacCode: "21069099-DEMO",
+        },
+        deliveryRule: {
+          ruleId: 22,
+          ruleVersion: 2,
+          rateBps: 1800,
+          hsnSacCode: "996813-DEMO",
+          taxableAmountPaise: 3_390,
+          taxPaise: 610,
+        },
+      },
+    };
+
+    const buildQuoteSpy = vi
+      .spyOn(pricingService, "buildQuote")
+      .mockResolvedValue({
+        quote: mockQuote as any,
+        couponRecord: null,
+      });
+
+    // Mock db queries for products and options
+    const { db } = await import("../../db");
+    vi.spyOn(db, "select").mockImplementation((() => {
+      const selectMock: any = {
+        from: (table: any) => {
+          return {
+            where: () => {
+              if (table === productsTable) {
+                return Promise.resolve([
+                  { id: 1, name: "Margherita", price: 350 },
+                ]);
+              }
+              if (table === customizationOptionsTable) {
+                return Promise.resolve([
+                  { id: 101, name: "Extra Cheese", price: 50 },
+                ]);
+              }
+              return Promise.resolve([]);
+            },
+            limit: () => Promise.resolve([]),
+          };
+        },
+      };
+      return selectMock;
+    }) as any);
+
+    const result = await checkoutService.calculatePublicQuote({
+      storeId: 1,
+      couponCode: "SAVE50",
+      destinationState: "Karnataka",
+      items: [
+        {
+          productId: 1,
+          quantity: 1,
+          customizationOptionIds: [101],
+        },
+      ],
+    });
+
+    expect(result).toEqual(mockQuote);
+    expect(buildQuoteSpy).toHaveBeenCalledWith({
+      storeId: 1,
+      items: [
+        {
+          lineId: 1,
+          productId: 1,
+          productName: "Margherita",
+          quantity: 1,
+          baseUnitPricePaise: 35_000,
+          customizations: [
+            {
+              customizationOptionId: 101,
+              name: "Extra Cheese",
+              pricePaise: 5_000,
+            },
+          ],
+        },
+      ],
+      couponCode: "SAVE50",
+      destinationState: "Karnataka",
+    });
+  });
+
+  it("calculates authoritative quote from user cart when items are omitted", async () => {
+    const mockCart = {
+      id: 1,
+      userId: 10,
+      storeId: 2,
+      items: [
+        {
+          id: 101,
+          productId: 1,
+          quantity: 2,
+          price: 200,
+          product: { name: "Margherita" },
+          customizations: [],
+        },
+      ],
+    };
+
+    vi.spyOn(cartService, "getCart").mockResolvedValue(mockCart as any);
+    const buildQuoteSpy = vi
+      .spyOn(pricingService, "buildQuote")
+      .mockResolvedValue({
+        quote: { grandTotalPaise: 44_000 } as any,
+        couponRecord: null,
+      });
+
+    const result = await checkoutService.calculatePublicQuote({
+      storeId: 2,
+      userId: 10,
+    });
+
+    expect(result.grandTotalPaise).toBe(44_000);
+    expect(buildQuoteSpy).toHaveBeenCalledWith({
+      storeId: 2,
+      items: [
+        {
+          lineId: 101,
+          productId: 1,
+          productName: "Margherita",
+          quantity: 2,
+          baseUnitPricePaise: 20_000,
+          customizations: [],
+        },
+      ],
+      couponCode: undefined,
+      destinationState: null,
+    });
+  });
+
+  it("throws 400 when items are omitted and user has no active cart", async () => {
+    vi.spyOn(cartService, "getCart").mockResolvedValue(null);
+
+    await expect(
+      checkoutService.calculatePublicQuote({
+        storeId: 1,
+        userId: 10,
+      })
+    ).rejects.toMatchObject({
+      message: "Cart is empty",
+      status: 400,
     });
   });
 });

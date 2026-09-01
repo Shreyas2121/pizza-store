@@ -7,6 +7,7 @@ export {
   formatClockTime,
   formatDate,
   formatDateTime,
+  formatPaise,
   formatPrice,
   formatStoreHours,
   formatTime,

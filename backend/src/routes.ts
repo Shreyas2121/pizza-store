@@ -19,6 +19,7 @@ import { systemMaintenanceRoutes } from "./features/system-maintenance/system-ma
 import { accessRoutes } from "./features/access/access.routes";
 import { staffInvitationRoutes, staffRoutes } from "./features/staff/staff.routes";
 import { globalAuditRoutes, storeAuditRoutes } from "./features/audit/audit.routes";
+import { checkoutRoutes } from "./features/checkout/checkout.routes";
 
 export const mainRoutes = Router();
 
@@ -29,6 +30,7 @@ mainRoutes.use("/product", productRoutes);
 mainRoutes.use("/customize", customizationRoutes);
 mainRoutes.use("/menu", menuRoutes);
 mainRoutes.use("/cart", authenticateUser, cartRoutes);
+mainRoutes.use("/checkout", checkoutRoutes);
 mainRoutes.use("/order", orderRoutes);
 mainRoutes.use("/payments", paymentRoutes);
 mainRoutes.use("/coupon", couponRoutes);

@@ -56,6 +56,97 @@ export type CouponPreview = Coupon & {
   grandTotalPaise: number;
 };
 
+export type PricingCustomizationSnapshot = {
+  customizationOptionId: number;
+  name: string;
+  pricePaise: number;
+};
+
+export type PricingQuoteItem = {
+  lineId: number;
+  productId: number;
+  productName: string;
+  quantity: number;
+  unitPricePaise: number;
+  lineSubtotalPaise: number;
+  discountAllocationPaise: number;
+  taxRuleId: number;
+  taxRuleVersion: number;
+  taxRateBps: number;
+  taxableAmountPaise: number;
+  taxPaise: number;
+  hsnSacCode: string;
+  lineTotalPaise: number;
+  customizations: PricingCustomizationSnapshot[];
+};
+
+export type TaxRuleSnapshot = {
+  ruleId: number;
+  ruleVersion: number;
+  rateBps: number;
+  hsnSacCode: string;
+};
+
+export type PricingQuote = {
+  quoteVersion: string;
+  currency: "INR";
+  pricingPolicyVersion: number;
+  itemsSubtotalPaise: number;
+  discountPaise: number;
+  deliveryFeePaise: number;
+  roundingAdjustmentPaise: number;
+  grandTotalPaise: number;
+  taxableAmountPaise: number;
+  taxPaise: number;
+  items: PricingQuoteItem[];
+  coupon: {
+    id: number;
+    code: string;
+    discountPaise: number;
+    applied: true;
+  } | null;
+  deliveryPricing: {
+    ruleId: number;
+    ruleVersion: number;
+    storeId: number;
+    businessDate: string;
+    timezone: string;
+    standardFeePaise: number;
+    freeDeliveryThresholdPaise: number | null;
+    freeDeliveryApplied: boolean;
+  };
+  tax: {
+    calculationPolicyVersion: number;
+    isDemo: true;
+    disclaimer: string;
+    placeOfSupplyState: string;
+    placeOfSupplySource: "delivery_address" | "store_estimate";
+    itemRule: TaxRuleSnapshot;
+    deliveryRule: TaxRuleSnapshot & {
+      taxableAmountPaise: number;
+      taxPaise: number;
+    };
+  };
+};
+
+export type CheckoutQuoteItemInput = {
+  productId: number;
+  quantity: number;
+  customizationOptionIds?: number[];
+};
+
+export type CheckoutQuoteRequest = {
+  storeId: number;
+  couponCode?: string | null;
+  destinationState?: string | null;
+  addressId?: number | null;
+  items?: CheckoutQuoteItemInput[];
+};
+
+export type CheckoutQuoteResponse = {
+  data: PricingQuote;
+};
+
 export type RazorpayFailure = {
   code: string | null;
   description: string | null;

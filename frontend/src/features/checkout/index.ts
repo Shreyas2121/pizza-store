@@ -7,6 +7,10 @@ export { PendingPaymentCard } from "./components/pending-payment-card";
 
 export { useValidateCoupon } from "./api/coupon.mutations";
 export {
+  checkoutQuoteKeys,
+  useCheckoutQuote,
+} from "./api/quote.queries";
+export {
   useInitiateRazorpayOrder,
   usePaymentMethods,
   useRetryRazorpayOrder,
@@ -19,6 +23,12 @@ export {
 
 export type {
   Coupon,
+  CouponPreview,
+  PricingQuote,
+  PricingQuoteItem,
+  PricingCustomizationSnapshot,
+  CheckoutQuoteRequest,
+  CheckoutQuoteResponse,
   Payment,
   PaymentType,
   PaymentStatus,

@@ -1,9 +1,11 @@
 import { and, count, eq, inArray, sql } from "drizzle-orm";
+import { db } from "../../db";
 import {
   addressTable,
   cartTable,
   couponRedemptionsTable,
   couponsTable,
+  customizationOptionsTable,
   deliveryZonesTable,
   orderItemCustomizationsTable,
   orderItemsTable,
@@ -25,6 +27,18 @@ type CheckoutCart = NonNullable<
   Awaited<ReturnType<typeof cartService.getCart>>
 >;
 
+export interface CalculatePublicQuoteInput {
+  storeId: number;
+  couponCode?: string | null;
+  destinationState?: string | null;
+  addressId?: number | null;
+  items?: {
+    productId: number;
+    quantity: number;
+    customizationOptionIds?: number[];
+  }[];
+  userId?: number;
+}
 export const toPricingItems = (cart: CheckoutCart): PricingItemInput[] => {
   try {
     return cart.items.map((item) => ({
@@ -166,6 +180,96 @@ class CheckoutService {
       items: toPricingItems(cart),
       couponCode,
     });
+  }
+
+  async calculatePublicQuote(input: CalculatePublicQuoteInput) {
+    let destinationState = input.destinationState?.trim() || null;
+    if (!destinationState && input.addressId) {
+      const [address] = await db
+        .select({ state: addressTable.state })
+        .from(addressTable)
+        .where(eq(addressTable.id, input.addressId))
+        .limit(1);
+      if (address) {
+        destinationState = address.state;
+      }
+    }
+
+    let pricingItems: PricingItemInput[];
+
+    if (input.items && input.items.length > 0) {
+      const productIds = [...new Set(input.items.map((item) => item.productId))];
+      const products = await db
+        .select()
+        .from(productsTable)
+        .where(inArray(productsTable.id, productIds));
+      const productMap = new Map(products.map((p) => [p.id, p]));
+
+      for (const pid of productIds) {
+        if (!productMap.has(pid)) {
+          throw new AppError(`Product ${pid} not found`, 404);
+        }
+      }
+
+      const allOptionIds = [
+        ...new Set(
+          input.items.flatMap((item) => item.customizationOptionIds ?? [])
+        ),
+      ];
+
+      const options =
+        allOptionIds.length > 0
+          ? await db
+              .select()
+              .from(customizationOptionsTable)
+              .where(inArray(customizationOptionsTable.id, allOptionIds))
+          : [];
+      const optionMap = new Map(options.map((o) => [o.id, o]));
+
+      for (const oid of allOptionIds) {
+        if (!optionMap.has(oid)) {
+          throw new AppError(`Customization option ${oid} not found`, 404);
+        }
+      }
+
+      pricingItems = input.items.map((item, index) => {
+        const product = productMap.get(item.productId)!;
+        const customizations = (item.customizationOptionIds ?? []).map((oid) => {
+          const option = optionMap.get(oid)!;
+          return {
+            customizationOptionId: option.id,
+            name: option.name,
+            pricePaise: rupeesToPaise(option.price ?? 0),
+          };
+        });
+
+        return {
+          lineId: index + 1,
+          productId: product.id,
+          productName: product.name,
+          quantity: item.quantity,
+          baseUnitPricePaise: rupeesToPaise(product.price),
+          customizations,
+        };
+      });
+    } else if (input.userId) {
+      const cart = await cartService.getCart(input.userId);
+      if (!cart || cart.items.length === 0) {
+        throw new AppError("Cart is empty", 400);
+      }
+      pricingItems = toPricingItems(cart);
+    } else {
+      throw new AppError("Quote requires items or an active cart", 400);
+    }
+
+    const { quote } = await pricingService.buildQuote({
+      storeId: input.storeId,
+      items: pricingItems,
+      couponCode: input.couponCode,
+      destinationState,
+    });
+
+    return quote;
   }
 
   async createOrderSnapshot(

@@ -7,8 +7,9 @@ import { AddressForm, useGetAddresses, useGetUser } from "@/features/account";
 import { useGetCartCheckout } from "@/features/cart";
 import { useCreateOrder } from "@/features/orders";
 import { error, formatClockTime, formatStoreHours, handleStockApiError, success, warning } from "@/shared/lib";
-import { Coupon, PaymentType } from "../model/checkout.types";
+import { CheckoutQuoteRequest, Coupon, PaymentType } from "../model/checkout.types";
 import { useValidateCoupon } from "../api/coupon.mutations";
+import { useCheckoutQuote } from "../api/quote.queries";
 import {
   useInitiateRazorpayOrder,
   usePaymentMethods,
@@ -55,25 +56,67 @@ export const CheckoutPage = () => {
     clientRequestId.current = null;
   }, [selectedAddress, coupon?.code]);
 
-  const { discountAmount, total } = useMemo(() => {
-    const subtotal = cart?.totalPrice ?? 0;
-    const amount = coupon ? coupon.discountType === "percentage" ? (coupon.discountValue / 100) * subtotal : Math.min(coupon.discountValue, subtotal) : 0;
-    return { discountAmount: amount, total: Math.max(0, subtotal - amount) };
-  }, [cart?.totalPrice, coupon]);
+  const selectedAddressDetails = addresses?.find((address) => address.id === selectedAddress);
+
+  const quoteRequest = useMemo((): CheckoutQuoteRequest | null => {
+    if (!resolvedStore || !cart || cart.items.length === 0) return null;
+    return {
+      storeId: resolvedStore.id,
+      couponCode: coupon?.code ?? null,
+      destinationState: selectedAddressDetails?.state ?? null,
+      addressId: selectedAddress ?? null,
+      items: cart.items.map((item) => ({
+        productId: item.productId,
+        quantity: item.quantity,
+        customizationOptionIds: item.customizations.map((c) => c.optionId),
+      })),
+    };
+  }, [resolvedStore, cart, coupon?.code, selectedAddressDetails?.state, selectedAddress]);
+
+  const {
+    data: quote,
+    isLoading: loadingQuote,
+    isError: quoteIsError,
+    error: quoteError,
+  } = useCheckoutQuote(quoteRequest, {
+    enabled: !!resolvedStore && !!cart && cart.items.length > 0,
+  });
+
+  const quoteErrorMessage = useMemo(() => {
+    if (!quoteIsError || !quoteError) return null;
+    if (axios.isAxiosError<{ message?: string }>(quoteError)) {
+      return quoteError.response?.data?.message ?? "Failed to calculate quote";
+    }
+    return "Failed to calculate quote";
+  }, [quoteIsError, quoteError]);
 
   const itemCount = cart?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0;
   const loading = loadingAddresses || loadingCart || loadingUser;
   const failed = addressesError || cartError || userError;
-  const selectedAddressDetails = addresses?.find((address) => address.id === selectedAddress);
   const addressMatchesStore = !!selectedAddressDetails && selectedAddressDetails.pincode === userPincode;
   const cartMatchesStore = !!resolvedStore && cart?.storeId === resolvedStore.id;
   const storeOpen = !!resolvedStore && isStoreOpen(resolvedStore.opensAt, resolvedStore.closesAt);
+
+  const totalPaise = quote?.grandTotalPaise ?? (cart ? cart.totalPrice * 100 : 0);
 
   const applyCoupon = () => {
     const normalized = code.trim().toUpperCase();
     if (!normalized) { error("Enter a coupon code"); return; }
     if (!cart) return;
-    validateCouponM.mutate({ code: normalized }, { onSuccess: (validated) => { setCoupon(validated); setCode(validated.code); success("Coupon applied"); } });
+    validateCouponM.mutate({ code: normalized }, {
+      onSuccess: (validated) => {
+        setCoupon(validated);
+        setCode(validated.code);
+        success("Coupon applied");
+      },
+      onError: (err) => {
+        if (axios.isAxiosError<{ message?: string }>(err)) {
+          error(err.response?.data?.message ?? "Invalid coupon code");
+        } else {
+          error("Invalid coupon code");
+        }
+      },
+    });
   };
 
   const placeOrder = async () => {
@@ -83,6 +126,10 @@ export const CheckoutPage = () => {
     if (!isStoreOpen(resolvedStore.opensAt, resolvedStore.closesAt)) { error(`This store is currently closed. It opens at ${formatClockTime(resolvedStore.opensAt)}.`); return; }
     if (!selectedAddress) { error("Select a delivery address"); return; }
     if (!addressMatchesStore) { error(`Choose an address in pincode ${userPincode}.`); return; }
+    if (quoteIsError) {
+      error(quoteErrorMessage ?? "Cannot place order due to pricing discrepancy. Please review your cart.");
+      return;
+    }
     if (paymentType === "razorpay" && !paymentMethods?.razorpay) {
       setPaymentType("cash");
       warning("Online payment is currently unavailable. Cash on delivery is still available.");
@@ -101,6 +148,7 @@ export const CheckoutPage = () => {
           );
           queryClient.invalidateQueries({ queryKey: ["cart"] });
           queryClient.invalidateQueries({ queryKey: ["catalog"] });
+          queryClient.invalidateQueries({ queryKey: ["checkout-quote"] });
           if (stockResult.isStockError) {
             navigate("/cart");
           }
@@ -109,7 +157,7 @@ export const CheckoutPage = () => {
       return;
     }
 
-    if (total < 1) {
+    if (totalPaise < 100) {
       error("Online payments require a total of at least ₹1.00. Choose cash on delivery.");
       return;
     }
@@ -177,6 +225,7 @@ export const CheckoutPage = () => {
       );
       queryClient.invalidateQueries({ queryKey: ["cart"] });
       queryClient.invalidateQueries({ queryKey: ["catalog"] });
+      queryClient.invalidateQueries({ queryKey: ["checkout-quote"] });
 
       if (stockResult.isStockError) {
         navigate("/cart");
@@ -246,13 +295,20 @@ export const CheckoutPage = () => {
           itemCount={itemCount}
           code={code}
           coupon={coupon}
-          discountAmount={discountAmount}
-          total={total}
+          quote={quote ?? null}
+          loadingQuote={loadingQuote}
+          quoteError={quoteErrorMessage}
           validatingCoupon={validateCouponM.isPending}
           placingOrder={paymentBusy}
           paymentType={paymentType}
           paymentStatusMessage={paymentStatusMessage}
-          canPlaceOrder={!!selectedAddress && addressMatchesStore && cartMatchesStore && storeOpen}
+          canPlaceOrder={
+            !!selectedAddress &&
+            addressMatchesStore &&
+            cartMatchesStore &&
+            storeOpen &&
+            !quoteIsError
+          }
           onCodeChange={(newCode) => setCode(newCode)}
           onApplyCoupon={applyCoupon}
           onRemoveCoupon={() => { setCoupon(null); setCode(""); }}

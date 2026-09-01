@@ -2,8 +2,8 @@ import { Badge, Button } from "@mantine/core";
 import { ChevronRight, LockKeyhole } from "lucide-react";
 import { CartRes } from "@/features/cart";
 import { BASE_URL } from "@/shared/config";
-import { formatPrice } from "@/shared/lib";
-import { Coupon, PaymentType } from "../model/checkout.types";
+import { formatPaise, formatPrice } from "@/shared/lib";
+import { Coupon, PaymentType, PricingQuote } from "../model/checkout.types";
 import CouponField from "./coupon-field";
 
 type CheckoutSummaryProps = {
@@ -11,8 +11,9 @@ type CheckoutSummaryProps = {
   itemCount: number;
   code: string;
   coupon: Coupon | null;
-  discountAmount: number;
-  total: number;
+  quote: PricingQuote | null;
+  loadingQuote?: boolean;
+  quoteError?: string | null;
   validatingCoupon?: boolean;
   placingOrder?: boolean;
   paymentType: PaymentType;
@@ -29,8 +30,9 @@ export const CheckoutSummary = ({
   itemCount,
   code,
   coupon,
-  discountAmount,
-  total,
+  quote,
+  loadingQuote,
+  quoteError,
   validatingCoupon,
   placingOrder,
   paymentType,
@@ -41,6 +43,20 @@ export const CheckoutSummary = ({
   onRemoveCoupon,
   onPlaceOrder,
 }: CheckoutSummaryProps) => {
+  const subtotalFormatted = quote
+    ? formatPaise(quote.itemsSubtotalPaise)
+    : formatPrice(cart.totalPrice);
+
+  const discountPaise = quote?.discountPaise ?? 0;
+  const deliveryFeePaise = quote?.deliveryFeePaise ?? 0;
+  const isFreeDelivery =
+    quote?.deliveryPricing.freeDeliveryApplied ||
+    (quote !== null && deliveryFeePaise === 0);
+
+  const grandTotalFormatted = quote
+    ? formatPaise(quote.grandTotalPaise)
+    : formatPrice(cart.totalPrice);
+
   return (
     <aside
       className="rounded-card border border-border bg-surface p-5 shadow-subtle lg:sticky lg:top-32"
@@ -83,43 +99,74 @@ export const CheckoutSummary = ({
       <CouponField
         code={code}
         coupon={coupon}
-        loading={validatingCoupon}
+        loading={validatingCoupon || loadingQuote}
         onCodeChange={onCodeChange}
         onApply={onApplyCoupon}
         onRemove={onRemoveCoupon}
       />
 
+      {quoteError && (
+        <p className="mt-3 rounded-control bg-red-50 px-3 py-2 text-xs font-medium text-danger">
+          {quoteError}
+        </p>
+      )}
+
       <dl className="mt-5 space-y-3 text-sm">
         <div className="flex justify-between">
           <dt className="text-ink-muted">Subtotal</dt>
-          <dd className="tabular-nums text-ink">{formatPrice(cart.totalPrice)}</dd>
+          <dd className="tabular-nums text-ink">{subtotalFormatted}</dd>
         </div>
+
         <div className="flex justify-between">
           <dt className="text-ink-muted">Delivery fee</dt>
-          <dd className="tabular-nums text-ink">{formatPrice(0)}</dd>
-        </div>
-        <div className="flex justify-between">
-          <dt className="text-ink-muted">Discount</dt>
-          <dd
-            className={
-              discountAmount > 0 ? "tabular-nums text-basil" : "tabular-nums text-ink"
-            }
-          >
-            {discountAmount > 0 ? "−" : ""}
-            {formatPrice(discountAmount)}
+          <dd className="tabular-nums text-ink">
+            {quote ? (
+              isFreeDelivery ? (
+                <span className="font-semibold text-basil">FREE</span>
+              ) : (
+                formatPaise(deliveryFeePaise)
+              )
+            ) : (
+              <span className="text-ink-muted">Calculating…</span>
+            )}
           </dd>
         </div>
+
+        {discountPaise > 0 && (
+          <div className="flex justify-between">
+            <dt className="text-ink-muted">Discount</dt>
+            <dd className="tabular-nums text-basil">
+              −{formatPaise(discountPaise)}
+            </dd>
+          </div>
+        )}
+
+        {quote && quote.taxPaise > 0 && (
+          <div className="flex justify-between text-xs text-ink-muted">
+            <dt>Included tax (demo)</dt>
+            <dd className="tabular-nums">{formatPaise(quote.taxPaise)}</dd>
+          </div>
+        )}
+
         <div className="flex items-baseline justify-between border-t border-border pt-4 text-base font-bold">
           <dt>Total</dt>
-          <dd className="text-2xl tabular-nums text-brand">{formatPrice(total)}</dd>
+          <dd className="text-2xl tabular-nums text-brand">
+            {grandTotalFormatted}
+          </dd>
         </div>
       </dl>
+
+      {quote?.tax.disclaimer && (
+        <p className="mt-2 text-right text-[11px] text-ink-muted">
+          {quote.tax.disclaimer}
+        </p>
+      )}
 
       <Button
         fullWidth
         size="md"
         mt="lg"
-        loading={placingOrder}
+        loading={placingOrder || loadingQuote}
         disabled={!canPlaceOrder}
         onClick={onPlaceOrder}
         rightSection={<ChevronRight size={18} />}

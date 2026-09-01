@@ -23,6 +23,23 @@ export const authenticateUser = asyncHandler(async (req: AuthenticatedRequest, r
   next();
 });
 
+export const authenticateUserOptional = asyncHandler(
+  async (req: AuthenticatedRequest, _res, next) => {
+    const authorization = req.header("Authorization");
+    if (authorization?.startsWith("Bearer ")) {
+      const token = authorization.slice("Bearer ".length).trim();
+      if (token) {
+        try {
+          req.principal = await authenticationService.authenticateToken(token);
+        } catch {
+          // Optional authentication leaves req.principal undefined
+        }
+      }
+    }
+    next();
+  }
+);
+
 export const authenticateAdmin = [
   authenticateUser,
   asyncHandler((req: AuthenticatedRequest, _res, next) => {

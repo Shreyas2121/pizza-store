@@ -37,6 +37,7 @@ const parseDate = (value: DateValue) => {
 };
 
 export const formatPrice = (price: number) => moneyFormatter.format(price);
+export const formatPaise = (paise: number) => formatPrice(paise / 100);
 
 export const formatDate = (
   value: DateValue,

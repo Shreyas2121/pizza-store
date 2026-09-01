@@ -28,26 +28,21 @@ export const CartSummary = ({
         </h2>
         <dl className="mt-5 space-y-3 text-sm">
           <div className="flex justify-between">
-            <dt className="text-ink-muted">Subtotal</dt>
+            <dt className="text-ink-muted">Items subtotal</dt>
             <dd className="font-medium tabular-nums text-ink">
               {formatPrice(subtotal)}
             </dd>
           </div>
-          <div className="flex justify-between">
-            <dt className="text-ink-muted">Delivery fee</dt>
-            <dd className="tabular-nums text-ink">{formatPrice(0)}</dd>
-          </div>
-          <div className="flex justify-between">
-            <dt className="text-ink-muted">Discount</dt>
-            <dd className="tabular-nums text-ink">{formatPrice(0)}</dd>
-          </div>
           <div className="flex justify-between border-t border-border pt-4 text-base font-bold">
-            <dt>Total</dt>
+            <dt>Subtotal</dt>
             <dd className="text-xl tabular-nums text-brand">
               {formatPrice(subtotal)}
             </dd>
           </div>
         </dl>
+        <p className="mt-2 text-xs text-ink-muted">
+          Delivery fee, discounts, and included taxes are calculated at checkout.
+        </p>
         <Button
           fullWidth
           size="md"

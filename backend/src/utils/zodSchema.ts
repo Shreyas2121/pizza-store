@@ -151,6 +151,34 @@ export const validateCouponSchema = z
   })
   .strict();
 
+export const checkoutQuoteItemSchema = z
+  .object({
+    productId: z.number().int().positive("Product ID must be a positive integer"),
+    quantity: z.number().int().positive("Quantity must be a positive integer"),
+    customizationOptionIds: z
+      .array(z.number().int().positive("Customization option ID must be positive"))
+      .optional()
+      .default([]),
+  })
+  .strict();
+
+export const checkoutQuoteSchema = z
+  .object({
+    storeId: z.number().int().positive("Store ID must be a positive integer"),
+    couponCode: z
+      .string()
+      .trim()
+      .min(1, "Coupon code cannot be empty")
+      .max(100, "Coupon code is too long")
+      .transform((code) => code.toUpperCase())
+      .nullable()
+      .optional(),
+    destinationState: z.string().trim().min(1).max(100).nullable().optional(),
+    addressId: z.number().int().positive("Address ID must be a positive integer").nullable().optional(),
+    items: z.array(checkoutQuoteItemSchema).optional(),
+  })
+  .strict();
+
 export const addToCartSchema = z.object({
   productId: z.number().int().positive("Product ID is required"),
   storeId: z.number().int().positive("Store ID is required"),
