@@ -25,12 +25,12 @@ Dependencies point inward: route handlers call services, services call the datab
 
 ### Feature modules
 
-Each business domain lives under `src/features/<name>/` and contains exactly two files:
+Each business domain lives under `src/features/<name>/`. Routes stay thin, while complex domains may split business policy, persistence, provider adapters, and workflows into focused collaborators:
 
 | File | Responsibility |
 | --- | --- |
 | `<name>.routes.ts` | Express router. Binds HTTP methods to handlers. Applies middleware (auth guards, validation). Transforms request/response shapes. |
-| `<name>.service.ts` | Data access and business logic. Exports a class instance with methods that accept typed parameters and return domain objects. Never touches `req` or `res`. |
+| `<name>.service.ts` and collaborators | Typed business workflows and domain logic. Complex services may delegate to repositories, policies, or focused workflow services. Never touches `req` or `res`. |
 
 Current feature modules:
 
@@ -48,6 +48,8 @@ Current feature modules:
 | `coupon` | Coupon CRUD, validation against order totals, redemption tracking |
 | `dashboard` | Revenue, order count, active users, average order value, low-stock items; time-series charts |
 | `chat` | Support session lifecycle, message persistence, Socket.IO integration |
+
+Payment reconciliation retains one public facade for route and webhook compatibility. It delegates signature/provider-state verification, transactional capture/failure finalization, stale and expired-reservation recovery, provider-order recovery, and observation-only updates to separate collaborators. This keeps all existing errors and transaction boundaries stable while allowing attempts, refunds, and settlement matching to evolve independently.
 
 ### Inventory and concurrency model
 
