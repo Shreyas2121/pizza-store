@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 const safeInteger = z
-  .number({ invalid_type_error: "Enter a whole number" })
+  .number({ message: "Enter a whole number" })
   .int("Enter a whole number")
   .max(Number.MAX_SAFE_INTEGER, "Quantity is too large");
 

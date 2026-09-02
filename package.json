@@ -1,0 +1,24 @@
+{
+  "name": "pizzastore",
+  "private": true,
+  "scripts": {
+    "lint":        "pnpm -r run lint",
+    "lint:fe":     "pnpm --filter frontend lint",
+    "lint:be":     "pnpm --filter backend lint",
+    "typecheck":   "pnpm -r run typecheck",
+    "test":        "pnpm -r run test",
+    "test:be":     "pnpm --filter backend test",
+    "build":       "pnpm -r run build",
+
+    "dev":         "pnpm -r --parallel run dev",
+    "dev:fe":      "pnpm --filter frontend dev",
+    "dev:be":      "pnpm --filter backend dev",
+
+    "db:push":     "pnpm --filter backend db:push",
+    "db:generate": "pnpm --filter backend db:generate",
+    "db:migrate":  "pnpm --filter backend db:migrate",
+    "db:seed":     "pnpm --filter backend seed",
+
+    "preflight":   "pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run build"
+  }
+}
