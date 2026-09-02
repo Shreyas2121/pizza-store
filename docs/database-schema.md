@@ -282,6 +282,28 @@ Relations: one-to-many with cart item customizations.
 | `paid_at`, `failed_at` | timestamptz | nullable | Payment lifecycle timestamps |
 | `created_at`, `updated_at` | timestamptz | | |
 
+### `payment_attempts`
+
+Order-to-many payment attempt aggregate introduced in P2.2. Represents discrete interactions with payment rails (COD or Razorpay) under an order, enabling retries and reconciliation without altering order identity.
+
+| Column | Type | Constraints | Notes |
+| --- | --- | --- | --- |
+| `id` | integer | PK | |
+| `order_id` | integer | FK → orders, NOT NULL, indexed | Associated order |
+| `store_id` | integer | FK → stores, NOT NULL, indexed | Fulfilling store |
+| `provider` | text | NOT NULL, default `"cod"`, CHECK | `"cod"` or `"razorpay"` |
+| `method` | text | CHECK, nullable | `"cash"`, `"card"`, `"upi"`, `"netbanking"`, `"wallet"`, or `"other"` |
+| `status` | text | NOT NULL, default `"pending"`, CHECK, indexed | Attempt lifecycle: `pending`, `processing`, `authorized`, `captured`, `failed`, `expired`, `cancelled`, `voided` |
+| `provider_status` | text | nullable | Exact provider status observed |
+| `amount_paise` | integer | NOT NULL, default `0`, CHECK >= 0 | Amount charged in integer paise |
+| `currency` | text | NOT NULL, default `"INR"`, CHECK | Currency code (`INR`) |
+| `provider_order_id` | text | UNIQUE, nullable | Provider order reference |
+| `provider_payment_id` | text | UNIQUE, nullable | Provider payment reference |
+| `client_request_id` | text | UNIQUE, nullable | Client idempotency key |
+| `failure_code`, `failure_description` | text | nullable | Failure metadata |
+| `authorized_at`, `captured_at`, `failed_at`, `expires_at` | timestamptz | nullable | Attempt lifecycle timestamps |
+| `created_at`, `updated_at` | timestamptz | NOT NULL | Audit timestamps |
+
 ### `payment_webhook_events`
 
 Durable Razorpay webhook deduplication and processing state. `event_id` is unique; `status` is `processing`, `processed`, or `failed`; `attempts` is a positive integer; and `processed_at` records successful completion.
@@ -467,6 +489,8 @@ erDiagram
     orders ||--o{ order_items : contains
     orders }o--o| coupons : uses
     orders }o--o| payments : paid_by
+    orders ||--o{ payment_attempts : attempts
+    stores ||--o{ payment_attempts : processes
     orders ||--o| coupon_redemptions : reserves
     orders ||--o{ inventory_reservations : holds
     coupons ||--o{ coupon_redemptions : tracks

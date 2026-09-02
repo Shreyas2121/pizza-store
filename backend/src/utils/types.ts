@@ -50,6 +50,28 @@ export type PaymentStatus =
   | "completed"
   | "failed"
   | "refunded";
+export const PAYMENT_ATTEMPT_STATUSES = [
+  "pending",
+  "processing",
+  "authorized",
+  "captured",
+  "failed",
+  "expired",
+  "cancelled",
+  "voided",
+] as const;
+export type PaymentAttemptStatus = (typeof PAYMENT_ATTEMPT_STATUSES)[number];
+
+export const PAYMENT_METHODS = [
+  "cash",
+  "card",
+  "upi",
+  "netbanking",
+  "wallet",
+  "other",
+] as const;
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+
 export type PaymentType = "cash" | "razorpay";
 export type PaymentProvider = "cod" | "razorpay";
 export type PaymentCurrency = "INR";

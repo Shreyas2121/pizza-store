@@ -92,6 +92,13 @@
       "when": 1788371123179,
       "tag": "0012_loving_skreet",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1788372929008,
+      "tag": "0013_nifty_paladin",
+      "breakpoints": true
     }
   ]
 }

@@ -23,6 +23,7 @@ import {
 import { couponsTable } from "./coupon.schema";
 import { couponRedemptionsTable } from "./coupon-redemption.schema";
 import { paymentsTable } from "./payment.schema";
+import { paymentAttemptsTable } from "./payment-attempt.schema";
 import {
   ordersTable,
   orderItemsTable,
@@ -118,6 +119,7 @@ export const storesRelations = relations(storesTable, ({ many }) => ({
   memberships: many(storeMembershipsTable),
   staffInvitations: many(storeStaffInvitationsTable),
   auditLogs: many(auditLogsTable),
+  paymentAttempts: many(paymentAttemptsTable),
 }));
 
 export const storeProductsRelations = relations(
@@ -313,6 +315,24 @@ export const paymentRelations = relations(paymentsTable, ({ one }) => ({
 }));
 
 // ──────────────────────────────────────────────
+// Payment attempt relations
+// ──────────────────────────────────────────────
+
+export const paymentAttemptsRelations = relations(
+  paymentAttemptsTable,
+  ({ one }) => ({
+    order: one(ordersTable, {
+      fields: [paymentAttemptsTable.orderId],
+      references: [ordersTable.id],
+    }),
+    store: one(storesTable, {
+      fields: [paymentAttemptsTable.storeId],
+      references: [storesTable.id],
+    }),
+  })
+);
+
+// ──────────────────────────────────────────────
 // Order relations
 // ──────────────────────────────────────────────
 
@@ -352,6 +372,7 @@ export const orderRelations = relations(ordersTable, ({ many, one }) => ({
   }),
   inventoryMovements: many(inventoryMovementsTable),
   inventoryReservations: many(inventoryReservationsTable),
+  paymentAttempts: many(paymentAttemptsTable),
 }));
 
 export const orderItemsTableRelations = relations(

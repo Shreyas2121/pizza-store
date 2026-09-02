@@ -44,3 +44,61 @@ export interface LocalRazorpayAttempt {
   lowStockAlerts?: LowStockAlert[];
 }
 
+export interface PaymentAttemptDTO {
+  id: number;
+  orderId: number;
+  storeId: number;
+  provider: "cod" | "razorpay";
+  method: "cash" | "card" | "upi" | "netbanking" | "wallet" | "other" | null;
+  status:
+    | "pending"
+    | "processing"
+    | "authorized"
+    | "captured"
+    | "failed"
+    | "expired"
+    | "cancelled"
+    | "voided";
+  providerStatus: string | null;
+  amountPaise: number;
+  currency: "INR";
+  providerOrderId: string | null;
+  providerPaymentId: string | null;
+  clientRequestId: string | null;
+  failureCode: string | null;
+  failureDescription: string | null;
+  authorizedAt: Date | null;
+  capturedAt: Date | null;
+  failedAt: Date | null;
+  expiresAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CreatePaymentAttemptInput {
+  orderId: number;
+  storeId: number;
+  provider: "cod" | "razorpay";
+  method?: "cash" | "card" | "upi" | "netbanking" | "wallet" | "other" | null;
+  status?:
+    | "pending"
+    | "processing"
+    | "authorized"
+    | "captured"
+    | "failed"
+    | "expired"
+    | "cancelled"
+    | "voided";
+  providerStatus?: string | null;
+  amountPaise: number;
+  currency?: "INR";
+  providerOrderId?: string | null;
+  providerPaymentId?: string | null;
+  clientRequestId?: string | null;
+  failureCode?: string | null;
+  failureDescription?: string | null;
+  authorizedAt?: Date | null;
+  capturedAt?: Date | null;
+  failedAt?: Date | null;
+  expiresAt?: Date | null;
+}
