@@ -1,6 +1,6 @@
 import { and, eq, inArray, lt } from "drizzle-orm";
 import { db } from "../../db";
-import { ordersTable, paymentsTable } from "../../db/schema";
+import { ordersTable, paymentsTable, paymentAttemptsTable } from "../../db/schema";
 import { AppError } from "../../utils/error";
 import { logger } from "../../utils/logger";
 import checkoutService from "../checkout/checkout.service";
@@ -293,6 +293,22 @@ export class PaymentStaleRecoveryService {
               tx
             );
           }
+            await tx
+              .update(paymentAttemptsTable)
+              .set({
+                status: "expired",
+                failureCode: "RESERVATION_EXPIRED",
+                failureDescription:
+                  "Payment reservation expired before completion",
+                failedAt: new Date(),
+                updatedAt: new Date(),
+              })
+              .where(
+                and(
+                  eq(paymentAttemptsTable.orderId, orderId),
+                  eq(paymentAttemptsTable.provider, "razorpay")
+                )
+              );
           await tx
             .update(ordersTable)
             .set({ status: "cancelled", updatedAt: new Date() })
@@ -354,6 +370,23 @@ export class PaymentStaleRecoveryService {
           false
         );
       }
+      await tx
+        .update(paymentAttemptsTable)
+        .set({
+          providerOrderId: providerOrder.id,
+          providerStatus: providerOrder.status,
+          status: "processing",
+          failureCode: null,
+          failureDescription: null,
+          failedAt: null,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(paymentAttemptsTable.orderId, attempt.localOrderId),
+            eq(paymentAttemptsTable.provider, "razorpay")
+          )
+        );
       await paymentRepository.updatePayment(
         {
           providerOrderId: providerOrder.id,

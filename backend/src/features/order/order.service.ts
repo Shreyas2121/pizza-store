@@ -1,6 +1,7 @@
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "../../db";
-import { ordersTable, paymentsTable } from "../../db/schema";
+import { ordersTable, paymentsTable, paymentAttemptsTable } from "../../db/schema";
+import paymentRepository from "../payments/payment.repository";
 import { AppError } from "../../utils/error";
 import type { OrderStatus } from "../../utils/types";
 import type { AuthPrincipal } from "../auth/auth.types";
@@ -26,7 +27,7 @@ class OrderService {
   constructor(
     private readonly authorizationService: AuthorizationService = defaultAuthorizationService,
     private readonly auditService: AuditWriter = defaultAuditService
-  ) {}
+  ) { }
 
   async createOrder(data: CreateCodOrderData) {
     return await db.transaction(async (tx) => {
@@ -49,6 +50,19 @@ class OrderService {
           paymentId: payment.id,
           paymentType: "cash",
           status: "pending",
+        },
+        tx
+      );
+
+      await paymentRepository.createPaymentAttempt(
+        {
+          orderId: order.id,
+          storeId: order.storeId,
+          provider: "cod",
+          method: "cash",
+          status: "pending",
+          amountPaise: quote.totalPaise,
+          currency: "INR",
         },
         tx
       );
@@ -133,6 +147,7 @@ class OrderService {
           },
         },
         payment: true,
+        paymentAttempts: true,
         store: true,
       },
     });
@@ -174,8 +189,8 @@ class OrderService {
       typeof actor === "object"
         ? actor
         : typeof actor === "number"
-        ? { userId: actor, email: "", platformRole: "admin", tokenVersion: 0 }
-        : undefined;
+          ? { userId: actor, email: "", platformRole: "admin", tokenVersion: 0 }
+          : undefined;
 
     return await db.transaction(async (tx) => {
       const [order] = await tx
@@ -253,6 +268,22 @@ class OrderService {
             409,
             "COD_PAYMENT_NOT_FOUND"
           );
+        }
+
+        if (typeof tx?.update === "function") {
+          await tx
+            .update(paymentAttemptsTable)
+            .set({
+              status: "captured",
+              capturedAt: paidAt,
+              updatedAt: paidAt,
+            })
+            .where(
+              and(
+                eq(paymentAttemptsTable.orderId, order.id),
+                eq(paymentAttemptsTable.provider, "cod")
+              )
+            );
         }
       }
 

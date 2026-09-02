@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "../../db";
-import { ordersTable, paymentsTable } from "../../db/schema";
+import { ordersTable, paymentsTable, paymentAttemptsTable } from "../../db/schema";
 import { AppError } from "../../utils/error";
 import checkoutService from "../checkout/checkout.service";
 import inventoryService from "../inventory/inventory.service";
@@ -105,6 +105,23 @@ export class PaymentFinalizationService {
         record.payment.id,
         tx
       );
+      if (typeof tx?.update === "function") {
+        await tx
+          .update(paymentAttemptsTable)
+          .set({
+            status: "captured",
+            providerStatus: data.providerStatus,
+            providerPaymentId: data.providerPaymentId,
+            capturedAt: paidAt,
+            updatedAt: paidAt,
+          })
+          .where(
+            and(
+              eq(paymentAttemptsTable.orderId, record.order.id),
+              eq(paymentAttemptsTable.provider, "razorpay")
+            )
+          );
+      }
       await tx
         .update(ordersTable)
         .set({ status: "pending" })
@@ -178,6 +195,28 @@ export class PaymentFinalizationService {
         record.payment.id,
         tx
       );
+      if (typeof tx?.update === "function") {
+        await tx
+          .update(paymentAttemptsTable)
+          .set({
+            status: "failed",
+            providerStatus: "failed",
+            providerPaymentId: providerPayment.id,
+            failureCode: sanitizeProviderText(failure.code, "PAYMENT_FAILED"),
+            failureDescription: sanitizeProviderText(
+              failure.description,
+              "Razorpay reported a failed payment"
+            ),
+            failedAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(paymentAttemptsTable.orderId, record.order.id),
+              eq(paymentAttemptsTable.provider, "razorpay")
+            )
+          );
+      }
       await checkoutService.releaseCouponReservation(record.order.id, tx);
       await inventoryService.releaseReservations(record.order.id, tx);
 

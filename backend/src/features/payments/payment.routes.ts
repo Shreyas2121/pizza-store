@@ -142,3 +142,22 @@ paymentRoutes.get(
     res.json({ data: payment });
   })
 );
+
+paymentRoutes.post(
+  "/razorpay/orders/:localOrderId/retry",
+  authenticateUser,
+  asyncHandler(async (req: Auth, res) => {
+    const localOrderId = parseIntegerParam(
+      req.params.localOrderId,
+      "Order ID"
+    );
+
+    const data = await paymentService.retryRazorpayOrder(
+      localOrderId,
+      req.principal!.userId
+    );
+
+    res.json({ data, message: "Online payment retried" });
+  })
+);
+

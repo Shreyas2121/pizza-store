@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "../../db";
-import { paymentsTable } from "../../db/schema";
+import { paymentsTable, paymentAttemptsTable } from "../../db/schema";
 import { AppError } from "../../utils/error";
 import { logger } from "../../utils/logger";
 import type { TransactionType } from "../../utils/types";
@@ -196,6 +196,18 @@ class PaymentService {
           },
           tx
         );
+        await paymentRepository.createPaymentAttempt(
+          {
+            orderId: order.id,
+            storeId: order.storeId,
+            provider: "razorpay",
+            status: "pending",
+            amountPaise: quote.totalPaise,
+            currency: "INR",
+            clientRequestId: data.clientRequestId,
+          },
+          tx
+        );
         const lowStockAlerts = await inventoryService.reserveStockForOrder(
           {
             orderId: order.id,
@@ -353,6 +365,22 @@ class PaymentService {
           lockedPayment.id,
           tx
         );
+        await tx
+          .update(paymentAttemptsTable)
+          .set({
+            status: "processing",
+            providerStatus: providerOrder.status,
+            providerOrderId: providerOrder.id,
+            failureCode: null,
+            failureDescription: null,
+            failedAt: null,
+          })
+          .where(
+            and(
+              eq(paymentAttemptsTable.orderId, claim.attempt.localOrderId),
+              eq(paymentAttemptsTable.provider, "razorpay")
+            )
+          );
         return {
           ...claim.attempt,
           status: "processing" as const,
@@ -437,6 +465,20 @@ class PaymentService {
         attempt.localPaymentId,
         tx
       );
+      await tx
+        .update(paymentAttemptsTable)
+        .set({
+          status: "failed",
+          failureCode,
+          failureDescription,
+          failedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(paymentAttemptsTable.orderId, attempt.localOrderId),
+            eq(paymentAttemptsTable.provider, "razorpay")
+          )
+        );
       await checkoutService.releaseCouponReservation(attempt.localOrderId, tx);
       await inventoryService.releaseReservations(attempt.localOrderId, tx);
     });
@@ -472,6 +514,20 @@ class PaymentService {
         payment.id,
         tx
       );
+      await tx
+        .update(paymentAttemptsTable)
+        .set({
+          status: "processing",
+          failureCode: null,
+          failureDescription: null,
+          failedAt: null,
+        })
+        .where(
+          and(
+            eq(paymentAttemptsTable.orderId, attempt.localOrderId),
+            eq(paymentAttemptsTable.provider, "razorpay")
+          )
+        );
       return {
         ...current,
         status: "processing" as const,

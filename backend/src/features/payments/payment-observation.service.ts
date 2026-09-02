@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "../../db";
-import { paymentsTable } from "../../db/schema";
+import { paymentsTable, paymentAttemptsTable } from "../../db/schema";
 import paymentRepository from "./payment.repository";
 import type { LocalRazorpayAttempt } from "./payment.types";
 
@@ -28,6 +28,15 @@ export class PaymentObservationService {
         payment.id,
         tx
       );
+      await tx
+        .update(paymentAttemptsTable)
+        .set({ providerStatus, updatedAt: new Date() })
+        .where(
+          and(
+            eq(paymentAttemptsTable.orderId, attempt.localOrderId),
+            eq(paymentAttemptsTable.provider, "razorpay")
+          )
+        );
     });
   }
 }
