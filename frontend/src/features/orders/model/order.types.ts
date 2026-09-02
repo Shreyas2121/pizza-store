@@ -3,12 +3,20 @@ import type { Address } from "@/features/account";
 import type { Product, CustomizationOption } from "@/features/catalog";
 import type { Coupon, Payment, PaymentType } from "@/features/checkout";
 
-export type OrderStatus = "awaiting_payment" | "pending" | "preparing" | "delivered" | "delievered" | "cancelled";
+export type OrderStatus =
+  | "awaiting_payment"
+  | "pending"
+  | "preparing"
+  | "out_for_delivery"
+  | "delivered"
+  | "cancelled";
 
 export const orderStatus: { label: string; value: OrderStatus }[] = [
+  { label: "Awaiting Payment", value: "awaiting_payment" },
   { label: "Pending", value: "pending" },
   { label: "Preparing", value: "preparing" },
-  { label: "Delivered", value: "delievered" },
+  { label: "Out for Delivery", value: "out_for_delivery" },
+  { label: "Delivered", value: "delivered" },
   { label: "Cancelled", value: "cancelled" },
 ];
 

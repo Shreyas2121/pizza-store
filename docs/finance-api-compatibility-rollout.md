@@ -467,7 +467,7 @@ Role membership alone is necessary but **not sufficient** to execute high-risk o
 
 - [x] Operational dashboard maintains Gross Order Value semantics (Q01).
 - [x] Phase 0.6 introduces `finance_manager` and `payroll_manager` store roles and the permission foundation.
-- [ ] Phase 1 introduces `pricing.service.ts`, server quote endpoint, and canonical `delivered`/`out_for_delivery` lifecycle.
+- [x] Phase 1 introduces `pricing.service.ts`, server quote endpoint, and canonical `delivered`/`out_for_delivery` lifecycle.
 - [ ] Phase 2 decomposes payment reconciliation and introduces payment attempts, refunds, and settlement reconciliation.
 - [ ] Phase 3 establishes cash sessions, standard product costs, vendors, and expenses.
 - [ ] Phase 4 implements the general ledger posting kernel, fiscal periods, and trial balance.

@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { AppError } from "../../utils/error";
 import type { OrderStatus } from "../../utils/types";
 import {
   assertValidOrderTransition,
@@ -12,8 +11,10 @@ describe("order transition validation", () => {
     ["awaiting_payment", "cancelled"],
     ["pending", "preparing"],
     ["pending", "cancelled"],
-    ["preparing", "delievered"],
+    ["preparing", "out_for_delivery"],
     ["preparing", "cancelled"],
+    ["out_for_delivery", "delivered"],
+    ["out_for_delivery", "cancelled"],
   ] as const)(
     "allows valid transition from %s to %s",
     (from: OrderStatus, to: OrderStatus) => {
@@ -26,7 +27,8 @@ describe("order transition validation", () => {
     ["awaiting_payment", "awaiting_payment"],
     ["pending", "pending"],
     ["preparing", "preparing"],
-    ["delievered", "delievered"],
+    ["out_for_delivery", "out_for_delivery"],
+    ["delivered", "delivered"],
     ["cancelled", "cancelled"],
   ] as const)(
     "treats identical status transition as a no-op from %s to %s",
@@ -37,14 +39,22 @@ describe("order transition validation", () => {
   );
 
   it.each([
-    ["delievered", "pending"],
-    ["delievered", "preparing"],
-    ["delievered", "cancelled"],
+    ["preparing", "delivered"],
+    ["out_for_delivery", "pending"],
+    ["out_for_delivery", "preparing"],
+    ["delivered", "pending"],
+    ["delivered", "preparing"],
+    ["delivered", "out_for_delivery"],
+    ["delivered", "cancelled"],
     ["cancelled", "pending"],
     ["cancelled", "preparing"],
-    ["cancelled", "delievered"],
-    ["pending", "delievered"],
-    ["awaiting_payment", "delievered"],
+    ["cancelled", "out_for_delivery"],
+    ["cancelled", "delivered"],
+    ["pending", "out_for_delivery"],
+    ["pending", "delivered"],
+    ["awaiting_payment", "preparing"],
+    ["awaiting_payment", "out_for_delivery"],
+    ["awaiting_payment", "delivered"],
   ] as const)(
     "rejects invalid transition from %s to %s",
     (from: OrderStatus, to: OrderStatus) => {

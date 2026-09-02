@@ -126,6 +126,10 @@ export const ordersTable = pgTable(
         and ${table.deliveryTaxableAmountPaise}::bigint + ${table.deliveryTaxPaise}::bigint = ${table.deliveryFeePaise}::bigint
         and nullif(btrim(${table.deliveryHsnSacCode}), '') is not null`
     ),
+    check(
+      "orders_status_valid",
+      sql`${table.status} in ('awaiting_payment', 'pending', 'preparing', 'out_for_delivery', 'delivered', 'cancelled')`
+    ),
   ]
 );
 

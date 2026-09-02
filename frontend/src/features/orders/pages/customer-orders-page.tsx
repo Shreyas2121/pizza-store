@@ -14,7 +14,8 @@ const filters: { label: string; value: Filter }[] = [
   { label: "Awaiting payment", value: "awaiting_payment" },
   { label: "Pending", value: "pending" },
   { label: "Preparing", value: "preparing" },
-  { label: "Delivered", value: "delievered" },
+  { label: "Out for delivery", value: "out_for_delivery" },
+  { label: "Delivered", value: "delivered" },
   { label: "Cancelled", value: "cancelled" },
 ];
 

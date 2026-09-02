@@ -7,8 +7,9 @@ export const VALID_ORDER_TRANSITIONS: Record<
 > = {
   awaiting_payment: ["pending", "cancelled"],
   pending: ["preparing", "cancelled"],
-  preparing: ["delievered", "cancelled"],
-  delievered: [],
+  preparing: ["out_for_delivery", "cancelled"],
+  out_for_delivery: ["delivered", "cancelled"],
+  delivered: [],
   cancelled: [],
 };
 

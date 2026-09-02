@@ -1,5 +1,5 @@
 import { Badge, Button } from "@mantine/core";
-import { ArrowLeft, Check, ChefHat, Clock3, CreditCard, PackageCheck, ReceiptText } from "lucide-react";
+import { ArrowLeft, Bike, Check, ChefHat, Clock3, CreditCard, PackageCheck, ReceiptText } from "lucide-react";
 import { Link, useParams } from "react-router";
 import { useGetOrder } from "../api/order.queries";
 import { formatDateTime, formatPrice } from "@/shared/lib";
@@ -23,12 +23,20 @@ export const CustomerOrderDetailsPage = () => {
   }
 
   const placedOn = order.orderDate ? formatDateTime(order.orderDate, { day: "numeric", month: "long", year: "numeric", hour: "numeric", minute: "2-digit" }) : "Date unavailable";
-  const isDelivered = order.status === "delivered" || order.status === "delievered";
-  const progress = order.status === "preparing" ? 1 : isDelivered ? 2 : 0;
+  const isDelivered = order.status === "delivered";
+  const progress =
+    order.status === "preparing"
+      ? 1
+      : order.status === "out_for_delivery"
+        ? 2
+        : isDelivered
+          ? 3
+          : 0;
   const subtotal = order.totalPrice + order.discountAmount;
   const timeline = [
     { label: "Order received", description: "We have your order", icon: Clock3 },
     { label: "Preparing", description: "Fresh in the kitchen", icon: ChefHat },
+    { label: "Out for delivery", description: "On the way to you", icon: Bike },
     { label: "Delivered", description: "Arrived at your door", icon: PackageCheck },
   ];
 
@@ -51,7 +59,7 @@ export const CustomerOrderDetailsPage = () => {
       ) : (
         <section className="mb-5 rounded-card border border-border bg-surface p-5 shadow-subtle sm:p-6" aria-labelledby="order-progress-title">
           <h2 id="order-progress-title" className="text-card-title-scale">Order progress</h2>
-          <ol className="mt-5 grid gap-0 sm:grid-cols-3">
+          <ol className="mt-5 grid gap-0 sm:grid-cols-4">
             {timeline.map((step, index) => {
               const complete = index <= progress;
               const Icon = step.icon;

@@ -486,7 +486,7 @@ coupon consumption, item snapshots, and cart deletion commit atomically.
 List current user's orders, filtered by status.
 
 **Query params:**
-- `status` — `"pending"`, `"preparing"`, `"delievered"`, `"cancelled"`
+- `status` — `"awaiting_payment"`, `"pending"`, `"preparing"`, `"out_for_delivery"`, `"delivered"`, `"cancelled"`
 
 ### `GET /order/:orderId` 🔒
 

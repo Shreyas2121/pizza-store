@@ -1,0 +1,1 @@
+ALTER TABLE "orders" ADD CONSTRAINT "orders_status_valid" CHECK ("orders"."status" in ('awaiting_payment', 'pending', 'preparing', 'out_for_delivery', 'delivered', 'cancelled'));

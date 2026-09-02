@@ -60,7 +60,7 @@ export const AdminOrdersPage = () => {
           searchLabel="Search customers"
           isRefreshing={isFetching && !isLoading}
           Component={filter}
-          emptyTitle={`No ${selectedStatus === "delievered" ? "delivered" : selectedStatus} orders`}
+          emptyTitle={`No ${selectedStatus.replace(/_/g, " ")} orders`}
           renderMobileCard={(order) => (
             <div>
               <div className="flex items-start justify-between gap-3">

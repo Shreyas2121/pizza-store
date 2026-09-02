@@ -12,7 +12,14 @@ import { OrderItems } from "../components/order-items";
 import { OrderStatus } from "../components/order-status";
 
 
-const nextAction: Record<string, string> = { awaiting_payment: "Wait for a captured online payment. This order is not actionable yet.", pending: "Confirm the kitchen can begin this order.", preparing: "Mark delivered after handoff is complete.", delivered: "No fulfilment action required.", delievered: "No fulfilment action required.", cancelled: "This order is closed and cannot progress." };
+const nextAction: Record<string, string> = {
+  awaiting_payment: "Wait for a captured online payment. This order is not actionable yet.",
+  pending: "Confirm the kitchen can begin this order.",
+  preparing: "Mark out for delivery once food is packed and dispatched with the rider.",
+  out_for_delivery: "Confirm rider handoff to mark delivered.",
+  delivered: "No fulfilment action required.",
+  cancelled: "This order is closed and cannot progress.",
+};
 
 export const AdminOrderDetailsPage = () => {
   const { id } = useParams();
@@ -26,7 +33,7 @@ export const AdminOrderDetailsPage = () => {
   if (isLoading) return <DetailsPageSkeleton admin />;
   if (isError || !order) return <div className="surface-card p-10 text-center"><p className="font-semibold text-danger">Order details could not be loaded.</p><Button component={Link} to="/admin/orders" variant="default" mt="md">Back to orders</Button></div>;
 
-  const isClosed = ["delivered", "delievered", "cancelled"].includes(order.status);
+  const isClosed = ["delivered", "cancelled"].includes(order.status);
   const statusUpdateDisabled = isClosed || order.status === "awaiting_payment";
   const orderDate = order.orderDate ? formatDateTime(order.orderDate) : "Date unavailable";
   return (

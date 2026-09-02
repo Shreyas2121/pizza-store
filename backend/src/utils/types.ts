@@ -35,12 +35,15 @@ export type StoreRole = (typeof STORE_ROLES)[number];
 export type StoreMembershipStatus = "active" | "suspended" | "revoked";
 export type AuditOutcome = "success" | "failure" | "denied";
 export type CustomizationType = "single" | "multiple";
-export type OrderStatus =
-  | "awaiting_payment"
-  | "pending"
-  | "preparing"
-  | "delievered"
-  | "cancelled";
+export const ORDER_STATUSES = [
+  "awaiting_payment",
+  "pending",
+  "preparing",
+  "out_for_delivery",
+  "delivered",
+  "cancelled",
+] as const;
+export type OrderStatus = (typeof ORDER_STATUSES)[number];
 export type PaymentStatus =
   | "pending"
   | "processing"

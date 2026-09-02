@@ -3,8 +3,12 @@ import { authenticateUser } from "../../middleware/authenticateUser";
 import { validateBody } from "../../middleware/validateBody";
 import { createOrderSchema } from "../../utils/zodSchema";
 import { AppError, asyncHandler } from "../../utils/error";
-import type { AuthenticatedRequest, OrderStatus } from "../../utils/types";
+import type { AuthenticatedRequest } from "../../utils/types";
 import authorizationService, { authenticationRequired } from "../access/access.service";
+import {
+  orderListQuerySchema,
+  updateOrderStatusSchema,
+} from "./order.schemas";
 import orderService from "./order.service";
 import { io } from "../..";
 import { parseIntegerParam } from "../../utils/request";
@@ -65,9 +69,7 @@ orderRoutes.get(
     if (!req.principal) throw authenticationRequired();
     const userId = req.principal.userId;
 
-    const query = req.query;
-
-    const status = query.status ? (query.status as OrderStatus) : undefined;
+    const { status } = orderListQuerySchema.parse(req.query);
 
     const orders = await orderService.getOrders(userId, status);
 
@@ -82,7 +84,7 @@ orderRoutes.get(
   authenticateUser,
   asyncHandler(async (req: AuthenticatedRequest, res) => {
     if (!req.principal) throw authenticationRequired();
-    const status = req.query.status as OrderStatus | undefined;
+    const { status } = orderListQuerySchema.parse(req.query);
     const isPlatformAdmin = req.principal.platformRole === "admin";
 
     let storeId: number | undefined;
@@ -164,7 +166,7 @@ orderRoutes.patch(
     if (!req.principal) throw authenticationRequired();
     const id = parseIntegerParam(req.params.orderId, "Order ID");
 
-    const status = req.body.status as OrderStatus;
+    const { status } = updateOrderStatusSchema.parse(req.body);
 
     await orderService.updateOrderStatus(id, status, req.principal);
 

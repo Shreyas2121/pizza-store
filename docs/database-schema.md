@@ -323,7 +323,7 @@ Per-order coupon reservation state used to prevent concurrent oversubscription. 
 | `recognized_at` | timestamptz | nullable | Revenue and COGS recognition timestamp (set on delivery) |
 | `cancelled_at` | timestamptz | nullable | Cancellation timestamp |
 | `delivered_at` | timestamptz | nullable | Delivery completion timestamp |
-| `status` | text | NOT NULL, default `"pending"` | `"pending"`, `"preparing"`, `"ready"`, `"out_for_delivery"`, `"delievered"`, `"cancelled"`, `"awaiting_payment"` |
+| `status` | text | NOT NULL, default `"pending"` | CHECK constraint (`orders_status_valid`): `"awaiting_payment"`, `"pending"`, `"preparing"`, `"out_for_delivery"`, `"delivered"`, `"cancelled"` |
 | `payment_type` | text | NOT NULL, default `"cash"` | `"cash"` or `"razorpay"` |
 | `payment_id` | integer | FK → payments, unique, nullable | |
 | `address_id` | integer | FK → addresses, nullable | |
@@ -496,8 +496,8 @@ No transaction is held open while awaiting user input or external service calls.
 
 ## Known schema notes
 
-- The `status` enum in orders includes `"delievered"` (typo). Existing data uses this spelling.
-- Payment provider/currency and support-table states have database CHECK constraints; legacy order states remain typed text.
+- The `status` column in `orders` is enforced by database CHECK constraint `orders_status_valid` (`awaiting_payment`, `pending`, `preparing`, `out_for_delivery`, `delivered`, `cancelled`). The legacy `delievered` typo was canonicalized in P1.9.
+- Payment provider/currency and support-table states have database CHECK constraints; order states are constrained by `orders_status_valid`.
 - `max_redemptions` of `-1` on coupons indicates unlimited redemptions.
 - Cart and order items snapshot prices at creation time to protect against subsequent price changes.
 - `cart_items` and `cart_item_customizations` cascade on delete of their parent.

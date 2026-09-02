@@ -185,6 +185,12 @@ export type VerifyRazorpayPaymentResult = {
   localPaymentId: number;
   totalPrice: number;
   paymentStatus: "completed" | "refunded";
-  orderStatus: "pending" | "preparing" | "delievered" | "cancelled";
+  orderStatus:
+    | "awaiting_payment"
+    | "pending"
+    | "preparing"
+    | "out_for_delivery"
+    | "delivered"
+    | "cancelled";
   finalizedNow: boolean;
 };

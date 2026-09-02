@@ -593,7 +593,7 @@ describe("OrderService unit tests", () => {
       expect(restoreSpy).not.toHaveBeenCalled();
     });
 
-    it("marks the linked COD payment completed when the order is delivered", async () => {
+    it("marks the linked COD payment completed and sets timestamps when the order is delivered", async () => {
       const { orderService } = createTestHarness();
 
       const set = vi.fn((values: Record<string, unknown>) => ({
@@ -601,8 +601,68 @@ describe("OrderService unit tests", () => {
           returning: vi.fn().mockResolvedValue(
             "paidAt" in values
               ? [{ id: 100 }]
-              : [{ id: 42, status: "delievered" }]
+              : [{ id: 42, status: "delivered" }]
           ),
+        })),
+      }));
+      const mockTx = {
+        select: vi.fn(() => ({
+          from: vi.fn(() => ({
+            where: vi.fn(() => ({
+              for: vi.fn(() => ({
+                limit: vi.fn().mockResolvedValue([
+                  {
+                    id: 42,
+                    storeId: 1,
+                    status: "out_for_delivery",
+                    paymentType: "cash",
+                    paymentId: 100,
+                    couponId: null,
+                    deliveredAt: null,
+                    recognizedAt: null,
+                  },
+                ]),
+              })),
+            })),
+          })),
+        })),
+        update: vi.fn(() => ({ set })),
+      };
+
+      vi.spyOn(db, "transaction").mockImplementation(async (cb: any) =>
+        cb(mockTx as any)
+      );
+
+      const updated = await orderService.updateOrderStatus(42, "delivered", adminActor);
+
+      expect(updated.status).toBe("delivered");
+      expect(set).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: "completed",
+          paidAt: expect.any(Date),
+          paymentDate: expect.any(Date),
+          failedAt: null,
+          failureCode: null,
+          failureDescription: null,
+        })
+      );
+      expect(set).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: "delivered",
+          deliveredAt: expect.any(Date),
+          recognizedAt: expect.any(Date),
+        })
+      );
+    });
+
+    it("does not complete COD payment when order transitions to out_for_delivery", async () => {
+      const { orderService } = createTestHarness();
+
+      const set = vi.fn(() => ({
+        where: vi.fn(() => ({
+          returning: vi.fn().mockResolvedValue([
+            { id: 42, status: "out_for_delivery" },
+          ]),
         })),
       }));
       const mockTx = {
@@ -631,18 +691,15 @@ describe("OrderService unit tests", () => {
         cb(mockTx as any)
       );
 
-      const updated = await orderService.updateOrderStatus(42, "delievered", adminActor);
+      const updated = await orderService.updateOrderStatus(42, "out_for_delivery", adminActor);
 
-      expect(updated.status).toBe("delievered");
+      expect(updated.status).toBe("out_for_delivery");
+      expect(mockTx.update).toHaveBeenCalledTimes(1);
+      expect(set).not.toHaveBeenCalledWith(
+        expect.objectContaining({ status: "completed" })
+      );
       expect(set).toHaveBeenCalledWith(
-        expect.objectContaining({
-          status: "completed",
-          paidAt: expect.any(Date),
-          paymentDate: expect.any(Date),
-          failedAt: null,
-          failureCode: null,
-          failureDescription: null,
-        })
+        expect.objectContaining({ status: "out_for_delivery" })
       );
     });
 
@@ -652,7 +709,7 @@ describe("OrderService unit tests", () => {
       const set = vi.fn(() => ({
         where: vi.fn(() => ({
           returning: vi.fn().mockResolvedValue([
-            { id: 42, status: "delievered" },
+            { id: 42, status: "delivered" },
           ]),
         })),
       }));
@@ -665,7 +722,7 @@ describe("OrderService unit tests", () => {
                   {
                     id: 42,
                     storeId: 1,
-                    status: "preparing",
+                    status: "out_for_delivery",
                     paymentType: "razorpay",
                     paymentId: 100,
                     couponId: null,
@@ -682,7 +739,7 @@ describe("OrderService unit tests", () => {
         cb(mockTx as any)
       );
 
-      await orderService.updateOrderStatus(42, "delievered", adminActor);
+      await orderService.updateOrderStatus(42, "delivered", adminActor);
 
       expect(mockTx.update).toHaveBeenCalledTimes(1);
       expect(set).not.toHaveBeenCalledWith(
@@ -690,7 +747,7 @@ describe("OrderService unit tests", () => {
       );
     });
 
-    it("rejects illegal state transition", async () => {
+    it("rejects direct transition from preparing to delivered", async () => {
       const { orderService } = createTestHarness();
 
       const mockTx = {
@@ -702,7 +759,42 @@ describe("OrderService unit tests", () => {
                   {
                     id: 42,
                     storeId: 1,
-                    status: "delievered",
+                    status: "preparing",
+                  },
+                ]),
+              })),
+            })),
+          })),
+        })),
+      };
+
+      vi.spyOn(db, "transaction").mockImplementation(async (cb: any) =>
+        cb(mockTx as any)
+      );
+
+      await expect(
+        orderService.updateOrderStatus(42, "delivered", adminActor)
+      ).rejects.toThrowError(
+        expect.objectContaining({
+          code: "INVALID_ORDER_STATUS_TRANSITION",
+          status: 409,
+        })
+      );
+    });
+
+    it("rejects illegal state transition from delivered", async () => {
+      const { orderService } = createTestHarness();
+
+      const mockTx = {
+        select: vi.fn(() => ({
+          from: vi.fn(() => ({
+            where: vi.fn(() => ({
+              for: vi.fn(() => ({
+                limit: vi.fn().mockResolvedValue([
+                  {
+                    id: 42,
+                    storeId: 1,
+                    status: "delivered",
                   },
                 ]),
               })),
@@ -721,6 +813,57 @@ describe("OrderService unit tests", () => {
         expect.objectContaining({
           code: "INVALID_ORDER_STATUS_TRANSITION",
           status: 409,
+        })
+      );
+    });
+
+    it("sets cancelledAt timestamp when order is cancelled", async () => {
+      const { orderService } = createTestHarness();
+
+      const set = vi.fn(() => ({
+        where: vi.fn(() => ({
+          returning: vi.fn().mockResolvedValue([
+            { id: 42, status: "cancelled" },
+          ]),
+        })),
+      }));
+      const mockTx = {
+        select: vi.fn(() => ({
+          from: vi.fn(() => ({
+            where: vi.fn(() => ({
+              for: vi.fn(() => ({
+                limit: vi.fn().mockResolvedValue([
+                  {
+                    id: 42,
+                    storeId: 1,
+                    status: "out_for_delivery",
+                    paymentType: "cash",
+                    paymentId: 100,
+                    couponId: null,
+                    cancelledAt: null,
+                  },
+                ]),
+              })),
+            })),
+          })),
+        })),
+        update: vi.fn(() => ({ set })),
+      };
+
+      vi.spyOn(db, "transaction").mockImplementation(async (cb: any) =>
+        cb(mockTx as any)
+      );
+      vi.spyOn(inventoryService, "restoreStockForOrder").mockResolvedValue(
+        undefined as any
+      );
+
+      const updated = await orderService.updateOrderStatus(42, "cancelled", adminActor);
+
+      expect(updated.status).toBe("cancelled");
+      expect(set).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: "cancelled",
+          cancelledAt: expect.any(Date),
         })
       );
     });

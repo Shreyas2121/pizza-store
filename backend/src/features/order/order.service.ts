@@ -218,7 +218,7 @@ class OrderService {
         }
       }
 
-      if (status === "delievered" && order.paymentType === "cash") {
+      if (status === "delivered" && order.paymentType === "cash") {
         if (!order.paymentId) {
           throw new AppError(
             "COD order has no linked payment",
@@ -256,9 +256,22 @@ class OrderService {
         }
       }
 
+      const now = new Date();
+      const orderUpdates: Partial<typeof ordersTable.$inferInsert> = {
+        status,
+        updatedAt: now,
+      };
+
+      if (status === "delivered") {
+        orderUpdates.deliveredAt = order.deliveredAt ?? now;
+        orderUpdates.recognizedAt = order.recognizedAt ?? now;
+      } else if (status === "cancelled") {
+        orderUpdates.cancelledAt = order.cancelledAt ?? now;
+      }
+
       const [updatedOrder] = await tx
         .update(ordersTable)
-        .set({ status, updatedAt: new Date() })
+        .set(orderUpdates)
         .where(eq(ordersTable.id, orderId))
         .returning();
 
