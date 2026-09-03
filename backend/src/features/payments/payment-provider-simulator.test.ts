@@ -82,4 +82,21 @@ describe("DeterministicPaymentProviderSimulator", () => {
     expect(authorized.status).toBe("authorized");
     expect(simulator.advance(order.id)?.eventType).toBe("payment.captured");
   });
+
+  it("creates one deterministic refund for a stable receipt", async () => {
+    const order = await simulator.createOrder(input);
+    const paymentId = simulator.advance(order.id)!.providerPaymentId;
+    const refundInput = {
+      paymentId,
+      amountPaise: 10_000,
+      receipt: "refund_77",
+    };
+
+    const first = await simulator.createRefund(refundInput);
+    const replay = await simulator.createRefund(refundInput);
+
+    expect(replay).toEqual(first);
+    expect(first).toMatchObject({ status: "processed", amountPaise: 10_000 });
+    expect(await simulator.findRefundByReceipt(paymentId, "refund_77")).toEqual(first);
+  });
 });

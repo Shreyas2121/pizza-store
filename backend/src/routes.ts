@@ -20,6 +20,7 @@ import { accessRoutes } from "./features/access/access.routes";
 import { staffInvitationRoutes, staffRoutes } from "./features/staff/staff.routes";
 import { globalAuditRoutes, storeAuditRoutes } from "./features/audit/audit.routes";
 import { checkoutRoutes } from "./features/checkout/checkout.routes";
+import { refundRoutes } from "./features/refunds/refund.routes";
 
 export const mainRoutes = Router();
 
@@ -33,6 +34,7 @@ mainRoutes.use("/cart", authenticateUser, cartRoutes);
 mainRoutes.use("/checkout", checkoutRoutes);
 mainRoutes.use("/order", orderRoutes);
 mainRoutes.use("/payments", paymentRoutes);
+mainRoutes.use("/finance", refundRoutes);
 mainRoutes.use("/coupon", couponRoutes);
 mainRoutes.use("/dashboard", dashRoutes);
 mainRoutes.use("/chat", chatRoutes);

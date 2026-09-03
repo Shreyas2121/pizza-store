@@ -32,12 +32,30 @@ export interface RazorpayPaymentSnapshot {
   status: RazorpayPaymentStatus;
 }
 
+export interface CreateRazorpayRefundInput {
+  paymentId: string;
+  amountPaise: number;
+  receipt: string;
+  notes?: RazorpayNotes;
+}
+
+export interface RazorpayRefundSnapshot {
+  id: string;
+  paymentId: string;
+  amountPaise: number;
+  currency: string;
+  status: "pending" | "processed" | "failed";
+  receipt: string | null;
+}
+
 export interface RazorpayGateway {
   createOrder(input: CreateRazorpayOrderInput): Promise<RazorpayOrderSnapshot>;
   findOrderByReceipt(receipt: string): Promise<RazorpayOrderSnapshot | null>;
   fetchOrder(orderId: string): Promise<RazorpayOrderSnapshot>;
   fetchOrderPayments(orderId: string): Promise<RazorpayPaymentSnapshot[]>;
   fetchPayment(paymentId: string): Promise<RazorpayPaymentSnapshot>;
+  createRefund(input: CreateRazorpayRefundInput): Promise<RazorpayRefundSnapshot>;
+  findRefundByReceipt(paymentId: string, receipt: string): Promise<RazorpayRefundSnapshot | null>;
 }
 
 export interface RazorpayCredentials {

@@ -1,9 +1,11 @@
 import { createHash } from "crypto";
 import type {
+  CreateRazorpayRefundInput,
   CreateRazorpayOrderInput,
   RazorpayGateway,
   RazorpayOrderSnapshot,
   RazorpayPaymentSnapshot,
+  RazorpayRefundSnapshot,
 } from "./razorpay.types";
 
 export const simulatorScenarios = [
@@ -31,7 +33,7 @@ type StoredOrder = {
   nextEvent: number;
 };
 
-const stableId = (prefix: "order" | "pay" | "event", source: string) =>
+const stableId = (prefix: "order" | "pay" | "event" | "refund", source: string) =>
   `${prefix}_sim${createHash("sha256").update(source).digest("hex").slice(0, 20)}`;
 
 const eventPlan = (scenario: SimulatorScenario) => {
@@ -57,6 +59,7 @@ const eventPlan = (scenario: SimulatorScenario) => {
 export class DeterministicPaymentProviderSimulator implements RazorpayGateway {
   private readonly orders = new Map<string, StoredOrder>();
   private readonly orderIdByReceipt = new Map<string, string>();
+  private readonly refundsByReceipt = new Map<string, RazorpayRefundSnapshot>();
 
   async createOrder(input: CreateRazorpayOrderInput) {
     const existingId = this.orderIdByReceipt.get(input.receipt);
@@ -108,6 +111,30 @@ export class DeterministicPaymentProviderSimulator implements RazorpayGateway {
       if (stored.payment.id === paymentId) return { ...stored.payment };
     }
     throw new Error("Simulator payment was not found");
+  }
+
+  async createRefund(input: CreateRazorpayRefundInput) {
+    const existing = this.refundsByReceipt.get(input.receipt);
+    if (existing) return { ...existing };
+    const payment = await this.fetchPayment(input.paymentId);
+    if (payment.status !== "captured" && payment.status !== "refunded") {
+      throw new Error("Simulator payment is not captured");
+    }
+    const refund: RazorpayRefundSnapshot = {
+      id: stableId("refund", input.receipt),
+      paymentId: input.paymentId,
+      amountPaise: input.amountPaise,
+      currency: payment.currency,
+      status: "processed",
+      receipt: input.receipt,
+    };
+    this.refundsByReceipt.set(input.receipt, refund);
+    return { ...refund };
+  }
+
+  async findRefundByReceipt(paymentId: string, receipt: string) {
+    const refund = this.refundsByReceipt.get(receipt);
+    return refund?.paymentId === paymentId ? { ...refund } : null;
   }
 
   script(orderId: string, scenario: SimulatorScenario) {
@@ -180,6 +207,7 @@ export class DeterministicPaymentProviderSimulator implements RazorpayGateway {
   reset() {
     this.orders.clear();
     this.orderIdByReceipt.clear();
+    this.refundsByReceipt.clear();
   }
 
   private requireOrder(orderId: string) {

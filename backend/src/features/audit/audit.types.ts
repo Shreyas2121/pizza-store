@@ -24,8 +24,16 @@ export type InventoryAuditAction =
   | "inventory.adjusted"
   | "inventory.threshold_updated";
 export type SystemAuditAction = "system.clear_all";
+export type RefundAuditAction =
+  | "refund.requested"
+  | "refund.approved"
+  | "refund.rejected"
+  | "refund.provider_submitted"
+  | "refund.provider_processing"
+  | "refund.provider_processed"
+  | "refund.provider_failed";
 
-export type AuditAction = StaffAuditAction | StoreAuditAction | OrderAuditAction | InventoryAuditAction | SystemAuditAction;
+export type AuditAction = StaffAuditAction | StoreAuditAction | OrderAuditAction | InventoryAuditAction | RefundAuditAction | SystemAuditAction;
 
 export type AuditResourceType =
   | "store_membership"
@@ -34,6 +42,7 @@ export type AuditResourceType =
   | "store_product"
   | "delivery_zone"
   | "order"
+  | "refund"
   | "system";
 
 export interface StaffAuditState {
