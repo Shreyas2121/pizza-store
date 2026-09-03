@@ -6,12 +6,13 @@ import { paymentWebhookEventsTable } from "../../db/schema";
 import { AppError } from "../../utils/error";
 import { logger } from "../../utils/logger";
 import paymentService from "./payment.service";
+import refundService from "../refunds/refund.service";
 import { getRazorpayConfig } from "./razorpay.config";
 
 const WEBHOOK_CLAIM_TIMEOUT_MS = 5 * 60_000;
 
 const providerId = (prefix: "pay" | "order") =>
-  z.string().regex(new RegExp(`^${prefix}_[A-Za-z0-9]+$`));
+  z.string().regex(new RegExp(`^${prefix}_[A-Za-z0-9_]+$`));
 
 const paymentEntitySchema = z
   .object({
@@ -25,12 +26,28 @@ const paymentEntitySchema = z
   })
   .passthrough();
 
+const refundEntitySchema = z
+  .object({
+    id: z.string().min(1),
+    payment_id: z.string().min(1),
+    amount: z.number().int().nonnegative(),
+    currency: z.string(),
+    status: z.string(),
+    receipt: z.string().nullable().optional(),
+    notes: z.record(z.string(), z.union([z.string(), z.number()])).optional(),
+    error_code: z.string().nullable().optional(),
+    error_description: z.string().nullable().optional(),
+    error_reason: z.string().nullable().optional(),
+  })
+  .passthrough();
+
 const webhookSchema = z
   .object({
     event: z.string().min(1).max(100),
     payload: z
       .object({
         payment: z.object({ entity: paymentEntitySchema }).optional(),
+        refund: z.object({ entity: refundEntitySchema }).optional(),
       })
       .passthrough(),
   })
@@ -123,28 +140,40 @@ class RazorpayWebhookService {
 
   private async processEvent(event: z.infer<typeof webhookSchema>) {
     if (
-      event.event !== "payment.captured" &&
-      event.event !== "payment.failed" &&
-      event.event !== "order.paid"
+      event.event === "payment.captured" ||
+      event.event === "payment.failed" ||
+      event.event === "order.paid"
     ) {
-      return { ignored: true as const, finalizedNow: false };
+      const payment = event.payload.payment?.entity;
+      if (!payment) {
+        throw new AppError("Webhook payment entity is missing", 400);
+      }
+
+      return await paymentService.reconcileProviderPayment(
+        payment.order_id,
+        payment.id,
+        event.event === "payment.failed"
+          ? {
+              failureCode: payment.error_code,
+              failureDescription: payment.error_description,
+            }
+          : {}
+      );
     }
 
-    const payment = event.payload.payment?.entity;
-    if (!payment) {
-      throw new AppError("Webhook payment entity is missing", 400);
+    if (event.event.startsWith("refund.")) {
+      const refund = event.payload.refund?.entity;
+      if (!refund) {
+        throw new AppError("Webhook refund entity is missing", 400);
+      }
+
+      return await refundService.processProviderWebhookEvent({
+        event: event.event,
+        refund,
+      });
     }
 
-    return await paymentService.reconcileProviderPayment(
-      payment.order_id,
-      payment.id,
-      event.event === "payment.failed"
-        ? {
-            failureCode: payment.error_code,
-            failureDescription: payment.error_description,
-          }
-        : {}
-    );
+    return { ignored: true as const, finalizedNow: false };
   }
 
   private async claimEvent(eventId: string, eventType: string) {

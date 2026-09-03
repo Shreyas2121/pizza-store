@@ -115,6 +115,19 @@ export class RazorpaySdkGateway implements RazorpayGateway {
     if (matches.length > 1) throw new Error("Razorpay returned multiple refunds for one receipt");
     return matches[0] ? toRefundSnapshot(matches[0]) : null;
   }
+
+  async fetchRefund(refundId: string) {
+    const refundsApi = (this.sdk as unknown as { refunds?: { fetch(id: string): Promise<SdkRefund> } }).refunds;
+    if (refundsApi?.fetch) {
+      try {
+        const refund = await refundsApi.fetch(refundId);
+        return toRefundSnapshot(refund);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
 }
 
 export const createRazorpayGateway = (

@@ -56,6 +56,7 @@ export interface RazorpayGateway {
   fetchPayment(paymentId: string): Promise<RazorpayPaymentSnapshot>;
   createRefund(input: CreateRazorpayRefundInput): Promise<RazorpayRefundSnapshot>;
   findRefundByReceipt(paymentId: string, receipt: string): Promise<RazorpayRefundSnapshot | null>;
+  fetchRefund?(refundId: string): Promise<RazorpayRefundSnapshot | null>;
 }
 
 export interface RazorpayCredentials {

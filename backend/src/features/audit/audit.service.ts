@@ -56,9 +56,9 @@ export class AuditService implements AuditWriter {
     };
 
     await tx.insert(auditLogsTable).values({
-      actorUserId: actor.userId,
-      actorEmailSnapshot: actor.email,
-      platformRole: actor.platformRole,
+      actorUserId: actor?.userId ?? null,
+      actorEmailSnapshot: actor?.email ?? null,
+      platformRole: actor?.platformRole ?? null,
       storeId,
       action,
       resourceType,

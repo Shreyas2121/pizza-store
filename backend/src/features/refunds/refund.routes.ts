@@ -8,9 +8,11 @@ import refundService from "./refund.service";
 import {
   approveRefundSchema,
   idempotencyKeySchema,
+  reconcileRefundsSchema,
   refundsQuerySchema,
   rejectRefundSchema,
   requestRefundSchema,
+  stuckRefundsQuerySchema,
 } from "./refund.schemas";
 
 export const refundRoutes = Router();
@@ -22,6 +24,24 @@ refundRoutes.get(
     const query = refundsQuerySchema.parse(req.query);
     const result = await refundService.list(req.principal!, query);
     res.json({ data: result.items, meta: result.meta });
+  })
+);
+
+refundRoutes.get(
+  "/refunds/stuck",
+  asyncHandler(async (req: Auth, res) => {
+    const query = stuckRefundsQuerySchema.parse(req.query);
+    const result = await refundService.listStuck(req.principal!, query);
+    res.json({ data: result.items, meta: result.meta });
+  })
+);
+
+refundRoutes.post(
+  "/refunds/reconcile",
+  validateBody(reconcileRefundsSchema),
+  asyncHandler(async (req: Auth, res) => {
+    const data = await refundService.reconcileStaleRefunds(req.principal!, req.body);
+    res.json({ data, message: "Refund reconciliation completed" });
   })
 );
 

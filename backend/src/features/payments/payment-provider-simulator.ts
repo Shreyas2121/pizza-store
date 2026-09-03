@@ -137,6 +137,13 @@ export class DeterministicPaymentProviderSimulator implements RazorpayGateway {
     return refund?.paymentId === paymentId ? { ...refund } : null;
   }
 
+  async fetchRefund(refundId: string) {
+    for (const refund of this.refundsByReceipt.values()) {
+      if (refund.id === refundId) return { ...refund };
+    }
+    return null;
+  }
+
   script(orderId: string, scenario: SimulatorScenario) {
     const stored = this.requireOrder(orderId);
     if (stored.nextEvent > 0) {

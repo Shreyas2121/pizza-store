@@ -34,6 +34,7 @@ paymentWebhookRoutes.post(
     const reconciliation = data.reconciliation;
     if (
       reconciliation &&
+      "finalizedNow" in reconciliation &&
       reconciliation.finalizedNow &&
       "localOrderId" in reconciliation &&
       "totalPrice" in reconciliation

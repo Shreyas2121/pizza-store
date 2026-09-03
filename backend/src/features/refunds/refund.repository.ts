@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, lt } from "drizzle-orm";
 import { db } from "../../db";
 import {
   orderItemsTable,
@@ -27,6 +27,18 @@ export class RefundRepository {
     if (!refund) return undefined;
     return { refund, allocations: await db.select().from(refundAllocationsTable)
       .where(eq(refundAllocationsTable.refundId, refund.id)).orderBy(asc(refundAllocationsTable.id)) };
+  }
+
+  async findByProviderRefundId(providerRefundId: string) {
+    const refund = (await db.select().from(refundsTable)
+      .where(eq(refundsTable.providerRefundId, providerRefundId)))[0];
+    if (!refund) return undefined;
+    return { refund, allocations: await db.select().from(refundAllocationsTable)
+      .where(eq(refundAllocationsTable.refundId, refund.id)).orderBy(asc(refundAllocationsTable.id)) };
+  }
+
+  async getPaymentAttempt(id: number) {
+    return (await db.select().from(paymentAttemptsTable).where(eq(paymentAttemptsTable.id, id)))[0];
   }
 
   async lockOrder(tx: TransactionType, orderId: number) {
@@ -82,10 +94,38 @@ export class RefundRepository {
       .where(eq(refundsTable.id, id)).returning())[0];
   }
 
-  async list(storeId: number, status: RefundStatus | undefined, page: number, limit: number) {
-    const where = status
-      ? and(eq(refundsTable.storeId, storeId), eq(refundsTable.status, status))
-      : eq(refundsTable.storeId, storeId);
+  async findStaleCandidates(cutoff: Date, limit: number, storeId?: number) {
+    const conditions = [
+      inArray(refundsTable.status, ["submitted", "processing"]),
+      lt(refundsTable.updatedAt, cutoff),
+    ];
+    if (storeId !== undefined) {
+      conditions.push(eq(refundsTable.storeId, storeId));
+    }
+    return db
+      .select()
+      .from(refundsTable)
+      .where(and(...conditions))
+      .orderBy(asc(refundsTable.updatedAt))
+      .limit(limit);
+  }
+
+  async list(
+    storeId: number,
+    status: RefundStatus | undefined,
+    page: number,
+    limit: number,
+    options?: { stuckCutoff?: Date }
+  ) {
+    const conditions = [eq(refundsTable.storeId, storeId)];
+    if (status) {
+      conditions.push(eq(refundsTable.status, status));
+    }
+    if (options?.stuckCutoff) {
+      conditions.push(inArray(refundsTable.status, ["submitted", "processing"]));
+      conditions.push(lt(refundsTable.updatedAt, options.stuckCutoff));
+    }
+    const where = and(...conditions);
     const [{ total }] = await db.select({ total: count() }).from(refundsTable).where(where);
     const items = await db.select().from(refundsTable).where(where)
       .orderBy(desc(refundsTable.requestedAt), desc(refundsTable.id))

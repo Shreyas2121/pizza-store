@@ -53,7 +53,7 @@ export interface StaffAuditState {
 
 export interface WriteAuditInput {
   tx: TransactionType;
-  actor: AuthPrincipal;
+  actor?: AuthPrincipal | null;
   storeId: number | null;
   action: AuditAction;
   resourceType: AuditResourceType;

@@ -1121,9 +1121,12 @@ Target financial endpoints mounted under `/api/v1/finance/*` and `/api/v1/checko
 
 ### Refunds & Reconciliation
 - `GET /finance/refunds` 🔒 — List refunds and line item allocations.
+- `GET /finance/refunds/stuck` 🔒 — List stuck and pending provider refunds for operational visibility.
+- `POST /finance/refunds/reconcile` 🔒 — Reconcile stale provider refunds by receipt or ID.
 - `POST /finance/orders/:orderId/refunds` 🔒 — Request full/partial refund with line allocations.
 - `POST /finance/refunds/:id/approve` 🔒 — Manager/finance approval of refund request.
 - `POST /finance/refunds/:id/reject` 🔒 — Reject refund request.
+- `POST /finance/refunds/:id/retry` 🔒 — Retry a failed provider refund submission.
 - `GET /finance/settlements` 🔒 — List Razorpay settlement batches.
 - `GET /finance/settlements/:id` 🔒 — Settlement batch detail, fee breakdown, and matched lines.
 - `POST /finance/settlements/import` 🔒 — Import settlement fixture or test provider sync.

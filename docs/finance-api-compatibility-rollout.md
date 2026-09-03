@@ -288,9 +288,12 @@ POST /api/v1/finance/fiscal-periods/:id/reopen
 
 ```text
 GET  /api/v1/finance/refunds
+GET  /api/v1/finance/refunds/stuck
+POST /api/v1/finance/refunds/reconcile
 POST /api/v1/finance/orders/:orderId/refunds
 POST /api/v1/finance/refunds/:id/approve
 POST /api/v1/finance/refunds/:id/reject
+POST /api/v1/finance/refunds/:id/retry
 GET  /api/v1/finance/settlements
 GET  /api/v1/finance/settlements/:id
 POST /api/v1/finance/settlements/import

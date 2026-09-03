@@ -5,8 +5,16 @@ import authorizationService, { resourceNotFound } from "../access/access.service
 import auditService from "../audit/audit.service";
 import { createRazorpayGateway } from "../payments/razorpay.gateway";
 import { getRazorpayConfig } from "../payments/razorpay.config";
+import type { RazorpayRefundSnapshot } from "../payments/razorpay.types";
 import type { RefundStatus, TransactionType } from "../../utils/types";
-import type { ApproveRefundInput, RejectRefundInput, RequestRefundInput } from "./refund.schemas";
+import type {
+  ApproveRefundInput,
+  ReconcileRefundsInput,
+  RefundsQueryInput,
+  RejectRefundInput,
+  RequestRefundInput,
+  StuckRefundsQueryInput,
+} from "./refund.schemas";
 import refundRepository, { RefundRepository } from "./refund.repository";
 import {
   activeRefundStatuses,
@@ -14,6 +22,24 @@ import {
   buildRefundAllocations,
   requireRefundStatus,
 } from "./refund.policy";
+
+export interface ProviderRefundWebhookEntity {
+  id: string;
+  payment_id: string;
+  amount: number;
+  currency: string;
+  status: string;
+  receipt?: string | null;
+  notes?: Record<string, string | number>;
+  error_code?: string | null;
+  error_description?: string | null;
+  error_reason?: string | null;
+}
+
+export interface ProviderRefundWebhookInput {
+  event: string;
+  refund: ProviderRefundWebhookEntity;
+}
 
 const segregationViolation = () => new AppError(
   "The requester cannot approve or reject their own refund.",
@@ -31,15 +57,24 @@ const isUniqueViolation = (error: unknown) =>
   typeof error === "object" && error !== null && "code" in error && error.code === "23505";
 
 export class RefundService {
-  constructor(private readonly repository: RefundRepository = refundRepository) {}
+  constructor(private readonly repository: RefundRepository = refundRepository) { }
 
-  async list(actor: AuthPrincipal, query: {
-    storeId: number; status?: RefundStatus; page: number; limit: number;
-  }) {
+  async list(actor: AuthPrincipal, query: RefundsQueryInput) {
     await authorizationService.requireStorePermission({
       principal: actor, storeId: query.storeId, permission: "finance.refunds.create",
     });
-    return this.repository.list(query.storeId, query.status, query.page, query.limit);
+    const stuckCutoff = query.stuck
+      ? new Date(Date.now() - (query.olderThanMinutes ?? 15) * 60_000)
+      : undefined;
+    return this.repository.list(query.storeId, query.status, query.page, query.limit, { stuckCutoff });
+  }
+
+  async listStuck(actor: AuthPrincipal, query: StuckRefundsQueryInput) {
+    await authorizationService.requireStorePermission({
+      principal: actor, storeId: query.storeId, permission: "finance.refunds.create",
+    });
+    const stuckCutoff = new Date(Date.now() - query.olderThanMinutes * 60_000);
+    return this.repository.list(query.storeId, undefined, query.page, query.limit, { stuckCutoff });
   }
 
   async request(actor: AuthPrincipal, orderId: number, clientRequestId: string, input: RequestRefundInput) {
@@ -208,7 +243,7 @@ export class RefundService {
       });
       if (refund.requestedBy === actor.userId) throw segregationViolation();
       if (authorization.membershipRole === "manager" &&
-          refund.amountPaise > env.REFUND_MANAGER_APPROVAL_LIMIT_PAISE) {
+        refund.amountPaise > env.REFUND_MANAGER_APPROVAL_LIMIT_PAISE) {
         throw new AppError("Refund exceeds the manager approval threshold.", 403, "REFUND_APPROVAL_LIMIT_EXCEEDED");
       }
       requireRefundStatus(refund.status, "requested");
@@ -283,11 +318,11 @@ export class RefundService {
         ? prior
         : await gateway.findRefundByReceipt(providerPaymentId, receipt)
         ?? await gateway.createRefund({
-        paymentId: providerPaymentId,
-        amountPaise: refund.amountPaise,
-        receipt,
-        notes: { refundId: refund.id, orderId: refund.orderId },
-      });
+          paymentId: providerPaymentId,
+          amountPaise: refund.amountPaise,
+          receipt,
+          notes: { refundId: refund.id, orderId: refund.orderId },
+        });
       if (result.paymentId !== providerPaymentId || result.amountPaise !== refund.amountPaise || result.currency !== "INR") {
         throw new Error("Provider refund response did not match the request");
       }
@@ -372,11 +407,303 @@ export class RefundService {
       ? `item:${allocation.orderItemId}:${allocation.quantity}:${allocation.amountPaise}`
       : `delivery_fee:${allocation.amountPaise}`).sort();
     if (existing.refund.requestedBy !== actor.userId || existing.refund.orderId !== orderId ||
-        existing.refund.amountPaise !== input.amountPaise || existing.refund.reasonCode !== input.reasonCode ||
-        (existing.refund.reasonNote ?? undefined) !== input.reasonNote || JSON.stringify(actual) !== JSON.stringify(expected)) {
+      existing.refund.amountPaise !== input.amountPaise || existing.refund.reasonCode !== input.reasonCode ||
+      (existing.refund.reasonNote ?? undefined) !== input.reasonNote || JSON.stringify(actual) !== JSON.stringify(expected)) {
       throw duplicateIdempotencyKey();
     }
     return existing;
+  }
+
+  async processProviderWebhookEvent(input: ProviderRefundWebhookInput) {
+    const { event, refund: entity } = input;
+    const identity = await this.resolveLocalRefund(entity);
+    if (!identity) {
+      return { ignored: true as const, reason: "LOCAL_REFUND_NOT_FOUND" };
+    }
+
+    if (identity.refund.amountPaise !== entity.amount) {
+      throw new AppError(
+        "Provider refund amount does not match local refund.",
+        409,
+        "PAYMENT_PROVIDER_MISMATCH"
+      );
+    }
+
+    return this.repository.transaction(async (tx) => {
+      const attempt = await this.lockParents(tx, identity.refund.orderId, identity.refund.paymentAttemptId);
+      if (attempt.providerPaymentId && attempt.providerPaymentId !== entity.payment_id) {
+        throw new AppError(
+          "Provider refund payment ID does not match local attempt.",
+          409,
+          "PAYMENT_PROVIDER_MISMATCH"
+        );
+      }
+
+      const refund = await this.repository.lockRefund(tx, identity.refund.id);
+      if (!refund) return { ignored: true as const, reason: "LOCAL_REFUND_NOT_FOUND" };
+
+      const isProcessed = entity.status === "processed" || event === "refund.processed";
+      const isFailed = entity.status === "failed" || event === "refund.failed";
+
+      if (isProcessed) {
+        if (refund.status === "processed" && refund.providerRefundId === entity.id) {
+          return { refund, duplicate: true as const, inProgress: false };
+        }
+        if (refund.status === "processed") {
+          return { refund, duplicate: true as const, inProgress: false };
+        }
+      } else if (isFailed) {
+        if (refund.status === "failed" && refund.providerRefundId === entity.id) {
+          return { refund, duplicate: true as const, inProgress: false };
+        }
+        if (refund.status === "processed") {
+          return { refund, duplicate: false as const, inProgress: false, ignoredStale: true as const };
+        }
+      } else {
+        if (refund.status === "processed" || refund.status === "failed") {
+          return { refund, duplicate: false as const, inProgress: false, ignoredStale: true as const };
+        }
+      }
+
+      const now = new Date();
+
+      if (isProcessed) {
+        if (!["submitted", "processing", "approved", "failed"].includes(refund.status)) {
+          throw new AppError(`Refund cannot transition from ${refund.status} to processed.`, 409, "INVALID_STATE_TRANSITION");
+        }
+
+        if (refund.status === "failed") {
+          const reserved = await this.repository.listAttemptRefunds(tx, attempt.id, activeRefundStatuses);
+          assertRefundCapacity(
+            attempt.amountPaise,
+            reserved.filter((r) => r.id !== refund.id).reduce((sum, r) => sum + r.amountPaise, 0),
+            refund.amountPaise
+          );
+        }
+
+        const updated = await this.repository.update(tx, refund.id, {
+          status: "processed",
+          providerRefundId: entity.id,
+          providerStatus: "processed",
+          processedAt: refund.processedAt ?? now,
+          submittedAt: refund.submittedAt ?? now,
+          failureCode: null,
+          failureDescription: null,
+          failedAt: null,
+          version: refund.version + 1,
+        });
+
+        await auditService.write({
+          tx,
+          storeId: refund.storeId,
+          action: "refund.provider_processed",
+          resourceType: "refund",
+          resourceId: refund.id,
+          before: { status: refund.status },
+          after: { status: updated.status, providerStatus: "processed" },
+          metadata: {
+            provider: "razorpay",
+            providerRefundId: entity.id,
+            source: "webhook",
+            event,
+          },
+        });
+
+        return { refund: updated, duplicate: false as const, inProgress: false };
+      }
+
+      if (isFailed) {
+        if (!["submitted", "processing", "approved"].includes(refund.status)) {
+          throw new AppError(`Refund cannot transition from ${refund.status} to failed.`, 409, "INVALID_STATE_TRANSITION");
+        }
+
+        const failureCode = entity.error_code ?? "PROVIDER_REPORTED_FAILED";
+        const failureDescription =
+          entity.error_description ?? entity.error_reason ?? "Provider reported refund failed.";
+
+        const updated = await this.repository.update(tx, refund.id, {
+          status: "failed",
+          providerRefundId: entity.id,
+          providerStatus: "failed",
+          failureCode,
+          failureDescription,
+          failedAt: now,
+          submittedAt: refund.submittedAt ?? now,
+          version: refund.version + 1,
+        });
+
+        await auditService.write({
+          tx,
+          storeId: refund.storeId,
+          action: "refund.provider_failed",
+          resourceType: "refund",
+          resourceId: refund.id,
+          before: { status: refund.status },
+          after: { status: updated.status, failureCode },
+          metadata: {
+            provider: "razorpay",
+            providerRefundId: entity.id,
+            source: "webhook",
+            event,
+          },
+        });
+
+        return { refund: updated, duplicate: false as const, inProgress: false };
+      }
+
+      if (refund.status === "submitted" || refund.status === "approved") {
+        const updated = await this.repository.update(tx, refund.id, {
+          status: "processing",
+          providerRefundId: entity.id,
+          providerStatus: entity.status ?? "pending",
+          submittedAt: refund.submittedAt ?? now,
+          version: refund.version + 1,
+        });
+
+        await auditService.write({
+          tx,
+          storeId: refund.storeId,
+          action: "refund.provider_processing",
+          resourceType: "refund",
+          resourceId: refund.id,
+          before: { status: refund.status },
+          after: { status: updated.status, providerStatus: entity.status ?? "pending" },
+          metadata: {
+            provider: "razorpay",
+            providerRefundId: entity.id,
+            source: "webhook",
+            event,
+          },
+        });
+
+        return { refund: updated, duplicate: false as const, inProgress: true };
+      }
+
+      return { refund, duplicate: true as const, inProgress: true };
+    });
+  }
+
+  async reconcileStaleRefunds(
+    actor: AuthPrincipal,
+    options?: ReconcileRefundsInput
+  ) {
+    if (options?.storeId !== undefined) {
+      await authorizationService.requireStorePermission({
+        principal: actor,
+        storeId: options.storeId,
+        permission: "finance.refunds.approve",
+      });
+    } else {
+      authorizationService.requirePlatformAdmin(actor, "platform.payments.reconcile");
+    }
+
+    const config = getRazorpayConfig();
+    if (!config) {
+      throw new AppError("Payment provider is not configured", 503, "PAYMENT_UNAVAILABLE");
+    }
+    const gateway = createRazorpayGateway(config);
+
+    const olderThanMinutes = options?.olderThanMinutes ?? 15;
+    const limit = options?.limit ?? 50;
+    const cutoff = new Date(Date.now() - olderThanMinutes * 60_000);
+
+    const candidates = await this.repository.findStaleCandidates(cutoff, limit, options?.storeId);
+
+    const results: Array<{
+      refundId: number;
+      orderId: number;
+      status: "processed" | "failed" | "processing" | "unchanged" | "error";
+      providerRefundId?: string;
+      error?: string;
+    }> = [];
+
+    for (const candidate of candidates) {
+      try {
+        const attempt = await this.repository.getPaymentAttempt(candidate.paymentAttemptId);
+        if (!attempt || attempt.provider !== "razorpay" || !attempt.providerPaymentId) {
+          results.push({ refundId: candidate.id, orderId: candidate.orderId, status: "unchanged" });
+          continue;
+        }
+
+        let providerRefund: RazorpayRefundSnapshot | null = null;
+        if (candidate.providerRefundId && gateway.fetchRefund) {
+          providerRefund = await gateway.fetchRefund(candidate.providerRefundId);
+        }
+        if (!providerRefund) {
+          const receipt = `refund_${candidate.id}_v${candidate.version}`;
+          const priorReceipt = candidate.version >= 5 ? `refund_${candidate.id}_v${candidate.version - 2}` : null;
+          providerRefund = await gateway.findRefundByReceipt(attempt.providerPaymentId, receipt);
+          if (!providerRefund && priorReceipt) {
+            providerRefund = await gateway.findRefundByReceipt(attempt.providerPaymentId, priorReceipt);
+          }
+        }
+
+        if (!providerRefund) {
+          results.push({ refundId: candidate.id, orderId: candidate.orderId, status: "unchanged" });
+          continue;
+        }
+
+        const outcome = await this.processProviderWebhookEvent({
+          event: `refund.${providerRefund.status}`,
+          refund: {
+            id: providerRefund.id,
+            payment_id: providerRefund.paymentId,
+            amount: providerRefund.amountPaise,
+            currency: providerRefund.currency,
+            status: providerRefund.status,
+            receipt: providerRefund.receipt,
+          },
+        });
+
+        const outcomeStatus = "refund" in outcome ? outcome.refund.status : "unchanged";
+        results.push({
+          refundId: candidate.id,
+          orderId: candidate.orderId,
+          status: outcomeStatus as any,
+          providerRefundId: providerRefund.id,
+        });
+      } catch (error) {
+        results.push({
+          refundId: candidate.id,
+          orderId: candidate.orderId,
+          status: "error",
+          error: error instanceof Error ? error.message : "Reconciliation error",
+        });
+      }
+    }
+
+    return {
+      checked: candidates.length,
+      processed: results.filter((r) => r.status === "processed").length,
+      failed: results.filter((r) => r.status === "failed").length,
+      processing: results.filter((r) => r.status === "processing").length,
+      unchanged: results.filter((r) => r.status === "unchanged").length,
+      errors: results.filter((r) => r.status === "error").length,
+      results,
+    };
+  }
+
+  private async resolveLocalRefund(entity: ProviderRefundWebhookEntity) {
+    const byProviderId = await this.repository.findByProviderRefundId(entity.id);
+    if (byProviderId) return byProviderId;
+
+    let refundId: number | undefined;
+    if (entity.receipt) {
+      const match = /^refund_(\d+)(?:_v\d+)?$/.exec(entity.receipt);
+      if (match) {
+        refundId = Number(match[1]);
+      }
+    }
+
+    if (!refundId && entity.notes?.refundId !== undefined) {
+      const parsed = Number(entity.notes.refundId);
+      if (Number.isInteger(parsed) && parsed > 0) {
+        refundId = parsed;
+      }
+    }
+
+    if (!refundId) return undefined;
+    return this.repository.findById(refundId);
   }
 }
 
