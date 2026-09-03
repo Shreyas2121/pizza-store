@@ -524,15 +524,15 @@ credentials and is safe to cache briefly.
 {
   "data": {
     "cash": true,
-    "razorpay": false
+    "razorpay": true,
+    "providerMode": "simulator"
   }
 }
 ```
 
-`razorpay` is true only when credentials are complete and the server-side
-`RAZORPAY_ENABLED` rollout flag is true. Disabling the flag blocks initiation
-and retry with `503 ONLINE_PAYMENT_DISABLED`; verification, signed webhooks,
-and reconciliation remain active for already-created attempts.
+`razorpay` represents the compatible online-payment rail. It is available by
+default through the credential-free simulator. In `razorpay_test` mode it is
+true only when credentials are complete and `RAZORPAY_ENABLED` is true.
 
 ### `POST /payments/razorpay/orders` 🔒
 
@@ -565,6 +565,7 @@ values that should be passed to Standard Checkout.
     "localOrderId": 42,
     "localPaymentId": 17,
     "keyId": "rzp_test_...",
+    "providerMode": "razorpay_test",
     "razorpayOrderId": "order_...",
     "amountPaise": 49900,
     "currency": "INR",
@@ -586,6 +587,25 @@ and payment IDs so the client can link to that recovery path. A concurrent
 duplicate request can temporarily return
 `checkoutReady: false` while the first request owns provider creation; use the
 status endpoint before retrying.
+
+### `POST /payments/simulator/orders/:localOrderId/events` ðŸ”’
+
+Advance one deterministic provider event for the current user's online order.
+This endpoint returns `404` unless `PAYMENT_PROVIDER_MODE=simulator`, and it
+never accepts amounts or other financial truth from the browser.
+
+An optional body selects `successful`, `failed`, `delayed`, `duplicate`, or
+`out_of_order`. Omit it to continue the order's current script. Delayed,
+duplicate, and out-of-order scripts require a second request to deliver their
+second event. Duplicate delivery reuses the same immutable event ID; payment
+finalization remains idempotent.
+
+```json
+{ "scenario": "delayed" }
+```
+
+The normal frontend uses `successful`. The other scripts are deterministic
+diagnostic/demo controls for reconciliation behavior.
 
 ### `GET /payments/razorpay/orders/:localOrderId` 🔒
 

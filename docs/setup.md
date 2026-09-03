@@ -42,7 +42,10 @@ JWT_SECRET=your_jwt_secret_here
 # Frontend URL (for CORS and Socket.IO)
 FE_URL=http://localhost:3150
 
-# Razorpay (configure all three together when online payments are enabled)
+# Credential-free simulator is the safe default
+PAYMENT_PROVIDER_MODE=simulator
+
+# Optional Razorpay Test Mode (configure all three together)
 RAZORPAY_ENABLED=false
 RAZORPAY_KEY_ID=rzp_test_...
 RAZORPAY_KEY_SECRET=your_test_key_secret
@@ -64,14 +67,15 @@ All variables are validated at startup via Zod. The server will not start if any
 | `DATABASE_URL` | No* | Full connection URL (alternative to individual DB_* vars) |
 | `JWT_SECRET` | Yes | Secret key for signing JSON Web Tokens |
 | `FE_URL` | Yes | Frontend origin URL for CORS configuration |
-| `RAZORPAY_KEY_ID` | No** | Public Razorpay Test/Live Key ID |
+| `PAYMENT_PROVIDER_MODE` | No | `simulator` (default) or `razorpay_test`; `razorpay_live` refuses startup |
+| `RAZORPAY_KEY_ID` | No** | Public Razorpay Test Mode key ID |
 | `RAZORPAY_KEY_SECRET` | No** | Server-only Razorpay API key secret |
 | `RAZORPAY_WEBHOOK_SECRET` | No** | Server-only secret used to validate webhook signatures |
 | `RAZORPAY_ENABLED` | No | Set to `true` to offer new/retried online checkouts; defaults to `false` |
 
 \* Either `DATABASE_URL` or the individual `DB_*` variables must be provided.
 
-\** Razorpay variables may be omitted while the application is COD-only. If any one is set, all three are required. Use separate Test and Live credentials, and never expose either secret to the frontend.
+\** Razorpay variables may be omitted in simulator mode. If any one is set, all three are required. Live key IDs are rejected, and secrets must never be exposed to the frontend.
 
 `RAZORPAY_ENABLED=true` requires all three credentials. Setting it to `false`
 immediately removes Razorpay from checkout and blocks new/retried attempts while
@@ -157,8 +161,11 @@ The frontend will start on `http://localhost:3150`. It connects to the backend U
 3. Register a new account or log in with a seeded user.
 4. Browse products, add items to cart, and test the checkout flow.
 
-Online payment initiation requires all three Razorpay variables. Use Test Mode
-keys during development. The backend creates Razorpay Orders and returns the
+Online payment uses the deterministic local simulator by default, so the full
+browser flow works without provider credentials or network access. Set
+`PAYMENT_PROVIDER_MODE=razorpay_test`, configure all three Razorpay variables,
+and set `RAZORPAY_ENABLED=true` only when exercising the optional Test Mode
+adapter. The backend creates provider orders and returns the
 public key ID; the API key secret and webhook secret remain server-only. Apply
 the payment lifecycle migration before calling the Razorpay payment endpoints.
 Configure automatic capture in the Razorpay Dashboard: verification deliberately
@@ -172,7 +179,10 @@ from the authenticated initiation response. If Checkout is closed or payment
 verification is interrupted, the customer can resume the same payment from the
 order-details page instead of placing a duplicate order.
 
-To exercise the browser flow in Test Mode:
+To exercise the default simulator browser flow, select **Pay online** and submit
+the order. The frontend requests the deterministic `successful` scenario and
+the server performs the same reconciliation/finalization policy used by the
+Razorpay adapter. To exercise Razorpay Test Mode instead:
 
 1. Add an item to the cart, select an address, and choose **Pay online**.
 2. Complete Checkout with a Razorpay Test Mode payment method.
@@ -203,8 +213,8 @@ Optional `RECONCILE_OLDER_THAN_MINUTES` (default `15`) and `RECONCILE_LIMIT`
 (default `25`, maximum `50`) environment variables control each batch. The
 command exits non-zero if any candidate could not be reconciled. The equivalent
 admin API is `POST /api/v1/payments/razorpay/reconcile`.
-See [the Razorpay operations runbook](./razorpay-runbook.md) for staging, live
-rollout, monitoring, alert thresholds, incident rollback, and reconciliation.
+See [the Razorpay operations runbook](./razorpay-runbook.md) for optional Test
+Mode validation, monitoring, rollback, and reconciliation.
 For step-by-step credential creation during development, see the
 [Razorpay Test Mode credentials guide](./razorpay-test-credentials.md).
 

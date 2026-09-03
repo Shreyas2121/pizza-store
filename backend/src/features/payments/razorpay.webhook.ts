@@ -39,7 +39,7 @@ const webhookSchema = z
 class RazorpayWebhookService {
   async handle(rawBody: Buffer, signature: string, eventId: string) {
     const config = getRazorpayConfig();
-    if (!config) {
+    if (!config || config.mode === "simulator") {
       throw new AppError(
         "Online payments are temporarily unavailable",
         503,

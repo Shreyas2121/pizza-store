@@ -5,6 +5,7 @@ import axios from "axios";
 import { error, success, warning } from "@/shared/lib";
 import {
   usePaymentMethods,
+  useRunPaymentSimulator,
   useRetryRazorpayOrder,
   useVerifyRazorpayPayment,
 } from "../api/payment.mutations";
@@ -21,9 +22,10 @@ export const PendingPaymentCard = ({
 }: PendingPaymentCardProps) => {
   const retryPayment = useRetryRazorpayOrder();
   const verifyPayment = useVerifyRazorpayPayment();
+  const runSimulator = useRunPaymentSimulator();
   const { data: paymentMethods, isLoading: loadingMethods } = usePaymentMethods();
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const busy = retryPayment.isPending || verifyPayment.isPending || !!statusMessage;
+  const busy = retryPayment.isPending || verifyPayment.isPending || runSimulator.isPending || !!statusMessage;
   const retryEnabled = paymentMethods?.razorpay ?? false;
 
   const retry = async () => {
@@ -37,7 +39,17 @@ export const PendingPaymentCard = ({
         );
       }
 
-      setStatusMessage("Opening Razorpay Checkout…");
+      setStatusMessage("Preparing online checkout…");
+      if (checkout.providerMode === "simulator") {
+        setStatusMessage("Running deterministic demo payment...");
+        const simulated = await runSimulator.mutateAsync({ localOrderId });
+        if (!simulated.data.reconciliation) {
+          throw new Error("The simulator did not produce a payment result.");
+        }
+        success(simulated.message);
+        return;
+      }
+
       const result = await openRazorpayCheckout({
         checkout,
         prefill: { contact },
@@ -84,7 +96,9 @@ export const PendingPaymentCard = ({
             </h2>
             <p className="mt-1 max-w-xl text-sm text-ink-muted">
               {retryEnabled
-                ? "This order is safely saved but will not reach the kitchen until Razorpay confirms a captured payment."
+                ? paymentMethods?.providerMode === "simulator"
+                  ? "This order is safely saved. The local demo provider can complete it without credentials or network access."
+                  : "This order is safely saved but will not reach the kitchen until Razorpay confirms a captured payment."
                 : "Online checkout is temporarily paused. Your order remains saved and will not reach the kitchen until payment is captured."}
             </p>
             {statusMessage && (
@@ -102,7 +116,11 @@ export const PendingPaymentCard = ({
           rightSection={<ShieldCheck size={16} />}
           className="shrink-0"
         >
-          {retryEnabled ? "Retry secure payment" : "Online payment paused"}
+          {retryEnabled
+            ? paymentMethods?.providerMode === "simulator"
+              ? "Complete demo payment"
+              : "Retry secure payment"
+            : "Online payment paused"}
         </Button>
       </div>
     </section>

@@ -2,7 +2,7 @@ import { z } from "zod";
 import dotenv from "dotenv";
 dotenv.config({ quiet: true });
 
-const envSchema = z.object({
+export const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.string().min(4).max(4),
   DATABASE_URL: z.string().optional(),
@@ -25,6 +25,9 @@ const envSchema = z.object({
     .enum(["true", "false"])
     .default("false")
     .transform((value) => value === "true"),
+  PAYMENT_PROVIDER_MODE: z
+    .enum(["simulator", "razorpay_test", "razorpay_live"])
+    .default("simulator"),
 }).superRefine((value, ctx) => {
   const razorpayValues = [
     value.RAZORPAY_KEY_ID,
@@ -42,11 +45,30 @@ const envSchema = z.object({
     });
   }
 
-  if (value.RAZORPAY_ENABLED && configuredValues !== razorpayValues.length) {
+  if (
+    (value.RAZORPAY_ENABLED || value.PAYMENT_PROVIDER_MODE === "razorpay_test") &&
+    configuredValues !== razorpayValues.length
+  ) {
     ctx.addIssue({
       code: "custom",
-      message: "Razorpay credentials are required when RAZORPAY_ENABLED=true",
+      message: "Razorpay credentials are required for enabled Test Mode",
       path: ["RAZORPAY_ENABLED"],
+    });
+  }
+
+  if (value.PAYMENT_PROVIDER_MODE === "razorpay_live") {
+    ctx.addIssue({
+      code: "custom",
+      message: "Live payment processing is unsupported; use simulator or razorpay_test",
+      path: ["PAYMENT_PROVIDER_MODE"],
+    });
+  }
+
+  if (value.RAZORPAY_KEY_ID?.startsWith("rzp_live_")) {
+    ctx.addIssue({
+      code: "custom",
+      message: "Live Razorpay credentials are not accepted by this portfolio application",
+      path: ["RAZORPAY_KEY_ID"],
     });
   }
 });
@@ -137,6 +159,14 @@ export const reconcileRazorpayPaymentsSchema = z
   .object({
     olderThanMinutes: z.number().int().min(1).max(1440).default(15),
     limit: z.number().int().min(1).max(50).default(25),
+  })
+  .strict();
+
+export const runPaymentSimulatorSchema = z
+  .object({
+    scenario: z
+      .enum(["successful", "failed", "delayed", "duplicate", "out_of_order"])
+      .optional(),
   })
   .strict();
 

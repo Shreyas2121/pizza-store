@@ -5,6 +5,7 @@ type PaymentStepProps = {
   value: PaymentType;
   onChange: (value: PaymentType) => void;
   razorpayEnabled: boolean;
+  providerMode?: "simulator" | "razorpay_test";
   disabled?: boolean;
 };
 
@@ -32,6 +33,7 @@ export const PaymentStep = ({
   value,
   onChange,
   razorpayEnabled,
+  providerMode,
   disabled,
 }: PaymentStepProps) => (
   <section className="rounded-card border border-border bg-surface p-5 shadow-subtle sm:p-6">
@@ -84,9 +86,15 @@ export const PaymentStep = ({
               <Icon size={20} aria-hidden="true" />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block font-semibold text-ink">{method.title}</span>
+              <span className="block font-semibold text-ink">
+                {method.value === "razorpay" && providerMode === "simulator"
+                  ? "Pay online (demo)"
+                  : method.title}
+              </span>
               <span className="mt-0.5 block text-sm text-ink-muted">
-                {method.description}
+                {method.value === "razorpay" && providerMode === "simulator"
+                  ? "Complete a credential-free simulated payment; no real funds move."
+                  : method.description}
               </span>
             </span>
             {method.value === "razorpay" && (

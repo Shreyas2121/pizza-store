@@ -2,6 +2,14 @@ import { env } from "../../utils/zodSchema";
 import type { RazorpayServerConfig } from "./razorpay.types";
 
 export const getRazorpayConfig = (): RazorpayServerConfig | null => {
+  if (env.PAYMENT_PROVIDER_MODE === "simulator") {
+    return {
+      mode: "simulator",
+      keyId: "simulator",
+      keySecret: "simulator-checkout-secret",
+      webhookSecret: "simulator-webhook-secret",
+    };
+  }
   if (
     !env.RAZORPAY_KEY_ID ||
     !env.RAZORPAY_KEY_SECRET ||
@@ -11,17 +19,20 @@ export const getRazorpayConfig = (): RazorpayServerConfig | null => {
   }
 
   return {
+    mode: "razorpay_test",
     keyId: env.RAZORPAY_KEY_ID,
     keySecret: env.RAZORPAY_KEY_SECRET,
     webhookSecret: env.RAZORPAY_WEBHOOK_SECRET,
   };
 };
 
-// Disabling Checkout only stops new customer attempts. Credentials remain
-// available so verification, webhooks, and reconciliation can finish payments
-// that were already in flight before a rollback.
+// In test mode, disabling Checkout only stops new customer attempts.
+// Credentials remain available so in-flight attempts can still reconcile.
 export const isRazorpayCheckoutEnabled = () =>
-  env.RAZORPAY_ENABLED && getRazorpayConfig() !== null;
+  (env.PAYMENT_PROVIDER_MODE === "simulator" || env.RAZORPAY_ENABLED) &&
+  getRazorpayConfig() !== null;
+
+export const getPaymentProviderMode = () => env.PAYMENT_PROVIDER_MODE;
 
 export const requireRazorpayConfig = (): RazorpayServerConfig => {
   const config = getRazorpayConfig();

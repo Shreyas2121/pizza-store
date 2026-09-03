@@ -47,4 +47,5 @@ export interface RazorpayCredentials {
 
 export interface RazorpayServerConfig extends RazorpayCredentials {
   webhookSecret: string;
+  mode?: "simulator" | "razorpay_test";
 }

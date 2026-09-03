@@ -13,6 +13,7 @@ import { useCheckoutQuote } from "../api/quote.queries";
 import {
   useInitiateRazorpayOrder,
   usePaymentMethods,
+  useRunPaymentSimulator,
   useVerifyRazorpayPayment,
 } from "../api/payment.mutations";
 import { openRazorpayCheckout } from "../lib/razorpay";
@@ -33,6 +34,7 @@ export const CheckoutPage = () => {
   const validateCouponM = useValidateCoupon();
   const initiateRazorpayM = useInitiateRazorpayOrder();
   const verifyRazorpayM = useVerifyRazorpayPayment();
+  const runSimulatorM = useRunPaymentSimulator();
   const { data: paymentMethods } = usePaymentMethods();
   const [coupon, setCoupon] = useState<Coupon | null>(null);
   const [code, setCode] = useState("");
@@ -183,7 +185,20 @@ export const CheckoutPage = () => {
         return;
       }
 
-      setPaymentStatusMessage("Opening Razorpay Checkout…");
+      setPaymentStatusMessage("Preparing online checkout…");
+      if (checkout.providerMode === "simulator") {
+        setPaymentStatusMessage("Running deterministic demo payment...");
+        const simulated = await runSimulatorM.mutateAsync({
+          localOrderId: checkout.localOrderId,
+        });
+        if (!simulated.data.reconciliation) {
+          throw new Error("The simulator did not produce a payment result.");
+        }
+        success(simulated.message);
+        navigate(`/order/${simulated.data.reconciliation.localOrderId}`);
+        return;
+      }
+
       const checkoutResult = await openRazorpayCheckout({
         checkout,
         prefill: {
@@ -281,6 +296,7 @@ export const CheckoutPage = () => {
           <PaymentStep
             value={paymentType}
             razorpayEnabled={paymentMethods?.razorpay ?? false}
+            providerMode={paymentMethods?.providerMode}
             onChange={(value) => {
               setPaymentType(value);
               setPaymentStatusMessage(null);

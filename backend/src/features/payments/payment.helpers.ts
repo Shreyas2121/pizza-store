@@ -31,11 +31,13 @@ export const isValidCheckoutSignature = (
 
 export const toCheckoutResponse = (
   attempt: LocalRazorpayAttempt,
-  keyId: string | null
+  keyId: string | null,
+  providerMode: "simulator" | "razorpay_test" = "razorpay_test"
 ) => ({
   localOrderId: attempt.localOrderId,
   localPaymentId: attempt.localPaymentId,
   keyId,
+  providerMode,
   razorpayOrderId: attempt.providerOrderId,
   amountPaise: attempt.amountPaise,
   currency: attempt.currency,
@@ -44,7 +46,9 @@ export const toCheckoutResponse = (
   paymentStatus: attempt.status,
   providerStatus: attempt.providerStatus,
   checkoutReady: Boolean(
-    keyId && attempt.providerOrderId && attempt.status === "processing"
+    (providerMode === "simulator" || keyId) &&
+      attempt.providerOrderId &&
+      attempt.status === "processing"
   ),
   failure:
     attempt.status === "failed"

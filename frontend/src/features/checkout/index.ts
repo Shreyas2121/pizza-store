@@ -13,6 +13,7 @@ export {
 export {
   useInitiateRazorpayOrder,
   usePaymentMethods,
+  useRunPaymentSimulator,
   useRetryRazorpayOrder,
   useVerifyRazorpayPayment,
 } from "./api/payment.mutations";
@@ -40,4 +41,6 @@ export type {
   RazorpayFailure,
   VerifyRazorpayPaymentRequest,
   VerifyRazorpayPaymentResult,
+  SimulatorScenario,
+  SimulatorEventResult,
 } from "./model/checkout.types";

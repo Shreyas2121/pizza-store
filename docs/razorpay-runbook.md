@@ -1,7 +1,8 @@
 # Razorpay Operations Runbook
 
-This runbook covers Test Mode validation, production rollout, monitoring, and
-rollback. Cash on Delivery (COD) is always the customer fallback.
+This runbook covers optional Test Mode validation, monitoring, and rollback.
+Live payment processing is unsupported; the deterministic simulator is the
+default and Cash on Delivery (COD) remains available.
 
 ## Release controls
 
@@ -9,9 +10,14 @@ Razorpay requires `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, and
 `RAZORPAY_WEBHOOK_SECRET`. New and retried online checkouts are additionally
 controlled by the backend-only `RAZORPAY_ENABLED` flag.
 
-- `false` (default): the frontend offers COD only and the backend rejects new
-  initiation/retry requests.
-- `true`: Razorpay appears in checkout and initiation/retry is accepted.
+Select the adapter with `PAYMENT_PROVIDER_MODE=simulator` (default) or
+`PAYMENT_PROVIDER_MODE=razorpay_test`. The application rejects
+`razorpay_live` and `rzp_live_...` key IDs during startup.
+
+- In simulator mode, `RAZORPAY_ENABLED` is ignored and online demo checkout is
+  available by default.
+- In Razorpay Test Mode, `false` blocks new initiation/retry requests and
+  `true` enables them.
 - Verification, webhooks, and reconciliation intentionally ignore this flag so
   payments already in flight can settle after a rollback.
 
@@ -41,19 +47,11 @@ the API key pair and the separate webhook secret before starting this checklist.
 7. Set the flag back to false and confirm new/retried attempts are blocked while
    a previously completed Checkout callback can still verify.
 
-## Live rollout
+## Live mode
 
-1. Create separate Live Mode keys and webhook secret; never reuse Test Mode
-   values. Verify the account uses automatic capture.
-2. Deploy credentials with `RAZORPAY_ENABLED=false`, register the live webhook,
-   and verify webhook delivery from the Razorpay Dashboard.
-3. Enable the flag for a staffed, low-traffic window. Confirm a small real
-   transaction end to end, including the order, payment, webhook event, and
-   kitchen notification.
-4. Keep COD visible throughout rollout. Expand traffic only after the monitoring
-   signals below remain healthy.
-5. Run `pnpm payments:reconcile` from `backend/` every five minutes. The command
-   exits non-zero when any candidate fails and should page the on-call operator.
+Do not configure or process live payments. Startup validation rejects both the
+`razorpay_live` mode and live Razorpay key IDs. This portfolio intentionally
+demonstrates provider boundaries and reconciliation without moving real funds.
 
 ## Inventory reservation lifecycle under Razorpay
 

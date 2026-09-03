@@ -15,7 +15,10 @@ import {
   isRazorpayCheckoutEnabled,
 } from "./razorpay.config";
 import { createRazorpayGateway } from "./razorpay.gateway";
-import type { RazorpayOrderSnapshot } from "./razorpay.types";
+import type {
+  RazorpayOrderSnapshot,
+  RazorpayServerConfig,
+} from "./razorpay.types";
 import type {
   FinalizeCapturedPaymentInput,
   InitiateRazorpayOrderInput,
@@ -102,8 +105,18 @@ class PaymentService {
     }
     return toCheckoutResponse(
       attempt,
-      isRazorpayCheckoutEnabled() ? getRazorpayConfig()?.keyId ?? null : null
+      isRazorpayCheckoutEnabled() ? getRazorpayConfig()?.keyId ?? null : null,
+      getRazorpayConfig()?.mode ?? "razorpay_test"
     );
+  }
+
+  getPaymentMethods() {
+    const config = getRazorpayConfig();
+    return {
+      cash: true as const,
+      razorpay: isRazorpayCheckoutEnabled(),
+      providerMode: config?.mode ?? "razorpay_test",
+    };
   }
 
   async verifyRazorpayPayment(data: VerifyRazorpayPaymentInput) {
@@ -260,14 +273,14 @@ class PaymentService {
 
   private async ensureProviderOrder(
     attempt: LocalRazorpayAttempt,
-    config: { keyId: string; keySecret: string }
+    config: RazorpayServerConfig
   ) {
     if (attempt.providerOrderId || attempt.status === "completed") {
-      return toCheckoutResponse(attempt, config.keyId);
+      return toCheckoutResponse(attempt, config.keyId, config.mode);
     }
     const claim = await this.claimProviderOrderCreation(attempt);
     if (!claim.claimed) {
-      return toCheckoutResponse(claim.attempt, config.keyId);
+      return toCheckoutResponse(claim.attempt, config.keyId, config.mode);
     }
 
     const gateway = createRazorpayGateway(config);
@@ -390,7 +403,7 @@ class PaymentService {
           failureDescription: null,
         };
       });
-      return toCheckoutResponse(saved, config.keyId);
+      return toCheckoutResponse(saved, config.keyId, config.mode);
     } catch (error) {
       logger.error("Razorpay order was created but could not be persisted", {
         localOrderId: claim.attempt.localOrderId,

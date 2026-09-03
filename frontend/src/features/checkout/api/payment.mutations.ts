@@ -5,6 +5,8 @@ import type {
   InitiateRazorpayOrderRequest,
   PaymentMethods,
   RazorpayCheckoutData,
+  SimulatorEventResult,
+  SimulatorScenario,
   VerifyRazorpayPaymentRequest,
   VerifyRazorpayPaymentResult,
 } from "../model/checkout.types";
@@ -56,6 +58,35 @@ export const useVerifyRazorpayPayment = () => {
       client.invalidateQueries({ queryKey: cartKeys.count() });
       client.invalidateQueries({
         queryKey: ["order-single", data.localOrderId],
+      });
+      client.invalidateQueries({ queryKey: ["order-all"] });
+    },
+  });
+};
+
+export const useRunPaymentSimulator = () => {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      localOrderId,
+      scenario = "successful",
+    }: {
+      localOrderId: number;
+      scenario?: SimulatorScenario;
+    }) =>
+      (
+        await API.post<ApiResponse<SimulatorEventResult>>(
+          `/payments/simulator/orders/${localOrderId}/events`,
+          { scenario }
+        )
+      ).data,
+    onSuccess: ({ data }) => {
+      if (!data.reconciliation) return;
+      client.invalidateQueries({ queryKey: cartKeys.get() });
+      client.invalidateQueries({ queryKey: cartKeys.checkout() });
+      client.invalidateQueries({ queryKey: cartKeys.count() });
+      client.invalidateQueries({
+        queryKey: ["order-single", data.reconciliation.localOrderId],
       });
       client.invalidateQueries({ queryKey: ["order-all"] });
     },

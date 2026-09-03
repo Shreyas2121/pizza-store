@@ -8,6 +8,7 @@ import type {
   RazorpayOrderSnapshot,
   RazorpayPaymentSnapshot,
 } from "./razorpay.types";
+import { paymentProviderSimulator } from "./payment-provider-simulator";
 
 type RazorpaySdk = Pick<Razorpay, "orders" | "payments">;
 
@@ -81,11 +82,13 @@ export class RazorpaySdkGateway implements RazorpayGateway {
 }
 
 export const createRazorpayGateway = (
-  credentials: RazorpayCredentials
+  credentials: RazorpayCredentials & { mode?: "simulator" | "razorpay_test" }
 ): RazorpayGateway =>
-  new RazorpaySdkGateway(
-    new Razorpay({
-      key_id: credentials.keyId,
-      key_secret: credentials.keySecret,
-    })
-  );
+  credentials.mode === "simulator"
+    ? paymentProviderSimulator
+    : new RazorpaySdkGateway(
+        new Razorpay({
+          key_id: credentials.keyId,
+          key_secret: credentials.keySecret,
+        })
+      );

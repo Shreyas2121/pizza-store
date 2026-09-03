@@ -11,6 +11,7 @@ export type CouponType = "percentage" | "fixed";
 export type PaymentMethods = {
   cash: true;
   razorpay: boolean;
+  providerMode: "simulator" | "razorpay_test";
 };
 
 export type Payment = {
@@ -156,6 +157,7 @@ export type RazorpayCheckoutData = {
   localOrderId: number;
   localPaymentId: number;
   keyId: string | null;
+  providerMode: "simulator" | "razorpay_test";
   razorpayOrderId: string | null;
   amountPaise: number;
   currency: "INR";
@@ -165,6 +167,17 @@ export type RazorpayCheckoutData = {
   providerStatus: string | null;
   checkoutReady: boolean;
   failure: RazorpayFailure | null;
+};
+
+export type SimulatorScenario =
+  | "successful"
+  | "failed"
+  | "delayed"
+  | "duplicate"
+  | "out_of_order";
+
+export type SimulatorEventResult = {
+  reconciliation: VerifyRazorpayPaymentResult | null;
 };
 
 export type InitiateRazorpayOrderRequest = {

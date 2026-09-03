@@ -20,8 +20,12 @@ logger.info(
   } | Frontend: ${env.FE_URL}`
 );
 logger.info(
-  `💳 [Config] Razorpay: ${
-    env.RAZORPAY_ENABLED ? "ENABLED" : "DISABLED (Cash on delivery only)"
+  `💳 [Config] Online payment: ${
+    env.PAYMENT_PROVIDER_MODE === "simulator"
+      ? "SIMULATOR (credential-free demo)"
+      : env.RAZORPAY_ENABLED
+        ? "TEST MODE ENABLED"
+        : "TEST MODE DISABLED"
   }`
 );
 
