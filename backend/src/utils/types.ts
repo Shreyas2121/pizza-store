@@ -86,6 +86,19 @@ export type RazorpayProviderStatus =
   | RazorpayOrderStatus
   | RazorpayPaymentStatus;
 export type PaymentWebhookEventStatus = "processing" | "processed" | "failed";
+export const REFUND_STATUSES = [
+  "requested",
+  "approved",
+  "rejected",
+  "cancelled",
+  "submitted",
+  "processing",
+  "processed",
+  "failed",
+] as const;
+export type RefundStatus = (typeof REFUND_STATUSES)[number];
+export const REFUND_ALLOCATION_KINDS = ["item", "delivery_fee"] as const;
+export type RefundAllocationKind = (typeof REFUND_ALLOCATION_KINDS)[number];
 export type CouponRedemptionStatus = "reserved" | "consumed" | "released";
 export type CouponType = "percentage" | "fixed";
 export type ChatStatus = "open" | "close" | "rejected" | "pending";

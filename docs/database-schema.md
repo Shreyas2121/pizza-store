@@ -308,6 +308,32 @@ Order-to-many payment attempt aggregate introduced in P2.2. Represents discrete 
 
 Durable Razorpay webhook deduplication and processing state. `event_id` is unique; `status` is `processing`, `processed`, or `failed`; `attempts` is a positive integer; and `processed_at` records successful completion.
 
+### `refunds`
+
+Store-scoped refund aggregate linked to the exact `(payment_attempt_id,
+order_id, store_id)` tuple. It stores the requested amount in integer paise,
+INR currency, lifecycle status, request/provider idempotency references,
+reason, safe failure metadata, source version, actors, and timestamps.
+
+The lifecycle is `requested -> approved|rejected|cancelled`, then `approved ->
+submitted -> processing|processed|failed`; failed provider submissions may be
+retried without replacing the aggregate. Checks require positive amounts,
+valid states, paired actor/timestamp evidence, ordered timestamps, and a
+positive source version. `client_request_id` and `provider_refund_id` are
+unique. Workflow transitions and the processed-refund cap are implemented in
+P2.6/P2.7; this commit establishes their persistence constraints.
+
+### `refund_allocations`
+
+Immutable allocation detail for item and delivery-fee refunds. Every row stores
+the customer refund amount plus its taxable, inclusive-tax, and original
+discount-reversal components in paise. Item rows require an order item and a
+positive quantity; delivery rows prohibit both. Composite foreign keys ensure
+the refund, order, and optional order item belong to the same order. Partial
+unique indexes allow one allocation per refunded item and one delivery-fee
+allocation per refund. P2.6 validates that allocation totals equal the refund
+amount and do not exceed the captured attempt or original order snapshots.
+
 ### `coupon_redemptions`
 
 Per-order coupon reservation state used to prevent concurrent oversubscription. It links a coupon, order, and user; `order_id` is unique; and state is `reserved`, `consumed`, or `released`, with matching lifecycle timestamps.

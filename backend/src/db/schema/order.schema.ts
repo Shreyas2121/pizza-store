@@ -6,6 +6,7 @@ import {
   pgTable,
   text,
   timestamp,
+  unique,
 } from "drizzle-orm/pg-core";
 import { id, createdAt, updatedAt } from "./_helpers";
 import { OrderStatus, PaymentCurrency, PaymentType } from "../../utils/types";
@@ -157,6 +158,7 @@ export const orderItemsTable = pgTable(
     updatedAt,
   },
   (table) => [
+    unique("order_items_refund_scope_unique").on(table.id, table.orderId),
     check("order_items_quantity_positive", sql`${table.quantity} > 0`),
     check(
       "order_items_snapshot_name_present",

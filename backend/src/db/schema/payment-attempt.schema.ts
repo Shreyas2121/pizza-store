@@ -6,6 +6,7 @@ import {
   pgTable,
   text,
   timestamp,
+  unique,
 } from "drizzle-orm/pg-core";
 import { id, createdAt, updatedAt } from "./_helpers";
 import {
@@ -54,6 +55,11 @@ export const paymentAttemptsTable = pgTable(
     index("payment_attempts_order_id_idx").on(table.orderId),
     index("payment_attempts_store_id_idx").on(table.storeId),
     index("payment_attempts_status_idx").on(table.status),
+    unique("payment_attempts_refund_scope_unique").on(
+      table.id,
+      table.orderId,
+      table.storeId
+    ),
     check(
       "payment_attempts_amount_paise_nonnegative",
       sql`${table.amountPaise} >= 0`

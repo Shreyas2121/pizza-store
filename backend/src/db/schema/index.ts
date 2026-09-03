@@ -16,6 +16,7 @@ export * from "./coupon-redemption.schema";
 export * from "./payment.schema";
 export * from "./payment-attempt.schema";
 export * from "./payment-event.schema";
+export * from "./refund.schema";
 export * from "./order.schema";
 export * from "./inventory.schema";
 export * from "./chat.schema";

@@ -24,6 +24,7 @@ import { couponsTable } from "./coupon.schema";
 import { couponRedemptionsTable } from "./coupon-redemption.schema";
 import { paymentsTable } from "./payment.schema";
 import { paymentAttemptsTable } from "./payment-attempt.schema";
+import { refundAllocationsTable, refundsTable } from "./refund.schema";
 import {
   ordersTable,
   orderItemsTable,
@@ -72,6 +73,12 @@ export const usersRelations = relations(usersTable, ({ many, one }) => ({
   }),
   invitedStaffInvitations: many(storeStaffInvitationsTable),
   auditLogs: many(auditLogsTable),
+  requestedRefunds: many(refundsTable, { relationName: "refundRequestedBy" }),
+  approvedRefunds: many(refundsTable, { relationName: "refundApprovedBy" }),
+  rejectedRefunds: many(refundsTable, { relationName: "refundRejectedBy" }),
+  cancelledRefunds: many(refundsTable, { relationName: "refundCancelledBy" }),
+  submittedRefunds: many(refundsTable, { relationName: "refundSubmittedBy" }),
+  processedRefunds: many(refundsTable, { relationName: "refundProcessedBy" }),
 }));
 
 export const addressesRelations = relations(addressTable, ({ many, one }) => ({
@@ -120,6 +127,7 @@ export const storesRelations = relations(storesTable, ({ many }) => ({
   staffInvitations: many(storeStaffInvitationsTable),
   auditLogs: many(auditLogsTable),
   paymentAttempts: many(paymentAttemptsTable),
+  refunds: many(refundsTable),
 }));
 
 export const storeProductsRelations = relations(
@@ -320,7 +328,7 @@ export const paymentRelations = relations(paymentsTable, ({ one }) => ({
 
 export const paymentAttemptsRelations = relations(
   paymentAttemptsTable,
-  ({ one }) => ({
+  ({ one, many }) => ({
     order: one(ordersTable, {
       fields: [paymentAttemptsTable.orderId],
       references: [ordersTable.id],
@@ -328,6 +336,68 @@ export const paymentAttemptsRelations = relations(
     store: one(storesTable, {
       fields: [paymentAttemptsTable.storeId],
       references: [storesTable.id],
+    }),
+    refunds: many(refundsTable),
+  })
+);
+
+// Refund relations
+export const refundsRelations = relations(refundsTable, ({ one, many }) => ({
+  order: one(ordersTable, {
+    fields: [refundsTable.orderId],
+    references: [ordersTable.id],
+  }),
+  paymentAttempt: one(paymentAttemptsTable, {
+    fields: [refundsTable.paymentAttemptId],
+    references: [paymentAttemptsTable.id],
+  }),
+  store: one(storesTable, {
+    fields: [refundsTable.storeId],
+    references: [storesTable.id],
+  }),
+  requestedByUser: one(usersTable, {
+    fields: [refundsTable.requestedBy],
+    references: [usersTable.id],
+    relationName: "refundRequestedBy",
+  }),
+  approvedByUser: one(usersTable, {
+    fields: [refundsTable.approvedBy],
+    references: [usersTable.id],
+    relationName: "refundApprovedBy",
+  }),
+  rejectedByUser: one(usersTable, {
+    fields: [refundsTable.rejectedBy],
+    references: [usersTable.id],
+    relationName: "refundRejectedBy",
+  }),
+  cancelledByUser: one(usersTable, {
+    fields: [refundsTable.cancelledBy],
+    references: [usersTable.id],
+    relationName: "refundCancelledBy",
+  }),
+  submittedByUser: one(usersTable, {
+    fields: [refundsTable.submittedBy],
+    references: [usersTable.id],
+    relationName: "refundSubmittedBy",
+  }),
+  processedByUser: one(usersTable, {
+    fields: [refundsTable.processedBy],
+    references: [usersTable.id],
+    relationName: "refundProcessedBy",
+  }),
+  allocations: many(refundAllocationsTable),
+}));
+
+export const refundAllocationsRelations = relations(
+  refundAllocationsTable,
+  ({ one }) => ({
+    refund: one(refundsTable, {
+      fields: [refundAllocationsTable.refundId],
+      references: [refundsTable.id],
+    }),
+    orderItem: one(orderItemsTable, {
+      fields: [refundAllocationsTable.orderItemId],
+      references: [orderItemsTable.id],
     }),
   })
 );
@@ -373,6 +443,7 @@ export const orderRelations = relations(ordersTable, ({ many, one }) => ({
   inventoryMovements: many(inventoryMovementsTable),
   inventoryReservations: many(inventoryReservationsTable),
   paymentAttempts: many(paymentAttemptsTable),
+  refunds: many(refundsTable),
 }));
 
 export const orderItemsTableRelations = relations(
@@ -391,6 +462,7 @@ export const orderItemsTableRelations = relations(
       references: [taxRulesTable.id],
     }),
     orderItemCustomizations: many(orderItemCustomizationsTable),
+    refundAllocations: many(refundAllocationsTable),
   })
 );
 
