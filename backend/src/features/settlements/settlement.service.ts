@@ -7,7 +7,12 @@ import { findSettlementFixture, type SettlementImportBatch } from "./settlement.
 import { hashSettlementPayload, validateSettlementImport } from "./settlement.policy";
 import { createTestSettlementProvider, type SettlementProvider } from "./settlement.provider";
 import settlementRepository, { SettlementRepository } from "./settlement.repository";
-import type { ImportSettlementInput } from "./settlement.schemas";
+import { matchSettlement } from "./settlement-matching";
+import type {
+  ImportSettlementInput,
+  ReconciliationIssuesQuery,
+  ResolveReconciliationIssueInput,
+} from "./settlement.schemas";
 
 const importConflict = () => new AppError(
   "Provider settlement ID was already imported with different content.",
@@ -123,6 +128,110 @@ export class SettlementService {
       if (!raced) throw importConflict();
       return this.requireIdempotentImport(raced, payloadHash);
     }
+  }
+
+  async reconcile(actor: AuthPrincipal, id: number) {
+    const identity = await this.repository.findDetail(id);
+    if (!identity) throw resourceNotFound();
+    await authorizationService.requireResourceStorePermission({
+      principal: actor,
+      resourceStoreId: identity.batch.storeId,
+      permission: "finance.reconciliation.manage",
+    });
+
+    return this.repository.transaction(async (tx) => {
+      const batch = await this.repository.lockBatch(tx, id);
+      if (!batch) throw resourceNotFound();
+      await authorizationService.requireResourceStorePermission({
+        principal: actor,
+        resourceStoreId: batch.storeId,
+        permission: "finance.reconciliation.manage",
+        tx,
+      });
+      if (batch.status !== "imported") {
+        return this.repository.findDetail(batch.id, tx);
+      }
+
+      const detail = await this.repository.findDetail(batch.id, tx);
+      if (!detail) throw resourceNotFound();
+      const local = await this.repository.listLocalCandidates(tx, batch);
+      const result = matchSettlement({ lines: detail.lines, ...local });
+      const updated = await this.repository.applyMatching(
+        tx,
+        batch,
+        result.lineMatches,
+        result.issues,
+        actor.userId
+      );
+      await auditService.write({
+        tx,
+        actor,
+        storeId: batch.storeId,
+        action: "settlement.reconciled",
+        resourceType: "settlement_batch",
+        resourceId: batch.id,
+        before: { status: batch.status },
+        after: { status: updated.status },
+        metadata: {
+          lineCount: result.lineMatches.length,
+          matchedCount: result.lineMatches.filter((item) => item.matchStatus === "matched").length,
+          issueCount: result.issues.length,
+        },
+      });
+      return this.repository.findDetail(batch.id, tx);
+    });
+  }
+
+  async listIssues(actor: AuthPrincipal, query: ReconciliationIssuesQuery) {
+    await authorizationService.requireStorePermission({
+      principal: actor,
+      storeId: query.storeId,
+      permission: "finance.settlements.read",
+    });
+    return this.repository.listIssues(query.storeId, query.status, query.page, query.limit);
+  }
+
+  async resolveIssue(
+    actor: AuthPrincipal,
+    issueId: number,
+    input: ResolveReconciliationIssueInput
+  ) {
+    const identity = await this.repository.findIssue(issueId);
+    if (!identity) throw resourceNotFound();
+    await authorizationService.requireResourceStorePermission({
+      principal: actor,
+      resourceStoreId: identity.storeId,
+      permission: "finance.reconciliation.manage",
+    });
+    return this.repository.transaction(async (tx) => {
+      const current = await this.repository.lockIssue(tx, issueId);
+      if (!current) throw resourceNotFound();
+      await authorizationService.requireResourceStorePermission({
+        principal: actor,
+        resourceStoreId: current.storeId,
+        permission: "finance.reconciliation.manage",
+        tx,
+      });
+      if (current.status === "resolved") {
+        throw new AppError("Reconciliation issue is already resolved.", 409, "RECONCILIATION_ISSUE_ALREADY_RESOLVED");
+      }
+      const resolved = await this.repository.resolveIssue(tx, issueId, actor.userId, input.reason);
+      const batchReconciled = current.batchId
+        ? await this.repository.markBatchReconciledWhenClear(tx, current.batchId)
+        : false;
+      await auditService.write({
+        tx,
+        actor,
+        storeId: current.storeId,
+        action: "settlement.issue_resolved",
+        resourceType: "settlement_batch",
+        resourceId: current.batchId ?? `issue:${current.id}`,
+        before: { issueId: current.id, status: current.status },
+        after: { issueId: resolved.id, status: resolved.status },
+        metadata: { reason: input.reason, issueType: current.issueType, batchReconciled },
+      });
+      return { issue: resolved, batchReconciled };
+    });
   }
 
   private authorizeImport(actor: AuthPrincipal, storeId: number) {

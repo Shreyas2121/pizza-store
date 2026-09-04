@@ -2,6 +2,8 @@ import { and, asc, count, desc, eq } from "drizzle-orm";
 import { db } from "../../db";
 import {
   reconciliationIssuesTable,
+  paymentAttemptsTable,
+  refundsTable,
   settlementBatchesTable,
   settlementLinesTable,
   storesTable,
@@ -9,6 +11,7 @@ import {
 import type { SettlementBatchStatus, TransactionType } from "../../utils/types";
 import type { SettlementImportBatch } from "./settlement.fixtures";
 import { hashSettlementPayload } from "./settlement.policy";
+import type { MatchingIssue, SettlementLineMatch } from "./settlement-matching";
 
 export class SettlementRepository {
   transaction<T>(work: (tx: TransactionType) => Promise<T>) {
@@ -69,17 +72,147 @@ export class SettlementRepository {
     return created;
   }
 
-  async findDetail(id: number) {
-    const batch = (await db.select().from(settlementBatchesTable)
+  async findDetail(id: number, executor: typeof db | TransactionType = db) {
+    const batch = (await executor.select().from(settlementBatchesTable)
       .where(eq(settlementBatchesTable.id, id)))[0];
     if (!batch) return undefined;
     const [lines, issues] = await Promise.all([
-      db.select().from(settlementLinesTable).where(eq(settlementLinesTable.batchId, id))
+      executor.select().from(settlementLinesTable).where(eq(settlementLinesTable.batchId, id))
         .orderBy(asc(settlementLinesTable.occurredAt), asc(settlementLinesTable.id)),
-      db.select().from(reconciliationIssuesTable).where(eq(reconciliationIssuesTable.batchId, id))
+      executor.select().from(reconciliationIssuesTable).where(eq(reconciliationIssuesTable.batchId, id))
         .orderBy(asc(reconciliationIssuesTable.id)),
     ]);
     return { batch, lines, issues };
+  }
+
+  async lockBatch(tx: TransactionType, id: number) {
+    return (await tx.select().from(settlementBatchesTable)
+      .where(eq(settlementBatchesTable.id, id)).for("update"))[0];
+  }
+
+  async listLocalCandidates(tx: TransactionType, batch: typeof settlementBatchesTable.$inferSelect) {
+    const [paymentAttempts, refunds] = await Promise.all([
+      tx.select({
+        id: paymentAttemptsTable.id,
+        providerPaymentId: paymentAttemptsTable.providerPaymentId,
+        status: paymentAttemptsTable.status,
+        amountPaise: paymentAttemptsTable.amountPaise,
+        currency: paymentAttemptsTable.currency,
+        capturedAt: paymentAttemptsTable.capturedAt,
+      }).from(paymentAttemptsTable).where(and(
+        eq(paymentAttemptsTable.storeId, batch.storeId),
+        eq(paymentAttemptsTable.provider, "razorpay")
+      )),
+      tx.select({
+        id: refundsTable.id,
+        providerRefundId: refundsTable.providerRefundId,
+        status: refundsTable.status,
+        amountPaise: refundsTable.amountPaise,
+        currency: refundsTable.currency,
+        processedAt: refundsTable.processedAt,
+      }).from(refundsTable).where(and(
+        eq(refundsTable.storeId, batch.storeId)
+      )),
+    ]);
+    const inPeriod = (value: Date | null) => Boolean(
+      value && value >= batch.periodFrom && value <= batch.periodTo
+    );
+    return {
+      paymentAttempts: paymentAttempts.map(({ capturedAt, ...item }) => ({
+        ...item,
+        expectedInProvider: item.status === "captured" && inPeriod(capturedAt),
+      })),
+      refunds: refunds.map(({ processedAt, ...item }) => ({
+        ...item,
+        expectedInProvider: item.status === "processed" && inPeriod(processedAt),
+      })),
+    };
+  }
+
+  async applyMatching(
+    tx: TransactionType,
+    batch: typeof settlementBatchesTable.$inferSelect,
+    matches: SettlementLineMatch[],
+    issues: MatchingIssue[],
+    ownerUserId: number
+  ) {
+    for (const match of matches) {
+      await tx.update(settlementLinesTable).set({
+        matchStatus: match.matchStatus,
+        paymentAttemptId: match.paymentAttemptId,
+        refundId: match.refundId,
+        updatedAt: new Date(),
+      }).where(and(
+        eq(settlementLinesTable.id, match.lineId),
+        eq(settlementLinesTable.batchId, batch.id),
+        eq(settlementLinesTable.storeId, batch.storeId)
+      ));
+    }
+    if (issues.length > 0) {
+      await tx.insert(reconciliationIssuesTable).values(issues.map((item) => ({
+        storeId: batch.storeId,
+        batchId: batch.id,
+        settlementLineId: item.settlementLineId,
+        paymentAttemptId: item.paymentAttemptId,
+        refundId: item.refundId,
+        issueType: item.issueType,
+        severity: item.severity,
+        ownerUserId,
+        details: item.details,
+      })));
+    }
+    const now = new Date();
+    return (await tx.update(settlementBatchesTable).set({
+      status: issues.length > 0 ? "needs_review" : "reconciled",
+      reconciledAt: issues.length > 0 ? null : now,
+      updatedAt: now,
+    }).where(eq(settlementBatchesTable.id, batch.id)).returning())[0];
+  }
+
+  async findIssue(id: number, executor: typeof db | TransactionType = db) {
+    return (await executor.select().from(reconciliationIssuesTable)
+      .where(eq(reconciliationIssuesTable.id, id)))[0];
+  }
+
+  async lockIssue(tx: TransactionType, id: number) {
+    return (await tx.select().from(reconciliationIssuesTable)
+      .where(eq(reconciliationIssuesTable.id, id)).for("update"))[0];
+  }
+
+  async resolveIssue(tx: TransactionType, id: number, actorId: number, reason: string) {
+    const now = new Date();
+    return (await tx.update(reconciliationIssuesTable).set({
+      status: "resolved",
+      resolutionNote: reason,
+      resolvedBy: actorId,
+      resolvedAt: now,
+      updatedAt: now,
+    }).where(eq(reconciliationIssuesTable.id, id)).returning())[0];
+  }
+
+  async markBatchReconciledWhenClear(tx: TransactionType, batchId: number) {
+    const [{ total }] = await tx.select({ total: count() }).from(reconciliationIssuesTable)
+      .where(and(eq(reconciliationIssuesTable.batchId, batchId), eq(reconciliationIssuesTable.status, "open")));
+    if (Number(total) > 0) return false;
+    await tx.update(settlementBatchesTable).set({
+      status: "reconciled",
+      reconciledAt: new Date(),
+      updatedAt: new Date(),
+    }).where(eq(settlementBatchesTable.id, batchId));
+    return true;
+  }
+
+  async listIssues(storeId: number, status: "open" | "resolved" | undefined, page: number, limit: number) {
+    const where = status
+      ? and(eq(reconciliationIssuesTable.storeId, storeId), eq(reconciliationIssuesTable.status, status))
+      : eq(reconciliationIssuesTable.storeId, storeId);
+    const [{ total }] = await db.select({ total: count() }).from(reconciliationIssuesTable).where(where);
+    const items = await db.select().from(reconciliationIssuesTable).where(where)
+      .orderBy(desc(reconciliationIssuesTable.createdAt), desc(reconciliationIssuesTable.id))
+      .limit(limit).offset((page - 1) * limit);
+    const parsedTotal = Number(total);
+    return { items, meta: { total: parsedTotal, page, limit,
+      totalPages: Math.ceil(parsedTotal / limit), hasNextPage: page * limit < parsedTotal } };
   }
 
   async list(storeId: number, status: SettlementBatchStatus | undefined, page: number, limit: number) {

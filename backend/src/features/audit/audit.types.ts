@@ -32,7 +32,10 @@ export type RefundAuditAction =
   | "refund.provider_processing"
   | "refund.provider_processed"
   | "refund.provider_failed";
-export type SettlementAuditAction = "settlement.imported";
+export type SettlementAuditAction =
+  | "settlement.imported"
+  | "settlement.reconciled"
+  | "settlement.issue_resolved";
 
 export type AuditAction = StaffAuditAction | StoreAuditAction | OrderAuditAction | InventoryAuditAction | RefundAuditAction | SettlementAuditAction | SystemAuditAction;
 
