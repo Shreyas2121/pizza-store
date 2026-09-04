@@ -3,7 +3,7 @@ import { URL } from './src/constants';
 
 export default defineConfig({
     out: './migrations',
-    schema: './src/db/schema/*.ts',
+    schema: './src/db/schema/index.ts',
     dialect: 'postgresql',
     dbCredentials: {
         url: URL

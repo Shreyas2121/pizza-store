@@ -99,6 +99,38 @@ export const REFUND_STATUSES = [
 export type RefundStatus = (typeof REFUND_STATUSES)[number];
 export const REFUND_ALLOCATION_KINDS = ["item", "delivery_fee"] as const;
 export type RefundAllocationKind = (typeof REFUND_ALLOCATION_KINDS)[number];
+export const SETTLEMENT_BATCH_STATUSES = [
+  "imported",
+  "reconciling",
+  "needs_review",
+  "reconciled",
+] as const;
+export type SettlementBatchStatus = (typeof SETTLEMENT_BATCH_STATUSES)[number];
+export const SETTLEMENT_LINE_TYPES = [
+  "payment",
+  "refund",
+  "adjustment",
+] as const;
+export type SettlementLineType = (typeof SETTLEMENT_LINE_TYPES)[number];
+export const SETTLEMENT_MATCH_STATUSES = [
+  "unmatched",
+  "matched",
+  "mismatch",
+  "ignored",
+] as const;
+export type SettlementMatchStatus = (typeof SETTLEMENT_MATCH_STATUSES)[number];
+export const RECONCILIATION_ISSUE_TYPES = [
+  "missing_local",
+  "missing_provider",
+  "amount_mismatch",
+  "currency_mismatch",
+  "duplicate",
+  "unexpected_status",
+  "stale_pending",
+] as const;
+export type ReconciliationIssueType = (typeof RECONCILIATION_ISSUE_TYPES)[number];
+export type ReconciliationIssueSeverity = "info" | "warning" | "error" | "critical";
+export type ReconciliationIssueStatus = "open" | "resolved";
 export type CouponRedemptionStatus = "reserved" | "consumed" | "released";
 export type CouponType = "percentage" | "fixed";
 export type ChatStatus = "open" | "close" | "rejected" | "pending";

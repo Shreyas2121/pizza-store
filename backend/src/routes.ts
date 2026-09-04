@@ -21,6 +21,7 @@ import { staffInvitationRoutes, staffRoutes } from "./features/staff/staff.route
 import { globalAuditRoutes, storeAuditRoutes } from "./features/audit/audit.routes";
 import { checkoutRoutes } from "./features/checkout/checkout.routes";
 import { refundRoutes } from "./features/refunds/refund.routes";
+import { settlementRoutes } from "./features/settlements/settlement.routes";
 
 export const mainRoutes = Router();
 
@@ -35,6 +36,7 @@ mainRoutes.use("/checkout", checkoutRoutes);
 mainRoutes.use("/order", orderRoutes);
 mainRoutes.use("/payments", paymentRoutes);
 mainRoutes.use("/finance", refundRoutes);
+mainRoutes.use("/finance", settlementRoutes);
 mainRoutes.use("/coupon", couponRoutes);
 mainRoutes.use("/dashboard", dashRoutes);
 mainRoutes.use("/chat", chatRoutes);

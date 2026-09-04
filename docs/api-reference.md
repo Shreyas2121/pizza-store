@@ -1130,6 +1130,9 @@ Target financial endpoints mounted under `/api/v1/finance/*` and `/api/v1/checko
 - `GET /finance/settlements` 🔒 — List Razorpay settlement batches.
 - `GET /finance/settlements/:id` 🔒 — Settlement batch detail, fee breakdown, and matched lines.
 - `POST /finance/settlements/import` 🔒 — Import settlement fixture or test provider sync.
+  - Fixture body: `{ "source": "fixture", "providerSettlementId": "set_m1_s1_001" }`.
+  - Test-provider body: `{ "source": "test_provider", "storeId": 1, "providerSettlementId": "set_..." }`.
+  - Requires `finance.reconciliation.manage`; repeated identical imports return the existing batch.
 - `GET /finance/reconciliation/issues` 🔒 — Reconciliation mismatch and observation issue queue.
 - `POST /finance/reconciliation/issues/:id/resolve` 🔒 — Resolve reconciliation issue with audit note.
 

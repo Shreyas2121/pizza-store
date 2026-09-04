@@ -32,8 +32,9 @@ export type RefundAuditAction =
   | "refund.provider_processing"
   | "refund.provider_processed"
   | "refund.provider_failed";
+export type SettlementAuditAction = "settlement.imported";
 
-export type AuditAction = StaffAuditAction | StoreAuditAction | OrderAuditAction | InventoryAuditAction | RefundAuditAction | SystemAuditAction;
+export type AuditAction = StaffAuditAction | StoreAuditAction | OrderAuditAction | InventoryAuditAction | RefundAuditAction | SettlementAuditAction | SystemAuditAction;
 
 export type AuditResourceType =
   | "store_membership"
@@ -43,6 +44,7 @@ export type AuditResourceType =
   | "delivery_zone"
   | "order"
   | "refund"
+  | "settlement_batch"
   | "system";
 
 export interface StaffAuditState {

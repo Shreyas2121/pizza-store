@@ -316,6 +316,30 @@ POST /api/v1/finance/reconciliation/issues/:id/resolve
 }
 ```
 
+#### `POST /api/v1/finance/settlements/import`
+
+Checked-in fixture import (credential-free and idempotent by provider settlement ID plus payload hash):
+
+```json
+{
+  "source": "fixture",
+  "providerSettlementId": "set_m1_s1_001"
+}
+```
+
+Optional Razorpay Test Mode batch sync:
+
+```json
+{
+  "source": "test_provider",
+  "storeId": 1,
+  "providerSettlementId": "set_test_provider_id"
+}
+```
+
+Fixture imports include transaction lines. Test-provider batch sync imports the provider aggregate;
+transaction-level provider matching remains part of P2.9.
+
 ---
 
 ### 5.4 Cash management

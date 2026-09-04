@@ -26,6 +26,11 @@ import { paymentsTable } from "./payment.schema";
 import { paymentAttemptsTable } from "./payment-attempt.schema";
 import { refundAllocationsTable, refundsTable } from "./refund.schema";
 import {
+  reconciliationIssuesTable,
+  settlementBatchesTable,
+  settlementLinesTable,
+} from "./settlement.schema";
+import {
   ordersTable,
   orderItemsTable,
   orderItemCustomizationsTable,
@@ -398,6 +403,70 @@ export const refundAllocationsRelations = relations(
     orderItem: one(orderItemsTable, {
       fields: [refundAllocationsTable.orderItemId],
       references: [orderItemsTable.id],
+    }),
+  })
+);
+
+// Settlement and reconciliation relations
+export const settlementBatchesRelations = relations(
+  settlementBatchesTable,
+  ({ one, many }) => ({
+    store: one(storesTable, {
+      fields: [settlementBatchesTable.storeId],
+      references: [storesTable.id],
+    }),
+    importedByUser: one(usersTable, {
+      fields: [settlementBatchesTable.importedBy],
+      references: [usersTable.id],
+    }),
+    lines: many(settlementLinesTable),
+    issues: many(reconciliationIssuesTable),
+  })
+);
+
+export const settlementLinesRelations = relations(
+  settlementLinesTable,
+  ({ one, many }) => ({
+    batch: one(settlementBatchesTable, {
+      fields: [settlementLinesTable.batchId],
+      references: [settlementBatchesTable.id],
+    }),
+    paymentAttempt: one(paymentAttemptsTable, {
+      fields: [settlementLinesTable.paymentAttemptId],
+      references: [paymentAttemptsTable.id],
+    }),
+    refund: one(refundsTable, {
+      fields: [settlementLinesTable.refundId],
+      references: [refundsTable.id],
+    }),
+    issues: many(reconciliationIssuesTable),
+  })
+);
+
+export const reconciliationIssuesRelations = relations(
+  reconciliationIssuesTable,
+  ({ one }) => ({
+    store: one(storesTable, {
+      fields: [reconciliationIssuesTable.storeId],
+      references: [storesTable.id],
+    }),
+    batch: one(settlementBatchesTable, {
+      fields: [reconciliationIssuesTable.batchId],
+      references: [settlementBatchesTable.id],
+    }),
+    line: one(settlementLinesTable, {
+      fields: [reconciliationIssuesTable.settlementLineId],
+      references: [settlementLinesTable.id],
+    }),
+    owner: one(usersTable, {
+      fields: [reconciliationIssuesTable.ownerUserId],
+      references: [usersTable.id],
+      relationName: "reconciliationIssueOwner",
+    }),
+    resolvedByUser: one(usersTable, {
+      fields: [reconciliationIssuesTable.resolvedBy],
+      references: [usersTable.id],
+      relationName: "reconciliationIssueResolver",
     }),
   })
 );
