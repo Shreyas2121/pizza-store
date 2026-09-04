@@ -10,6 +10,7 @@ import {
   Store,
   ScrollText,
   Users,
+  Landmark,
 } from "lucide-react";
 
 export interface SidebarLinkConfig {
@@ -54,6 +55,12 @@ export const sidebarLinks: SidebarLinkConfig[] = [
     to: "/admin/orders",
     icon: ShoppingCart,
     requiredPermission: "orders.read",
+  },
+  {
+    label: "Finance",
+    to: "/admin/finance",
+    icon: Landmark,
+    requiredPermission: "finance.refunds.create",
   },
   {
     label: "Staff",

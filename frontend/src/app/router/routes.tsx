@@ -35,6 +35,7 @@ const AdminStoreDeliveryZones = lazy(() => import("@/features/store").then((m) =
 const AdminStaff = lazy(() => import("@/features/staff").then((m) => ({ default: m.AdminStaffPage })));
 const AcceptStaffInvitation = lazy(() => import("@/features/staff").then((m) => ({ default: m.AcceptStaffInvitationPage })));
 const AdminAudit = lazy(() => import("@/features/audit").then((m) => ({ default: m.AdminAuditPage })));
+const FinanceWorkspace = lazy(() => import("@/features/finance").then((m) => ({ default: m.FinanceWorkspacePage })));
 
 export const AppRoutes = () => (
   <>
@@ -153,6 +154,14 @@ export const AppRoutes = () => (
         element={
           <StaffProtectedRoute requiredPermission="store.audit.read">
             <AdminAudit />
+          </StaffProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/finance"
+        element={
+          <StaffProtectedRoute requiredPermission="finance.refunds.create">
+            <FinanceWorkspace />
           </StaffProtectedRoute>
         }
       />
