@@ -23,6 +23,11 @@ export class SettlementRepository {
       .where(eq(storesTable.id, storeId)))[0]);
   }
 
+  async findStore(storeId: number, executor: typeof db | TransactionType = db) {
+    return (await executor.select({ id: storesTable.id, timezone: storesTable.timezone })
+      .from(storesTable).where(eq(storesTable.id, storeId)))[0];
+  }
+
   async findByProviderId(providerSettlementId: string, executor: typeof db | TransactionType = db) {
     return (await executor.select().from(settlementBatchesTable)
       .where(eq(settlementBatchesTable.providerSettlementId, providerSettlementId)))[0];

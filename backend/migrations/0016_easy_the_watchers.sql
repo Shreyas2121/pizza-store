@@ -1,0 +1,47 @@
+CREATE TABLE "financial_outbox" (
+	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "financial_outbox_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
+	"event_id" text NOT NULL,
+	"event_type" text NOT NULL,
+	"schema_version" integer NOT NULL,
+	"source_type" text NOT NULL,
+	"source_id" text NOT NULL,
+	"source_version" integer NOT NULL,
+	"store_id" integer NOT NULL,
+	"currency" text DEFAULT 'INR' NOT NULL,
+	"occurred_at" timestamp with time zone NOT NULL,
+	"business_date" text NOT NULL,
+	"timezone" text NOT NULL,
+	"actor_id" integer,
+	"correlation_id" text,
+	"causation_id" text,
+	"payload" jsonb NOT NULL,
+	"payload_hash" text NOT NULL,
+	"status" text DEFAULT 'pending' NOT NULL,
+	"attempt_count" integer DEFAULT 0 NOT NULL,
+	"available_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"claimed_at" timestamp with time zone,
+	"claimed_by" text,
+	"processed_at" timestamp with time zone,
+	"last_error" text,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "financial_outbox_event_id_unique" UNIQUE("event_id"),
+	CONSTRAINT "financial_outbox_source_event_version_unique" UNIQUE("source_type","source_id","event_type","source_version"),
+	CONSTRAINT "financial_outbox_event_id_present" CHECK (nullif(btrim("financial_outbox"."event_id"), '') is not null),
+	CONSTRAINT "financial_outbox_event_type_present" CHECK (nullif(btrim("financial_outbox"."event_type"), '') is not null),
+	CONSTRAINT "financial_outbox_source_present" CHECK (nullif(btrim("financial_outbox"."source_type"), '') is not null and nullif(btrim("financial_outbox"."source_id"), '') is not null),
+	CONSTRAINT "financial_outbox_versions_positive" CHECK ("financial_outbox"."schema_version" > 0 and "financial_outbox"."source_version" > 0),
+	CONSTRAINT "financial_outbox_currency_inr" CHECK ("financial_outbox"."currency" = 'INR'),
+	CONSTRAINT "financial_outbox_business_date_valid" CHECK ("financial_outbox"."business_date" ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'),
+	CONSTRAINT "financial_outbox_timezone_present" CHECK (nullif(btrim("financial_outbox"."timezone"), '') is not null),
+	CONSTRAINT "financial_outbox_payload_hash_valid" CHECK ("financial_outbox"."payload_hash" ~ '^[0-9a-f]{64}$'),
+	CONSTRAINT "financial_outbox_status_valid" CHECK ("financial_outbox"."status" in ('pending', 'processing', 'processed', 'failed', 'dead_letter')),
+	CONSTRAINT "financial_outbox_attempts_nonnegative" CHECK ("financial_outbox"."attempt_count" >= 0),
+	CONSTRAINT "financial_outbox_claim_evidence" CHECK (("financial_outbox"."status" = 'processing') = ("financial_outbox"."claimed_at" is not null and nullif(btrim("financial_outbox"."claimed_by"), '') is not null)),
+	CONSTRAINT "financial_outbox_processed_evidence" CHECK (("financial_outbox"."status" = 'processed') = ("financial_outbox"."processed_at" is not null))
+);
+--> statement-breakpoint
+ALTER TABLE "financial_outbox" ADD CONSTRAINT "financial_outbox_store_id_stores_id_fk" FOREIGN KEY ("store_id") REFERENCES "public"."stores"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "financial_outbox" ADD CONSTRAINT "financial_outbox_actor_id_users_id_fk" FOREIGN KEY ("actor_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "financial_outbox_claim_idx" ON "financial_outbox" USING btree ("status","available_at","id");--> statement-breakpoint
+CREATE INDEX "financial_outbox_store_occurred_idx" ON "financial_outbox" USING btree ("store_id","occurred_at");

@@ -1,5 +1,6 @@
 import type { AuthPrincipal } from "../auth/auth.types";
 import { AppError } from "../../utils/error";
+import { businessDateFor } from "../../utils/business-date";
 import type { SettlementBatchStatus } from "../../utils/types";
 import authorizationService, { resourceNotFound } from "../access/access.service";
 import auditService from "../audit/audit.service";
@@ -13,6 +14,8 @@ import type {
   ReconciliationIssuesQuery,
   ResolveReconciliationIssueInput,
 } from "./settlement.schemas";
+import financialEventService from "../finance-events/financial-event.service";
+import type { FinancialEventWriter } from "../finance-events/financial-event.types";
 
 const importConflict = () => new AppError(
   "Provider settlement ID was already imported with different content.",
@@ -26,7 +29,8 @@ const isUniqueViolation = (error: unknown) =>
 export class SettlementService {
   constructor(
     private readonly repository: SettlementRepository = settlementRepository,
-    private readonly providerFactory: () => SettlementProvider = createTestSettlementProvider
+    private readonly providerFactory: () => SettlementProvider = createTestSettlementProvider,
+    private readonly eventWriter: FinancialEventWriter = financialEventService
   ) {}
 
   async list(actor: AuthPrincipal, query: {
@@ -178,6 +182,9 @@ export class SettlementService {
           issueCount: result.issues.length,
         },
       });
+      if (updated.status === "reconciled") {
+        await this.emitReconciledEvent(tx, actor, { batch: updated, lines: detail.lines }, result.lineMatches);
+      }
       return this.repository.findDetail(batch.id, tx);
     });
   }
@@ -230,6 +237,11 @@ export class SettlementService {
         after: { issueId: resolved.id, status: resolved.status },
         metadata: { reason: input.reason, issueType: current.issueType, batchReconciled },
       });
+      if (batchReconciled && current.batchId) {
+        const detail = await this.repository.findDetail(current.batchId, tx);
+        if (!detail) throw resourceNotFound();
+        await this.emitReconciledEvent(tx, actor, detail);
+      }
       return { issue: resolved, batchReconciled };
     });
   }
@@ -239,6 +251,57 @@ export class SettlementService {
       principal: actor,
       storeId,
       permission: "finance.reconciliation.manage",
+    });
+  }
+
+  private async emitReconciledEvent(
+    tx: Parameters<FinancialEventWriter["write"]>[0],
+    actor: AuthPrincipal,
+    detail: Pick<NonNullable<Awaited<ReturnType<SettlementRepository["findDetail"]>>>, "batch" | "lines">,
+    matches?: Array<{
+      lineId: number;
+      matchStatus: string;
+      paymentAttemptId: number | null;
+      refundId: number | null;
+    }>
+  ) {
+    const store = await this.repository.findStore(detail.batch.storeId, tx);
+    if (!store) throw resourceNotFound();
+    const matchById = new Map(matches?.map((item) => [item.lineId, item]));
+    await this.eventWriter.write(tx, {
+      eventType: "settlement.reconciled",
+      schemaVersion: 1,
+      sourceType: "settlement_batch",
+      sourceId: detail.batch.id,
+      sourceVersion: 1,
+      storeId: detail.batch.storeId,
+      currency: detail.batch.currency,
+      occurredAt: detail.batch.settledAt,
+      businessDate: businessDateFor(detail.batch.settledAt, store.timezone),
+      timezone: store.timezone,
+      actorId: actor.userId,
+      payload: {
+        batchId: detail.batch.id,
+        providerSettlementId: detail.batch.providerSettlementId,
+        grossAmountPaise: detail.batch.grossAmountPaise,
+        netAmountPaise: detail.batch.netAmountPaise,
+        feePaise: detail.batch.feePaise,
+        feeTaxPaise: detail.batch.feeTaxPaise,
+        adjustments: detail.lines.filter((line) => line.type === "adjustment").map((line) => ({
+          settlementLineId: line.id,
+          amountPaise: line.amountPaise,
+          providerEntityId: line.providerEntityId,
+        })),
+        lineMatches: detail.lines.map((line) => ({
+          settlementLineId: line.id,
+          matchStatus: matchById.get(line.id)?.matchStatus ?? line.matchStatus,
+          paymentAttemptId: matchById.get(line.id)?.paymentAttemptId ?? line.paymentAttemptId,
+          refundId: matchById.get(line.id)?.refundId ?? line.refundId,
+        })),
+        utr: detail.batch.utr,
+        providerReference: detail.batch.providerReference,
+        settledAt: detail.batch.settledAt.toISOString(),
+      },
     });
   }
 

@@ -131,6 +131,10 @@ export const RECONCILIATION_ISSUE_TYPES = [
 export type ReconciliationIssueType = (typeof RECONCILIATION_ISSUE_TYPES)[number];
 export type ReconciliationIssueSeverity = "info" | "warning" | "error" | "critical";
 export type ReconciliationIssueStatus = "open" | "resolved";
+export const FINANCIAL_OUTBOX_STATUSES = [
+  "pending", "processing", "processed", "failed", "dead_letter",
+] as const;
+export type FinancialOutboxStatus = (typeof FINANCIAL_OUTBOX_STATUSES)[number];
 export type CouponRedemptionStatus = "reserved" | "consumed" | "released";
 export type CouponType = "percentage" | "fixed";
 export type ChatStatus = "open" | "close" | "rejected" | "pending";

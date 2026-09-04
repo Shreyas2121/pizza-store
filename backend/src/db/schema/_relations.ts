@@ -46,6 +46,7 @@ import {
 } from "./access.schema";
 import { auditLogsTable } from "./audit.schema";
 import { taxRulesTable } from "./tax.schema";
+import { financialOutboxTable } from "./financial-outbox.schema";
 
 /**
  * All Drizzle relations live here to avoid circular imports between
@@ -669,5 +670,16 @@ export const auditLogsRelations = relations(auditLogsTable, ({ one }) => ({
   store: one(storesTable, {
     fields: [auditLogsTable.storeId],
     references: [storesTable.id],
+  }),
+}));
+
+export const financialOutboxRelations = relations(financialOutboxTable, ({ one }) => ({
+  store: one(storesTable, {
+    fields: [financialOutboxTable.storeId],
+    references: [storesTable.id],
+  }),
+  actor: one(usersTable, {
+    fields: [financialOutboxTable.actorId],
+    references: [usersTable.id],
   }),
 }));
