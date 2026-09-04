@@ -10,6 +10,8 @@ import checkoutService from "../checkout/checkout.service";
 import inventoryService from "../inventory/inventory.service";
 import paymentService from "../payments/payment.service";
 import { OrderService } from "./order.service";
+import type { CostSnapshotWriter } from "../costs/cost.service";
+import type { FinancialEventWriter } from "../finance-events/financial-event.types";
 
 const adminActor: AuthPrincipal = {
   userId: 1,
@@ -109,12 +111,20 @@ const createTestHarness = () => {
     }),
   };
 
-  const orderService = new OrderService(authService, auditService);
+  const costService: CostSnapshotWriter = {
+    snapshotOrderItems: vi.fn().mockResolvedValue([]),
+  };
+  const eventWriter: FinancialEventWriter = {
+    write: vi.fn().mockResolvedValue(undefined),
+  };
+  const orderService = new OrderService(authService, auditService, costService, eventWriter);
 
   return {
     orderService,
     authService,
     auditService,
+    costService,
+    eventWriter,
     writtenAudits,
     accessRepo,
   };
@@ -594,7 +604,17 @@ describe("OrderService unit tests", () => {
     });
 
     it("marks the linked COD payment completed and sets timestamps when the order is delivered", async () => {
-      const { orderService } = createTestHarness();
+      const { orderService, costService, eventWriter } = createTestHarness();
+      vi.mocked(costService.snapshotOrderItems).mockResolvedValue([
+        {
+          orderItemId: 7,
+          productId: 8,
+          quantity: 2,
+          costVersionId: 9,
+          unitCostPaise: 4_500,
+          lineCostPaise: 9_000,
+        },
+      ]);
 
       const set = vi.fn((values: Record<string, unknown>) => ({
         where: vi.fn(() => ({
@@ -620,6 +640,7 @@ describe("OrderService unit tests", () => {
                     couponId: null,
                     deliveredAt: null,
                     recognizedAt: null,
+                    pricingBusinessDate: "2026-09-04",
                   },
                 ]),
               })),
@@ -651,6 +672,27 @@ describe("OrderService unit tests", () => {
           status: "delivered",
           deliveredAt: expect.any(Date),
           recognizedAt: expect.any(Date),
+        })
+      );
+      expect(costService.snapshotOrderItems).toHaveBeenCalledWith(mockTx, {
+        orderId: 42,
+        storeId: 1,
+        businessDate: "2026-09-04",
+      });
+      expect(eventWriter.write).toHaveBeenCalledWith(
+        mockTx,
+        expect.objectContaining({
+          eventType: "order.delivered",
+          schemaVersion: 1,
+          sourceId: 42,
+          payload: expect.objectContaining({
+            lineCostSnapshots: [
+              expect.objectContaining({
+                costVersionId: 9,
+                lineCostPaise: 9_000,
+              }),
+            ],
+          }),
         })
       );
     });

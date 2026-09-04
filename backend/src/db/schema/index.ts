@@ -19,6 +19,7 @@ export * from "./payment-event.schema";
 export * from "./refund.schema";
 export * from "./settlement.schema";
 export * from "./financial-outbox.schema";
+export * from "./product-cost.schema";
 export * from "./order.schema";
 export * from "./inventory.schema";
 export * from "./chat.schema";

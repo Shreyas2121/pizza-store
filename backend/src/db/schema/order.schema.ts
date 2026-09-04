@@ -17,6 +17,7 @@ import { couponsTable } from "./coupon.schema";
 import { customizationOptionsTable } from "./customization.schema";
 import { deliveryPricingRulesTable, storesTable } from "./store.schema";
 import { taxRulesTable } from "./tax.schema";
+import { productCostVersionsTable } from "./product-cost.schema";
 
 export const ordersTable = pgTable(
   "orders",
@@ -153,6 +154,7 @@ export const orderItemsTable = pgTable(
     lineTotalPaise: integer("line_total_paise").notNull(),
     unitCostPaise: integer("unit_cost_paise"),
     lineCostPaise: integer("line_cost_paise"),
+    costVersionId: integer("cost_version_id").references(() => productCostVersionsTable.id),
     hsnSacCode: text("hsn_sac_code").notNull(),
     createdAt,
     updatedAt,
@@ -197,8 +199,8 @@ export const orderItemsTable = pgTable(
     ),
     check(
       "order_items_cost_snapshot_complete",
-      sql`(${table.unitCostPaise} is null and ${table.lineCostPaise} is null)
-        or (${table.unitCostPaise} is not null and ${table.lineCostPaise} is not null)`
+      sql`(${table.unitCostPaise} is null and ${table.lineCostPaise} is null and ${table.costVersionId} is null)
+        or (${table.unitCostPaise} is not null and ${table.lineCostPaise} is not null and ${table.costVersionId} is not null)`
     ),
     check(
       "order_items_cost_amounts_valid",

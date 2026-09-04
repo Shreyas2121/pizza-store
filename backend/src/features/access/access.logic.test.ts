@@ -38,6 +38,8 @@ const expectedPermissions: Record<StoreRole, readonly Permission[]> = {
     "finance.refunds.approve",
     "finance.cash.manage",
     "finance.settlements.read",
+    "finance.costs.read",
+    "finance.costs.manage",
   ],
   finance_manager: [
     "dashboard.operations.read",
@@ -58,6 +60,8 @@ const expectedPermissions: Record<StoreRole, readonly Permission[]> = {
     "finance.reconciliation.manage",
     "finance.ledger.read",
     "finance.ledger.post",
+    "finance.costs.read",
+    "finance.costs.manage",
   ],
   payroll_manager: [
     "payroll.read",
@@ -83,6 +87,7 @@ const expectedPermissions: Record<StoreRole, readonly Permission[]> = {
     "inventory.threshold.update",
     "store.products.read",
     "store.products.availability.update",
+    "finance.costs.read",
   ],
 };
 

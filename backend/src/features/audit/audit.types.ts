@@ -36,8 +36,9 @@ export type SettlementAuditAction =
   | "settlement.imported"
   | "settlement.reconciled"
   | "settlement.issue_resolved";
+export type CostAuditAction = "product_cost.version_created";
 
-export type AuditAction = StaffAuditAction | StoreAuditAction | OrderAuditAction | InventoryAuditAction | RefundAuditAction | SettlementAuditAction | SystemAuditAction;
+export type AuditAction = StaffAuditAction | StoreAuditAction | OrderAuditAction | InventoryAuditAction | RefundAuditAction | SettlementAuditAction | CostAuditAction | SystemAuditAction;
 
 export type AuditResourceType =
   | "store_membership"
@@ -48,6 +49,7 @@ export type AuditResourceType =
   | "order"
   | "refund"
   | "settlement_batch"
+  | "product_cost_version"
   | "system";
 
 export interface StaffAuditState {

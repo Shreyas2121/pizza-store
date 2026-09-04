@@ -34,6 +34,8 @@ export const STORE_PERMISSIONS = [
   "finance.ledger.read",
   "finance.ledger.post",
   "finance.period.close",
+  "finance.costs.read",
+  "finance.costs.manage",
   "payroll.read",
   "payroll.manage",
   "payroll.calculate",
@@ -86,6 +88,8 @@ export const STORE_ROLE_PERMISSIONS = {
     "finance.refunds.approve",
     "finance.cash.manage",
     "finance.settlements.read",
+    "finance.costs.read",
+    "finance.costs.manage",
   ],
   finance_manager: [
     "dashboard.operations.read",
@@ -106,6 +110,8 @@ export const STORE_ROLE_PERMISSIONS = {
     "finance.reconciliation.manage",
     "finance.ledger.read",
     "finance.ledger.post",
+    "finance.costs.read",
+    "finance.costs.manage",
   ],
   payroll_manager: [
     "payroll.read",
@@ -131,6 +137,7 @@ export const STORE_ROLE_PERMISSIONS = {
     "inventory.threshold.update",
     "store.products.read",
     "store.products.availability.update",
+    "finance.costs.read",
   ],
 } as const satisfies Record<StoreRole, readonly Permission[]>;
 

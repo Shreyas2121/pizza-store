@@ -61,6 +61,7 @@ export const storeProductsTable = pgTable(
     updatedAt,
   },
   (table) => [
+    unique("store_products_id_store_id_unique").on(table.id, table.storeId),
     unique("store_products_store_id_product_id_unique").on(
       table.storeId,
       table.productId

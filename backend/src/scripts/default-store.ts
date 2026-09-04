@@ -7,9 +7,28 @@ import {
   ordersTable,
   productsTable,
   storeProductsTable,
+  productCostVersionsTable,
   storesTable,
   taxRulesTable,
 } from "../db/schema";
+
+const defaultUnitCostsPaise: Record<string, number> = {
+  "margherita-pizza": 11_000,
+  "pepperoni-feast": 18_000,
+  "bbq-chicken-pizza": 20_000,
+  "veggie-supreme": 15_000,
+  "farmhouse-pizza": 14_500,
+  "meat-lovers-pizza": 23_000,
+  "cheese-burst-pizza": 17_500,
+  "creamy-alfredo-pasta": 9_000,
+  "garlic-breadsticks": 4_000,
+  "classic-french-fries": 3_500,
+  "grilled-chicken-wings": 12_000,
+  "coca-cola": 3_000,
+  "fresh-lemonade": 2_800,
+  "cold-coffee": 4_500,
+  "fruit-punch": 3_800,
+};
 
 const DEFAULT_STORE = {
   name: "PizzaStore - Mumbai Central",
@@ -72,6 +91,29 @@ export async function seedDefaultStore() {
         .onConflictDoNothing({
           target: [storeProductsTable.storeId, storeProductsTable.productId],
         });
+    }
+
+    const costTargets = await tx.select({
+      storeProductId: storeProductsTable.id,
+      slug: productsTable.slug,
+    }).from(storeProductsTable)
+      .innerJoin(productsTable, eq(storeProductsTable.productId, productsTable.id))
+      .where(eq(storeProductsTable.storeId, store.id));
+    const seededCosts = costTargets.flatMap((target) => {
+      const unitCostPaise = defaultUnitCostsPaise[target.slug];
+      return unitCostPaise === undefined ? [] : [{
+        storeProductId: target.storeProductId,
+        storeId: store.id,
+        unitCostPaise,
+        effectiveFrom: "2026-01-01",
+        source: "deterministic_demo_seed",
+        createdBy: null,
+      }];
+    });
+    if (seededCosts.length > 0) {
+      await tx.insert(productCostVersionsTable).values(seededCosts).onConflictDoNothing({
+        target: [productCostVersionsTable.storeProductId, productCostVersionsTable.effectiveFrom],
+      });
     }
 
     const migratedZones = await tx

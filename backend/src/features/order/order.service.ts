@@ -16,6 +16,12 @@ import inventoryService from "../inventory/inventory.service";
 import paymentService from "../payments/payment.service";
 import { assertValidOrderTransition } from "./order.logic";
 import { orderGrandTotalRupees, toOrderResponse } from "./order.mapper";
+import defaultCostService, {
+  type CostSnapshotWriter,
+  type OrderCostSnapshot,
+} from "../costs/cost.service";
+import financialEventService from "../finance-events/financial-event.service";
+import type { FinancialEventWriter } from "../finance-events/financial-event.types";
 
 interface CreateCodOrderData {
   userId: number;
@@ -26,7 +32,9 @@ interface CreateCodOrderData {
 class OrderService {
   constructor(
     private readonly authorizationService: AuthorizationService = defaultAuthorizationService,
-    private readonly auditService: AuditWriter = defaultAuditService
+    private readonly auditService: AuditWriter = defaultAuditService,
+    private readonly costService: CostSnapshotWriter = defaultCostService,
+    private readonly eventWriter: FinancialEventWriter = financialEventService
   ) { }
 
   async createOrder(data: CreateCodOrderData) {
@@ -288,13 +296,23 @@ class OrderService {
       }
 
       const now = new Date();
+      let costSnapshots: OrderCostSnapshot[] = [];
+      let deliveryOccurredAt: Date | null = null;
+      if (status === "delivered") {
+        costSnapshots = await this.costService.snapshotOrderItems(tx, {
+          orderId: order.id,
+          storeId: order.storeId,
+          businessDate: order.pricingBusinessDate,
+        });
+        deliveryOccurredAt = order.deliveredAt ?? now;
+      }
       const orderUpdates: Partial<typeof ordersTable.$inferInsert> = {
         status,
         updatedAt: now,
       };
 
       if (status === "delivered") {
-        orderUpdates.deliveredAt = order.deliveredAt ?? now;
+        orderUpdates.deliveredAt = deliveryOccurredAt;
         orderUpdates.recognizedAt = order.recognizedAt ?? now;
       } else if (status === "cancelled") {
         orderUpdates.cancelledAt = order.cancelledAt ?? now;
@@ -320,6 +338,35 @@ class OrderService {
             orderId: order.id,
             paymentId: order.paymentId,
             customerUserId: order.userId,
+          },
+        });
+      }
+
+      if (status === "delivered") {
+        await this.eventWriter.write(tx, {
+          eventType: "order.delivered",
+          schemaVersion: 1,
+          sourceType: "order",
+          sourceId: order.id,
+          sourceVersion: 1,
+          storeId: order.storeId,
+          currency: order.currency,
+          occurredAt: deliveryOccurredAt!,
+          businessDate: order.pricingBusinessDate,
+          timezone: order.pricingTimezone,
+          actorId: principal?.userId ?? null,
+          payload: {
+            orderId: order.id,
+            pricingPolicyVersion: order.pricingPolicyVersion,
+            customerTotalPaise: order.grandTotalPaise,
+            foodSubtotalPaise: order.itemsSubtotalPaise,
+            discountPaise: order.discountPaise,
+            deliveryFeePaise: order.deliveryFeePaise,
+            foodAndDeliveryTaxPaise: order.taxPaise,
+            deliveryTaxPaise: order.deliveryTaxPaise,
+            roundingAdjustmentPaise: order.roundingAdjustmentPaise,
+            lineCostSnapshots: costSnapshots,
+            deliveredAt: deliveryOccurredAt!.toISOString(),
           },
         });
       }
