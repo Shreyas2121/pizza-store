@@ -333,7 +333,7 @@ Use `not started`, `in progress`, `implemented; verification pending`, `complete
 | Task | Status | Owner | Commit / handoff |
 | --- | --- | --- | --- |
 | C01 | complete | Codex | Evidence audit against `15362b5`; see latest handoff and `docs/case-study-evidence.md` |
-| C02 | not started | - | - |
+| C02 | implemented; verification pending | Codex | Runtime isolation committed; browser checks pending; existing build failure deferred |
 | C03 | not started | - | - |
 | C04 | not started | - | - |
 | C05 | not started | - | - |
@@ -348,6 +348,20 @@ Use `not started`, `in progress`, `implemented; verification pending`, `complete
 | E03 | optional; not started | - | - |
 
 ### Latest handoff
+
+Task: C02 implemented (2026-09-05); browser verification pending. Local commit title: `refactor: isolate application effects from public docs`.
+
+- Owner: Codex.
+- Files: `frontend/src/app/app.tsx`, new `frontend/src/app/business-runtime.tsx`, `frontend/src/features/support/api/chat.queries.ts`, and architecture/evidence handoff notes.
+- Behavior: React Router's `/docs/*` match unmounts `BusinessRuntime`; exact `/docs`, its descendants, and case-insensitive equivalents are isolated, while `/docs-other` remains a business route. The component owns authenticated chat sync, socket connection, and `GlobalModal`.
+- Cleanup: disconnect the owned socket, clear its store reference if it is still current, and close/reset the global app modal. Returning to a business route mounts fresh effects. Ordinary storefront/staff navigation retains the component instance.
+- Chat sync now consumes the query cancellation signal through Axios, allowing observer unmount to abort an in-flight request. It returns the chat or `null` so successful queries have a defined result.
+- Checks: `pnpm.cmd --dir frontend run lint` passed with the same 3 existing warnings; `pnpm.cmd run build` from `frontend/` stopped at the same inventory-schema Zod TS2353 baseline failure. Ten checks using installed React Router `matchPath` passed for `/docs`, trailing slash, nested paths, uppercase `/DOCS`, and non-docs paths. Diff whitespace checked. No backend tests or dependency changes were needed.
+- Browser tools/runner were unavailable. Pending: signed-out and stored-token direct docs visits; storefront -> docs during chat fetch; socket disconnection and cleared reference; no app modal on docs or stale modal when returning; docs -> storefront/staff reconnection; token change/logout; Strict Mode behavior. Docs currently render the existing not-found view until C03.
+- Financial/build baseline remains deferred per owner direction. C02 is not marked fully verified. C03 can build on the implemented boundary; carry these browser checks into the next available browser verification session.
+- Implementation commit hash is reported in the user-facing handoff; no push/deployment performed.
+
+### Previous handoff: C01
 
 Task: C01 complete (2026-09-05), audited source revision `15362b5a3500d4ea596e66bd2e9e519a418ed650`. Completion means the evidence audit and baseline record are complete, not that the application baseline is all green.
 

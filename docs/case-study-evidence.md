@@ -6,6 +6,8 @@ This is the C01 source audit for the public case study. It records code behavior
 
 The owner reports a financial rework on another branch. Financial findings and baseline failures below are a snapshot of the reviewed `main` revision. Do not repair them in this docs phase or treat them as claims about that other branch. Re-audit affected claims after integration and before publishing the payment/inventory pages.
 
+Follow-up implementation (C02, 2026-09-05): ARCH-03 below describes the historical audit revision. The current app now gates `BusinessRuntime` with React Router's `/docs/*` match, isolating socket/chat/modal effects from docs. Chat sync consumes an abort signal; socket/modal cleanup is explicit. Lint and ten route-match checks passed; the same baseline build failure remains deferred and browser lifecycle checks are pending. See [guide C02 handoff](../guide.md#latest-handoff). This change does not upgrade the historical source audit into browser-tested evidence.
+
 ## Evidence labels
 
 - **Implemented**: the cited source contains the behavior. This does not imply live, integration, or concurrency verification.
