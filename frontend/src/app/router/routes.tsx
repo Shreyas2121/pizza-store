@@ -8,6 +8,7 @@ import { NotFoundPage as NotFound } from "./not-found-page";
 
 const DocsLayout = lazy(() => import("@/features/docs/components/docs-layout"));
 const DocsIndex = lazy(() => import("@/features/docs/pages/docs-index-page"));
+const DocsArchitecture = lazy(() => import("@/features/docs/pages/architecture-page"));
 const DocsNotFound = lazy(() => import("@/features/docs/pages/docs-not-found-page"));
 
 const Home = lazy(() => import("@/features/catalog").then((m) => ({ default: m.HomePage })));
@@ -44,6 +45,7 @@ export const AppRoutes = () => (
   <>
     <Route path="/docs" element={<DocsLayout />}>
       <Route index element={<DocsIndex />} />
+      <Route path="architecture" element={<DocsArchitecture />} />
       <Route path="*" element={<DocsNotFound />} />
     </Route>
     <Route element={<MainLayout />}>

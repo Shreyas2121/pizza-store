@@ -26,7 +26,7 @@ export default function DocsIndexPage() {
       <h1 className="max-w-3xl font-display text-5xl font-normal leading-[1.08] tracking-tight sm:text-6xl">Good food.<br /><span className="text-brand">Considered engineering.</span></h1>
       <p className="mt-7 max-w-2xl text-lg leading-8 text-ink-muted">PizzaStore is a multi-store ordering application. This notebook looks behind the storefront: how orders become durable, how stock is allocated, and where staff authority begins and ends.</p>
       <div className="mt-8 flex flex-wrap gap-3">
-        <Link to="/docs#engineering-highlights" className="docs-button">Explore the decisions <ArrowDown size={16} aria-hidden="true" /></Link>
+        <Link to="/docs/architecture" className="docs-button">Explore the architecture <ArrowDown size={16} aria-hidden="true" /></Link>
         <Link to="/" className="docs-button-secondary">Open storefront</Link>
         {repositoryUrl && <a href={repositoryUrl} className="docs-button-secondary">View repository</a>}
       </div>
@@ -36,7 +36,7 @@ export default function DocsIndexPage() {
     <DocsSection section={product}>
       <div className="grid gap-7 sm:grid-cols-[1.4fr_1fr]">
         <div className="space-y-4 leading-7 text-ink-muted"><p>Customers browse a store’s menu, customize products, build a cart, and place an order. Staff work with fulfillment, inventory, and store-specific operations.</p><p>The interesting engineering is in the boundaries between those actions: preserving checkout data, coordinating reservations with payments, and checking who can change a store’s resources.</p></div>
-        <div className="rounded-card border border-border bg-surface p-6"><p className="docs-eyebrow mb-3">A short reading path</p><ol className="list-decimal space-y-3 pl-4 text-sm leading-6"><li>Read the three decisions below.</li><li>Expand their source and test evidence.</li><li>Finish with what remains unverified.</li></ol></div>
+        <div className="rounded-card border border-border bg-surface p-6"><p className="docs-eyebrow mb-3">A short reading path</p><ol className="list-decimal space-y-3 pl-4 text-sm leading-6"><li>Read the three decisions below.</li><li><Link className="underline underline-offset-4" to="/docs/architecture">Follow a request through the architecture.</Link></li><li>Inspect the evidence and its limits.</li></ol></div>
       </div>
     </DocsSection>
 

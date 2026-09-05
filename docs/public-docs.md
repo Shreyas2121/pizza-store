@@ -1,8 +1,9 @@
 # Public documentation authoring
 
 The public case study starts at `/docs`. Its React feature lives in
-`frontend/src/features/docs/`. The overview is currently the only published page;
-unknown child paths retain the docs shell and display a not-found message.
+`frontend/src/features/docs/`. Published pages are `/docs` (overview) and
+`/docs/architecture`. Unknown child paths retain the docs shell and display a
+not-found message.
 
 ## Adding a page
 
@@ -37,6 +38,35 @@ replace that revision automatically with the latest commit: audit the claims
 first, especially after the financial rework merges. Keep the date and detailed
 Markdown evidence record synchronized.
 
+## Diagram authoring
+
+Use `DiagramCard` with a title, caption, ordered prose explanation, and a
+repository-authored Mermaid string. Diagram data lives in `content/diagrams/`.
+The prose is always visible, including loading, error, and print states. Source
+is available in a separate disclosure. Keep hyperlinks in React content outside
+the SVG and never accept arbitrary visitor-authored diagram input here.
+
+`lib/mermaid-renderer.ts` dynamically imports Mermaid on first render, initializes
+the shared theme once, and serializes rendering. Every render gets a distinct
+SVG ID and its own temporary measurement container. Effect cleanup aborts
+pending work or ignores an in-progress result; the renderer removes the container
+when that work settles. A failed render does not poison the queue. Renderer-level
+errors offer a retry without replacing the documentation page.
+
+Mermaid is configured with `startOnLoad: false`, `securityLevel: "strict"`, and
+`htmlLabels: false` for flowcharts. API references:
+[Mermaid usage](https://mermaid.js.org/config/usage.html) and
+[strict security configuration](https://mermaid.js.org/config/schema-docs/config-properties-securitylevel.html).
+The architecture page uses ordinary flowchart syntax for C4-style views;
+the [C4 container convention](https://c4model.com/diagrams/container) describes
+logical applications/data stores rather than a specific Docker deployment.
+
+C04 adds exact dependency `mermaid@11.17.2` using pnpm's `--lockfile-only
+--ignore-scripts` mode. The package manifest and generated lockfile are committed;
+the local installed dependency tree was not synchronized. Before a future run,
+install the committed frontend dependencies through the normal project setup.
+Do not assume the owner's existing dependency mismatch has been repaired.
+
 ## Current verification scope
 
 C03 lint passed with three existing warnings. No browser or hosted refresh
@@ -45,6 +75,11 @@ runs be skipped during this phase. Source structure implements public routing,
 responsive navigation, and backend-independent content, but these are not claims
 of observed browser behavior. The earlier financial/dependency baseline remains
 documented in the evidence audit.
+
+C04 used source review only, as requested. No lint, build, diagram execution,
+browser, or bundle inspection was run. Dynamic imports provide the intended
+loading boundary in source; no measured claim about storefront chunk isolation,
+diagram timing, or Strict Mode behavior is made until runtime checks are requested.
 
 For a future authorized browser review, check direct/refresh access, existing
 auth-token visits, mobile drawer keyboard/focus behavior, section links,

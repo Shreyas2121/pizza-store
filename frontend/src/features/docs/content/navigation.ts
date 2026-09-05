@@ -23,4 +23,17 @@ export const docsOverview: DocsEntry = {
   ],
 };
 
-export const docsNavigation: readonly DocsEntry[] = [docsOverview];
+export const docsArchitecture: DocsEntry = {
+  path: "/docs/architecture",
+  title: "Architecture",
+  description: "PizzaStore's system boundaries, COD request lifecycle, state ownership, and architectural tradeoffs.",
+  sections: [
+    { id: "system-context", title: "System context" },
+    { id: "application-boundaries", title: "Application boundaries" },
+    { id: "cod-request", title: "A COD request" },
+    { id: "state-ownership", title: "State ownership" },
+    { id: "architectural-tradeoffs", title: "Tradeoffs" },
+  ],
+};
+
+export const docsNavigation: readonly DocsEntry[] = [docsOverview, docsArchitecture];

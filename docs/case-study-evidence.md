@@ -10,6 +10,8 @@ Follow-up implementation (C02, 2026-09-05): ARCH-03 below describes the historic
 
 Follow-up implementation (C03, 2026-09-05): the public overview and docs shell now exist in `frontend/src/features/docs/`. Their public evidence subset uses ORDER-01, INV-02, and ACCESS-02 from this reviewed revision. C03 lint passed with existing warnings. The owner requested no further app/build/test/browser runs; runtime behavior is not claimed verified. Financial findings below remain the historical C01 snapshot.
 
+Follow-up implementation (C04, 2026-09-05): `/docs/architecture` presents context/container views, the audited COD sequence, state ownership, and a retrospective assessment of the modular monolith. It projects ARCH-01/ARCH-02/ORDER-01 without changing their reviewed revision. Mermaid is declared and locked at 11.17.2, with lazy loading, strict rendering configuration, textual equivalents, source fallback, and cancellation cleanup. No diagram execution, build, or browser checks were run per owner direction; these implementation notes are not new runtime evidence.
+
 ## Evidence labels
 
 - **Implemented**: the cited source contains the behavior. This does not imply live, integration, or concurrency verification.

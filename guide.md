@@ -332,10 +332,10 @@ Use `not started`, `in progress`, `implemented; verification pending`, `complete
 
 | Task | Status | Owner | Commit / handoff |
 | --- | --- | --- | --- |
-| C01 | complete | Codex | Evidence audit against `15362b5`; see latest handoff and `docs/case-study-evidence.md` |
+| C01 | complete | Codex | `fe1f273`; evidence audit against `15362b5`; see `docs/case-study-evidence.md` |
 | C02 | complete | Codex | `53eb8d0`; implementation complete, browser checks not performed; owner subsequently waived runtime checks |
-| C03 | complete | Codex | Public shell/overview implemented; lint passed; runtime checks skipped at owner request; see latest handoff |
-| C04 | not started | - | - |
+| C03 | complete | Codex | `71c3e7f`; public shell/overview implemented; lint passed; runtime checks skipped at owner request |
+| C04 | complete | Codex | Architecture page and deferred Mermaid renderer implemented; source review only per owner; see latest handoff |
 | C05 | not started | - | - |
 | C06 | not started | - | - |
 | C07 | not started | - | - |
@@ -348,6 +348,20 @@ Use `not started`, `in progress`, `implemented; verification pending`, `complete
 | E03 | optional; not started | - | - |
 
 ### Latest handoff
+
+Task: C04 complete within the owner's requested implementation scope (2026-09-05). Local commit title: `feat: add architecture docs and lazy diagram rendering`.
+
+- Owner: Codex. Runtime/build/test/browser runs remain waived by the owner; no such checks were run for C04.
+- Published `/docs/architecture` with system context, logical application containers, audited COD request sequence, state ownership table, evidence disclosures, and architectural tradeoffs. Routing, navigation, and overview links were updated together.
+- Diagram source: `frontend/src/features/docs/content/diagrams/architecture.ts`; rendering components: `DiagramCard` and `MermaidDiagram`; implementation: `lib/mermaid-renderer.ts`.
+- Renderer: dynamic Mermaid import, one shared warm theme, explicit strict security and disabled automatic scanning, serialized rendering, per-render IDs and temporary containers, AbortSignal checks, stale-result suppression, and cleanup in `finally`. Retry handles rendering failures; prose/captions and source stay available independently. Print uses prose equivalents.
+- Dependency: pnpm added exact `mermaid@11.17.2` and generated `frontend/pnpm-lock.yaml` using `--lockfile-only --ignore-scripts`. Lock diff adds Mermaid and transitive entries without removing/upgrading existing locked entries. Local `node_modules` was not synchronized; normal dependency installation is needed before a future authorized run. No financial or existing dependency mismatch fixes were attempted.
+- Reference review: official Mermaid usage/security docs and C4 container conventions, linked from `docs/public-docs.md` and the architecture page. Public evidence still points to the C01 revision. No claim of measured render time, real lock contention, deployed topology, durable events, or current payment UI completeness.
+- Verification: source/diff review only. Diagram parse/render, Strict Mode navigation, responsive overflow, error fallback execution, and production chunk isolation are not claimed verified.
+- Next task: C05, the order/payment lifecycle case study. Use the C01 cancellation matrix and re-audit financial behavior if the other branch has merged. Reuse `DiagramCard` and keep published links atomic with routes. No push/deployment performed.
+- Commit hash is reported in the final handoff.
+
+### Previous handoff: C03
 
 Task: C03 complete within the owner's requested implementation scope (2026-09-05). Local commit title: `feat: add public docs shell and project overview`.
 

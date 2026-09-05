@@ -3,6 +3,18 @@ export const reviewedDate = "2026-09-05";
 
 // Public subset of docs/case-study-evidence.md. Update both when behavior changes.
 export const evidence = {
+  "ARCH-01": {
+    title: "Application boundaries",
+    source: "backend/src/index.ts",
+    symbol: "Express / HTTP server / Socket.IO initialization",
+    scope: "Source review of logical application boundaries; no deployed topology or load measurements established.",
+  },
+  "ARCH-02": {
+    title: "Frontend routing and state",
+    source: "frontend/src/app/router/routes.tsx",
+    symbol: "AppRoutes; feature lazy imports",
+    scope: "Reviewed source organization, not browser or bundle verification. Docs routes were added after this evidence revision.",
+  },
   "ORDER-01": {
     title: "Transactional COD checkout",
     source: "backend/src/features/order/order.service.ts",
