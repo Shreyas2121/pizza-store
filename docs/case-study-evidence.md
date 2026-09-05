@@ -14,6 +14,8 @@ Follow-up implementation (C04, 2026-09-05): `/docs/architecture` presents contex
 
 Follow-up implementation (C05, 2026-09-05): `/docs/order-lifecycle` projects the order/payment audit into transaction sequences, separate state descriptions, cancellation effects, and recovery scenarios. Relevant order/payment/inventory/checkout source is unchanged from the reviewed revision. Source review clarified PAY-05: failed claims can be reclaimed immediately; only processing claims require the five-minute stale window. No backend changes, financial-branch integration, or app/build/test/browser runs were performed. These are documentation implementation notes, not new runtime evidence.
 
+Follow-up implementation (C06, 2026-09-05): `/docs/inventory` projects INV-01 through INV-06 and REC-01 into the stock model, availability formula, audited lock-path comparison, synthetic movement ledger, static last-item walkthrough, and operational interactions. Source was re-read at `e9d5882`; the cited backend inventory, checkout, order, payment-reconciliation, and schema behavior remains unchanged from the reviewed revision. The page distinguishes row locks held only for a transaction from reservation rows that persist after commit. No app, diagram, lint, build, database, or browser checks were run under the owner's standing direction; this note adds no runtime or concurrency evidence.
+
 ## Evidence labels
 
 - **Implemented**: the cited source contains the behavior. This does not imply live, integration, or concurrency verification.

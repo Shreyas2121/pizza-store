@@ -93,6 +93,6 @@ export default function OrderLifecyclePage() {
       <div className="mt-7 rounded-card bg-surface-muted p-6"><h3 className="mb-3 font-semibold">Recovery is an operation, not a clock label</h3><p className="text-sm leading-7 text-ink-muted"><code>payments:reconcile</code> scans stale payments and can recover provider attachments. <code>inventory:reconcile-reservations</code> handles expired tracked reservations. They are separate one-shot backend commands; no deployed schedule was established. All-untracked orders are not discovered by the reservation-row scan.</p><p className="mt-3 text-sm leading-7 text-ink-muted">CLI reconciliation does not emit socket events. Some HTTP/webhook paths lack the store/user context required for full notification routing. Successful reconciliation is not proof that every audience received an event.</p></div>
       <EvidenceLinks id="PAY-06" /><EvidenceLinks id="REC-01" /><EvidenceLinks id="REC-02" /><EvidenceLinks id="RT-02" />
     </DocsSection>
-    <Link to="/docs/architecture" className="docs-button-secondary"><ArrowLeft size={16} aria-hidden="true" />Back to architecture</Link>
+    <div className="flex flex-wrap gap-3"><Link to="/docs/inventory" className="docs-button">Continue to inventory consistency</Link><Link to="/docs/architecture" className="docs-button-secondary"><ArrowLeft size={16} aria-hidden="true" />Back to architecture</Link></div>
   </DocsPage>;
 }

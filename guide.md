@@ -336,8 +336,8 @@ Use `not started`, `in progress`, `implemented; verification pending`, `complete
 | C02 | complete | Codex | `53eb8d0`; implementation complete, browser checks not performed; owner subsequently waived runtime checks |
 | C03 | complete | Codex | `71c3e7f`; public shell/overview implemented; lint passed; runtime checks skipped at owner request |
 | C04 | complete | Codex | `ddd393c`; architecture page and deferred Mermaid renderer; source review only per owner |
-| C05 | complete | Codex | Lifecycle diagrams, state comparison, cancellation matrix, recovery evidence; source review only per owner; see latest handoff |
-| C06 | not started | - | - |
+| C05 | complete | Codex | `e9d5882`; lifecycle, cancellation, and recovery evidence; source review only per owner |
+| C06 | complete | Codex | Inventory model, lock paths, ledger, and last-item walkthrough; source review only per owner; see latest handoff |
 | C07 | not started | - | - |
 | C08 | not started | - | - |
 | C09 | not started | - | - |
@@ -348,6 +348,19 @@ Use `not started`, `in progress`, `implemented; verification pending`, `complete
 | E03 | optional; not started | - | - |
 
 ### Latest handoff
+
+Task: C06 complete within the owner's requested implementation scope (2026-09-05). Local commit title: `feat: document inventory consistency and locking`.
+
+- Owner: Codex. No app, lint, build, test, browser, or Mermaid execution, under the owner's standing direction. Rendering and runtime acceptance checks remain unverified.
+- Added `/docs/inventory` with atomic lazy route/navigation registration, an overview reading-path link, and an orders-page continuation link. No simulator placeholder, dependency, or backend change was added.
+- Published store-specific tracked/untracked stock, base-product demand aggregation, independent manual availability, active reservations, the clamped displayed-availability formula, and the distinction between a transaction lock and a persisted reservation.
+- Added audited lock-path coverage for checkout, payment capture, cancellation, safe expiry, staff restock/adjustment, and manual availability. The page states the different owning-row/reservation sequences and does not claim global deadlock freedom.
+- Added an explicitly synthetic five-entry movement ledger whose previous/change/new arithmetic is consistent, plus schema invariant and idempotency limits. Added a static last-item sequence and prose walkthrough that remains useful before C08/C09.
+- Re-read current inventory, checkout, payment reconciliation, order cancellation, staff write, and schema source. Backend behavior remains unchanged from the C01 evidence revision. Preserved the default-deadline versus processing distinction, unscheduled one-shot expiry command, uncertain-provider preservation, released-reservation late-capture conflict, retry gap, and lack of live contention evidence.
+- Extended the public INV-01 through INV-06 evidence projection and authoring notes. Static review confirmed route/navigation/section IDs, evidence IDs, table overflow containers, ledger arithmetic, and a whitespace-clean diff.
+- Next task: C07, decisions and reliability evidence. Keep proposed improvements visibly separate from implemented behavior and retain the test-category limits. Commit hash is reported in the final handoff; no push or deployment.
+
+### Previous handoff: C05
 
 Task: C05 complete within the owner's requested implementation scope (2026-09-05). Local commit title: `feat: document checkout and payment lifecycle`.
 

@@ -2,8 +2,8 @@
 
 The public case study starts at `/docs`. Its React feature lives in
 `frontend/src/features/docs/`. Published pages are `/docs` (overview),
-`/docs/architecture`, and `/docs/order-lifecycle`. Unknown child paths retain the docs shell and display a
-not-found message.
+`/docs/architecture`, `/docs/order-lifecycle`, and `/docs/inventory`. Unknown
+child paths retain the docs shell and display a not-found message.
 
 ## Adding a page
 
@@ -87,6 +87,14 @@ and evidence remain pinned to the audited source revision; re-audit after the
 financial branch merges. Failed webhook claims can be reclaimed immediately;
 the five-minute stale window applies to processing claims. This phase used
 source review only: no lint, build, tests, or diagram/browser execution.
+
+C06 adds the tracked/untracked stock model, manual availability boundary,
+displayed-availability formula, cross-path lock table, synthetic movement
+ledger, static last-item walkthrough, and current expiry/admin interactions.
+The page explicitly separates transaction-scoped row locks from persisted
+reservations and does not claim global deadlock freedom or live database
+contention coverage. Relevant source was re-read; runtime checks remain skipped
+under the owner's standing direction.
 
 For a future authorized browser review, check direct/refresh access, existing
 auth-token visits, mobile drawer keyboard/focus behavior, section links,

@@ -51,4 +51,18 @@ export const docsOrderLifecycle: DocsEntry = {
   ],
 };
 
-export const docsNavigation: readonly DocsEntry[] = [docsOverview, docsArchitecture, docsOrderLifecycle];
+export const docsInventory: DocsEntry = {
+  path: "/docs/inventory",
+  title: "Inventory consistency",
+  description: "See how PizzaStore combines availability, reservations, ordered row locks, stock movements, and expiry policy.",
+  sections: [
+    { id: "stock-model", title: "Stock model" },
+    { id: "availability", title: "Availability calculation" },
+    { id: "transaction-locks", title: "Transaction & lock paths" },
+    { id: "movement-ledger", title: "Movement ledger" },
+    { id: "last-item", title: "The last item" },
+    { id: "expiry-and-operations", title: "Expiry & operations" },
+  ],
+};
+
+export const docsNavigation: readonly DocsEntry[] = [docsOverview, docsArchitecture, docsOrderLifecycle, docsInventory];
