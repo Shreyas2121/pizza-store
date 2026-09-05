@@ -135,6 +135,12 @@ export const FINANCIAL_OUTBOX_STATUSES = [
   "pending", "processing", "processed", "failed", "dead_letter",
 ] as const;
 export type FinancialOutboxStatus = (typeof FINANCIAL_OUTBOX_STATUSES)[number];
+export const CASH_SESSION_STATUSES = ["open", "closed"] as const;
+export type CashSessionStatus = (typeof CASH_SESSION_STATUSES)[number];
+export const CASH_MOVEMENT_TYPES = [
+  "cod_collection", "refund", "cash_in", "cash_out", "deposit", "adjustment",
+] as const;
+export type CashMovementType = (typeof CASH_MOVEMENT_TYPES)[number];
 export type CouponRedemptionStatus = "reserved" | "consumed" | "released";
 export type CouponType = "percentage" | "fixed";
 export type ChatStatus = "open" | "close" | "rejected" | "pending";

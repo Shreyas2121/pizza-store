@@ -22,6 +22,7 @@ import defaultCostService, {
 } from "../costs/cost.service";
 import financialEventService from "../finance-events/financial-event.service";
 import type { FinancialEventWriter } from "../finance-events/financial-event.types";
+import cashService, { type CashSourceWriter } from "../cash-management/cash.service";
 
 interface CreateCodOrderData {
   userId: number;
@@ -34,7 +35,8 @@ class OrderService {
     private readonly authorizationService: AuthorizationService = defaultAuthorizationService,
     private readonly auditService: AuditWriter = defaultAuditService,
     private readonly costService: CostSnapshotWriter = defaultCostService,
-    private readonly eventWriter: FinancialEventWriter = financialEventService
+    private readonly eventWriter: FinancialEventWriter = financialEventService,
+    private readonly cashWriter?: CashSourceWriter
   ) { }
 
   async createOrder(data: CreateCodOrderData) {
@@ -305,6 +307,15 @@ class OrderService {
           businessDate: order.pricingBusinessDate,
         });
         deliveryOccurredAt = order.deliveredAt ?? now;
+        if (order.paymentType === "cash" && this.cashWriter) {
+          await this.cashWriter.recordCodCollection(tx, {
+            storeId: order.storeId,
+            orderId: order.id,
+            amountPaise: order.grandTotalPaise,
+            occurredAt: deliveryOccurredAt,
+            actorId: principal?.userId ?? null,
+          });
+        }
       }
       const orderUpdates: Partial<typeof ordersTable.$inferInsert> = {
         status,
@@ -377,4 +388,4 @@ class OrderService {
 }
 
 export { OrderService };
-export default new OrderService();
+export default new OrderService(undefined, undefined, undefined, undefined, cashService);

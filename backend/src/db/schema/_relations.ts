@@ -48,6 +48,7 @@ import { auditLogsTable } from "./audit.schema";
 import { taxRulesTable } from "./tax.schema";
 import { financialOutboxTable } from "./financial-outbox.schema";
 import { productCostVersionsTable } from "./product-cost.schema";
+import { cashMovementsTable, cashSessionClosuresTable, cashSessionsTable } from "./cash.schema";
 
 /**
  * All Drizzle relations live here to avoid circular imports between
@@ -135,6 +136,21 @@ export const storesRelations = relations(storesTable, ({ many }) => ({
   auditLogs: many(auditLogsTable),
   paymentAttempts: many(paymentAttemptsTable),
   refunds: many(refundsTable),
+  cashSessions: many(cashSessionsTable),
+}));
+
+export const cashSessionsRelations = relations(cashSessionsTable, ({ many, one }) => ({
+  store: one(storesTable, { fields: [cashSessionsTable.storeId], references: [storesTable.id] }),
+  movements: many(cashMovementsTable),
+  closures: many(cashSessionClosuresTable),
+}));
+
+export const cashMovementsRelations = relations(cashMovementsTable, ({ one }) => ({
+  session: one(cashSessionsTable, { fields: [cashMovementsTable.sessionId], references: [cashSessionsTable.id] }),
+}));
+
+export const cashSessionClosuresRelations = relations(cashSessionClosuresTable, ({ one }) => ({
+  session: one(cashSessionsTable, { fields: [cashSessionClosuresTable.sessionId], references: [cashSessionsTable.id] }),
 }));
 
 export const storeProductsRelations = relations(

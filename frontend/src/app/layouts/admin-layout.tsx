@@ -27,7 +27,7 @@ const pageNames: Record<string, string> = {
   "/admin/support": "Support queue",
   "/admin/staff": "Store staff",
   "/admin/audit": "Audit history",
-  "/admin/finance": "Refunds & reconciliation",
+  "/admin/finance": "Finance operations",
 };
 
 export const AdminLayout = () => {

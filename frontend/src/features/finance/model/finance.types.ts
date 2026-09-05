@@ -81,3 +81,56 @@ export interface SettlementDetail {
 }
 
 export interface ListResponse<T> { data: T[]; meta: PageMeta }
+
+export type CashSessionStatus = "open" | "closed";
+export type CashMovementType = "cod_collection" | "refund" | "cash_in" | "cash_out" | "deposit" | "adjustment";
+
+export interface CashSession {
+  id: number;
+  storeId: number;
+  businessDate: string;
+  status: CashSessionStatus;
+  currency: "INR";
+  openingFloatPaise: number;
+  expectedCashPaise: number;
+  countedCashPaise: number | null;
+  variancePaise: number | null;
+  materialVarianceAcknowledged: boolean;
+  version: number;
+  openedBy: number;
+  openedAt: string;
+  closedBy: number | null;
+  closedAt: string | null;
+}
+
+export interface CashMovement {
+  id: number;
+  sessionId: number;
+  type: CashMovementType;
+  amountPaise: number;
+  orderId: number | null;
+  refundId: number | null;
+  reversesMovementId: number | null;
+  reason: string | null;
+  recordedBy: number | null;
+  occurredAt: string;
+}
+
+export interface CashSessionClosure {
+  id: number;
+  sessionVersion: number;
+  expectedCashPaise: number;
+  countedCashPaise: number;
+  variancePaise: number;
+  materialVarianceAcknowledged: boolean;
+  closedBy: number;
+  closedAt: string;
+  reversedAt: string | null;
+  reversalReason: string | null;
+}
+
+export interface CashSessionDetail {
+  session: CashSession;
+  movements: CashMovement[];
+  closures: CashSessionClosure[];
+}

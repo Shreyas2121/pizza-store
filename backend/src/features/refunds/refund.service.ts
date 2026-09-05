@@ -22,6 +22,7 @@ import {
   buildRefundAllocations,
   requireRefundStatus,
 } from "./refund.policy";
+import cashService, { type CashSourceWriter } from "../cash-management/cash.service";
 
 export interface ProviderRefundWebhookEntity {
   id: string;
@@ -57,7 +58,10 @@ const isUniqueViolation = (error: unknown) =>
   typeof error === "object" && error !== null && "code" in error && error.code === "23505";
 
 export class RefundService {
-  constructor(private readonly repository: RefundRepository = refundRepository) { }
+  constructor(
+    private readonly repository: RefundRepository = refundRepository,
+    private readonly cashWriter?: CashSourceWriter
+  ) { }
 
   async list(actor: AuthPrincipal, query: RefundsQueryInput) {
     await authorizationService.requireStorePermission({
@@ -278,6 +282,15 @@ export class RefundService {
           before: { status: "approved" }, after: { status: approved.status },
           metadata: { provider: "cod", evidence: "cash_returned" },
         });
+        if (this.cashWriter) {
+          await this.cashWriter.recordCodRefund(tx, {
+            storeId: refund.storeId,
+            refundId: refund.id,
+            amountPaise: refund.amountPaise,
+            occurredAt: now,
+            actorId: actor.userId,
+          });
+        }
       } else {
         if (!attempt.providerPaymentId) {
           throw new AppError("Captured payment is missing its provider payment ID.", 409, "PAYMENT_PROVIDER_REFERENCE_MISSING");
@@ -707,4 +720,4 @@ export class RefundService {
   }
 }
 
-export default new RefundService();
+export default new RefundService(undefined, cashService);

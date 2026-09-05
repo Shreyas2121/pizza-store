@@ -23,6 +23,7 @@ import { checkoutRoutes } from "./features/checkout/checkout.routes";
 import { refundRoutes } from "./features/refunds/refund.routes";
 import { settlementRoutes } from "./features/settlements/settlement.routes";
 import { costRoutes } from "./features/costs/cost.routes";
+import { cashRoutes } from "./features/cash-management/cash.routes";
 
 export const mainRoutes = Router();
 
@@ -39,6 +40,7 @@ mainRoutes.use("/payments", paymentRoutes);
 mainRoutes.use("/finance", refundRoutes);
 mainRoutes.use("/finance", settlementRoutes);
 mainRoutes.use("/finance", costRoutes);
+mainRoutes.use("/finance", cashRoutes);
 mainRoutes.use("/coupon", couponRoutes);
 mainRoutes.use("/dashboard", dashRoutes);
 mainRoutes.use("/chat", chatRoutes);

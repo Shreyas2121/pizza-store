@@ -7,6 +7,9 @@ import type {
   RefundStatus,
   SettlementBatch,
   SettlementDetail,
+  CashSession,
+  CashSessionDetail,
+  CashMovementType,
 } from "../model/finance.types";
 
 export const financeKeys = {
@@ -14,7 +17,21 @@ export const financeKeys = {
   settlements: (storeId: number | null) => ["finance", "settlements", storeId] as const,
   settlement: (id: number | null) => ["finance", "settlement", id] as const,
   issues: (storeId: number | null) => ["finance", "issues", storeId] as const,
+  cashSessions: (storeId: number | null) => ["finance", "cash-sessions", storeId] as const,
+  cashSession: (id: number | null) => ["finance", "cash-session", id] as const,
 };
+
+export const useCashSessions = (storeId: number | null, enabled = true) => useQuery({
+  queryKey: financeKeys.cashSessions(storeId),
+  queryFn: async () => (await API.get<ListResponse<CashSession>>("/finance/cash/sessions", { params: { storeId } })).data,
+  enabled: Boolean(storeId) && enabled,
+});
+
+export const useCashSession = (id: number | null) => useQuery({
+  queryKey: financeKeys.cashSession(id),
+  queryFn: async () => (await API.get<{ data: CashSessionDetail }>(`/finance/cash/sessions/${id}`)).data.data,
+  enabled: Boolean(id),
+});
 
 export const useRefunds = (storeId: number | null, status?: RefundStatus) => useQuery({
   queryKey: financeKeys.refunds(storeId, status),
@@ -88,4 +105,24 @@ export const useReconcileSettlement = () => useFinanceMutation(async (id: number
 
 export const useResolveIssue = () => useFinanceMutation(async (input: { issueId: number; reason: string }) =>
   (await API.post(`/finance/reconciliation/issues/${input.issueId}/resolve`, { reason: input.reason })).data
+);
+
+export const useOpenCashSession = () => useFinanceMutation(async (input: { storeId: number; openingFloatPaise: number }) =>
+  (await API.post<{ data: CashSession }>("/finance/cash/sessions", input)).data.data
+);
+
+export const useRecordCashMovement = () => useFinanceMutation(async (input: { sessionId: number; type: Exclude<CashMovementType, "cod_collection" | "refund">; amountPaise: number; direction?: "in" | "out"; reason: string }) =>
+  (await API.post(`/finance/cash/sessions/${input.sessionId}/movements`, { type: input.type, amountPaise: input.amountPaise, direction: input.direction, reason: input.reason })).data
+);
+
+export const useCloseCashSession = () => useFinanceMutation(async (input: { sessionId: number; countedCashPaise: number; materialVarianceAcknowledged: boolean }) =>
+  (await API.post(`/finance/cash/sessions/${input.sessionId}/close`, { countedCashPaise: input.countedCashPaise, materialVarianceAcknowledged: input.materialVarianceAcknowledged })).data
+);
+
+export const useReopenCashSession = () => useFinanceMutation(async (input: { sessionId: number; reason: string }) =>
+  (await API.post(`/finance/cash/sessions/${input.sessionId}/reopen`, { reason: input.reason })).data
+);
+
+export const useReverseCashMovement = () => useFinanceMutation(async (input: { movementId: number; reason: string }) =>
+  (await API.post(`/finance/cash/movements/${input.movementId}/reverse`, { reason: input.reason })).data
 );

@@ -37,8 +37,14 @@ export type SettlementAuditAction =
   | "settlement.reconciled"
   | "settlement.issue_resolved";
 export type CostAuditAction = "product_cost.version_created";
+export type CashAuditAction =
+  | "cash.session_opened"
+  | "cash.session_closed"
+  | "cash.session_reopened"
+  | "cash.movement_recorded"
+  | "cash.movement_reversed";
 
-export type AuditAction = StaffAuditAction | StoreAuditAction | OrderAuditAction | InventoryAuditAction | RefundAuditAction | SettlementAuditAction | CostAuditAction | SystemAuditAction;
+export type AuditAction = StaffAuditAction | StoreAuditAction | OrderAuditAction | InventoryAuditAction | RefundAuditAction | SettlementAuditAction | CostAuditAction | CashAuditAction | SystemAuditAction;
 
 export type AuditResourceType =
   | "store_membership"
@@ -50,6 +56,8 @@ export type AuditResourceType =
   | "refund"
   | "settlement_batch"
   | "product_cost_version"
+  | "cash_session"
+  | "cash_movement"
   | "system";
 
 export interface StaffAuditState {
