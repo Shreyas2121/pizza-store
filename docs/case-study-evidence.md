@@ -8,6 +8,8 @@ The owner reports a financial rework on another branch. Financial findings and b
 
 Follow-up implementation (C02, 2026-09-05): ARCH-03 below describes the historical audit revision. The current app now gates `BusinessRuntime` with React Router's `/docs/*` match, isolating socket/chat/modal effects from docs. Chat sync consumes an abort signal; socket/modal cleanup is explicit. Lint and ten route-match checks passed; the same baseline build failure remains deferred and browser lifecycle checks are pending. See [guide C02 handoff](../guide.md#latest-handoff). This change does not upgrade the historical source audit into browser-tested evidence.
 
+Follow-up implementation (C03, 2026-09-05): the public overview and docs shell now exist in `frontend/src/features/docs/`. Their public evidence subset uses ORDER-01, INV-02, and ACCESS-02 from this reviewed revision. C03 lint passed with existing warnings. The owner requested no further app/build/test/browser runs; runtime behavior is not claimed verified. Financial findings below remain the historical C01 snapshot.
+
 ## Evidence labels
 
 - **Implemented**: the cited source contains the behavior. This does not imply live, integration, or concurrency verification.

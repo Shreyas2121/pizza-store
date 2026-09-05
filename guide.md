@@ -333,8 +333,8 @@ Use `not started`, `in progress`, `implemented; verification pending`, `complete
 | Task | Status | Owner | Commit / handoff |
 | --- | --- | --- | --- |
 | C01 | complete | Codex | Evidence audit against `15362b5`; see latest handoff and `docs/case-study-evidence.md` |
-| C02 | implemented; verification pending | Codex | Runtime isolation committed; browser checks pending; existing build failure deferred |
-| C03 | not started | - | - |
+| C02 | complete | Codex | `53eb8d0`; implementation complete, browser checks not performed; owner subsequently waived runtime checks |
+| C03 | complete | Codex | Public shell/overview implemented; lint passed; runtime checks skipped at owner request; see latest handoff |
 | C04 | not started | - | - |
 | C05 | not started | - | - |
 | C06 | not started | - | - |
@@ -348,6 +348,21 @@ Use `not started`, `in progress`, `implemented; verification pending`, `complete
 | E03 | optional; not started | - | - |
 
 ### Latest handoff
+
+Task: C03 complete within the owner's requested implementation scope (2026-09-05). Local commit title: `feat: add public docs shell and project overview`.
+
+- Owner: Codex.
+- User direction: do not run the app or further build/test/browser checks. Continue implementation and update the progress tracker. C02/C03 are marked complete for implementation; neither is represented as browser-verified. Runtime checks can be revisited if the owner requests them.
+- Files: new `frontend/src/features/docs/` components, overview/not-found pages, navigation/evidence data, and scoped CSS; public lazy routes in `frontend/src/app/router/routes.tsx`; documentation handoffs.
+- Routes: `/docs` renders the overview outside storefront/admin layouts and auth guards. `/docs/*` unknown pages render a docs-specific fallback within the same shell. Only the published overview appears in navigation.
+- UI: desktop sidebar, Mantine mobile drawer with focus trapping/return and labelled controls, skip link, back-to-store links, explicit section anchors, nested Suspense and page error boundary, metadata cleanup, and basic print styling. Existing `ScrollManager` continues to own scrolling.
+- Content: product context, three evidence-backed highlights (ORDER-01, INV-02, ACCESS-02), technology ownership, and honest limits. No invented personal ownership, public URL, screenshot, performance metric, or future-page links.
+- Source configuration: optional `VITE_DOCS_REPOSITORY_URL` accepts a plain HTTPS GitHub repository URL. When absent or invalid, source file paths remain readable and external repository actions are omitted. Links use the reviewed C01 commit. Re-audit financial claims before changing that revision. See `docs/public-docs.md` for editing/configuration guidance.
+- Verification: lint passed with the same 3 pre-existing Fast Refresh warnings before the owner asked to skip runs. A build was started before that instruction, but its terminal result was unavailable after interruption; no passing build is claimed. No dev-server/browser verification was completed. Subsequent work used source review only. Financial/build baseline remains deferred.
+- Next task: C04, adding the architecture page and lazy diagram renderer. Reuse the page wrapper, section manifest, and evidence conventions; add route/nav atomically. No new dependencies were introduced by C03.
+- Commit hash is reported in the final handoff. No push or deployment.
+
+### Previous handoff: C02
 
 Task: C02 implemented (2026-09-05); browser verification pending. Local commit title: `refactor: isolate application effects from public docs`.
 

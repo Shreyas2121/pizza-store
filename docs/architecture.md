@@ -127,7 +127,7 @@ The app uses React Router with a `BrowserRouter`. Routes are defined in `fronten
 | `ProfileLayout` | `/profile`, `/address`, `/orders`, `/order/:id` | Nested within MainLayout, adds profile sidebar |
 | `AdminLayout` | `/admin/*` | Staff workspace guarded by `StaffProtectedRoute`; platform-only pages have additional guards |
 
-Feature pages are lazy-loaded with `React.lazy()` and rendered under Suspense. The public docs layout is planned. The C02 app boundary now excludes `/docs` and its descendants from `BusinessRuntime`, which owns authenticated chat/socket effects and the global app modal. Unmount disconnects and clears the owned socket, closes the modal, and permits in-flight chat sync cancellation. Browser lifecycle verification remains pending; see the implementation guide's C02 handoff.
+Feature pages are lazy-loaded with `React.lazy()` and rendered under Suspense. The C03 public `DocsLayout` serves `/docs` independently of storefront/admin layouts and guards, with a nested loading/error boundary and docs-specific not-found page. The C02 app boundary excludes `/docs` and its descendants from `BusinessRuntime`, which owns authenticated chat/socket effects and the global app modal. Unmount disconnects and clears the owned socket, closes the modal, and permits in-flight chat sync cancellation. Browser lifecycle checks were not performed and further runtime checks were waived by the owner during C03. See [public docs authoring](public-docs.md) and the implementation guide handoffs.
 
 ### State management
 
