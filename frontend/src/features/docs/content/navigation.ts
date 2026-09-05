@@ -36,4 +36,19 @@ export const docsArchitecture: DocsEntry = {
   ],
 };
 
-export const docsNavigation: readonly DocsEntry[] = [docsOverview, docsArchitecture];
+export const docsOrderLifecycle: DocsEntry = {
+  path: "/docs/order-lifecycle",
+  title: "Orders & payments",
+  description: "Follow PizzaStore's COD and online payment transactions, order states, cancellation effects, and recovery limits.",
+  sections: [
+    { id: "checkout-snapshot", title: "Checkout snapshot" },
+    { id: "cod-flow", title: "Cash on delivery" },
+    { id: "online-initiation", title: "Online initiation" },
+    { id: "capture-and-deduplication", title: "Capture & repeat events" },
+    { id: "order-and-payment-states", title: "Order & payment states" },
+    { id: "cancellation-effects", title: "Cancellation effects" },
+    { id: "failure-and-recovery", title: "Failure & recovery" },
+  ],
+};
+
+export const docsNavigation: readonly DocsEntry[] = [docsOverview, docsArchitecture, docsOrderLifecycle];

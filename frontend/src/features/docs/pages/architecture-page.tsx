@@ -62,6 +62,6 @@ export default function ArchitecturePage() {
       <p className="mt-6 text-sm leading-7 text-ink-muted">Consider changing these boundaries when measured bottlenecks, independent release needs, or operational requirements justify it. No production scale, durable event delivery, global deadlock freedom, or performance improvement is claimed by these diagrams.</p>
       <p className="mt-5 text-sm leading-6 text-ink-muted">Diagram conventions: <a className="underline underline-offset-4" href="https://c4model.com/diagrams/container">C4 container diagrams</a>. Rendering: <a className="underline underline-offset-4" href="https://mermaid.js.org/config/usage.html">Mermaid’s asynchronous API</a>, with <a className="underline underline-offset-4" href="https://mermaid.js.org/config/schema-docs/config-properties-securitylevel.html">strict security</a> and links outside the diagrams.</p>
     </DocsSection>
-    <Link to="/docs" className="docs-button-secondary"><ArrowLeft size={16} aria-hidden="true" />Project overview</Link>
+    <div className="flex flex-wrap gap-3"><Link to="/docs/order-lifecycle" className="docs-button">Continue to orders & payments</Link><Link to="/docs" className="docs-button-secondary"><ArrowLeft size={16} aria-hidden="true" />Project overview</Link></div>
   </DocsPage>;
 }

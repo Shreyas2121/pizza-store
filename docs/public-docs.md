@@ -1,8 +1,8 @@
 # Public documentation authoring
 
 The public case study starts at `/docs`. Its React feature lives in
-`frontend/src/features/docs/`. Published pages are `/docs` (overview) and
-`/docs/architecture`. Unknown child paths retain the docs shell and display a
+`frontend/src/features/docs/`. Published pages are `/docs` (overview),
+`/docs/architecture`, and `/docs/order-lifecycle`. Unknown child paths retain the docs shell and display a
 not-found message.
 
 ## Adding a page
@@ -80,6 +80,13 @@ C04 used source review only, as requested. No lint, build, diagram execution,
 browser, or bundle inspection was run. Dynamic imports provide the intended
 loading boundary in source; no measured claim about storefront chunk isolation,
 diagram timing, or Strict Mode behavior is made until runtime checks are requested.
+
+C05 adds COD, online initiation, capture, and order-state diagrams, a separate
+payment-state comparison, cancellation effects, and recovery scenarios. Content
+and evidence remain pinned to the audited source revision; re-audit after the
+financial branch merges. Failed webhook claims can be reclaimed immediately;
+the five-minute stale window applies to processing claims. This phase used
+source review only: no lint, build, tests, or diagram/browser execution.
 
 For a future authorized browser review, check direct/refresh access, existing
 auth-token visits, mobile drawer keyboard/focus behavior, section links,

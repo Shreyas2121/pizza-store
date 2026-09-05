@@ -335,8 +335,8 @@ Use `not started`, `in progress`, `implemented; verification pending`, `complete
 | C01 | complete | Codex | `fe1f273`; evidence audit against `15362b5`; see `docs/case-study-evidence.md` |
 | C02 | complete | Codex | `53eb8d0`; implementation complete, browser checks not performed; owner subsequently waived runtime checks |
 | C03 | complete | Codex | `71c3e7f`; public shell/overview implemented; lint passed; runtime checks skipped at owner request |
-| C04 | complete | Codex | Architecture page and deferred Mermaid renderer implemented; source review only per owner; see latest handoff |
-| C05 | not started | - | - |
+| C04 | complete | Codex | `ddd393c`; architecture page and deferred Mermaid renderer; source review only per owner |
+| C05 | complete | Codex | Lifecycle diagrams, state comparison, cancellation matrix, recovery evidence; source review only per owner; see latest handoff |
 | C06 | not started | - | - |
 | C07 | not started | - | - |
 | C08 | not started | - | - |
@@ -348,6 +348,19 @@ Use `not started`, `in progress`, `implemented; verification pending`, `complete
 | E03 | optional; not started | - | - |
 
 ### Latest handoff
+
+Task: C05 complete within the owner's requested implementation scope (2026-09-05). Local commit title: `feat: document checkout and payment lifecycle`.
+
+- Owner: Codex. No app, lint, build, test, browser, or diagram execution, per owner direction. Rendering and runtime acceptance checks remain unverified.
+- Added `/docs/order-lifecycle` with atomic lazy route/navigation registration and an architecture-page next link. Reused the existing diagram renderer; no new dependencies or backend changes.
+- Published COD and online-initiation transaction boundaries, shared capture finalization, order transitions, separate payment states, price-snapshot limits, cancellation effects, and seven recovery scenarios. Diagrams have always-visible textual explanations.
+- Source-reviewed transitions and cancellation effects against current backend code. Relevant order/payment/inventory/checkout source is unchanged from the C01 reviewed revision; financial work on the other branch remains outside scope.
+- Preserved important limitations: retry wiring and released holds, no automatic refund, incomplete notification audiences, one-shot unscheduled recovery, and late-capture conflicts. Corrected the audit's webhook wording: failed claims are immediately reclaimable; processing claims become stale after five minutes.
+- Extended public evidence references and authoring notes. No live provider, database concurrency, exactly-once delivery, or browser behavior is claimed verified.
+- Next task: C06, inventory consistency and locking. Reuse these cancellation/recovery descriptions and re-audit if financial changes merge. Keep transaction locks distinct from persisted reservations.
+- Commit hash is reported in the final handoff. Planning files remain uncommitted; no push or deployment.
+
+### Previous handoff: C04
 
 Task: C04 complete within the owner's requested implementation scope (2026-09-05). Local commit title: `feat: add architecture docs and lazy diagram rendering`.
 
