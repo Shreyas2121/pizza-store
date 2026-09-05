@@ -108,6 +108,15 @@ and separates current diagnostics/deployment gaps from triggered proposals.
 route gaps, exit behavior, and diagnostic identifiers. This phase used source
 and diff review only under the owner's standing direction.
 
+C08 adds a React-free deterministic inventory model with three replayable
+scenarios: successful capture, confirmed payment failure, and provider-checked
+safe expiry. Its fixtures preserve the audited distinction between transaction
+locks and committed reservations, require Customer B to start a new attempt
+after release, and reject capture once expiry has released the reservation.
+Vitest `4.1.11` and `pnpm run test` are declared for focused invariant tests.
+Those tests, lint, and build were not executed under the owner's standing
+direction, so their results remain unverified until a later authorized run.
+
 For a future authorized browser review, check direct/refresh access, existing
 auth-token visits, mobile drawer keyboard/focus behavior, section links,
 unknown docs paths, content-load failures, and navigation back to business routes.

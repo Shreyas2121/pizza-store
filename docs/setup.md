@@ -252,6 +252,7 @@ For step-by-step credential creation during development, see the
 | `dev` | `vite --port 3150` | Start Vite dev server |
 | `build` | `tsc -b && vite build` | Type-check and build for production |
 | `lint` | `eslint .` | Run ESLint |
+| `test` | `vitest run` | Run deterministic frontend unit tests |
 | `preview` | `vite preview` | Preview production build locally |
 
 ## 6. Database migrations

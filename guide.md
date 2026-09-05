@@ -338,8 +338,8 @@ Use `not started`, `in progress`, `implemented; verification pending`, `complete
 | C04 | complete | Codex | `ddd393c`; architecture page and deferred Mermaid renderer; source review only per owner |
 | C05 | complete | Codex | `e9d5882`; lifecycle, cancellation, and recovery evidence; source review only per owner |
 | C06 | complete | Codex | `bdef64d`; inventory model, lock paths, ledger, and last-item walkthrough; source review only per owner |
-| C07 | complete | Codex | Six decision records and reliability/recovery evidence; source review only per owner; see latest handoff |
-| C08 | not started | - | - |
+| C07 | complete | Codex | `d2f6927`; six decision records and reliability/recovery evidence; source review only per owner |
+| C08 | implemented; verification pending | Codex | Deterministic inventory model and focused Vitest source; execution waived; see latest handoff |
 | C09 | not started | - | - |
 | C10 | not started | - | - |
 | C11 | not started | - | - |
@@ -348,6 +348,19 @@ Use `not started`, `in progress`, `implemented; verification pending`, `complete
 | E03 | optional; not started | - | - |
 
 ### Latest handoff
+
+Task: C08 implemented; required verification pending under the owner's standing execution waiver (2026-09-05). Local commit title: `feat: add deterministic inventory simulation model`.
+
+- Owner: Codex. No app, test, lint, build, database, payment, or browser execution, under the owner's standing direction. The required checks remain unverified, so the tracker does not mark C08 complete.
+- Added a standalone, React-free state machine for two customers contending for one tracked item. Typed state covers lock ownership/waiting, per-customer attempt state, reservations, payment outcomes, quantities, and chronological history.
+- Exported `inventoryScenarioIds`, `inventoryScenarios`, `replayInventoryEvents`, `replayInventoryScenario`, `transitionInventorySimulation`, `createInitialInventorySimulationState`, and `inspectInventorySimulationInvariants` for direct C09 use.
+- Added deterministic fixtures for successful capture, confirmed payment failure, and provider-checked safe expiry. Deadline passage alone retains the hold; safe expiry cancels the modeled order state and releases it. A later capture is rejected rather than assigned invented recovery behavior.
+- Customer B's first checkout remains rejected after A releases stock. The fixtures require an explicit `retry_started` event, producing attempt 2 before B can reserve the item.
+- Repeated capture records an idempotent history step without another on-hand deduction. Invalid events throw `InventorySimulationTransitionError`; invalid replay positions throw `RangeError`.
+- Added focused Vitest source for allocation exclusivity, reservation arithmetic, one-time stock deduction, failure/expiry release, explicit retry, late-capture rejection, reset, replay determinism, and invalid transitions. Added exact frontend dev dependency `vitest@4.1.11` and `pnpm run test`; generated the lockfile with `--lockfile-only --ignore-scripts`, leaving installed dependencies unsynchronized.
+- Next task: C09 can mount the fixtures with scenario selection and previous/next/reset controls. Label the UI as a deterministic teaching simulation and keep its state local. C08's exact pending commands are `pnpm.cmd --dir frontend run test`, `pnpm.cmd --dir frontend run lint`, and `pnpm.cmd --dir frontend run build`. Commit hash is reported in the final handoff; no push or deployment.
+
+### Previous handoff: C07
 
 Task: C07 complete within the owner's requested implementation scope (2026-09-05). Local commit title: `docs: add architecture decisions and reliability evidence`.
 
