@@ -3,15 +3,29 @@
 This runbook covers Test Mode validation, production rollout, monitoring, and
 rollback. Cash on Delivery (COD) is always the customer fallback.
 
+## Audit status (2026-09-05)
+
+This runbook includes rollout requirements, not proof of a deployed release.
+At reviewed revision `15362b5`, the frontend calls `GET /payments/methods` and
+`POST /payments/razorpay/orders/:localOrderId/retry`, but those routes are not
+registered in `payment.routes.ts`. The retry service exists but does not recreate
+released inventory reservations. Checklist steps involving these endpoints are
+release requirements that cannot be claimed complete from current route wiring.
+
+Financial changes are being developed on another branch; recheck the route and
+recovery behavior after integration. See [case-study evidence](case-study-evidence.md)
+for the current baseline, cancellation matrix, and known limitations.
+
 ## Release controls
 
 Razorpay requires `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, and
 `RAZORPAY_WEBHOOK_SECRET`. New and retried online checkouts are additionally
 controlled by the backend-only `RAZORPAY_ENABLED` flag.
 
-- `false` (default): the frontend offers COD only and the backend rejects new
-  initiation/retry requests.
-- `true`: Razorpay appears in checkout and initiation/retry is accepted.
+- `false` (default): the initiation/retry service rejects new attempts.
+- `true`: initiation/retry is allowed by the service when credentials are present.
+- Frontend method discovery and HTTP retry wiring must be verified separately;
+  their missing routes at the audited revision are noted above.
 - Verification, webhooks, and reconciliation intentionally ignore this flag so
   payments already in flight can settle after a rollback.
 
@@ -52,17 +66,23 @@ the API key pair and the separate webhook secret before starting this checklist.
    kitchen notification.
 4. Keep COD visible throughout rollout. Expand traffic only after the monitoring
    signals below remain healthy.
-5. Run `pnpm payments:reconcile` from `backend/` every five minutes. The command
-   exits non-zero when any candidate fails and should page the on-call operator.
+5. Configure external scheduling for `pnpm run payments:reconcile` and
+   `pnpm run inventory:reconcile-reservations` from `backend/`. A five-minute
+   cadence is a proposed starting point, not a scheduler included in this repo.
+   Commands exit non-zero on reported errors; a failed payment outcome alone
+   does not necessarily cause a non-zero exit. Reservation conflicts also need
+   inspection because they are not included in that command's error exit test.
 
 ## Inventory reservation lifecycle under Razorpay
 
-Online payments utilize a two-phase stock commitment to avoid overselling and double deductions:
+Online payments separate reservation from consumption. This is application
+workflow terminology, not a distributed two-phase commit protocol. Source paths
+and test limitations are recorded in the evidence document.
 
 1. **Initiation (`POST /payments/razorpay/orders`)**:
-   - Creates `inventory_reservations` rows in `reserved` status with a 30-minute expiry window.
+   - Creates `inventory_reservations` rows for tracked stock in `reserved` status with a default 30-minute deadline.
    - Does **not** decrement `on_hand_quantity`.
-   - Decreases `available_quantity = on_hand_quantity - active_reservations`.
+   - Decreases displayed tracked availability, `max(0, on_hand_quantity - active_reserved_quantity)`; untracked availability is `null`.
    - Emits `"lowStock"` alert only if `available_quantity` drops past threshold.
 
 2. **Capture (`POST /payments/razorpay/verify` or Webhook `payment.captured`)**:
@@ -71,15 +91,34 @@ Online payments utilize a two-phase stock commitment to avoid overselling and do
    - Decrements `on_hand_quantity` and appends `sale` movements with idempotent key `sale:{orderId}:{storeProductId}`.
    - No duplicate low-stock alerts are emitted (available quantity remains constant).
 
-3. **Terminal Failure / User Cancellation**:
-   - Marks reservations `released`.
-   - Restores available quantity to general stock.
+3. **Provider failure / authorized order cancellation**:
+   - Releases active reservations, making their stock available again.
+   - Closing the browser payment modal alone does not release reservations.
+   - Status cancellation does not issue a provider refund or reverse consumed
+     coupon redemptions. Paid-order cancellation restores recorded tracked stock
+     while leaving the completed payment unchanged.
 
-4. **Expiry Reconciliation (`pnpm payments:reconcile`)**:
+4. **Expiry Reconciliation (`pnpm run inventory:reconcile-reservations`)**:
    - Scans expired active reservations (`status = 'reserved' AND expires_at < now()`).
    - Verifies the provider payment status with Razorpay outside database transactions.
-   - If payment was not captured, releases the reservations.
-   - If payment was captured, finalizes the order and consumes the reservations safely.
+   - Preserves reservations on provider/configuration errors, ambiguous paid or
+     authorized states, and processing payments without an attached provider order.
+   - When provider state permits expiry and the local order is still awaiting
+     payment, cancels that order and releases stock/coupon reservations.
+   - Confirmed captured/paid state follows normal finalization and exact amount
+     checks. A deadline alone does not prevent consumption of still-reserved rows.
+   - Capture after release/cancellation conflicts; it does not automatically
+     reallocate stock or refund payment. Escalate for operational resolution.
+
+`pnpm run payments:reconcile` is a different one-shot command: it scans stale
+processing/failed payments and can recover unattached provider orders by receipt.
+It does not run the inventory expiry scan. Neither command is scheduled by
+`backend/src/index.ts`, and no hosting scheduler was established by this audit.
+
+CLI reconciliation does not emit realtime notifications. Some HTTP/webhook
+finalization responses also lack store/user context needed by audience selection;
+verify delivery separately rather than assuming a successful reconciliation
+means the store received an event.
 
 ## Monitoring and alerts
 

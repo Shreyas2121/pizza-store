@@ -15,24 +15,30 @@ The project is structured as two independent packages (`backend/` and `frontend/
 
 ## Chosen stack
 
-- React 19 with Vite 6 and TypeScript for the storefront and admin interfaces
+- React with Vite and TypeScript for the storefront and admin interfaces
 - Mantine 7 component library with Tailwind CSS 3 for styling
 - TanStack Query 5 for server-state management and caching
-- TanStack Table 8 for admin data tables
+- TanStack Table for admin data tables
 - Zustand 5 for transient client state (auth, modals, chat, date filters)
 - React Hook Form with Zod resolvers for form validation
 - Socket.IO Client for real-time events
 - Recharts and Mantine Charts for admin analytics visualizations
-- Node.js with Express 4 for the API server
-- Drizzle ORM 0.38 with PostgreSQL for schema, queries, and migrations
+- Node.js with Express for the API server
+- Drizzle ORM with PostgreSQL for schema, queries, and migrations
 - Zod for request and environment validation
 - Socket.IO for server-side WebSocket events
-- JSON Web Tokens for stateless authentication
+- JSON Web Tokens with current-user and token-version validation on authenticated requests
 - bcrypt for password hashing
 - Multer for image uploads
 - Winston for structured file and console logging
 
 See [architecture.md](docs/architecture.md) for component boundaries and [database-schema.md](docs/database-schema.md) for the full data model.
+
+Package manifests and lockfiles define dependency versions. See the dated
+[case-study evidence audit](docs/case-study-evidence.md) for the current verification
+baseline and implementation limits, including payment route wiring and a local
+frontend dependency mismatch. A financial rework is in progress on another branch;
+the audit describes the reviewed `main` revision only.
 
 ## Documentation map
 
@@ -44,26 +50,26 @@ See [architecture.md](docs/architecture.md) for component boundaries and [databa
 | [setup.md](docs/setup.md) | Local development environment setup, database provisioning, and seeding |
 | [store-staff-authorization.md](docs/store-staff-authorization.md) | Staff role matrix, lifecycle operations, deployment, rollback, and security verification |
 | [razorpay-runbook.md](docs/razorpay-runbook.md) | Online payment lifecycle, inventory reservations, monitoring, and reconciliation |
+| [case-study-evidence.md](docs/case-study-evidence.md) | Reviewed source claims, transaction/cancellation maps, test categories, baseline results, and limitations |
 
 ## Application in one workflow
 
-A user opens the storefront, browses menu categories, selects a product with optional customizations (e.g., toppings, sizes), and adds it to their cart subject to available store stock. At checkout, they select a saved delivery address, optionally apply a coupon code, and choose Cash on Delivery or online payment. The backend atomically creates the order, verifies/deducts or reserves stock, copies cart items and customizations to order records, clears the cart, and emits a Socket.IO event. The admin panel receives real-time order and low-stock notifications, monitors inventory counts, performs restocks or adjustments, and updates orders through fulfillment. A live chat system allows users to request support and exchange messages with an admin in real time.
+A user opens the storefront, browses menu categories, selects a product with optional customizations (e.g., toppings, sizes), and adds it to their cart subject to available store stock. Checkout uses a saved delivery address and optional coupon. COD creation atomically records the order/payment, deducts tracked stock, copies item/customization prices, and clears the cart; its route emits notifications after commit. Online initiation reserves tracked stock locally before calling Razorpay, with provider verification and reconciliation handled separately. Payment method discovery/retry route gaps and notification limits at the reviewed revision are documented in the evidence audit. Staff interfaces expose order fulfillment and stock operations, and the app includes support chat.
 
 ## Development
 
-Prerequisites: Node.js 20+, pnpm, and a running PostgreSQL instance.
+Prerequisites: a Node.js version compatible with both package manifests (backend requires at least 22.13.0), pnpm, and a running PostgreSQL instance. Use an isolated database for development and seeds.
 
 ```text
 # Backend
 cd backend
 cp .env.example .env        # configure database credentials and JWT secret
 pnpm install
-pnpm run db:generate        # generate migrations
-npx drizzle-kit push        # apply schema to database
+pnpm run db:migrate         # apply committed migrations; follow migration preflight in the staff runbook
 pnpm run seed:users         # seed test users
 pnpm run seed:addresses     # seed test addresses
 pnpm run seed:orders        # seed test orders
-pnpm run test               # run backend unit test suite
+pnpm run test               # review case-study baseline first: one payment test currently reaches the configured DB
 pnpm run dev                # start Express on port 3000
 
 # Frontend
