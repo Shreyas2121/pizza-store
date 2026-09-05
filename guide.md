@@ -337,8 +337,8 @@ Use `not started`, `in progress`, `implemented; verification pending`, `complete
 | C03 | complete | Codex | `71c3e7f`; public shell/overview implemented; lint passed; runtime checks skipped at owner request |
 | C04 | complete | Codex | `ddd393c`; architecture page and deferred Mermaid renderer; source review only per owner |
 | C05 | complete | Codex | `e9d5882`; lifecycle, cancellation, and recovery evidence; source review only per owner |
-| C06 | complete | Codex | Inventory model, lock paths, ledger, and last-item walkthrough; source review only per owner; see latest handoff |
-| C07 | not started | - | - |
+| C06 | complete | Codex | `bdef64d`; inventory model, lock paths, ledger, and last-item walkthrough; source review only per owner |
+| C07 | complete | Codex | Six decision records and reliability/recovery evidence; source review only per owner; see latest handoff |
 | C08 | not started | - | - |
 | C09 | not started | - | - |
 | C10 | not started | - | - |
@@ -348,6 +348,20 @@ Use `not started`, `in progress`, `implemented; verification pending`, `complete
 | E03 | optional; not started | - | - |
 
 ### Latest handoff
+
+Task: C07 complete within the owner's requested implementation scope (2026-09-05). Local commit title: `docs: add architecture decisions and reliability evidence`.
+
+- Owner: Codex. No app, lint, build, test, reconciliation, database, or browser execution, under the owner's standing direction. Runtime and rendering acceptance checks remain unverified; the reliability page labels its results as the dated C01 baseline.
+- Added `/docs/decisions` and `/docs/reliability` with atomic lazy route/navigation registration, inventory-to-decisions-to-reliability continuation links, and overview guided-reading links.
+- Published six present-day assessments: modular-monolith transactions, locked inventory reservations, partial order snapshots, provider verification/reconciliation, store-scoped authorization, and separate frontend state owners. Each record includes context, constraints, chosen approach, alternative, accepted cost, evidence, and concrete revisit conditions.
+- Published four test categories with exact evidence limits, the recorded pass/failure baseline, seven-row failure/operations matrix, exact bounded reconciliation commands and exit semantics, diagnostic identifiers/log limits, deployment/dependency assumptions, and six visibly proposed improvements with release/scale triggers.
+- Re-read current payment, inventory, order, access, realtime, logging, scripts, manifests, and hosting-file inventory. No scheduler/hosting manifest or durable notification mechanism was found. No reconciliation command was run against the configured database.
+- Added TEST-01 and OPS-01 to the detailed/public evidence plus REC-03, ACCESS-03/04, and RT-01 public projections. Evidence links now support a per-claim reviewed revision so the C01 audit document links to the commit where it exists.
+- Corrected `docs/setup.md` to the backend's Node engine, actual `nodemon`/`ts-node` package scripts, separate reconciliation commands, route/retry limitations, and result semantics. Added diagnostic correlation and logging limits to the Razorpay runbook.
+- Static review confirmed the six decision templates, route/navigation/section alignment, evidence ID coverage, source/test path existence, command/default/limit values, proposal labelling, responsive table overflow, and a whitespace-clean diff.
+- Next task: C08, the deterministic inventory simulation model and focused tests. Its acceptance criteria explicitly require adding and running meaningful frontend tests; reconcile that with the standing execution waiver when C08 begins. Commit hash is reported in the final handoff; no push or deployment.
+
+### Previous handoff: C06
 
 Task: C06 complete within the owner's requested implementation scope (2026-09-05). Local commit title: `feat: document inventory consistency and locking`.
 

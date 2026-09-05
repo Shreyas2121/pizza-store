@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- **Node.js** 20+ and **pnpm** package manager
+- **Node.js** 22.13.0+ and **pnpm** package manager
 - **PostgreSQL** 15+ running locally or remotely
 - A terminal (PowerShell, CMD, or bash)
 
@@ -165,12 +165,14 @@ Configure automatic capture in the Razorpay Dashboard: verification deliberately
 keeps an order in `awaiting_payment` until Razorpay reports its payment as
 `captured` and its order as `paid`.
 
-The frontend loads Razorpay Checkout directly from Razorpay when the customer
-chooses **Pay online**. Do not add a Razorpay key or secret to the frontend
-environment: the public key ID, amount, currency, and provider order ID all come
-from the authenticated initiation response. If Checkout is closed or payment
-verification is interrupted, the customer can resume the same payment from the
-order-details page instead of placing a duplicate order.
+The frontend contains Razorpay Checkout and retry integration. Do not add a
+Razorpay key or secret to the frontend environment: the public key ID, amount,
+currency, and provider order ID belong in the authenticated initiation response.
+At the audited revision, however, the frontend calls payment-method discovery
+and retry endpoints that are not registered by `payment.routes.ts`, and retry
+service code does not recreate released inventory reservations. Treat the
+browser steps below as release checks that remain blocked until that wiring and
+recovery behavior are completed and re-audited.
 
 To exercise the browser flow in Test Mode:
 
@@ -192,17 +194,28 @@ Dashboard webhook secret to the exact `RAZORPAY_WEBHOOK_SECRET` value. The URL
 must be public HTTPS. Do not send browser requests to this endpoint and do not
 place it behind JWT authentication or JSON-transforming middleware.
 
-Run stale-payment reconciliation periodically from a trusted scheduler or
-operations shell:
+Run stale-payment reconciliation from a trusted scheduler or operations shell:
 
 ```bash
-pnpm payments:reconcile
+pnpm run payments:reconcile
 ```
 
 Optional `RECONCILE_OLDER_THAN_MINUTES` (default `15`) and `RECONCILE_LIMIT`
 (default `25`, maximum `50`) environment variables control each batch. The
-command exits non-zero if any candidate could not be reconciled. The equivalent
-admin API is `POST /api/v1/payments/razorpay/reconcile`.
+command exits non-zero when its result reports one or more errors. Failed or
+unchanged payment outcomes remain in the JSON result and need inspection. The
+equivalent admin API is `POST /api/v1/payments/razorpay/reconcile`.
+
+Expired inventory reservations use a separate one-shot command:
+
+```bash
+pnpm run inventory:reconcile-reservations
+```
+
+`RECONCILE_LIMIT` defaults to `25` and has a maximum of `100` for this command.
+It exits non-zero on reported errors; conflicts are separate results and must
+also be inspected. Neither reconciliation command is scheduled by application
+startup, and no scheduler is included in this repository.
 See [the Razorpay operations runbook](./razorpay-runbook.md) for staging, live
 rollout, monitoring, alert thresholds, incident rollback, and reconciliation.
 For step-by-step credential creation during development, see the
@@ -220,15 +233,16 @@ For step-by-step credential creation during development, see the
 
 | Script | Command | Description |
 | --- | --- | --- |
-| `dev` | `tsx watch src/index.ts` | Start dev server with hot reload |
+| `dev` | `nodemon src/index.ts` | Start the development server with restart-on-change behavior |
 | `test` | `vitest run src --pool=threads` | Run backend unit test suite |
-| `test:watch` | `vitest src` | Run backend unit tests in interactive watch mode |
+| `test:watch` | `vitest src --pool=threads` | Run backend tests in interactive watch mode |
 | `build` | `tsc -p tsconfig.json` | Compile TypeScript backend to JavaScript |
 | `typecheck` | `tsc --noEmit` | Check TypeScript types without emitting files |
-| `payments:reconcile` | `tsx src/scripts/reconcile-stale-payments.ts` | Run background reconciliation for stale payments and expired reservations |
-| `seed:users` | `tsx src/scripts/users.ts` | Seed user accounts |
-| `seed:addresses` | `tsx src/scripts/address.ts` | Seed delivery addresses |
-| `seed:orders` | `tsx src/scripts/order.ts` | Seed sample orders |
+| `payments:reconcile` | `ts-node src/scripts/reconcile-payments.ts` | Run one bounded stale-payment reconciliation batch |
+| `inventory:reconcile-reservations` | `ts-node src/scripts/reconcile-inventory-reservations.ts` | Run one bounded expired-reservation reconciliation batch |
+| `seed:users` | `ts-node src/scripts/user.ts` | Seed user accounts |
+| `seed:addresses` | `ts-node src/scripts/address.ts` | Seed delivery addresses |
+| `seed:orders` | `ts-node src/scripts/order.ts` | Seed sample orders |
 | `seed:staff` | `ts-node src/scripts/staff.ts` | Idempotently assign existing users to a store in development only |
 
 ### Frontend (`frontend/package.json`)

@@ -1,0 +1,91 @@
+import { ArrowLeft } from "lucide-react";
+import { Link } from "react-router";
+import { DocsPage, DocsSection } from "../components/docs-page";
+import { EvidenceLinks } from "../components/evidence-links";
+import { reviewedDate, reviewedRevision } from "../content/evidence";
+import { failureRows, improvementPriorities, testCategories } from "../content/reliability";
+import { docsReliability } from "../content/navigation";
+
+const deploymentLimits = [
+  ["Runtime shape", "Each Node/Express application process hosts HTTP and Socket.IO and uses PostgreSQL. No deployed topology, public URL, or hosting manifest was found."],
+  ["Runtime requirements", "The backend manifest requires Node.js 22.13.0 or newer. pnpm lockfiles define dependencies; migrations must match the connected PostgreSQL database."],
+  ["Optional provider", "Razorpay starts disabled. Enabling new attempts requires the key ID, key secret, and webhook secret; in-flight verification/reconciliation still needs credentials after rollback."],
+  ["Process filesystem", "Uploads and dated Winston log files use local paths. Persistence, aggregation, rotation, and sharing across instances depend on hosting that is not present here."],
+  ["Frontend delivery", "The app uses BrowserRouter. A host must rewrite direct documentation paths to the SPA entry; no hosted refresh check has been performed."],
+  ["Observed dependency baseline", "The C01 machine had frontend Zod 4.5.4 installed while the manifest/lockfile specified 3.24.2, and the production build stopped at the resulting type error."],
+] as const;
+
+const failureEvidence = ["PAY-01", "REC-02", "PAY-04", "PAY-05", "REC-01", "REC-03", "INV-03", "ORDER-02", "RT-02", "ACCESS-04", "RT-01"] as const;
+
+export default function ReliabilityPage() {
+  const [tests, failures, reconciliation, diagnostics, deployment, improvements] = docsReliability.sections;
+  return <DocsPage title={docsReliability.title} description={docsReliability.description}>
+    <header className="pb-10">
+      <p className="docs-eyebrow mb-5">06 / Reliability & recovery</p>
+      <h1 className="max-w-3xl font-display text-4xl font-normal leading-tight tracking-tight sm:text-5xl">Evidence has a scope.<br /><span className="text-brand">Recovery needs an owner.</span></h1>
+      <p className="mt-6 max-w-2xl text-lg leading-8 text-ink-muted">This page separates source behavior, executed checks, operational commands, and future improvements so each reliability claim remains reviewable.</p>
+      <div className="mt-7 rounded-control border border-border bg-surface-muted p-5 text-sm leading-6 text-ink-muted"><p>Baseline revision: <code>{reviewedRevision.slice(0, 7)}</code>, reviewed {reviewedDate}. C07 did not rerun the application or test suite under the owner's standing direction; results below are the dated C01 baseline.</p></div>
+    </header>
+
+    <DocsSection section={tests}>
+      <p className="mb-6 leading-7 text-ink-muted">A test's shape determines what it can support. Passing a pure function or mocked service test does not exercise PostgreSQL locks, network delivery, or browser behavior.</p>
+      <div className="overflow-x-auto rounded-card border border-border" tabIndex={0} role="region" aria-label="Test evidence categories and limits, scroll horizontally">
+        <table className="w-full min-w-[900px] text-left text-sm leading-6"><caption className="border-b border-border bg-surface px-5 py-4 text-left text-xs text-ink-muted">Classification from the C01 audit. “Missing” is an evidence gap, not a passing or failing result.</caption>
+          <thead className="bg-surface-muted"><tr>{["Category", "Coverage", "What it establishes", "What remains outside it"].map((heading) => <th key={heading} scope="col" className="px-5 py-4 font-semibold">{heading}</th>)}</tr></thead>
+          <tbody>{testCategories.map((category) => <tr key={category.category} className="border-t border-border bg-surface align-top"><th scope="row" className="px-5 py-4 font-medium">{category.category}</th><td className="px-5 py-4"><span className={category.status === "Present" ? "text-basil" : "text-brand"}>{category.status}</span></td><td className="px-5 py-4 text-ink-muted">{category.establishes}</td><td className="px-5 py-4 text-ink-muted">{category.limit}</td></tr>)}</tbody>
+        </table>
+      </div>
+      <div className="mt-6 grid gap-4 sm:grid-cols-2">
+        <div className="rounded-card border border-border p-5"><p className="docs-eyebrow mb-3">Recorded passes</p><p className="text-sm leading-7 text-ink-muted">Frontend lint passed with three existing warnings. Backend typecheck and build passed. The backend suite reported 200 passing tests.</p></div>
+        <div className="rounded-card border border-border p-5"><p className="docs-eyebrow mb-3">Recorded failures</p><p className="text-sm leading-7 text-ink-muted">Frontend build stopped on the installed Zod mismatch. One of 201 backend tests failed after accidentally querying a schema-mismatched configured database before its assertions.</p></div>
+      </div>
+      <EvidenceLinks id="TEST-01" />
+    </DocsSection>
+
+    <DocsSection section={failures}>
+      <p className="mb-6 leading-7 text-ink-muted">The matrix connects a concrete trigger to current behavior, evidence, an operator action, and the boundary that remains unresolved.</p>
+      <div className="overflow-x-auto rounded-card border border-border" tabIndex={0} role="region" aria-label="Failure handling and recovery matrix, scroll horizontally">
+        <table className="w-full min-w-[1250px] text-left text-sm leading-6"><caption className="sr-only">Current failure behavior, evidence, operational action, and limitations</caption>
+          <thead className="bg-surface-muted"><tr>{["Scenario", "Current behavior", "Evidence", "Operational action", "Known limit"].map((heading) => <th key={heading} scope="col" className="px-4 py-4 font-semibold">{heading}</th>)}</tr></thead>
+          <tbody>{failureRows.map((row) => <tr key={row.scenario} className="border-t border-border bg-surface align-top"><th scope="row" className="px-4 py-4 font-medium">{row.scenario}</th><td className="px-4 py-4 text-ink-muted">{row.currentBehavior}</td><td className="px-4 py-4 font-mono text-xs">{row.evidence.join(" · ")}</td><td className="px-4 py-4 text-ink-muted">{row.operationalAction}</td><td className="px-4 py-4 text-ink-muted">{row.limit}</td></tr>)}</tbody>
+        </table>
+      </div>
+      <div className="mt-2">{failureEvidence.map((id) => <EvidenceLinks key={id} id={id} />)}</div>
+    </DocsSection>
+
+    <DocsSection section={reconciliation}>
+      <div className="grid gap-5 sm:grid-cols-2">
+        <div className="rounded-card border border-border bg-surface p-6"><p className="docs-eyebrow mb-3">Stale payments</p><h3 className="break-all font-mono text-sm">pnpm.cmd --dir backend run payments:reconcile</h3><p className="mt-4 text-sm leading-7 text-ink-muted">Scans processing/failed Razorpay attempts. It can attach an order found by deterministic receipt, fetch provider state, and finalize or record failure. Defaults: older than 15 minutes, limit 25; maximum limit 50.</p></div>
+        <div className="rounded-card border border-border bg-surface p-6"><p className="docs-eyebrow mb-3">Expired reservations</p><h3 className="break-all font-mono text-sm">pnpm.cmd --dir backend run inventory:reconcile-reservations</h3><p className="mt-4 text-sm leading-7 text-ink-muted">Scans expired reserved rows, checks provider state, and finalizes, preserves, or safely releases. Default limit 25; maximum 100. It does not discover all-untracked orders because they have no reservation rows.</p></div>
+      </div>
+      <div className="mt-6 rounded-card bg-surface-muted p-6"><h3 className="mb-3 font-semibold">One-shot commands, no established schedule</h3><p className="text-sm leading-7 text-ink-muted">Both commands print summary and per-item JSON and close the database connection. They exit non-zero when <code>errors &gt; 0</code>. A failed payment outcome, unchanged result, or reservation conflict is not included in that exit test, so operators must inspect the full result.</p><p className="mt-3 text-sm leading-7 text-ink-muted">No scheduler or hosting manifest was found, and server startup does not invoke either command. The five-minute cadence in the runbook is a proposed starting point. Never run reconciliation against an unidentified database merely to verify documentation.</p></div>
+      <EvidenceLinks id="REC-01" /><EvidenceLinks id="REC-02" /><EvidenceLinks id="REC-03" />
+    </DocsSection>
+
+    <DocsSection section={diagnostics}>
+      <div className="grid gap-5 sm:grid-cols-2">
+        <div className="rounded-card border border-border p-6"><h3 className="mb-3 font-semibold">Identifiers that connect the flow</h3><ul className="list-disc space-y-2 pl-5 text-sm leading-7 text-ink-muted"><li>Local order and payment IDs</li><li>Client request ID and deterministic receipt</li><li>Provider order and payment IDs</li><li>Webhook event ID and event type</li><li>Failure code, description, and provider status</li></ul></div>
+        <div className="rounded-card border border-border p-6"><h3 className="mb-3 font-semibold">Logs and command output</h3><p className="text-sm leading-7 text-ink-muted">Winston writes console output plus dated <code>error.log</code> and <code>combined.log</code> files. HTTP logs include method, URL, status, and duration. Payment errors add relevant local/provider IDs; webhook logs add event ID/type. Reconciliation returns per-item JSON.</p></div>
+      </div>
+      <p className="mt-6 text-sm leading-7 text-ink-muted">The audit found no generated request correlation ID, centralized aggregation configuration, retention policy, or trace spanning browser, API, provider, and Socket.IO delivery. Database/provider identifiers support targeted diagnosis but do not provide complete distributed tracing.</p>
+      <EvidenceLinks id="OPS-01" />
+    </DocsSection>
+
+    <DocsSection section={deployment}>
+      <div className="overflow-x-auto rounded-card border border-border" tabIndex={0} role="region" aria-label="Deployment assumptions and current limits">
+        <table className="w-full min-w-[720px] text-left text-sm leading-6"><caption className="sr-only">Current runtime assumptions and unverified deployment behavior</caption>
+          <thead className="bg-surface-muted"><tr><th scope="col" className="px-5 py-4 font-semibold">Concern</th><th scope="col" className="px-5 py-4 font-semibold">Established source or limitation</th></tr></thead>
+          <tbody>{deploymentLimits.map(([concern, detail]) => <tr key={concern} className="border-t border-border bg-surface align-top"><th scope="row" className="px-5 py-4 font-medium">{concern}</th><td className="px-5 py-4 text-ink-muted">{detail}</td></tr>)}</tbody>
+        </table>
+      </div>
+      <EvidenceLinks id="ARCH-01" /><EvidenceLinks id="REC-03" /><EvidenceLinks id="TEST-01" />
+    </DocsSection>
+
+    <DocsSection section={improvements}>
+      <p className="mb-6 leading-7 text-ink-muted">These are proposed changes, ordered by release risk and triggered by concrete conditions. They do not describe current behavior.</p>
+      <div className="space-y-4">{improvementPriorities.map((item) => <div key={item.title} className="grid gap-4 rounded-card border border-border bg-surface p-6 sm:grid-cols-[auto_1fr]"><span className="h-fit rounded-full bg-surface-muted px-3 py-1 font-mono text-xs font-semibold text-brand">{item.priority}</span><div><h3 className="font-semibold">{item.title}</h3><p className="mt-2 text-sm leading-7 text-ink-muted"><strong className="text-ink">Trigger:</strong> {item.trigger}</p><p className="mt-2 text-sm leading-7 text-ink-muted"><strong className="text-ink">Proposed change:</strong> {item.change}</p></div></div>)}</div>
+    </DocsSection>
+
+    <Link to="/docs/decisions" className="docs-button-secondary"><ArrowLeft size={16} aria-hidden="true" />Back to decisions</Link>
+  </DocsPage>;
+}

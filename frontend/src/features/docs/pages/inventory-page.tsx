@@ -98,6 +98,6 @@ export default function InventoryPage() {
       <EvidenceLinks id="INV-06" />
     </DocsSection>
 
-    <Link to="/docs/order-lifecycle" className="docs-button-secondary"><ArrowLeft size={16} aria-hidden="true" />Back to orders & payments</Link>
+    <div className="flex flex-wrap gap-3"><Link to="/docs/decisions" className="docs-button">Continue to engineering decisions</Link><Link to="/docs/order-lifecycle" className="docs-button-secondary"><ArrowLeft size={16} aria-hidden="true" />Back to orders & payments</Link></div>
   </DocsPage>;
 }

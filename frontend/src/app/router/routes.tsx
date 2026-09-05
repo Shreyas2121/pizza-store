@@ -11,6 +11,8 @@ const DocsIndex = lazy(() => import("@/features/docs/pages/docs-index-page"));
 const DocsArchitecture = lazy(() => import("@/features/docs/pages/architecture-page"));
 const DocsOrderLifecycle = lazy(() => import("@/features/docs/pages/order-lifecycle-page"));
 const DocsInventory = lazy(() => import("@/features/docs/pages/inventory-page"));
+const DocsDecisions = lazy(() => import("@/features/docs/pages/decisions-page"));
+const DocsReliability = lazy(() => import("@/features/docs/pages/reliability-page"));
 const DocsNotFound = lazy(() => import("@/features/docs/pages/docs-not-found-page"));
 
 const Home = lazy(() => import("@/features/catalog").then((m) => ({ default: m.HomePage })));
@@ -50,6 +52,8 @@ export const AppRoutes = () => (
       <Route path="architecture" element={<DocsArchitecture />} />
       <Route path="order-lifecycle" element={<DocsOrderLifecycle />} />
       <Route path="inventory" element={<DocsInventory />} />
+      <Route path="decisions" element={<DocsDecisions />} />
+      <Route path="reliability" element={<DocsReliability />} />
       <Route path="*" element={<DocsNotFound />} />
     </Route>
     <Route element={<MainLayout />}>

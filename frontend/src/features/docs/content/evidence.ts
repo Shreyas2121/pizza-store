@@ -86,6 +86,12 @@ export const evidence = {
     symbol: "reconcileStalePayments / attachRecoveredProviderOrder",
     scope: "Source review of receipt-based recovery and provider re-fetch; not proof that stock was re-reserved or every provider failure recovers automatically.",
   },
+  "REC-03": {
+    title: "Reconciliation execution and scheduling",
+    source: "backend/package.json",
+    symbol: "payments:reconcile / inventory:reconcile-reservations scripts",
+    scope: "Two bounded one-shot commands exist and exit non-zero only on reported errors. No scheduler/hosting manifest or startup scheduling was found; neither command was executed by the audit.",
+  },
   "RT-02": {
     title: "Post-commit delivery limits",
     source: "backend/src/features/payments/payment.routes.ts",
@@ -140,6 +146,39 @@ export const evidence = {
     test: "backend/src/features/access/access.logic.test.ts",
     scope: "Policy tests establish allowed roles; live two-store isolation remains unverified.",
   },
+  "ACCESS-03": {
+    title: "Staff lifecycle safeguards",
+    source: "backend/src/features/staff/staff.service.ts",
+    symbol: "Membership mutations / final-manager guard / invitation lifecycle",
+    test: "backend/src/features/staff/staff.service.test.ts",
+    scope: "Injected repository, audit, delivery, clock, and notifier tests; no live transaction or database-constraint test.",
+  },
+  "ACCESS-04": {
+    title: "Invitation delivery and socket revocation limits",
+    source: "backend/src/features/staff/staff.realtime.ts",
+    symbol: "SocketIoStaffAccessNotifier / evictUserSockets",
+    scope: "Membership changes can disconnect sockets visible to the local Socket.IO adapter. Production invitation delivery and cross-process revocation are not established.",
+  },
+  "RT-01": {
+    title: "Authenticated realtime rooms",
+    source: "backend/src/features/realtime/realtime-rooms.ts",
+    symbol: "deriveRoomsForPrincipal / syncSocketRooms",
+    test: "backend/src/features/realtime/realtime-rooms.test.ts",
+    scope: "Pure room mapping and mocked socket/auth tests; not actual transport, delivery, reconnect, or multi-process evidence.",
+  },
+  "TEST-01": {
+    title: "Audited check baseline and test categories",
+    source: "docs/case-study-evidence.md",
+    revision: "fe1f273d62e86da08490d71e8bb8365282c2b176",
+    symbol: "Test baseline / Test classification and missing proof",
+    scope: "Dated C01 execution: frontend lint and backend typecheck/build passed; frontend build and one backend test failed for recorded environment/isolation reasons. C07 did not rerun these checks.",
+  },
+  "OPS-01": {
+    title: "Operational diagnostic identifiers",
+    source: "backend/src/utils/logger.ts",
+    symbol: "Winston transports; payment/webhook structured metadata; reconciliation JSON",
+    scope: "Source review finds local/provider/payment/event identifiers and dated local log files. No generated request correlation ID, centralized sink, retention policy, or end-to-end trace was established.",
+  },
 } as const;
 
 export type EvidenceId = keyof typeof evidence;
@@ -151,6 +190,6 @@ export const repositoryUrl = configuredRepository &&
   ? configuredRepository.replace(/\/$/, "").replace(/\.git$/, "")
   : null;
 
-export const sourceUrl = (path: string) => repositoryUrl
-  ? `${repositoryUrl}/blob/${reviewedRevision}/${path}`
+export const sourceUrl = (path: string, revision = reviewedRevision) => repositoryUrl
+  ? `${repositoryUrl}/blob/${revision}/${path}`
   : null;

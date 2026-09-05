@@ -157,6 +157,25 @@ ORDER BY updated_at;
 Do not manually mark a payment completed or an order pending. Use reconciliation,
 which re-fetches Razorpay and validates association, currency, and exact amount.
 
+### Diagnostic correlation
+
+Start with the local order and payment IDs. The deterministic receipt connects
+those records to provider-order recovery; provider order/payment IDs connect the
+local attempt to Razorpay; webhook event ID/type connect delivery attempts to
+`payment_webhook_events`. Persisted provider status and failure code/description
+add the last recorded observation.
+
+Payment and webhook logs include the applicable identifiers as structured
+metadata. Winston writes console output and dated local `error.log` and
+`combined.log` files. Reconciliation commands print count and per-item JSON, so
+retain their complete output and inspect reservation `conflicts` as well as
+`errors`.
+
+The reviewed source has no generated request correlation ID, centralized log
+sink, retention policy, or trace spanning browser, API, Razorpay, and Socket.IO.
+Local log-file durability and aggregation depend on the hosting arrangement,
+which is not included in this repository.
+
 ## Incident rollback
 
 1. Set `RAZORPAY_ENABLED=false` and restart/redeploy the backend. Confirm

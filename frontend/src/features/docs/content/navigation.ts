@@ -65,4 +65,40 @@ export const docsInventory: DocsEntry = {
   ],
 };
 
-export const docsNavigation: readonly DocsEntry[] = [docsOverview, docsArchitecture, docsOrderLifecycle, docsInventory];
+export const docsDecisions: DocsEntry = {
+  path: "/docs/decisions",
+  title: "Engineering decisions",
+  description: "Review PizzaStore's current architectural choices, alternatives, accepted costs, evidence, and triggers for revisiting them.",
+  sections: [
+    { id: "assessment", title: "How to read the records" },
+    { id: "local-transactions", title: "Local transactions" },
+    { id: "stock-allocation", title: "Stock allocation" },
+    { id: "order-records", title: "Order records" },
+    { id: "payment-recovery", title: "Payment recovery" },
+    { id: "store-authority", title: "Store authority" },
+    { id: "frontend-state", title: "Frontend state" },
+  ],
+};
+
+export const docsReliability: DocsEntry = {
+  path: "/docs/reliability",
+  title: "Reliability & recovery",
+  description: "Inspect PizzaStore's test evidence, failure handling, reconciliation commands, diagnostics, deployment limits, and proposed improvements.",
+  sections: [
+    { id: "evidence-levels", title: "Evidence levels" },
+    { id: "failure-matrix", title: "Failure matrix" },
+    { id: "reconciliation", title: "Reconciliation" },
+    { id: "diagnostics", title: "Diagnostics" },
+    { id: "deployment-limits", title: "Deployment limits" },
+    { id: "proposed-improvements", title: "Proposed improvements" },
+  ],
+};
+
+export const docsNavigation: readonly DocsEntry[] = [
+  docsOverview,
+  docsArchitecture,
+  docsOrderLifecycle,
+  docsInventory,
+  docsDecisions,
+  docsReliability,
+];

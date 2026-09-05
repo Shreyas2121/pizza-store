@@ -2,8 +2,9 @@
 
 The public case study starts at `/docs`. Its React feature lives in
 `frontend/src/features/docs/`. Published pages are `/docs` (overview),
-`/docs/architecture`, `/docs/order-lifecycle`, and `/docs/inventory`. Unknown
-child paths retain the docs shell and display a not-found message.
+`/docs/architecture`, `/docs/order-lifecycle`, `/docs/inventory`,
+`/docs/decisions`, and `/docs/reliability`. Unknown child paths retain the docs
+shell and display a not-found message.
 
 ## Adding a page
 
@@ -33,8 +34,10 @@ public HTTPS GitHub repository URL, in the form `https://github.com/OWNER/REPO`.
 This is public configuration and must not contain credentials. It is optional;
 without a valid URL, the page displays source paths and omits repository actions.
 
-Evidence links are pinned to `reviewedRevision` in `content/evidence.ts`. Do not
-replace that revision automatically with the latest commit: audit the claims
+Source-behavior evidence links are pinned to `reviewedRevision` in
+`content/evidence.ts`. A claim may specify its own reviewed revision when its
+source artifact was added later, as TEST-01 does for the C01 audit document. Do
+not replace revisions automatically with the latest commit: audit the claim
 first, especially after the financial rework merges. Keep the date and detailed
 Markdown evidence record synchronized.
 
@@ -95,6 +98,15 @@ The page explicitly separates transaction-scoped row locks from persisted
 reservations and does not claim global deadlock freedom or live database
 contention coverage. Relevant source was re-read; runtime checks remain skipped
 under the owner's standing direction.
+
+C07 publishes six explicitly retrospective decision assessments and a separate
+reliability evidence page. Reliability content classifies pure, mocked,
+database-integration, and browser evidence; maps failure handling to operator
+actions and limitations; records the exact one-shot reconciliation commands;
+and separates current diagnostics/deployment gaps from triggered proposals.
+`docs/setup.md` and the Razorpay runbook were corrected to match package scripts,
+route gaps, exit behavior, and diagnostic identifiers. This phase used source
+and diff review only under the owner's standing direction.
 
 For a future authorized browser review, check direct/refresh access, existing
 auth-token visits, mobile drawer keyboard/focus behavior, section links,
