@@ -339,8 +339,8 @@ Use `not started`, `in progress`, `implemented; verification pending`, `complete
 | C05 | complete | Codex | `e9d5882`; lifecycle, cancellation, and recovery evidence; source review only per owner |
 | C06 | complete | Codex | `bdef64d`; inventory model, lock paths, ledger, and last-item walkthrough; source review only per owner |
 | C07 | complete | Codex | `d2f6927`; six decision records and reliability/recovery evidence; source review only per owner |
-| C08 | implemented; verification pending | Codex | Deterministic inventory model and focused Vitest source; execution waived; see latest handoff |
-| C09 | not started | - | - |
+| C08 | implemented; verification pending | Codex | `85822d5`; deterministic inventory model and focused Vitest source; execution waived |
+| C09 | implemented; verification pending | Codex | Accessible inventory scenario explorer; source review only; see latest handoff |
 | C10 | not started | - | - |
 | C11 | not started | - | - |
 | E01 | optional; not started | - | - |
@@ -348,6 +348,19 @@ Use `not started`, `in progress`, `implemented; verification pending`, `complete
 | E03 | optional; not started | - | - |
 
 ### Latest handoff
+
+Task: C09 implemented; required verification pending under the owner's standing execution waiver (2026-09-05). Local commit title: `feat: add accessible inventory scenario explorer`.
+
+- Owner: Codex. No app, test, lint, build, database, payment, browser, keyboard, viewport, reduced-motion, or print execution, under the owner's standing direction. The required checks remain unverified, so the tracker does not mark C09 complete.
+- Mounted the C08 model in a new `scenario-explorer` section immediately after the inventory page's static last-item walkthrough. The navigation manifest and rendered section use the same stable ID.
+- Added a labelled native selector for capture, confirmed failure, and safe expiry plus previous, next, and reset buttons with correct disabled states at step zero and the final event. Changing scenarios resets the local replay step.
+- Displays on-hand, active-reserved, and displayed-available quantities; both customers' attempt, checkout, reservation, and payment state; modeled lock owner/waiting state; the current step; and chronological completed-event explanations without relying on color.
+- Added a polite atomic status region for control updates and a full selected-scenario transcript independent of current replay position. Print CSS hides the interactive panel and forces transcript children visible even if the disclosure was closed.
+- Kept state in `useState` within the explorer. Imports are limited to React, Lucide presentation icons, and the local C08 model; there are no API calls, global stores, timers, random ordering, browser persistence, or backend imports.
+- Added simulator-scoped reduced-motion CSS. Source review confirmed all three fixtures are selectable, bounds disable the relevant controls, scenario changes reset, state/log IDs match `aria-controls`, output includes lock waiting text, and the transcript carries every event's quantity/lock snapshot.
+- Next task: C10 can complete discovery and presentation around the now-mounted core case study. C09's exact pending commands are `pnpm.cmd --dir frontend run test`, `pnpm.cmd --dir frontend run lint`, and `pnpm.cmd --dir frontend run build`; manual browser, keyboard, narrow-viewport, reduced-motion, and print checks also remain pending. Commit hash is reported in the final handoff; no push or deployment.
+
+### Previous handoff: C08
 
 Task: C08 implemented; required verification pending under the owner's standing execution waiver (2026-09-05). Local commit title: `feat: add deterministic inventory simulation model`.
 

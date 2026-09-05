@@ -15,6 +15,9 @@
 .docs-shell .docs-diagram-svg { min-width: 540px; }
 .docs-shell .docs-diagram-wide { min-width: 900px; }
 .docs-shell .docs-diagram-svg svg { display: block; margin: 0 auto; width: 100%; height: auto; }
+@media (prefers-reduced-motion: reduce) {
+  .docs-shell .docs-simulator, .docs-shell .docs-simulator * { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
+}
 @media print {
   .docs-shell .docs-header, .docs-shell .docs-sidebar, .docs-shell .docs-footer, .docs-shell .docs-skip { display: none; }
   .docs-shell { background: white; }
@@ -23,4 +26,10 @@
   .docs-shell .docs-diagram-scroll { display: none; }
   .docs-shell .docs-diagram-source { display: none; }
   .docs-shell .docs-diagram-card { break-inside: avoid; }
+  .docs-shell #scenario-explorer { break-inside: auto; }
+  .docs-shell .docs-simulation-interactive { display: none; }
+  .docs-shell .docs-simulation-transcript { border: 0; padding: 0; }
+  .docs-shell .docs-simulation-transcript > * { display: block !important; }
+  .docs-shell .docs-simulation-transcript summary { list-style: none; }
+  .docs-shell .docs-simulation-transcript summary::-webkit-details-marker { display: none; }
 }

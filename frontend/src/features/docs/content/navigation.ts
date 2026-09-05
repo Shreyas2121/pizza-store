@@ -61,6 +61,7 @@ export const docsInventory: DocsEntry = {
     { id: "transaction-locks", title: "Transaction & lock paths" },
     { id: "movement-ledger", title: "Movement ledger" },
     { id: "last-item", title: "The last item" },
+    { id: "scenario-explorer", title: "Scenario explorer" },
     { id: "expiry-and-operations", title: "Expiry & operations" },
   ],
 };

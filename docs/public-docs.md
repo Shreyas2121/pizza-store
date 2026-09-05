@@ -117,6 +117,16 @@ Vitest `4.1.11` and `pnpm run test` are declared for focused invariant tests.
 Those tests, lint, and build were not executed under the owner's standing
 direction, so their results remain unverified until a later authorized run.
 
+C09 mounts that model on `/docs/inventory` as an accessible teaching explorer.
+Native scenario and replay controls update textual inventory, actor, lock, and
+event-log views through a polite status region. The selected scenario also has
+an always-available full transcript; print styles omit the controls and force
+the transcript content to remain visible. The explorer has no timers, API calls,
+global store, or color-only state. Reduced-motion styles suppress incidental
+transitions. Source and diff review were completed, while tests, lint, build,
+browser, keyboard, narrow-viewport, and print execution remain unverified under
+the owner's standing direction.
+
 For a future authorized browser review, check direct/refresh access, existing
 auth-token visits, mobile drawer keyboard/focus behavior, section links,
 unknown docs paths, content-load failures, and navigation back to business routes.

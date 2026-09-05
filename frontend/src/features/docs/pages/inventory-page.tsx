@@ -7,6 +7,7 @@ import { reviewedDate, reviewedRevision } from "../content/evidence";
 import { inventoryLedgerExample, lockPaths, operationalInteractions } from "../content/inventory";
 import { inventoryStateModel, lastItemSequence } from "../content/diagrams/inventory";
 import { docsInventory } from "../content/navigation";
+import { InventorySimulator } from "../simulations/inventory-simulator";
 
 const availabilityTerms = [
   ["On-hand", "Physical tracked quantity stored on the store-product row. null means inventory is untracked."],
@@ -16,7 +17,7 @@ const availabilityTerms = [
 ] as const;
 
 export default function InventoryPage() {
-  const [model, availability, locks, ledger, contention, operations] = docsInventory.sections;
+  const [model, availability, locks, ledger, contention, explorer, operations] = docsInventory.sections;
   return <DocsPage title={docsInventory.title} description={docsInventory.description}>
     <header className="pb-10">
       <p className="docs-eyebrow mb-5">04 / Inventory consistency</p>
@@ -80,7 +81,7 @@ export default function InventoryPage() {
     </DocsSection>
 
     <DocsSection section={contention}>
-      <p className="mb-6 leading-7 text-ink-muted">This walkthrough stays useful without an animation. It shows the state transition that the later teaching simulator will replay, while keeping database evidence and simulation claims separate.</p>
+      <p className="mb-6 leading-7 text-ink-muted">This walkthrough stays useful without interaction. It shows the state transition that the teaching explorer below replays, while keeping database evidence and simulation claims separate.</p>
       <DiagramCard diagram={lastItemSequence} />
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
         <div className="rounded-card border border-border p-5"><p className="docs-eyebrow mb-3">During A's transaction</p><p className="text-sm leading-7 text-ink-muted">A owns the row lock. B waits. On-hand remains 1 while A prepares a reservation.</p></div>
@@ -89,6 +90,11 @@ export default function InventoryPage() {
       </div>
       <EvidenceLinks id="INV-02" />
       <EvidenceLinks id="INV-03" />
+    </DocsSection>
+
+    <DocsSection section={explorer}>
+      <p className="mb-6 leading-7 text-ink-muted">Step through the fixed capture, payment-failure, and safe-expiry sequences. The actor cards and transcript explain each outcome in text, including why Customer B's rejected request needs a new attempt after stock is released.</p>
+      <InventorySimulator />
     </DocsSection>
 
     <DocsSection section={operations}>
