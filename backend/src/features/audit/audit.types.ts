@@ -43,8 +43,17 @@ export type CashAuditAction =
   | "cash.session_reopened"
   | "cash.movement_recorded"
   | "cash.movement_reversed";
+export type VendorAuditAction =
+  | "vendor.created"
+  | "vendor.updated"
+  | "vendor.deactivated"
+  | "vendor.reactivated"
+  | "expense_category.created"
+  | "expense_category.updated"
+  | "expense_category.deactivated"
+  | "expense_category.reactivated";
 
-export type AuditAction = StaffAuditAction | StoreAuditAction | OrderAuditAction | InventoryAuditAction | RefundAuditAction | SettlementAuditAction | CostAuditAction | CashAuditAction | SystemAuditAction;
+export type AuditAction = StaffAuditAction | StoreAuditAction | OrderAuditAction | InventoryAuditAction | RefundAuditAction | SettlementAuditAction | CostAuditAction | CashAuditAction | VendorAuditAction | SystemAuditAction;
 
 export type AuditResourceType =
   | "store_membership"
@@ -58,6 +67,8 @@ export type AuditResourceType =
   | "product_cost_version"
   | "cash_session"
   | "cash_movement"
+  | "vendor"
+  | "expense_category"
   | "system";
 
 export interface StaffAuditState {

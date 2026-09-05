@@ -49,6 +49,7 @@ import { taxRulesTable } from "./tax.schema";
 import { financialOutboxTable } from "./financial-outbox.schema";
 import { productCostVersionsTable } from "./product-cost.schema";
 import { cashMovementsTable, cashSessionClosuresTable, cashSessionsTable } from "./cash.schema";
+import { expenseCategoriesTable, vendorsTable } from "./vendor.schema";
 
 /**
  * All Drizzle relations live here to avoid circular imports between
@@ -137,6 +138,20 @@ export const storesRelations = relations(storesTable, ({ many }) => ({
   paymentAttempts: many(paymentAttemptsTable),
   refunds: many(refundsTable),
   cashSessions: many(cashSessionsTable),
+  vendors: many(vendorsTable),
+  expenseCategories: many(expenseCategoriesTable),
+}));
+
+export const vendorsRelations = relations(vendorsTable, ({ one }) => ({
+  store: one(storesTable, { fields: [vendorsTable.storeId], references: [storesTable.id] }),
+}));
+
+export const expenseCategoriesRelations = relations(expenseCategoriesTable, ({ many, one }) => ({
+  store: one(storesTable, { fields: [expenseCategoriesTable.storeId], references: [storesTable.id] }),
+  parent: one(expenseCategoriesTable, {
+    fields: [expenseCategoriesTable.parentId], references: [expenseCategoriesTable.id], relationName: "expenseCategoryHierarchy",
+  }),
+  children: many(expenseCategoriesTable, { relationName: "expenseCategoryHierarchy" }),
 }));
 
 export const cashSessionsRelations = relations(cashSessionsTable, ({ many, one }) => ({
