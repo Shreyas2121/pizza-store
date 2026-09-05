@@ -135,6 +135,16 @@ hosting manifest, deployed URL, verified screenshot, or supplied ownership facts
 were found, so those actions and claims remain absent. Source/link review was
 completed; runtime presentation checks remain under the same execution waiver.
 
+C11 records the final static audit against revision `ea12e57` in
+`docs/case-study-verification.md`. Route/navigation/page registration, wrapper and
+heading structure, literal docs targets, evidence paths, relative Markdown links,
+feature boundaries, declared scripts, and publication inputs were inspected.
+The report keeps local source completion separate from publication readiness.
+All frontend commands, browser/accessibility behavior, build chunk inspection,
+hosted fallback, and screenshot capture remain pending under the owner's waiver.
+The completed root planning files were removed at the owner's request; this
+verification report is the durable release-status record.
+
 For a future authorized browser review, check direct/refresh access, existing
 auth-token visits, mobile drawer keyboard/focus behavior, section links,
 unknown docs paths, content-load failures, and navigation back to business routes.

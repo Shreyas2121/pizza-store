@@ -48,7 +48,8 @@ decisions, and recovery evidence. The inventory page includes a deterministic
 last-item scenario explorer; it is a teaching model rather than a database test.
 
 Use the [two-minute walkthrough](docs/case-study-walkthrough.md) for a guided tour
-and its current publication gaps. A public repository URL, deployed URL, current
+and the [release verification report](docs/case-study-verification.md) for current
+results and publication gaps. A public repository URL, deployed URL, current
 screenshot, and personal contribution statement are intentionally omitted until
 verified.
 
@@ -64,6 +65,7 @@ verified.
 | [razorpay-runbook.md](docs/razorpay-runbook.md) | Online payment lifecycle, inventory reservations, monitoring, and reconciliation |
 | [case-study-evidence.md](docs/case-study-evidence.md) | Reviewed source claims, transaction/cancellation maps, test categories, baseline results, and limitations |
 | [case-study-walkthrough.md](docs/case-study-walkthrough.md) | Two-minute case-study tour, interview prompts, and remaining publication inputs |
+| [case-study-verification.md](docs/case-study-verification.md) | Reproducible static results, pending runtime checks, and publication readiness |
 | [public-docs.md](docs/public-docs.md) | Public docs authoring, evidence-link, hosting, and verification guidance |
 
 ## Application in one workflow
