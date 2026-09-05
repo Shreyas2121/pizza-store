@@ -150,6 +150,24 @@ pnpm run dev
 
 The frontend will start on `http://localhost:3150`. It connects to the backend URL specified in `.env`.
 
+### Build and host the public case study
+
+The public engineering case study is available at `/docs` and does not require
+authentication or a working backend. Build the frontend with `pnpm run build`
+and deploy the generated `frontend/dist/` directory as a single-page app.
+
+Configure the host to serve `index.html` for application paths that do not map
+to a real static file. This fallback is required for direct loads and refreshes
+of `/docs`, `/docs/architecture`, `/docs/order-lifecycle`, `/docs/inventory`,
+`/docs/decisions`, and `/docs/reliability`. Preserve normal 404 handling for
+missing assets. The nested docs router handles unknown `/docs/*` paths after the
+SPA entry point loads.
+
+Optional `VITE_DOCS_REPOSITORY_URL` may contain the public HTTPS GitHub repository
+root. Omit it when no public repository is available; repository actions then
+remain hidden. Verify the host's fallback with direct URLs after deployment,
+because local client navigation does not establish hosted refresh behavior.
+
 ## 4. Verify the setup
 
 1. Open `http://localhost:3150` in a browser.

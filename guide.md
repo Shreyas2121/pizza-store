@@ -340,14 +340,28 @@ Use `not started`, `in progress`, `implemented; verification pending`, `complete
 | C06 | complete | Codex | `bdef64d`; inventory model, lock paths, ledger, and last-item walkthrough; source review only per owner |
 | C07 | complete | Codex | `d2f6927`; six decision records and reliability/recovery evidence; source review only per owner |
 | C08 | implemented; verification pending | Codex | `85822d5`; deterministic inventory model and focused Vitest source; execution waived |
-| C09 | implemented; verification pending | Codex | Accessible inventory scenario explorer; source review only; see latest handoff |
-| C10 | not started | - | - |
+| C09 | implemented; verification pending | Codex | `c94d91c`; accessible inventory scenario explorer; source review only |
+| C10 | implemented; verification pending | Codex | Discovery, presentation, hosting guidance, and portfolio walkthrough; see latest handoff |
 | C11 | not started | - | - |
 | E01 | optional; not started | - | - |
 | E02 | optional; not started | - | - |
 | E03 | optional; not started | - | - |
 
 ### Latest handoff
+
+Task: C10 implemented; required verification and publication inputs pending under the owner's standing execution waiver (2026-09-05). Local commit title: `feat: finish case study discovery and presentation`.
+
+- Owner: Codex. No app, test, lint, build, browser, mobile, keyboard, metadata-runtime, link-navigation, reduced-motion, or print execution, under the owner's standing direction. The required checks remain unverified, so the tracker does not mark C10 complete.
+- Added an `Engineering case study` link to the storefront footer and direct order-lifecycle, last-item-explorer, and store-authority links to the overview's three engineering highlights.
+- Extended the README with the public `/docs` entry point, portfolio-document links, frontend test/build commands, and the docs feature in the repository map. Removed the unverified statement that financial rework is presently active on another branch.
+- Added `docs/case-study-walkthrough.md` with a timed two-minute route, three implementation-grounded interview prompts, and explicit remaining publication inputs.
+- Documented `frontend/dist/` deployment and SPA fallback requirements for all six core routes. The optional `VITE_DOCS_REPOSITORY_URL` behavior remains unchanged and hidden when unconfigured.
+- Refined print CSS so long sections may paginate, headings stay with following content, small cards remain together, evidence disclosures print fully, controls/actions stay out of print, and the simulation transcript remains available.
+- Static inspection found no configured Git remote, hosting manifest, deployed demo URL, actual case-study screenshot, or user-provided ownership facts. No repository/demo action, generated screenshot, or personal-contribution claim was added.
+- Source review confirmed every overview highlight target maps to a published route/section, the footer target is public, page metadata still flows through `DocsPage`, mobile section navigation remains available in the drawer, and loading/error/focus behavior remains present in source.
+- Next task: C11 should audit the C10 commit, create the final verification report, and retain all waived runtime/hosted checks as explicit pending results. Commit hash is reported in the final handoff; no push or deployment.
+
+### Previous handoff: C09
 
 Task: C09 implemented; required verification pending under the owner's standing execution waiver (2026-09-05). Local commit title: `feat: add accessible inventory scenario explorer`.
 

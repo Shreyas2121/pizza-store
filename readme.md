@@ -35,10 +35,22 @@ The project is structured as two independent packages (`backend/` and `frontend/
 See [architecture.md](docs/architecture.md) for component boundaries and [database-schema.md](docs/database-schema.md) for the full data model.
 
 Package manifests and lockfiles define dependency versions. See the dated
-[case-study evidence audit](docs/case-study-evidence.md) for the current verification
+[case-study evidence audit](docs/case-study-evidence.md) for the verification
 baseline and implementation limits, including payment route wiring and a local
-frontend dependency mismatch. A financial rework is in progress on another branch;
-the audit describes the reviewed `main` revision only.
+frontend dependency mismatch. Re-audit those claims after financial changes merge.
+
+## Engineering case study
+
+The frontend publishes a public engineering notebook at `/docs`. In local
+development, open `http://localhost:3150/docs`. It covers application boundaries,
+checkout and payment states, inventory locking and reservations, engineering
+decisions, and recovery evidence. The inventory page includes a deterministic
+last-item scenario explorer; it is a teaching model rather than a database test.
+
+Use the [two-minute walkthrough](docs/case-study-walkthrough.md) for a guided tour
+and its current publication gaps. A public repository URL, deployed URL, current
+screenshot, and personal contribution statement are intentionally omitted until
+verified.
 
 ## Documentation map
 
@@ -51,6 +63,8 @@ the audit describes the reviewed `main` revision only.
 | [store-staff-authorization.md](docs/store-staff-authorization.md) | Staff role matrix, lifecycle operations, deployment, rollback, and security verification |
 | [razorpay-runbook.md](docs/razorpay-runbook.md) | Online payment lifecycle, inventory reservations, monitoring, and reconciliation |
 | [case-study-evidence.md](docs/case-study-evidence.md) | Reviewed source claims, transaction/cancellation maps, test categories, baseline results, and limitations |
+| [case-study-walkthrough.md](docs/case-study-walkthrough.md) | Two-minute case-study tour, interview prompts, and remaining publication inputs |
+| [public-docs.md](docs/public-docs.md) | Public docs authoring, evidence-link, hosting, and verification guidance |
 
 ## Application in one workflow
 
@@ -76,6 +90,8 @@ pnpm run dev                # start Express on port 3000
 cd frontend
 cp .env.example .env        # set VITE_BACKEND_URL
 pnpm install
+pnpm run test               # run deterministic frontend model tests
+pnpm run build              # create the production bundle in frontend/dist
 pnpm run dev                # start Vite on port 3150
 ```
 
@@ -108,6 +124,7 @@ food/
     src/
       app/                   Layouts, providers, router
       features/              Feature modules (api, components, model, pages)
+        docs/                Public engineering case study and inventory explorer
         inventory/           Admin stock table, restock modals, movement drawer
         catalog/             Product cards, customization drawer, stock badges
         cart/                Cart page, item mutations, stock conflict handling

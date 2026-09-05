@@ -19,13 +19,19 @@
   .docs-shell .docs-simulator, .docs-shell .docs-simulator * { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
 @media print {
+  @page { margin: 16mm; }
   .docs-shell .docs-header, .docs-shell .docs-sidebar, .docs-shell .docs-footer, .docs-shell .docs-skip { display: none; }
   .docs-shell { background: white; }
   .docs-shell main { padding: 0; }
-  .docs-shell .docs-section { break-inside: avoid; }
+  .docs-shell .docs-section { break-inside: auto; }
+  .docs-shell .docs-section > h2, .docs-shell h3, .docs-shell h4 { break-after: avoid; }
+  .docs-shell .rounded-card, .docs-shell .docs-diagram-card, .docs-shell pre { break-inside: avoid; }
+  .docs-shell .docs-button, .docs-shell .docs-button-secondary { display: none; }
   .docs-shell .docs-diagram-scroll { display: none; }
   .docs-shell .docs-diagram-source { display: none; }
-  .docs-shell .docs-diagram-card { break-inside: avoid; }
+  .docs-shell .docs-evidence > * { display: block !important; }
+  .docs-shell .docs-evidence summary { list-style: none; }
+  .docs-shell .docs-evidence summary::-webkit-details-marker { display: none; }
   .docs-shell #scenario-explorer { break-inside: auto; }
   .docs-shell .docs-simulation-interactive { display: none; }
   .docs-shell .docs-simulation-transcript { border: 0; padding: 0; }

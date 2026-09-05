@@ -127,6 +127,14 @@ transitions. Source and diff review were completed, while tests, lint, build,
 browser, keyboard, narrow-viewport, and print execution remain unverified under
 the owner's standing direction.
 
+C10 adds the storefront footer entry point, direct landing-page links into the
+three evidence stories, a README case-study entry, hosting guidance, and the
+two-minute walkthrough. Print rules expose evidence disclosures and allow long
+sections to paginate while keeping smaller cards together. No Git remote,
+hosting manifest, deployed URL, verified screenshot, or supplied ownership facts
+were found, so those actions and claims remain absent. Source/link review was
+completed; runtime presentation checks remain under the same execution waiver.
+
 For a future authorized browser review, check direct/refresh access, existing
 auth-token visits, mobile drawer keyboard/focus behavior, section links,
 unknown docs paths, content-load failures, and navigation back to business routes.

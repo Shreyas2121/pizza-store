@@ -1,4 +1,4 @@
-import { ArrowDown, Layers3, PackageCheck, ShieldCheck } from "lucide-react";
+import { ArrowDown, ArrowRight, Layers3, PackageCheck, ShieldCheck } from "lucide-react";
 import { Link } from "react-router";
 import { DocsPage, DocsSection } from "../components/docs-page";
 import { EvidenceLinks } from "../components/evidence-links";
@@ -6,9 +6,9 @@ import { docsOverview } from "../content/navigation";
 import { repositoryUrl, reviewedDate, reviewedRevision } from "../content/evidence";
 
 const highlights = [
-  { id: "ORDER-01", icon: Layers3, number: "01", title: "A checkout that commits together", problem: "An order is more than a row in a table.", detail: "COD checkout creates the payment and order, copies item prices, deducts tracked stock, records coupon use, and clears the cart within one database transaction.", tradeoff: "A shared transaction simplifies local consistency. It does not make external payment calls atomic." },
-  { id: "INV-02", icon: PackageCheck, number: "02", title: "Stock belongs to a store", problem: "Two customers can ask for the last item.", detail: "Allocation locks store-product rows in ascending ID order before checking reserved stock. Customized cart lines share the demand for their base product.", tradeoff: "Ordered allocation is one part of the design. Global deadlock freedom and live contention still need stronger evidence." },
-  { id: "ACCESS-02", icon: ShieldCheck, number: "03", title: "Authority follows the store", problem: "Working at one store should not grant access to every store.", detail: "Store memberships carry manager, operator, or inventory-staff permissions. Platform authority stays separate, and backend policy evaluates the requested capability.", tradeoff: "Explicit permissions keep the boundary inspectable. Hidden UI controls are not an authorization guarantee." },
+  { id: "ORDER-01", icon: Layers3, number: "01", title: "A checkout that commits together", problem: "An order is more than a row in a table.", detail: "COD checkout creates the payment and order, copies item prices, deducts tracked stock, records coupon use, and clears the cart within one database transaction.", tradeoff: "A shared transaction simplifies local consistency. It does not make external payment calls atomic.", to: "/docs/order-lifecycle", linkLabel: "Follow the order lifecycle" },
+  { id: "INV-02", icon: PackageCheck, number: "02", title: "Stock belongs to a store", problem: "Two customers can ask for the last item.", detail: "Allocation locks store-product rows in ascending ID order before checking reserved stock. Customized cart lines share the demand for their base product.", tradeoff: "Ordered allocation is one part of the design. Global deadlock freedom and live contention still need stronger evidence.", to: "/docs/inventory#scenario-explorer", linkLabel: "Try the last-item explorer" },
+  { id: "ACCESS-02", icon: ShieldCheck, number: "03", title: "Authority follows the store", problem: "Working at one store should not grant access to every store.", detail: "Store memberships carry manager, operator, or inventory-staff permissions. Platform authority stays separate, and backend policy evaluates the requested capability.", tradeoff: "Explicit permissions keep the boundary inspectable. Hidden UI controls are not an authorization guarantee.", to: "/docs/decisions#store-authority", linkLabel: "Review the authority decision" },
 ] as const;
 
 const technology = [
@@ -42,11 +42,12 @@ export default function DocsIndexPage() {
 
     <DocsSection section={engineering}>
       <p className="mb-7 max-w-2xl leading-7 text-ink-muted">A decision is easier to assess when its problem, implementation, and limits are visible together.</p>
-      <div className="space-y-5">{highlights.map(({ id, icon: Icon, number, title, problem, detail, tradeoff }) => <div key={id} className="rounded-card border border-border bg-surface p-6 sm:p-8">
+      <div className="space-y-5">{highlights.map(({ id, icon: Icon, number, title, problem, detail, tradeoff, to, linkLabel }) => <div key={id} className="rounded-card border border-border bg-surface p-6 sm:p-8">
         <div className="mb-5 flex items-center justify-between"><Icon size={24} className="text-basil" aria-hidden="true" /><span className="font-mono text-sm text-ink-muted">{number}</span></div>
         <h3 className="text-xl font-semibold tracking-tight">{title}</h3>
         <p className="mt-3 font-medium">{problem}</p><p className="mt-2 leading-7 text-ink-muted">{detail}</p>
         <p className="mt-5 border-l-2 border-basil pl-4 text-sm leading-6 text-ink-muted">{tradeoff}</p>
+        <Link to={to} className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-control text-sm font-semibold text-brand underline-offset-4 hover:underline">{linkLabel}<ArrowRight size={16} aria-hidden="true" /></Link>
         <EvidenceLinks id={id} />
       </div>)}</div>
     </DocsSection>
