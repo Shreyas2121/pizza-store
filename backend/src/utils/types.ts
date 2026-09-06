@@ -141,6 +141,14 @@ export const CASH_MOVEMENT_TYPES = [
   "cod_collection", "refund", "cash_in", "cash_out", "deposit", "adjustment",
 ] as const;
 export type CashMovementType = (typeof CASH_MOVEMENT_TYPES)[number];
+export const EXPENSE_STATUSES = [
+  "draft", "submitted", "approved", "paid", "posted", "rejected", "voided", "reversed",
+] as const;
+export type ExpenseStatus = (typeof EXPENSE_STATUSES)[number];
+export const EXPENSE_PAYMENT_METHODS = [
+  "bank_transfer", "cash", "card", "upi", "other",
+] as const;
+export type ExpensePaymentMethod = (typeof EXPENSE_PAYMENT_METHODS)[number];
 export type CouponRedemptionStatus = "reserved" | "consumed" | "released";
 export type CouponType = "percentage" | "fixed";
 export type ChatStatus = "open" | "close" | "rejected" | "pending";

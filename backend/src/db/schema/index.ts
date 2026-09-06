@@ -22,6 +22,7 @@ export * from "./financial-outbox.schema";
 export * from "./product-cost.schema";
 export * from "./cash.schema";
 export * from "./vendor.schema";
+export * from "./expense.schema";
 export * from "./order.schema";
 export * from "./inventory.schema";
 export * from "./chat.schema";

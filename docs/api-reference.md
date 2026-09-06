@@ -1149,8 +1149,8 @@ Target financial endpoints mounted under `/api/v1/finance/*` and `/api/v1/checko
 - `POST /finance/costs/products` 🔒 — Set effective-dated standard product cost.
 - `GET /finance/vendors` 🔒 / `POST /finance/vendors` 🔒 / `PUT /finance/vendors/:id` 🔒 — Vendor master.
 - `GET /finance/expenses/categories` 🔒 / `POST /finance/expenses/categories` 🔒 — Expense categories.
-- `GET /finance/expenses` 🔒 / `POST /finance/expenses` 🔒 — Draft expense records with allocations.
-- `POST /finance/expenses/:id/submit` 🔒 / `POST /finance/expenses/:id/approve` 🔒 / `POST /finance/expenses/:id/pay` 🔒 / `POST /finance/expenses/:id/void` 🔒 — Expense lifecycle.
+- `GET /finance/expenses` 🔒 / `GET /finance/expenses/:id` 🔒 / `POST /finance/expenses` 🔒 / `PUT /finance/expenses/:id` 🔒 — Expense records and exact allocations; writes use integer paise.
+- `POST /finance/expenses/:id/submit` 🔒 / `approve` 🔒 / `reject` 🔒 / `pay` 🔒 / `post` 🔒 / `void` 🔒 / `reverse` 🔒 — Idempotent expense lifecycle commands; each requires an `Idempotency-Key` UUID.
 - `GET /finance/expenses/:id/attachments/:attachmentId` 🔒 — Authorized private receipt download.
 
 ### Payroll-Lite (Operating Cost)

@@ -376,11 +376,16 @@ PUT  /api/v1/finance/vendors/:id
 GET  /api/v1/finance/expenses/categories
 POST /api/v1/finance/expenses/categories
 GET  /api/v1/finance/expenses
+GET  /api/v1/finance/expenses/:id
 POST /api/v1/finance/expenses
+PUT  /api/v1/finance/expenses/:id
 POST /api/v1/finance/expenses/:id/submit
 POST /api/v1/finance/expenses/:id/approve
+POST /api/v1/finance/expenses/:id/reject
 POST /api/v1/finance/expenses/:id/pay
+POST /api/v1/finance/expenses/:id/post
 POST /api/v1/finance/expenses/:id/void
+POST /api/v1/finance/expenses/:id/reverse
 GET  /api/v1/finance/expenses/:id/attachments/:attachmentId
 ```
 

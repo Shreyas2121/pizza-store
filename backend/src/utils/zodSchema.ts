@@ -30,6 +30,8 @@ export const envSchema = z.object({
     .default("simulator"),
   REFUND_MANAGER_APPROVAL_LIMIT_PAISE: z.coerce.number()
     .int().positive().max(2_147_483_647).default(500_000),
+  EXPENSE_MANAGER_APPROVAL_LIMIT_PAISE: z.coerce.number()
+    .int().positive().max(50_000_000).default(500_000),
 }).superRefine((value, ctx) => {
   const razorpayValues = [
     value.RAZORPAY_KEY_ID,

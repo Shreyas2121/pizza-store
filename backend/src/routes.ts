@@ -25,6 +25,7 @@ import { settlementRoutes } from "./features/settlements/settlement.routes";
 import { costRoutes } from "./features/costs/cost.routes";
 import { cashRoutes } from "./features/cash-management/cash.routes";
 import { vendorRoutes } from "./features/vendors/vendor.routes";
+import { expenseRoutes } from "./features/expenses/expense.routes";
 
 export const mainRoutes = Router();
 
@@ -43,6 +44,7 @@ mainRoutes.use("/finance", settlementRoutes);
 mainRoutes.use("/finance", costRoutes);
 mainRoutes.use("/finance", cashRoutes);
 mainRoutes.use("/finance", vendorRoutes);
+mainRoutes.use("/finance", expenseRoutes);
 mainRoutes.use("/coupon", couponRoutes);
 mainRoutes.use("/dashboard", dashRoutes);
 mainRoutes.use("/chat", chatRoutes);
