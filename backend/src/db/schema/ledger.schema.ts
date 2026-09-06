@@ -78,7 +78,7 @@ export const journalEntriesTable = pgTable("journal_entries", {
   check("journal_entries_currency_inr", sql`${table.currency} = 'INR'`),
   check("journal_entries_status_valid", sql`${table.status} in ('draft','posted','reversed')`),
   check("journal_entries_posting_evidence", sql`(${table.status} = 'draft' and ${table.postedAt} is null) or (${table.status} in ('posted','reversed') and ${table.postedAt} is not null)`),
-  check("journal_entries_reversal_evidence", sql`(${table.reversalOfJournalEntryId} is null and ${table.reversalReason} is null) or (${table.reversalOfJournalEntryId} is not null and nullif(btrim(${table.reversalReason}), '') is not null and ${table.status} = 'posted')`),
+  check("journal_entries_reversal_evidence", sql`(${table.reversalOfJournalEntryId} is null and ${table.reversalReason} is null) or (${table.reversalOfJournalEntryId} is not null and nullif(btrim(${table.reversalReason}), '') is not null and ${table.status} in ('draft','posted'))`),
 ]);
 
 export const journalLinesTable = pgTable("journal_lines", {
