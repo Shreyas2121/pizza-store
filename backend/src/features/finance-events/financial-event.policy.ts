@@ -34,6 +34,9 @@ export const validateFinancialEvent = (input: WriteFinancialEventInput) => {
 };
 
 export const safeOutboxError = (cause: unknown) => {
-  const message = cause instanceof Error ? cause.message : "Financial event processing failed";
-  return message.replace(/[\r\n\t]+/g, " ").slice(0, 1000);
+  if (cause instanceof AppError) {
+    const message = cause.message.replace(/[\r\n\t]+/g, " ").slice(0, 900);
+    return `${cause.code ?? "FINANCIAL_POSTING_ERROR"}: ${message}`;
+  }
+  return "FINANCIAL_POSTING_ERROR: Financial event processing failed";
 };

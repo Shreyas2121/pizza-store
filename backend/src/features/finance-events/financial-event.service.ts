@@ -3,7 +3,7 @@ import { AppError } from "../../utils/error";
 import type { TransactionType } from "../../utils/types";
 import { hashFinancialEvent, safeOutboxError, validateFinancialEvent } from "./financial-event.policy";
 import financialEventRepository, { FinancialEventRepository } from "./financial-event.repository";
-import type { FinancialEventWriter, WriteFinancialEventInput } from "./financial-event.types";
+import type { FinancialEventType, FinancialEventWriter, WriteFinancialEventInput } from "./financial-event.types";
 
 export class FinancialEventService implements FinancialEventWriter {
   constructor(private readonly repository: FinancialEventRepository = financialEventRepository) {}
@@ -18,12 +18,20 @@ export class FinancialEventService implements FinancialEventWriter {
     return result.event;
   }
 
-  claim(workerId: string, limit = 25, maxAttempts = 10, now = new Date(), leaseMs = 5 * 60_000) {
+  claim(
+    workerId: string,
+    limit = 25,
+    maxAttempts = 10,
+    now = new Date(),
+    leaseMs = 5 * 60_000,
+    eventTypes?: readonly FinancialEventType[]
+  ) {
     if (!workerId.trim() || !Number.isInteger(limit) || limit < 1 || limit > 100) {
       throw new AppError("Outbox claim input is invalid.", 422, "INVALID_OUTBOX_CLAIM");
     }
+    if (eventTypes && eventTypes.length === 0) return Promise.resolve([]);
     return this.repository.transaction((tx) => this.repository.claim(
-      tx, workerId, limit, maxAttempts, now, new Date(now.getTime() - leaseMs)
+      tx, workerId, limit, maxAttempts, now, new Date(now.getTime() - leaseMs), eventTypes
     ));
   }
 

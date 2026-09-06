@@ -30,6 +30,9 @@ describe("financial event policy", () => {
   });
 
   it("sanitizes retry errors without preserving multiline payloads", () => {
-    expect(safeOutboxError(new Error("provider\nsecret\tdata"))).toBe("provider secret data");
+    expect(safeOutboxError(new Error("provider\nsecret\tdata")))
+      .toBe("FINANCIAL_POSTING_ERROR: Financial event processing failed");
+    expect(safeOutboxError(new AppError("Account\nmapping missing", 409, "ACCOUNT_MISSING")))
+      .toBe("ACCOUNT_MISSING: Account mapping missing");
   });
 });

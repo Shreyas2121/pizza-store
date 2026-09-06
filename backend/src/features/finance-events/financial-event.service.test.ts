@@ -55,8 +55,15 @@ describe("financial event service", () => {
     const now = new Date("2026-09-04T00:00:00.000Z");
     await service.markFailed({ eventId: "evt", workerId: "worker", cause: new Error("bad\nvalue"), attemptCount: 3 }, now);
     expect(markFailed).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
-      error: "bad value",
+      error: "FINANCIAL_POSTING_ERROR: Financial event processing failed",
       availableAt: new Date("2026-09-04T00:00:08.000Z"),
     }));
+  });
+
+  it("does not claim when a posting worker has no registered event types", async () => {
+    const repository = { transaction: vi.fn(), claim: vi.fn() };
+    const service = new FinancialEventService(repository as never);
+    await expect(service.claim("worker", 25, 10, new Date(), 60_000, [])).resolves.toEqual([]);
+    expect(repository.transaction).not.toHaveBeenCalled();
   });
 });

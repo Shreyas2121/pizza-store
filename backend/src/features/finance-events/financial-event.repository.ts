@@ -3,6 +3,7 @@ import { financialOutboxTable } from "../../db/schema";
 import { db } from "../../db";
 import type { TransactionType } from "../../utils/types";
 import type { WriteFinancialEventInput } from "./financial-event.types";
+import type { FinancialEventType } from "./financial-event.types";
 
 export class FinancialEventRepository {
   transaction<T>(work: (tx: TransactionType) => Promise<T>) {
@@ -39,8 +40,22 @@ export class FinancialEventRepository {
     limit: number,
     maxAttempts: number,
     now: Date,
-    staleBefore: Date
+    staleBefore: Date,
+    eventTypes?: readonly FinancialEventType[]
   ) {
+    await tx.update(financialOutboxTable).set({
+      status: "dead_letter",
+      claimedAt: null,
+      claimedBy: null,
+      lastError: "OUTBOX_LEASE_EXHAUSTED: processing lease expired after maximum attempts",
+      updatedAt: now,
+    }).where(and(
+      eq(financialOutboxTable.status, "processing"),
+      lte(financialOutboxTable.claimedAt, staleBefore),
+      sql`${financialOutboxTable.attemptCount} >= ${maxAttempts}`,
+      eventTypes?.length ? inArray(financialOutboxTable.eventType, [...eventTypes]) : undefined
+    ));
+
     const rows = await tx.select({ id: financialOutboxTable.id }).from(financialOutboxTable)
       .where(and(
         or(
@@ -49,7 +64,8 @@ export class FinancialEventRepository {
           and(eq(financialOutboxTable.status, "processing"), lte(financialOutboxTable.claimedAt, staleBefore))
         ),
         lte(financialOutboxTable.availableAt, now),
-        lt(financialOutboxTable.attemptCount, maxAttempts)
+        lt(financialOutboxTable.attemptCount, maxAttempts),
+        eventTypes?.length ? inArray(financialOutboxTable.eventType, [...eventTypes]) : undefined
       )).orderBy(asc(financialOutboxTable.availableAt), asc(financialOutboxTable.id))
       .limit(limit).for("update", { skipLocked: true });
     if (!rows.length) return [];
