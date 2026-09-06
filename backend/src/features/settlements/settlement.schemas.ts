@@ -23,7 +23,7 @@ export const settlementsQuerySchema = z.object({
 }).strict();
 
 export const reconciliationIssuesQuerySchema = z.object({
-  storeId: z.coerce.number().int().positive(),
+  storeId: z.coerce.number().int().positive().optional(),
   status: z.enum(["open", "resolved"]).optional(),
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().min(1).max(100).default(25),

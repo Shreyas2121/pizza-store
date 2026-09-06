@@ -63,6 +63,13 @@ describe("settlement import service", () => {
     vi.spyOn(auditService, "write").mockResolvedValue();
   });
 
+  it("restricts consolidated reconciliation issue lists to the platform owner", async () => {
+    const list = vi.spyOn(settlementRepository, "listIssues").mockResolvedValue({ items: [], meta: { total: 0, page: 1, limit: 25, totalPages: 0, hasNextPage: false } });
+    await expect(settlementService.listIssues(actor, { status: "open", page: 1, limit: 25 })).rejects.toMatchObject({ code: "PERMISSION_DENIED" });
+    await expect(settlementService.listIssues({ ...actor, platformRole: "admin" }, { status: "open", page: 1, limit: 25 })).resolves.toMatchObject({ items: [] });
+    expect(list).toHaveBeenCalledWith(undefined, "open", 1, 25);
+  });
+
   it("imports the checked-in fixture atomically and audits exact totals", async () => {
     vi.spyOn(settlementRepository, "findByProviderId").mockResolvedValue(undefined);
     vi.spyOn(settlementRepository, "transaction").mockImplementation(async (work) =>

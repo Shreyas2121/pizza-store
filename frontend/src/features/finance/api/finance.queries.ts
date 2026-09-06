@@ -24,13 +24,20 @@ import type {
   JournalDetail,
   TrialBalance,
   FiscalPeriod,
+  FinanceOverviewReport,
+  FinanceProfitAndLossReport,
+  FinanceSalesReport,
+  FinanceMarginsReport,
+  FinanceReportGroup,
+  JournalFilters,
+  CursorListResponse,
 } from "../model/finance.types";
 
 export const financeKeys = {
   refunds: (storeId: number | null, status?: string) => ["finance", "refunds", storeId, status] as const,
   settlements: (storeId: number | null) => ["finance", "settlements", storeId] as const,
   settlement: (id: number | null) => ["finance", "settlement", id] as const,
-  issues: (storeId: number | null) => ["finance", "issues", storeId] as const,
+  issues: (storeId: number | null | undefined) => ["finance", "issues", storeId] as const,
   cashSessions: (storeId: number | null) => ["finance", "cash-sessions", storeId] as const,
   cashSession: (id: number | null) => ["finance", "cash-session", id] as const,
   costs: (storeId: number | null) => ["finance", "costs", storeId] as const,
@@ -41,17 +48,29 @@ export const financeKeys = {
   attachments: (id: number | null) => ["finance", "expense", id, "attachments"] as const,
   sourceMargin: (storeId: number | null) => ["finance", "source-margin", storeId] as const,
   ledgerAccounts: (storeId: number | null) => ["finance", "ledger", "accounts", storeId] as const,
-  journals: (storeId: number | null) => ["finance", "ledger", "journals", storeId] as const,
+  journals: (storeId: number | null, filters?: JournalFilters) => ["finance", "ledger", "journals", storeId, filters] as const,
   journal: (id: number | null) => ["finance", "ledger", "journal", id] as const,
   trialBalance: (storeId: number | null) => ["finance", "ledger", "trial-balance", storeId] as const,
   periods: (storeId: number | null) => ["finance", "ledger", "periods", storeId] as const,
+  overview: (storeId: number | null | undefined, from: string, to: string) => ["finance", "reports", "overview", storeId, from, to] as const,
+  profitAndLoss: (storeId: number | null | undefined, from: string, to: string, groupBy: FinanceReportGroup) => ["finance", "reports", "pnl", storeId, from, to, groupBy] as const,
+  salesReport: (storeId: number | null | undefined, from: string, to: string, groupBy: FinanceReportGroup) => ["finance", "reports", "sales", storeId, from, to, groupBy] as const,
+  marginsReport: (storeId: number | null | undefined, from: string, to: string, groupBy: FinanceReportGroup) => ["finance", "reports", "margins", storeId, from, to, groupBy] as const,
 };
 
 export const useLedgerAccounts = (storeId: number | null) => useQuery({ queryKey: financeKeys.ledgerAccounts(storeId), queryFn: async () => (await API.get<{ data: LedgerAccount[] }>("/finance/ledger/accounts", { params: { storeId } })).data.data, enabled: Boolean(storeId) });
-export const useJournals = (storeId: number | null) => useQuery({ queryKey: financeKeys.journals(storeId), queryFn: async () => (await API.get<{ data: JournalEntry[] }>("/finance/ledger/journals", { params: { storeId, limit: 50 } })).data.data, enabled: Boolean(storeId) });
+export const useJournals = (storeId: number | null | undefined, filters?: JournalFilters) => useQuery({ queryKey: financeKeys.journals(storeId ?? null, filters), queryFn: async () => (await API.get<{ data: JournalEntry[] }>("/finance/ledger/journals", { params: { storeId: storeId ?? undefined, limit: 50, ...filters, accountCodes: filters?.accountCodes?.join(","), excludeAccountCodes: filters?.excludeAccountCodes?.join(","), accountTypes: filters?.accountTypes?.join(",") } })).data.data, enabled: storeId !== undefined, staleTime: 60_000 });
+export const useJournalDrillDown = (storeId: number | null, filters: JournalFilters) => useQuery({ queryKey: [...financeKeys.journals(storeId, filters), "drill-down"], queryFn: async () => (await API.get<CursorListResponse<JournalEntry>>("/finance/ledger/journals", { params: { storeId: storeId ?? undefined, limit: 50, ...filters, accountCodes: filters.accountCodes?.join(","), excludeAccountCodes: filters.excludeAccountCodes?.join(","), accountTypes: filters.accountTypes?.join(",") } })).data, staleTime: 60_000 });
 export const useJournal = (id: number | null) => useQuery({ queryKey: financeKeys.journal(id), queryFn: async () => (await API.get<{ data: JournalDetail }>(`/finance/ledger/journals/${id}`)).data.data, enabled: Boolean(id) });
 export const useTrialBalance = (storeId: number | null) => useQuery({ queryKey: financeKeys.trialBalance(storeId), queryFn: async () => (await API.get<{ data: TrialBalance }>("/finance/ledger/trial-balance", { params: { storeId } })).data.data, enabled: Boolean(storeId) });
 export const useFiscalPeriods = (storeId: number | null) => useQuery({ queryKey: financeKeys.periods(storeId), queryFn: async () => (await API.get<{ data: FiscalPeriod[] }>("/finance/ledger/periods", { params: { storeId } })).data.data, enabled: Boolean(storeId) });
+
+const reportParams = (storeId: number | null | undefined, from: string, to: string, groupBy?: FinanceReportGroup) => ({ from, to, storeId: storeId ?? undefined, groupBy });
+const reportEnabled = (storeId: number | null | undefined, from: string, to: string) => storeId !== undefined && Boolean(from && to);
+export const useFinanceOverview = (storeId: number | null | undefined, from: string, to: string) => useQuery({ queryKey: financeKeys.overview(storeId, from, to), queryFn: async () => (await API.get<{ data: FinanceOverviewReport }>("/finance/overview", { params: reportParams(storeId, from, to) })).data.data, enabled: reportEnabled(storeId, from, to), staleTime: 60_000 });
+export const useFinanceProfitAndLoss = (storeId: number | null | undefined, from: string, to: string, groupBy: FinanceReportGroup) => useQuery({ queryKey: financeKeys.profitAndLoss(storeId, from, to, groupBy), queryFn: async () => (await API.get<{ data: FinanceProfitAndLossReport }>("/finance/profit-and-loss", { params: reportParams(storeId, from, to, groupBy) })).data.data, enabled: reportEnabled(storeId, from, to), staleTime: 60_000 });
+export const useFinanceSales = (storeId: number | null | undefined, from: string, to: string, groupBy: FinanceReportGroup) => useQuery({ queryKey: financeKeys.salesReport(storeId, from, to, groupBy), queryFn: async () => (await API.get<{ data: FinanceSalesReport }>("/finance/sales", { params: reportParams(storeId, from, to, groupBy) })).data.data, enabled: reportEnabled(storeId, from, to), staleTime: 60_000 });
+export const useFinanceMargins = (storeId: number | null | undefined, from: string, to: string, groupBy: FinanceReportGroup) => useQuery({ queryKey: financeKeys.marginsReport(storeId, from, to, groupBy), queryFn: async () => (await API.get<{ data: FinanceMarginsReport }>("/finance/margins", { params: reportParams(storeId, from, to, groupBy) })).data.data, enabled: reportEnabled(storeId, from, to), staleTime: 60_000 });
 
 export const useProductCosts = (storeId: number | null) => useQuery({ queryKey: financeKeys.costs(storeId), queryFn: async () => (await API.get<{ data: ProductCostRow[] }>("/finance/costs/products", { params: { storeId } })).data.data, enabled: Boolean(storeId) });
 export const useVendors = (storeId: number | null) => useQuery({ queryKey: financeKeys.vendors(storeId), queryFn: async () => (await API.get<ListResponse<Vendor>>("/finance/vendors", { params: { storeId, includeInactive: true, limit: 100 } })).data.data, enabled: Boolean(storeId) });
@@ -93,10 +112,10 @@ export const useSettlement = (id: number | null) => useQuery({
   enabled: Boolean(id),
 });
 
-export const useReconciliationIssues = (storeId: number | null, enabled = true) => useQuery({
+export const useReconciliationIssues = (storeId: number | null | undefined, enabled = true) => useQuery({
   queryKey: financeKeys.issues(storeId),
-  queryFn: async () => (await API.get<ListResponse<ReconciliationIssue>>("/finance/reconciliation/issues", { params: { storeId, status: "open" } })).data,
-  enabled: Boolean(storeId) && enabled,
+  queryFn: async () => (await API.get<ListResponse<ReconciliationIssue>>("/finance/reconciliation/issues", { params: { storeId: storeId ?? undefined, status: "open" } })).data,
+  enabled: storeId !== undefined && enabled,
   placeholderData: keepPreviousData,
 });
 

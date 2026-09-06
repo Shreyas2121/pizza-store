@@ -25,7 +25,8 @@ export class LedgerAdminService {
   }
 
   async journals(actor: AuthPrincipal, query: JournalsQuery) {
-    await authorizationService.requireStorePermission({ principal: actor, storeId: query.storeId, permission: "finance.ledger.read" });
+    if (query.storeId === undefined) authorizationService.requirePlatformAdmin(actor);
+    else await authorizationService.requireStorePermission({ principal: actor, storeId: query.storeId, permission: "finance.ledger.read" });
     return this.repository.listJournals(query);
   }
 

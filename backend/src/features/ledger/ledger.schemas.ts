@@ -2,14 +2,23 @@ import { z } from "zod";
 
 const businessDate = z.iso.date();
 const reason = z.string().trim().min(3).max(500);
+const accountCodes = z.string().trim().regex(/^\d{4,10}(,\d{4,10})*$/).transform((value) => value.split(","));
+const accountTypes = z.string().trim().regex(/^(asset|liability|equity|revenue|expense|contra_revenue)(,(asset|liability|equity|revenue|expense|contra_revenue))*$/).transform((value) => value.split(",") as Array<"asset" | "liability" | "equity" | "revenue" | "expense" | "contra_revenue">);
 
 export const ledgerStoreQuerySchema = z.object({ storeId: z.coerce.number().int().positive() }).strict();
 export const ledgerIdempotencyKeySchema = z.string().trim().min(8).max(255);
 
-export const journalsQuerySchema = ledgerStoreQuerySchema.extend({
+export const journalsQuerySchema = z.object({
+  storeId: z.coerce.number().int().positive().optional(),
   from: businessDate.optional(),
   to: businessDate.optional(),
   accountId: z.coerce.number().int().positive().optional(),
+  accountCodes: accountCodes.optional(),
+  excludeAccountCodes: accountCodes.optional(),
+  accountTypes: accountTypes.optional(),
+  eventType: z.string().trim().min(1).max(100).optional(),
+  sourceType: z.string().trim().min(1).max(100).optional(),
+  sourceId: z.string().trim().min(1).max(255).optional(),
   cursor: z.coerce.number().int().positive().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(25),
 }).strict().superRefine((value, context) => {

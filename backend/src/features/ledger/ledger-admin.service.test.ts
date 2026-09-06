@@ -59,4 +59,11 @@ describe("ledger admin service", () => {
     vi.spyOn(authorizationService, "requireResourceStorePermission").mockRejectedValueOnce(new Error("denied"));
     await expect(new LedgerAdminService(repository as never, {} as never).journal(finance, 9)).rejects.toThrow("denied");
   });
+
+  it("allows only the platform owner to list consolidated journal drill-downs", async () => {
+    const repository = { listJournals: vi.fn().mockResolvedValue({ items: [], meta: { limit: 25, hasNextPage: false, nextCursor: null } }) };
+    const service = new LedgerAdminService(repository as never, {} as never);
+    await expect(service.journals(finance, { limit: 25 })).rejects.toMatchObject({ code: "PERMISSION_DENIED" });
+    await expect(service.journals(owner, { limit: 25 })).resolves.toMatchObject({ items: [] });
+  });
 });

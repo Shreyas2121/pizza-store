@@ -207,10 +207,11 @@ export class SettlementRepository {
     return true;
   }
 
-  async listIssues(storeId: number, status: "open" | "resolved" | undefined, page: number, limit: number) {
-    const where = status
-      ? and(eq(reconciliationIssuesTable.storeId, storeId), eq(reconciliationIssuesTable.status, status))
-      : eq(reconciliationIssuesTable.storeId, storeId);
+  async listIssues(storeId: number | undefined, status: "open" | "resolved" | undefined, page: number, limit: number) {
+    const where = and(
+      storeId === undefined ? undefined : eq(reconciliationIssuesTable.storeId, storeId),
+      status === undefined ? undefined : eq(reconciliationIssuesTable.status, status)
+    );
     const [{ total }] = await db.select({ total: count() }).from(reconciliationIssuesTable).where(where);
     const items = await db.select().from(reconciliationIssuesTable).where(where)
       .orderBy(desc(reconciliationIssuesTable.createdAt), desc(reconciliationIssuesTable.id))

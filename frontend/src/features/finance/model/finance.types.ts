@@ -81,6 +81,7 @@ export interface SettlementDetail {
 }
 
 export interface ListResponse<T> { data: T[]; meta: PageMeta }
+export interface CursorListResponse<T> { data: T[]; meta: { limit: number; hasNextPage: boolean; nextCursor: number | null } }
 
 export type CashSessionStatus = "open" | "closed";
 export type CashMovementType = "cod_collection" | "refund" | "cash_in" | "cash_out" | "deposit" | "adjustment";
@@ -155,3 +156,18 @@ export interface JournalDetail extends JournalEntry { lines: JournalLine[]; }
 export interface TrialBalanceAccount { accountId: number; accountCode: string; accountName: string; accountType: LedgerAccountType; normalSide: "debit" | "credit"; debitPaise: string; creditPaise: string; netDebitPaise: string; }
 export interface TrialBalance { accounts: TrialBalanceAccount[]; totals: { debitPaise: string; creditPaise: string; differencePaise: string }; policy: { currency: "INR"; basis: "posted_journals"; from: string | null; to: string | null; balanced: boolean }; }
 export interface FiscalPeriod { id: number; storeId: number; name: string; startDate: string; endDate: string; status: "open" | "soft_closed" | "closed"; softClosedAt: string | null; closedAt: string | null; }
+
+export type FinanceReportGroup = "month" | "quarter" | "fiscal_year";
+export interface FinanceReportPeriod { from: string; to: string; }
+export interface FinanceReportPolicy { currency: "INR"; timezone: string; dateBasis: "journal_business_date"; recognitionBasis: "delivery"; includedJournalStatuses: ["posted", "reversed"]; generatedAt: string; scope: { kind: "store" | "consolidated"; storeIds: number[] }; }
+export interface FinanceReportTotals { salesRevenuePaise: string; deliveryRevenuePaise: string; discountsPaise: string; refundsPaise: string; recognizedRevenuePaise: string; collectionsPaise: string; cogsPaise: string; grossProfitPaise: string; grossMarginBps: number | null; operatingExpensesPaise: string; payrollCostPaise: string; operatingResultPaise: string; unsettledRazorpayPaise: string; cashVariancePaise: string; }
+export interface FinanceOverviewReport { policy: FinanceReportPolicy; period: FinanceReportPeriod; comparisonPeriod: FinanceReportPeriod; kpis: FinanceReportTotals & { openReconciliationIssues: number | null }; comparison: { period: FinanceReportPeriod; kpis: FinanceReportTotals & { openReconciliationIssues: number | null } }; drillDownUrls: Record<string, string>; }
+export interface FinanceSalesPoint { period: string; salesRevenuePaise: string; deliveryRevenuePaise: string; discountsPaise: string; refundsPaise: string; recognizedRevenuePaise: string; }
+export interface FinanceMarginPoint { period: string; recognizedRevenuePaise: string; cogsPaise: string; grossProfitPaise: string; grossMarginBps: number | null; }
+export interface FinanceExpenseLine { accountCode: string; accountName: string; amountPaise: string; }
+export interface FinanceProfitAndLossPoint extends FinanceMarginPoint { operatingExpensesPaise: string; payrollCostPaise: string; operatingResultPaise: string; }
+export interface FinanceSalesReport { policy: FinanceReportPolicy; period: FinanceReportPeriod; comparisonPeriod: FinanceReportPeriod; groupBy: FinanceReportGroup; totals: FinanceReportTotals; series: FinanceSalesPoint[]; comparison: { totals: FinanceReportTotals; series: FinanceSalesPoint[] }; }
+export interface FinanceMarginsReport { policy: FinanceReportPolicy; period: FinanceReportPeriod; comparisonPeriod: FinanceReportPeriod; groupBy: FinanceReportGroup; totals: FinanceReportTotals; series: FinanceMarginPoint[]; comparison: { totals: FinanceReportTotals; series: FinanceMarginPoint[] }; }
+export interface FinanceProfitAndLossReport { policy: FinanceReportPolicy; period: FinanceReportPeriod; comparisonPeriod: FinanceReportPeriod; groupBy: FinanceReportGroup; totals: FinanceReportTotals; operatingExpenseLines: FinanceExpenseLine[]; periods: FinanceProfitAndLossPoint[]; comparison: { totals: FinanceReportTotals; operatingExpenseLines: FinanceExpenseLine[]; periods: FinanceProfitAndLossPoint[] }; }
+
+export interface JournalFilters { from?: string; to?: string; accountCodes?: string[]; excludeAccountCodes?: string[]; accountTypes?: LedgerAccountType[]; eventType?: string; sourceType?: string; sourceId?: string; }

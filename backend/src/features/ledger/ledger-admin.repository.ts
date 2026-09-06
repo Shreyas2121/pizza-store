@@ -15,11 +15,22 @@ export class LedgerAdminRepository {
   async updatePeriod(tx: TransactionType, id: number, values: Partial<typeof fiscalPeriodsTable.$inferInsert>) { return (await tx.update(fiscalPeriodsTable).set({ ...values, updatedAt: new Date() }).where(eq(fiscalPeriodsTable.id, id)).returning())[0]; }
 
   async listJournals(query: JournalsQuery) {
-    const conditions: SQL[] = [eq(journalEntriesTable.storeId, query.storeId), inArray(journalEntriesTable.status, ["posted", "reversed"])];
+    const conditions: SQL[] = [inArray(journalEntriesTable.status, ["posted", "reversed"])];
+    if (query.storeId) conditions.push(eq(journalEntriesTable.storeId, query.storeId));
     if (query.from) conditions.push(gte(journalEntriesTable.businessDate, query.from));
     if (query.to) conditions.push(lte(journalEntriesTable.businessDate, query.to));
     if (query.cursor) conditions.push(lt(journalEntriesTable.id, query.cursor));
     if (query.accountId) conditions.push(sql`exists (select 1 from ${journalLinesTable} jl where jl.journal_entry_id = ${journalEntriesTable.id} and jl.account_id = ${query.accountId})`);
+    if (query.eventType) conditions.push(eq(journalEntriesTable.eventType, query.eventType));
+    if (query.sourceType) conditions.push(eq(journalEntriesTable.sourceType, query.sourceType));
+    if (query.sourceId) conditions.push(eq(journalEntriesTable.sourceId, query.sourceId));
+    if (query.accountCodes || query.excludeAccountCodes || query.accountTypes) {
+      const lineConditions: SQL[] = [sql`jl.journal_entry_id = ${journalEntriesTable.id}`];
+      if (query.accountCodes) lineConditions.push(sql`la.code in (${sql.join(query.accountCodes.map((code) => sql`${code}`), sql`, `)})`);
+      if (query.excludeAccountCodes) lineConditions.push(sql`la.code not in (${sql.join(query.excludeAccountCodes.map((code) => sql`${code}`), sql`, `)})`);
+      if (query.accountTypes) lineConditions.push(sql`la.type in (${sql.join(query.accountTypes.map((type) => sql`${type}`), sql`, `)})`);
+      conditions.push(sql`exists (select 1 from ${journalLinesTable} jl inner join ${ledgerAccountsTable} la on la.id = jl.account_id where ${and(...lineConditions)})`);
+    }
     const rows = await db.select().from(journalEntriesTable).where(and(...conditions)).orderBy(desc(journalEntriesTable.id)).limit(query.limit + 1);
     const hasNextPage = rows.length > query.limit;
     const items = rows.slice(0, query.limit);

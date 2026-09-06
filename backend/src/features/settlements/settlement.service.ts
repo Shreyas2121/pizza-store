@@ -190,11 +190,8 @@ export class SettlementService {
   }
 
   async listIssues(actor: AuthPrincipal, query: ReconciliationIssuesQuery) {
-    await authorizationService.requireStorePermission({
-      principal: actor,
-      storeId: query.storeId,
-      permission: "finance.settlements.read",
-    });
+    if (query.storeId === undefined) authorizationService.requirePlatformAdmin(actor);
+    else await authorizationService.requireStorePermission({ principal: actor, storeId: query.storeId, permission: "finance.settlements.read" });
     return this.repository.listIssues(query.storeId, query.status, query.page, query.limit);
   }
 

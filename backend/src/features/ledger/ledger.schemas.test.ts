@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { businessDateFor } from "../../utils/business-date";
-import { createFiscalPeriodSchema, manualJournalSchema } from "./ledger.schemas";
+import { createFiscalPeriodSchema, journalsQuerySchema, manualJournalSchema } from "./ledger.schemas";
 
 describe("ledger API schemas", () => {
   it("accepts periods on both sides of the Indian financial-year boundary", () => {
@@ -16,5 +16,13 @@ describe("ledger API schemas", () => {
   it("rejects reversed ranges and one-line manual journals", () => {
     expect(() => createFiscalPeriodSchema.parse({ storeId: 1, name: "Bad", startDate: "2026-04-01", endDate: "2026-03-31", reason: "Invalid range" })).toThrow();
     expect(() => manualJournalSchema.parse({ storeId: 1, businessDate: "2026-04-01", description: "One-sided entry", lines: [{ accountCode: "1000", side: "debit", amountPaise: 100 }] })).toThrow();
+  });
+
+  it("parses safe journal drill-down filters", () => {
+    expect(journalsQuerySchema.parse({ storeId: "1", accountCodes: "4000,4010,4110", accountTypes: "revenue,contra_revenue", eventType: "order.delivered" })).toMatchObject({
+      storeId: 1, accountCodes: ["4000", "4010", "4110"], accountTypes: ["revenue", "contra_revenue"], eventType: "order.delivered",
+    });
+    expect(journalsQuerySchema.parse({ accountCodes: "1100" }).storeId).toBeUndefined();
+    expect(() => journalsQuerySchema.parse({ storeId: "1", accountCodes: "4000);drop table" })).toThrow();
   });
 });

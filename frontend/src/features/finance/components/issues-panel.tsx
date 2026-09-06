@@ -8,7 +8,7 @@ import type { ReconciliationIssue } from "../model/finance.types";
 import { apiMessage, humanizeStatus } from "../model/finance.helpers";
 import { StatusBadge } from "./status-badge";
 
-export const IssuesPanel = ({ storeId, canManage }: { storeId: number; canManage: boolean }) => {
+export const IssuesPanel = ({ storeId, canManage }: { storeId: number | null; canManage: boolean }) => {
   const issues = useReconciliationIssues(storeId);
   const resolve = useResolveIssue();
   const [selected, setSelected] = useState<ReconciliationIssue | null>(null);
