@@ -50,6 +50,7 @@ import { financialOutboxTable } from "./financial-outbox.schema";
 import { productCostVersionsTable } from "./product-cost.schema";
 import { cashMovementsTable, cashSessionClosuresTable, cashSessionsTable } from "./cash.schema";
 import { expenseCategoriesTable, vendorsTable } from "./vendor.schema";
+import { fiscalPeriodsTable, journalEntriesTable, journalLinesTable, ledgerAccountsTable } from "./ledger.schema";
 
 /**
  * All Drizzle relations live here to avoid circular imports between
@@ -734,4 +735,37 @@ export const financialOutboxRelations = relations(financialOutboxTable, ({ one }
     fields: [financialOutboxTable.actorId],
     references: [usersTable.id],
   }),
+}));
+
+export const ledgerAccountsRelations = relations(ledgerAccountsTable, ({ one, many }) => ({
+  parent: one(ledgerAccountsTable, {
+    fields: [ledgerAccountsTable.parentId],
+    references: [ledgerAccountsTable.id],
+    relationName: "ledgerAccountHierarchy",
+  }),
+  children: many(ledgerAccountsTable, { relationName: "ledgerAccountHierarchy" }),
+  journalLines: many(journalLinesTable),
+}));
+
+export const journalEntriesRelations = relations(journalEntriesTable, ({ one, many }) => ({
+  store: one(storesTable, { fields: [journalEntriesTable.storeId], references: [storesTable.id] }),
+  postedByUser: one(usersTable, { fields: [journalEntriesTable.postedBy], references: [usersTable.id] }),
+  reversalOf: one(journalEntriesTable, {
+    fields: [journalEntriesTable.reversalOfJournalEntryId],
+    references: [journalEntriesTable.id],
+    relationName: "journalReversal",
+  }),
+  reversal: many(journalEntriesTable, { relationName: "journalReversal" }),
+  lines: many(journalLinesTable),
+}));
+
+export const journalLinesRelations = relations(journalLinesTable, ({ one }) => ({
+  journalEntry: one(journalEntriesTable, { fields: [journalLinesTable.journalEntryId], references: [journalEntriesTable.id] }),
+  account: one(ledgerAccountsTable, { fields: [journalLinesTable.accountId], references: [ledgerAccountsTable.id] }),
+}));
+
+export const fiscalPeriodsRelations = relations(fiscalPeriodsTable, ({ one }) => ({
+  store: one(storesTable, { fields: [fiscalPeriodsTable.storeId], references: [storesTable.id] }),
+  softClosedByUser: one(usersTable, { fields: [fiscalPeriodsTable.softClosedBy], references: [usersTable.id], relationName: "fiscalPeriodSoftCloser" }),
+  closedByUser: one(usersTable, { fields: [fiscalPeriodsTable.closedBy], references: [usersTable.id], relationName: "fiscalPeriodCloser" }),
 }));

@@ -1,0 +1,25 @@
+export const SYSTEM_LEDGER_ACCOUNTS = [
+  { code: "1000", name: "Cash on Hand", type: "asset", normalSide: "debit" },
+  { code: "1010", name: "Bank", type: "asset", normalSide: "debit" },
+  { code: "1100", name: "Razorpay Clearing", type: "asset", normalSide: "debit" },
+  { code: "1200", name: "Inventory / COGS Clearing", type: "asset", normalSide: "debit" },
+  { code: "2000", name: "Customer Advances / Order Clearing", type: "liability", normalSide: "credit" },
+  { code: "2100", name: "Refunds Payable", type: "liability", normalSide: "credit" },
+  { code: "2200", name: "Demo Tax Payable", type: "liability", normalSide: "credit" },
+  { code: "2300", name: "Payroll Payable", type: "liability", normalSide: "credit" },
+  { code: "2310", name: "Payroll Deductions Payable", type: "liability", normalSide: "credit" },
+  { code: "3000", name: "Owner's Equity / Opening Balance", type: "equity", normalSide: "credit" },
+  { code: "4000", name: "Sales Revenue", type: "revenue", normalSide: "credit" },
+  { code: "4010", name: "Delivery Revenue", type: "revenue", normalSide: "credit" },
+  { code: "4100", name: "Discounts", type: "contra_revenue", normalSide: "debit" },
+  { code: "4110", name: "Refunds", type: "contra_revenue", normalSide: "debit" },
+  { code: "5000", name: "Cost of Goods Sold", type: "expense", normalSide: "debit" },
+  { code: "6000", name: "Payment Gateway Fees", type: "expense", normalSide: "debit" },
+  { code: "6010", name: "Gateway Fee Tax Expense", type: "expense", normalSide: "debit" },
+  { code: "6100", name: "Cash Over / Short", type: "expense", normalSide: "debit" },
+  { code: "6200", name: "Payroll Expense", type: "expense", normalSide: "debit" },
+  { code: "6900", name: "Operating Expenses", type: "expense", normalSide: "debit" },
+  { code: "6990", name: "Rounding Gain / Loss", type: "expense", normalSide: "debit" },
+] as const;
+
+export type SystemLedgerAccountCode = (typeof SYSTEM_LEDGER_ACCOUNTS)[number]["code"];

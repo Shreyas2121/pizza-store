@@ -5,6 +5,7 @@ import { createdAt, id, updatedAt } from "./_helpers";
 import { storesTable } from "./store.schema";
 import { usersTable } from "./user.schema";
 import { expenseCategoriesTable, vendorsTable } from "./vendor.schema";
+import { ledgerAccountsTable } from "./ledger.schema";
 
 export const expensesTable = pgTable("expenses", {
   id,
@@ -72,7 +73,7 @@ export const expenseAllocationsTable = pgTable("expense_allocations", {
   categoryId: integer("category_id").references(() => expenseCategoriesTable.id).notNull(),
   categoryName: text("category_name").notNull(),
   categoryClassification: text("category_classification").$type<"fixed" | "variable">().notNull(),
-  ledgerAccountId: integer("ledger_account_id"),
+  ledgerAccountId: integer("ledger_account_id").references(() => ledgerAccountsTable.id),
   costCenter: text("cost_center"),
   amountPaise: integer("amount_paise").notNull(),
   createdAt,

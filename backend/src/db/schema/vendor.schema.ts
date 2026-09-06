@@ -3,6 +3,7 @@ import { check, foreignKey, index, integer, pgTable, text, uniqueIndex } from "d
 import { createdAt, id, isActive, updatedAt } from "./_helpers";
 import { storesTable } from "./store.schema";
 import { usersTable } from "./user.schema";
+import { ledgerAccountsTable } from "./ledger.schema";
 
 export const vendorsTable = pgTable("vendors", {
   id,
@@ -38,8 +39,7 @@ export const expenseCategoriesTable = pgTable("expense_categories", {
   name: text().notNull(),
   normalizedName: text("normalized_name").notNull(),
   classification: text().$type<"fixed" | "variable">().notNull(),
-  // Deliberately not an FK until the Phase 4 ledger table exists.
-  ledgerAccountId: integer("ledger_account_id"),
+  ledgerAccountId: integer("ledger_account_id").references(() => ledgerAccountsTable.id),
   isActive,
   createdBy: integer("created_by").references(() => usersTable.id).notNull(),
   updatedBy: integer("updated_by").references(() => usersTable.id).notNull(),

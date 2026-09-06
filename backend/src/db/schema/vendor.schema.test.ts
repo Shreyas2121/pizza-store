@@ -10,13 +10,13 @@ describe("vendor and expense category schema", () => {
     ]));
   });
 
-  it("supports scoped hierarchy and a future ledger mapping without a premature FK", () => {
+  it("supports scoped hierarchy and enforces the Phase 4 ledger mapping FK", () => {
     const config = getTableConfig(expenseCategoriesTable);
     expect(config.foreignKeys.map((item) => item.getName())).toContain("expense_categories_parent_fk");
     expect(config.checks.map((item) => item.name)).toEqual(expect.arrayContaining([
       "expense_categories_parent_not_self", "expense_categories_ledger_account_positive",
     ]));
     expect(expenseCategoriesTable.ledgerAccountId).toBeDefined();
-    expect(config.foreignKeys.some((item) => item.reference().columns.includes(expenseCategoriesTable.ledgerAccountId))).toBe(false);
+    expect(config.foreignKeys.some((item) => item.reference().columns.includes(expenseCategoriesTable.ledgerAccountId))).toBe(true);
   });
 });
