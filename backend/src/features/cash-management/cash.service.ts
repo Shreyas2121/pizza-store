@@ -19,8 +19,8 @@ const requireReviewer = (authorization: Awaited<ReturnType<typeof authorizationS
 };
 
 export interface CashSourceWriter {
-  recordCodCollection(tx: TransactionType, input: { storeId: number; orderId: number; amountPaise: number; occurredAt: Date; actorId: number | null }): Promise<unknown>;
-  recordCodRefund(tx: TransactionType, input: { storeId: number; refundId: number; amountPaise: number; occurredAt: Date; actorId: number }): Promise<unknown>;
+  recordCodCollection(tx: TransactionType, input: { storeId: number; orderId: number; amountPaise: number; occurredAt: Date; actorId: number | null }): Promise<{ movement: { id: number }; session: { id: number } }>;
+  recordCodRefund(tx: TransactionType, input: { storeId: number; refundId: number; amountPaise: number; occurredAt: Date; actorId: number }): Promise<{ movement: { id: number }; session: { id: number } }>;
 }
 
 export class CashService implements CashSourceWriter {

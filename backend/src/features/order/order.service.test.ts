@@ -12,6 +12,7 @@ import paymentService from "../payments/payment.service";
 import { OrderService } from "./order.service";
 import type { CostSnapshotWriter } from "../costs/cost.service";
 import type { FinancialEventWriter } from "../finance-events/financial-event.types";
+import type { CashSourceWriter } from "../cash-management/cash.service";
 
 const adminActor: AuthPrincipal = {
   userId: 1,
@@ -112,12 +113,21 @@ const createTestHarness = () => {
   };
 
   const costService: CostSnapshotWriter = {
-    snapshotOrderItems: vi.fn().mockResolvedValue([]),
+    snapshotOrderItems: vi.fn().mockResolvedValue([{
+      orderItemId: 7, productId: 8, quantity: 1, costVersionId: 9,
+      unitCostPaise: 4_500, lineCostPaise: 4_500,
+      lineSubtotalPaise: 10_000, discountAllocationPaise: 0,
+      taxableAmountPaise: 9_524, taxPaise: 476, taxRateBps: 500,
+    }]),
   };
   const eventWriter: FinancialEventWriter = {
     write: vi.fn().mockResolvedValue(undefined),
   };
-  const orderService = new OrderService(authService, auditService, costService, eventWriter);
+  const cashWriter: CashSourceWriter = {
+    recordCodCollection: vi.fn().mockResolvedValue({ movement: { id: 70 }, session: { id: 77 } }),
+    recordCodRefund: vi.fn().mockResolvedValue({ movement: { id: 71 }, session: { id: 77 } }),
+  };
+  const orderService = new OrderService(authService, auditService, costService, eventWriter, cashWriter);
 
   return {
     orderService,
@@ -125,6 +135,7 @@ const createTestHarness = () => {
     auditService,
     costService,
     eventWriter,
+    cashWriter,
     writtenAudits,
     accessRepo,
   };
@@ -613,6 +624,11 @@ describe("OrderService unit tests", () => {
           costVersionId: 9,
           unitCostPaise: 4_500,
           lineCostPaise: 9_000,
+          lineSubtotalPaise: 10_000,
+          discountAllocationPaise: 0,
+          taxableAmountPaise: 9_524,
+          taxPaise: 476,
+          taxRateBps: 500,
         },
       ]);
 
@@ -638,9 +654,20 @@ describe("OrderService unit tests", () => {
                     paymentType: "cash",
                     paymentId: 100,
                     couponId: null,
-                    deliveredAt: null,
+                    deliveredAt: new Date("2026-09-04T12:00:00.000Z"),
                     recognizedAt: null,
                     pricingBusinessDate: "2026-09-04",
+                    pricingTimezone: "Asia/Kolkata",
+                    pricingPolicyVersion: 1,
+                    currency: "INR",
+                    grandTotalPaise: 10_000,
+                    itemsSubtotalPaise: 10_000,
+                    discountPaise: 0,
+                    deliveryFeePaise: 0,
+                    deliveryTaxableAmountPaise: 0,
+                    deliveryTaxPaise: 0,
+                    taxPaise: 476,
+                    roundingAdjustmentPaise: 0,
                   },
                 ]),
               })),
@@ -654,7 +681,9 @@ describe("OrderService unit tests", () => {
         cb(mockTx as any)
       );
 
-      const updated = await orderService.updateOrderStatus(42, "delivered", adminActor);
+      const updated = await orderService.updateOrderStatus(
+        42, "delivered", adminActor, new Date("2026-09-04T12:00:00.000Z")
+      );
 
       expect(updated.status).toBe("delivered");
       expect(set).toHaveBeenCalledWith(
@@ -698,7 +727,7 @@ describe("OrderService unit tests", () => {
     });
 
     it("does not complete COD payment when order transitions to out_for_delivery", async () => {
-      const { orderService } = createTestHarness();
+      const { orderService, eventWriter } = createTestHarness();
 
       const set = vi.fn(() => ({
         where: vi.fn(() => ({
@@ -720,6 +749,20 @@ describe("OrderService unit tests", () => {
                     paymentType: "cash",
                     paymentId: 100,
                     couponId: null,
+                    deliveredAt: null,
+                    recognizedAt: null,
+                    pricingBusinessDate: "2026-09-04",
+                    pricingTimezone: "Asia/Kolkata",
+                    pricingPolicyVersion: 1,
+                    currency: "INR",
+                    grandTotalPaise: 10_000,
+                    itemsSubtotalPaise: 10_000,
+                    discountPaise: 0,
+                    deliveryFeePaise: 0,
+                    deliveryTaxableAmountPaise: 0,
+                    deliveryTaxPaise: 0,
+                    taxPaise: 476,
+                    roundingAdjustmentPaise: 0,
                   },
                 ]),
               })),
@@ -743,6 +786,7 @@ describe("OrderService unit tests", () => {
       expect(set).toHaveBeenCalledWith(
         expect.objectContaining({ status: "out_for_delivery" })
       );
+      expect(eventWriter.write).not.toHaveBeenCalled();
     });
 
     it("does not complete an online payment when its order is delivered", async () => {
@@ -768,6 +812,20 @@ describe("OrderService unit tests", () => {
                     paymentType: "razorpay",
                     paymentId: 100,
                     couponId: null,
+                    deliveredAt: null,
+                    recognizedAt: null,
+                    pricingBusinessDate: "2026-09-04",
+                    pricingTimezone: "Asia/Kolkata",
+                    pricingPolicyVersion: 1,
+                    currency: "INR",
+                    grandTotalPaise: 10_000,
+                    itemsSubtotalPaise: 10_000,
+                    discountPaise: 0,
+                    deliveryFeePaise: 0,
+                    deliveryTaxableAmountPaise: 0,
+                    deliveryTaxPaise: 0,
+                    taxPaise: 476,
+                    roundingAdjustmentPaise: 0,
                   },
                 ]),
               })),

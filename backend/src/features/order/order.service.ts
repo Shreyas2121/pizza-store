@@ -23,6 +23,8 @@ import defaultCostService, {
 import financialEventService from "../finance-events/financial-event.service";
 import type { FinancialEventWriter } from "../finance-events/financial-event.types";
 import cashService, { type CashSourceWriter } from "../cash-management/cash.service";
+import { businessDateFor } from "../../utils/business-date";
+import { buildRecognitionPricingSnapshot } from "../pricing/pricing.service";
 
 interface CreateCodOrderData {
   userId: number;
@@ -193,7 +195,8 @@ class OrderService {
   async updateOrderStatus(
     orderId: number,
     status: OrderStatus,
-    actor?: AuthPrincipal | number
+    actor?: AuthPrincipal | number,
+    now = new Date()
   ) {
     const principal: AuthPrincipal | undefined =
       typeof actor === "object"
@@ -243,6 +246,7 @@ class OrderService {
         }
       }
 
+      let capturedPaymentAttempt: { id: number; method: string | null } | null = null;
       if (status === "delivered" && order.paymentType === "cash") {
         if (!order.paymentId) {
           throw new AppError(
@@ -252,7 +256,7 @@ class OrderService {
           );
         }
 
-        const paidAt = new Date();
+        const paidAt = now;
         const [completedPayment] = await tx
           .update(paymentsTable)
           .set({
@@ -281,7 +285,7 @@ class OrderService {
         }
 
         if (typeof tx?.update === "function") {
-          await tx
+          const [capturedAttempt] = await tx
             .update(paymentAttemptsTable)
             .set({
               status: "captured",
@@ -293,29 +297,60 @@ class OrderService {
                 eq(paymentAttemptsTable.orderId, order.id),
                 eq(paymentAttemptsTable.provider, "cod")
               )
-            );
+            )
+            .returning({ id: paymentAttemptsTable.id, method: paymentAttemptsTable.method });
+          if (!capturedAttempt) {
+            throw new AppError("COD payment attempt not found", 409, "PAYMENT_ATTEMPT_NOT_FOUND");
+          }
+          capturedPaymentAttempt = capturedAttempt;
         }
       }
 
-      const now = new Date();
       let costSnapshots: OrderCostSnapshot[] = [];
       let deliveryOccurredAt: Date | null = null;
+      let cashSessionId: number | null = null;
       if (status === "delivered") {
-        costSnapshots = await this.costService.snapshotOrderItems(tx, {
-          orderId: order.id,
-          storeId: order.storeId,
-          businessDate: order.pricingBusinessDate,
-        });
         deliveryOccurredAt = order.deliveredAt ?? now;
-        if (order.paymentType === "cash" && this.cashWriter) {
-          await this.cashWriter.recordCodCollection(tx, {
+        const deliveryBusinessDate = businessDateFor(deliveryOccurredAt, order.pricingTimezone);
+        if (order.paymentType === "cash") {
+          if (!this.cashWriter) throw new AppError("Cash source writer is unavailable", 500, "CASH_WRITER_UNAVAILABLE");
+          const codCollection = await this.cashWriter.recordCodCollection(tx, {
             storeId: order.storeId,
             orderId: order.id,
             amountPaise: order.grandTotalPaise,
             occurredAt: deliveryOccurredAt,
             actorId: principal?.userId ?? null,
           });
+          cashSessionId = codCollection.session.id;
+          if (!capturedPaymentAttempt) throw new AppError("COD payment attempt not found", 409, "PAYMENT_ATTEMPT_NOT_FOUND");
+          await this.eventWriter.write(tx, {
+            eventType: "payment_attempt.captured",
+            schemaVersion: 1,
+            sourceType: "payment_attempt",
+            sourceId: capturedPaymentAttempt.id,
+            sourceVersion: 1,
+            storeId: order.storeId,
+            currency: order.currency,
+            occurredAt: deliveryOccurredAt,
+            businessDate: deliveryBusinessDate,
+            timezone: order.pricingTimezone,
+            actorId: principal?.userId ?? null,
+            payload: {
+              paymentAttemptId: capturedPaymentAttempt.id,
+              orderId: order.id,
+              provider: "cod",
+              method: capturedPaymentAttempt.method ?? "cash",
+              capturedPaise: order.grandTotalPaise,
+              capturedAt: deliveryOccurredAt.toISOString(),
+              cashSessionId,
+            },
+          });
         }
+        costSnapshots = await this.costService.snapshotOrderItems(tx, {
+          orderId: order.id,
+          storeId: order.storeId,
+          businessDate: deliveryBusinessDate,
+        });
       }
       const orderUpdates: Partial<typeof ordersTable.$inferInsert> = {
         status,
@@ -354,6 +389,12 @@ class OrderService {
       }
 
       if (status === "delivered") {
+        const recognitionPricing = buildRecognitionPricingSnapshot({
+          lines: costSnapshots,
+          deliveryTaxableAmountPaise: order.deliveryTaxableAmountPaise,
+          deliveryTaxPaise: order.deliveryTaxPaise,
+          totalTaxPaise: order.taxPaise,
+        });
         await this.eventWriter.write(tx, {
           eventType: "order.delivered",
           schemaVersion: 1,
@@ -363,13 +404,14 @@ class OrderService {
           storeId: order.storeId,
           currency: order.currency,
           occurredAt: deliveryOccurredAt!,
-          businessDate: order.pricingBusinessDate,
+          businessDate: businessDateFor(deliveryOccurredAt!, order.pricingTimezone),
           timezone: order.pricingTimezone,
           actorId: principal?.userId ?? null,
           payload: {
             orderId: order.id,
             pricingPolicyVersion: order.pricingPolicyVersion,
             customerTotalPaise: order.grandTotalPaise,
+            ...recognitionPricing,
             foodSubtotalPaise: order.itemsSubtotalPaise,
             discountPaise: order.discountPaise,
             deliveryFeePaise: order.deliveryFeePaise,

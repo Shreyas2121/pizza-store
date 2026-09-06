@@ -25,7 +25,7 @@ export class LedgerService {
       throw new AppError("Journal reversal input is invalid.", 422, "INVALID_JOURNAL_REVERSAL");
     }
 
-    const source = {
+    const source = input.source ?? {
       sourceType: "journal_entry",
       sourceId: String(input.journalEntryId),
       eventType: "journal.reversed",
@@ -94,6 +94,15 @@ export class LedgerService {
       await this.repository.markReversed(tx, original.id, input.occurredAt);
       return reversal;
     });
+  }
+
+  async reverseSource(
+    originalSource: PostingCommand["source"],
+    input: Omit<ReversalCommand, "journalEntryId">
+  ) {
+    const original = await this.repository.transaction((tx) => this.repository.findBySource(tx, originalSource));
+    if (!original) throw new AppError("Original source journal was not found.", 404, "JOURNAL_NOT_FOUND");
+    return this.reverse({ ...input, journalEntryId: original.id });
   }
 
   private async postInTransaction(tx: TransactionType, command: PostingCommand, commandHash: string) {

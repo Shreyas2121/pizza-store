@@ -31,7 +31,7 @@ describe("cost service", () => {
   it("snapshots the effective unit and line cost without consulting mutable prices", async () => {
     const snapshotOrderItem = vi.fn().mockResolvedValue({ id: 4 });
     const repository = {
-      listOrderItems: vi.fn().mockResolvedValue([{ id: 4, productId: 8, quantity: 3, costVersionId: null, unitCostPaise: null, lineCostPaise: null }]),
+      listOrderItems: vi.fn().mockResolvedValue([{ id: 4, productId: 8, quantity: 3, costVersionId: null, unitCostPaise: null, lineCostPaise: null, lineSubtotalPaise: 30_000, discountAllocationPaise: 3_000, taxableAmountPaise: 25_714, taxPaise: 1_286, taxRateBps: 500 }]),
       lockStoreProducts: vi.fn().mockResolvedValue([{ id: 12, storeId: 1, productId: 8 }]),
       findEffectiveCosts: vi.fn().mockResolvedValue([{ id: 30, storeProductId: 12, unitCostPaise: 4_500 }]),
       snapshotOrderItem,
@@ -41,6 +41,8 @@ describe("cost service", () => {
     expect(result).toEqual([{
       orderItemId: 4, productId: 8, quantity: 3, costVersionId: 30,
       unitCostPaise: 4_500, lineCostPaise: 13_500,
+      lineSubtotalPaise: 30_000, discountAllocationPaise: 3_000,
+      taxableAmountPaise: 25_714, taxPaise: 1_286, taxRateBps: 500,
     }]);
     expect(snapshotOrderItem).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ lineCostPaise: 13_500 }));
   });
@@ -48,7 +50,7 @@ describe("cost service", () => {
   it("preserves an existing historical snapshot", async () => {
     const snapshotOrderItem = vi.fn();
     const repository = {
-      listOrderItems: vi.fn().mockResolvedValue([{ id: 4, productId: 8, quantity: 2, costVersionId: 30, unitCostPaise: 4_500, lineCostPaise: 9_000 }]),
+      listOrderItems: vi.fn().mockResolvedValue([{ id: 4, productId: 8, quantity: 2, costVersionId: 30, unitCostPaise: 4_500, lineCostPaise: 9_000, lineSubtotalPaise: 20_000, discountAllocationPaise: 0, taxableAmountPaise: 19_048, taxPaise: 952, taxRateBps: 500 }]),
       lockStoreProducts: vi.fn().mockResolvedValue([{ id: 12, storeId: 1, productId: 8 }]),
       findEffectiveCosts: vi.fn().mockResolvedValue([{ id: 31, storeProductId: 12, unitCostPaise: 6_000 }]),
       snapshotOrderItem,

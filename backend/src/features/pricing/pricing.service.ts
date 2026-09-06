@@ -27,6 +27,40 @@ export const QUOTE_VERSION = "2026-09-01-02" as const;
 export const PRICING_POLICY_VERSION = 3 as const;
 export const TAX_CALCULATION_POLICY_VERSION = 1 as const;
 
+export const buildRecognitionPricingSnapshot = (input: {
+  lines: ReadonlyArray<{
+    lineSubtotalPaise: number;
+    taxableAmountPaise: number;
+    taxPaise: number;
+    taxRateBps: number;
+  }>;
+  deliveryTaxableAmountPaise: number;
+  deliveryTaxPaise: number;
+  totalTaxPaise: number;
+}) => {
+  const preDiscountTaxableFoodPaise = addPaise(input.lines.map(
+    (line) => calculateInclusiveTax(line.lineSubtotalPaise, line.taxRateBps).taxableAmountPaise
+  ), MONEY_CAPS.ORDER_AMOUNT, "Pre-discount taxable food total");
+  const postDiscountTaxableFoodPaise = addPaise(
+    input.lines.map((line) => line.taxableAmountPaise), MONEY_CAPS.ORDER_AMOUNT, "Taxable food total"
+  );
+  const itemTaxPaise = addPaise(
+    input.lines.map((line) => line.taxPaise), MONEY_CAPS.ORDER_AMOUNT, "Item tax total"
+  );
+  if (itemTaxPaise + input.deliveryTaxPaise !== input.totalTaxPaise) {
+    throw new AppError("Order recognition tax snapshot does not reconcile.", 409, "ORDER_RECOGNITION_MISMATCH");
+  }
+  return {
+    preDiscountTaxableFoodPaise,
+    discountContraPaise: subtractPaise(preDiscountTaxableFoodPaise, postDiscountTaxableFoodPaise, {
+      domainCap: MONEY_CAPS.ORDER_AMOUNT,
+    }),
+    taxableDeliveryPaise: input.deliveryTaxableAmountPaise,
+    itemTaxPaise,
+    deliveryTaxPaise: input.deliveryTaxPaise,
+  };
+};
+
 export interface PricingCustomizationInput {
   customizationOptionId: number;
   name: string;

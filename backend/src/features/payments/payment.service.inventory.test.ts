@@ -12,6 +12,7 @@ import type { TransactionType } from "../../utils/types";
 import cartService from "../cart/cart.service";
 import checkoutService from "../checkout/checkout.service";
 import inventoryService from "../inventory/inventory.service";
+import financialEventService from "../finance-events/financial-event.service";
 import * as razorpayConfig from "./razorpay.config";
 import * as razorpayGateway from "./razorpay.gateway";
 import paymentReconciliationService from "./payment-reconciliation.service";
@@ -21,6 +22,7 @@ import paymentService from "./payment.service";
 describe("PaymentService inventory reservation lifecycle", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    vi.spyOn(financialEventService, "write").mockResolvedValue({} as never);
   });
 
   describe("initiation (findOrCreateLocalAttempt)", () => {
@@ -104,6 +106,8 @@ describe("PaymentService inventory reservation lifecycle", () => {
           grandTotalPaise: 50_000,
           status: "awaiting_payment",
           couponId: null,
+          pricingBusinessDate: "2026-09-06",
+          pricingTimezone: "Asia/Kolkata",
         },
         payment: {
           id: 101,
@@ -133,7 +137,9 @@ describe("PaymentService inventory reservation lifecycle", () => {
         })),
         update: vi.fn(() => ({
           set: vi.fn(() => ({
-            where: vi.fn().mockResolvedValue([]),
+            where: vi.fn(() => ({
+              returning: vi.fn().mockResolvedValue([{ id: 501, method: "other" }]),
+            })),
           })),
         })),
       };
@@ -158,6 +164,15 @@ describe("PaymentService inventory reservation lifecycle", () => {
       expect(result.finalizedNow).toBe(true);
       expect(result.orderStatus).toBe("pending");
       expect(consumeSpy).toHaveBeenCalledWith(42, mockTx);
+      expect(financialEventService.write).toHaveBeenCalledWith(mockTx, expect.objectContaining({
+        eventType: "payment_attempt.captured",
+        sourceId: 501,
+        payload: expect.objectContaining({
+          orderId: 42,
+          capturedPaise: 50_000,
+          providerReference: "pay_rzp_456",
+        }),
+      }));
     });
 
     it("rejects with INVENTORY_RESERVATIONS_RELEASED if reservations were expired/released", async () => {

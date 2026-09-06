@@ -44,6 +44,7 @@ export interface ReversalCommand {
   reason: string;
   actorId: number;
   correlationId: string;
+  source?: PostingSourceIdentity;
 }
 
 export const debit = (

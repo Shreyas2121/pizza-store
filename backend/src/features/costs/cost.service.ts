@@ -14,6 +14,11 @@ export interface OrderCostSnapshot {
   costVersionId: number;
   unitCostPaise: number;
   lineCostPaise: number;
+  lineSubtotalPaise: number;
+  discountAllocationPaise: number;
+  taxableAmountPaise: number;
+  taxPaise: number;
+  taxRateBps: number;
 }
 
 export interface CostSnapshotWriter {
@@ -93,6 +98,11 @@ export class CostService implements CostSnapshotWriter {
         snapshots.push({
           orderItemId: item.id, productId: item.productId, quantity: item.quantity,
           costVersionId: item.costVersionId, unitCostPaise: item.unitCostPaise, lineCostPaise: item.lineCostPaise,
+          lineSubtotalPaise: item.lineSubtotalPaise,
+          discountAllocationPaise: item.discountAllocationPaise,
+          taxableAmountPaise: item.taxableAmountPaise,
+          taxPaise: item.taxPaise,
+          taxRateBps: item.taxRateBps,
         });
         continue;
       }
@@ -109,6 +119,11 @@ export class CostService implements CostSnapshotWriter {
       const snapshot = {
         orderItemId: item.id, productId: item.productId, quantity: item.quantity,
         costVersionId: version.id, unitCostPaise: version.unitCostPaise, lineCostPaise,
+        lineSubtotalPaise: item.lineSubtotalPaise,
+        discountAllocationPaise: item.discountAllocationPaise,
+        taxableAmountPaise: item.taxableAmountPaise,
+        taxPaise: item.taxPaise,
+        taxRateBps: item.taxRateBps,
       };
       const updated = await this.repository.snapshotOrderItem(tx, snapshot);
       if (!updated) throw new AppError("Order cost snapshot was concurrently changed.", 409, "COST_SNAPSHOT_CONFLICT");

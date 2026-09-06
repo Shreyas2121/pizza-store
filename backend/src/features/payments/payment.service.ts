@@ -214,6 +214,7 @@ class PaymentService {
             orderId: order.id,
             storeId: order.storeId,
             provider: "razorpay",
+            method: "other",
             status: "pending",
             amountPaise: quote.totalPaise,
             currency: "INR",

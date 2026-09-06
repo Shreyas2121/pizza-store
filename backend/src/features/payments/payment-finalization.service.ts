@@ -12,8 +12,13 @@ import type {
   LocalRazorpayAttempt,
 } from "./payment.types";
 import type { RazorpayPaymentSnapshot } from "./razorpay.types";
+import financialEventService from "../finance-events/financial-event.service";
+import type { FinancialEventWriter } from "../finance-events/financial-event.types";
+import { businessDateFor } from "../../utils/business-date";
 
 export class PaymentFinalizationService {
+  constructor(private readonly eventWriter: FinancialEventWriter = financialEventService) {}
+
   async finalizeCapturedPayment(data: FinalizeCapturedPaymentInput) {
     return await db.transaction(async (tx) => {
       const [record] = await tx
@@ -106,7 +111,7 @@ export class PaymentFinalizationService {
         tx
       );
       if (typeof tx?.update === "function") {
-        await tx
+        const capturedAttempt = (await tx
           .update(paymentAttemptsTable)
           .set({
             status: "captured",
@@ -118,9 +123,35 @@ export class PaymentFinalizationService {
           .where(
             and(
               eq(paymentAttemptsTable.orderId, record.order.id),
-              eq(paymentAttemptsTable.provider, "razorpay")
+              eq(paymentAttemptsTable.provider, "razorpay"),
+              eq(paymentAttemptsTable.providerOrderId, data.providerOrderId)
             )
-          );
+          )
+          .returning())[0];
+        if (!capturedAttempt) {
+          throw new AppError("Payment attempt not found", 409, "PAYMENT_ATTEMPT_NOT_FOUND");
+        }
+        await this.eventWriter.write(tx, {
+          eventType: "payment_attempt.captured",
+          schemaVersion: 1,
+          sourceType: "payment_attempt",
+          sourceId: capturedAttempt.id,
+          sourceVersion: 1,
+          storeId: record.order.storeId,
+          currency: record.payment.currency,
+          occurredAt: paidAt,
+          businessDate: businessDateFor(paidAt, record.order.pricingTimezone),
+          timezone: record.order.pricingTimezone,
+          payload: {
+            paymentAttemptId: capturedAttempt.id,
+            orderId: record.order.id,
+            provider: "razorpay",
+            method: capturedAttempt.method ?? "other",
+            capturedPaise: record.payment.amountPaise,
+            capturedAt: paidAt.toISOString(),
+            providerReference: data.providerPaymentId,
+          },
+        });
       }
       await tx
         .update(ordersTable)
