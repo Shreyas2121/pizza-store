@@ -27,6 +27,7 @@ import { cashRoutes } from "./features/cash-management/cash.routes";
 import { vendorRoutes } from "./features/vendors/vendor.routes";
 import { expenseRoutes } from "./features/expenses/expense.routes";
 import { ledgerRoutes } from "./features/ledger/ledger.routes";
+import { financeReportRoutes } from "./features/finance-reports/finance-report.routes";
 
 export const mainRoutes = Router();
 
@@ -47,6 +48,7 @@ mainRoutes.use("/finance", cashRoutes);
 mainRoutes.use("/finance", vendorRoutes);
 mainRoutes.use("/finance", expenseRoutes);
 mainRoutes.use("/finance", ledgerRoutes);
+mainRoutes.use("/finance", financeReportRoutes);
 mainRoutes.use("/coupon", couponRoutes);
 mainRoutes.use("/dashboard", dashRoutes);
 mainRoutes.use("/chat", chatRoutes);
