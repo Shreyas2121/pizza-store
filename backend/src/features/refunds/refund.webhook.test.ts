@@ -10,6 +10,7 @@ import razorpayWebhookService from "../payments/razorpay.webhook";
 import type { RazorpayServerConfig } from "../payments/razorpay.types";
 import refundRepository from "./refund.repository";
 import refundService from "./refund.service";
+import financialEventService from "../finance-events/financial-event.service";
 
 describe("Refund Webhooks and Provider Events (P2.7)", () => {
   const sampleConfig: RazorpayServerConfig = {
@@ -82,6 +83,13 @@ describe("Refund Webhooks and Provider Events (P2.7)", () => {
     vi.spyOn(refundRepository, "lockPaymentAttempts").mockResolvedValue([sampleAttempt] as any);
     vi.spyOn(refundRepository, "lockRefund").mockResolvedValue({ ...sampleRefund } as any);
     vi.spyOn(refundRepository, "getPaymentAttempt").mockResolvedValue(sampleAttempt as any);
+    vi.spyOn(refundRepository, "findStore").mockResolvedValue({ id: 1, timezone: "Asia/Kolkata" });
+    vi.spyOn(refundRepository, "allocations").mockResolvedValue([{
+      id: 1, refundId: 42, orderId: 100, kind: "item", orderItemId: 10, quantity: 1,
+      amountPaise: 15_000, taxableAmountPaise: 14_286, taxPaise: 714,
+      discountReversalPaise: 0, createdAt: new Date(),
+    }]);
+    vi.spyOn(financialEventService, "write").mockResolvedValue({} as never);
     vi.spyOn(refundRepository, "findByProviderRefundId").mockResolvedValue(undefined);
     vi.spyOn(refundRepository, "findById").mockResolvedValue(undefined);
     vi.spyOn(refundRepository, "update").mockImplementation(async (_tx, id, patch) => ({
@@ -241,6 +249,8 @@ describe("Refund Webhooks and Provider Events (P2.7)", () => {
           resourceId: 42,
         })
       );
+      expect(financialEventService.write).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ eventType: "refund.processed" }));
+      expect(financialEventService.write).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ eventType: "refund.disbursed" }));
     });
 
     it("handles duplicate processed event idempotently without updating or re-auditing", async () => {

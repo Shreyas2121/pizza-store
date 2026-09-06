@@ -1,6 +1,6 @@
 import { and, asc, count, desc, eq, gte, inArray, lte, sql, type SQL } from "drizzle-orm";
 import { db } from "../../db";
-import { expenseAllocationsTable, expenseAttachmentsTable, expenseCategoriesTable, expenseCommandsTable, expensesTable, orderItemsTable, ordersTable, storesTable, vendorsTable } from "../../db/schema";
+import { expenseAllocationsTable, expenseAttachmentsTable, expenseCategoriesTable, expenseCommandsTable, expensesTable, ledgerAccountsTable, orderItemsTable, ordersTable, storesTable, vendorsTable } from "../../db/schema";
 import type { TransactionType } from "../../utils/types";
 import type { ExpenseCommandAction, ExpensesQueryInput, ExpenseWriteInput, SourceMarginQueryInput } from "./expense.schemas";
 import { parseAggregatePaise } from "../../utils/money";
@@ -20,6 +20,7 @@ export class ExpenseRepository {
   async findExpense(id: number, executor: typeof db | TransactionType = db) { return (await executor.select().from(expensesTable).where(eq(expensesTable.id, id)))[0]; }
   async lockExpense(tx: TransactionType, id: number) { return (await tx.select().from(expensesTable).where(eq(expensesTable.id, id)).for("update"))[0]; }
   async allocations(id: number, executor: typeof db | TransactionType = db) { return executor.select().from(expenseAllocationsTable).where(eq(expenseAllocationsTable.expenseId, id)).orderBy(asc(expenseAllocationsTable.id)); }
+  async ledgerAccounts(ids: number[], executor: typeof db | TransactionType = db) { return ids.length ? executor.select({ id: ledgerAccountsTable.id, code: ledgerAccountsTable.code, isActive: ledgerAccountsTable.isActive }).from(ledgerAccountsTable).where(inArray(ledgerAccountsTable.id, ids)) : []; }
   async detail(id: number, executor: typeof db | TransactionType = db) { const expense = await this.findExpense(id, executor); return expense ? { expense, allocations: await this.allocations(id, executor) } : undefined; }
   async findByClientRequestId(key: string) { const expense = (await db.select().from(expensesTable).where(eq(expensesTable.clientRequestId, key)))[0]; return expense ? { expense, allocations: await this.allocations(expense.id) } : undefined; }
   async command(key: string, executor: typeof db | TransactionType = db) { return (await executor.select().from(expenseCommandsTable).where(eq(expenseCommandsTable.idempotencyKey, key)))[0]; }

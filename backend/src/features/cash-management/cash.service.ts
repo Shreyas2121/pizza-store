@@ -119,7 +119,7 @@ export class CashService implements CashSourceWriter {
       const updated = await this.repository.reopen(tx, session, closure.id, actor.userId, reason, now);
       const store = await this.repository.findStore(session.storeId, tx);
       await auditService.write({ tx, actor, storeId: session.storeId, action: "cash.session_reopened", resourceType: "cash_session", resourceId: session.id, before: { status: "closed", closureId: closure.id, variancePaise: closure.variancePaise }, after: { status: "open" }, metadata: { reason } });
-      await this.eventWriter.write(tx, { eventType: "cash.session_reopened", schemaVersion: 1, sourceType: "cash_session", sourceId: session.id, sourceVersion: updated.version, storeId: session.storeId, currency: "INR", occurredAt: now, businessDate: session.businessDate, timezone: store!.timezone, actorId: actor.userId, payload: { sessionId: session.id, priorCloseSourceKey: `cash_session:${session.id}:cash.session_closed:${closure.sessionVersion}`, reason, authorizedActorId: actor.userId, reopenedAt: now.toISOString() } });
+      await this.eventWriter.write(tx, { eventType: "cash.session_reopened", schemaVersion: 1, sourceType: "cash_session", sourceId: session.id, sourceVersion: updated.version, storeId: session.storeId, currency: "INR", occurredAt: now, businessDate: session.businessDate, timezone: store!.timezone, actorId: actor.userId, payload: { sessionId: session.id, priorCloseSourceKey: `cash_session:${session.id}:cash.session_closed:${closure.sessionVersion}`, originalCloseSource: { sourceType: "cash_session", sourceId: session.id, eventType: "cash.session_closed", sourceVersion: closure.sessionVersion }, priorVariancePaise: closure.variancePaise, reason, authorizedActorId: actor.userId, reopenedAt: now.toISOString() } });
       return updated;
     });
   }
@@ -137,7 +137,7 @@ export class CashService implements CashSourceWriter {
       if (session.status !== "open") throw invalidState("Reopen the cash session before reversing a movement.");
       const movement = await this.repository.movement(movementId, tx);
       if (!movement) throw resourceNotFound();
-      return this.addMovement(tx, session, { type: "adjustment", amountPaise: -movement.amountPaise, reason, reversesMovementId: movement.id, recordedBy: actor.userId, occurredAt: now }, actor);
+      return this.addMovement(tx, session, { type: "adjustment", amountPaise: -movement.amountPaise, reason, reversesMovementId: movement.id, reversesMovementType: movement.type, recordedBy: actor.userId, occurredAt: now }, actor);
     });
   }
 
@@ -158,15 +158,16 @@ export class CashService implements CashSourceWriter {
     return this.addMovement(tx, session, input, undefined, store.timezone);
   }
 
-  private async addMovement(tx: TransactionType, session: Awaited<ReturnType<CashRepository["lockById"]>>, input: { type: "cod_collection" | "refund" | "cash_in" | "cash_out" | "deposit" | "adjustment"; amountPaise: number; recordedBy: number | null; occurredAt: Date; reason?: string; orderId?: number; refundId?: number; reversesMovementId?: number }, actor?: AuthPrincipal, timezone?: string) {
+  private async addMovement(tx: TransactionType, session: Awaited<ReturnType<CashRepository["lockById"]>>, input: { type: "cod_collection" | "refund" | "cash_in" | "cash_out" | "deposit" | "adjustment"; amountPaise: number; recordedBy: number | null; occurredAt: Date; reason?: string; orderId?: number; refundId?: number; reversesMovementId?: number; reversesMovementType?: "cod_collection" | "refund" | "cash_in" | "cash_out" | "deposit" | "adjustment" }, actor?: AuthPrincipal, timezone?: string) {
     if (!session) throw resourceNotFound();
     const expectedCashPaise = session.expectedCashPaise + input.amountPaise;
     if (!Number.isInteger(expectedCashPaise) || expectedCashPaise < 0 || expectedCashPaise > MAX_POSTGRES_INT) throw new AppError("Movement would make expected cash invalid.", 422, "INVALID_EXPECTED_CASH");
-    const movement = await this.repository.addMovement(tx, { sessionId: session.id, storeId: session.storeId, ...input });
+    const { reversesMovementType, ...movementInput } = input;
+    const movement = await this.repository.addMovement(tx, { sessionId: session.id, storeId: session.storeId, ...movementInput });
     const updated = await this.repository.updateExpected(tx, session.id, expectedCashPaise, session.version + 1);
     const storeTimezone = timezone ?? (await this.repository.findStore(session.storeId, tx))!.timezone;
     await auditService.write({ tx, actor, storeId: session.storeId, action: input.reversesMovementId ? "cash.movement_reversed" : "cash.movement_recorded", resourceType: "cash_movement", resourceId: movement.id, after: { sessionId: session.id, type: movement.type, amountPaise: movement.amountPaise, expectedCashPaise }, metadata: { reason: movement.reason, orderId: movement.orderId, refundId: movement.refundId, reversesMovementId: movement.reversesMovementId } });
-    await this.eventWriter.write(tx, { eventType: "cash.movement_recorded", schemaVersion: 1, sourceType: "cash_movement", sourceId: movement.id, sourceVersion: 1, storeId: session.storeId, currency: "INR", occurredAt: input.occurredAt, businessDate: session.businessDate, timezone: storeTimezone, actorId: input.recordedBy, payload: { movementId: movement.id, sessionId: session.id, type: movement.type, amountPaise: movement.amountPaise, orderId: movement.orderId, refundId: movement.refundId, reversesMovementId: movement.reversesMovementId, reason: movement.reason } });
+    await this.eventWriter.write(tx, { eventType: "cash.movement_recorded", schemaVersion: 1, sourceType: "cash_movement", sourceId: movement.id, sourceVersion: 1, storeId: session.storeId, currency: "INR", occurredAt: input.occurredAt, businessDate: session.businessDate, timezone: storeTimezone, actorId: input.recordedBy, payload: { movementId: movement.id, sessionId: session.id, type: movement.type, amountPaise: movement.amountPaise, orderId: movement.orderId, refundId: movement.refundId, reversesMovementId: movement.reversesMovementId, reversesMovementType: reversesMovementType ?? null, reason: movement.reason } });
     return { movement, session: updated };
   }
 

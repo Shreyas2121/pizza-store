@@ -287,6 +287,8 @@ export class SettlementService {
         netAmountPaise: detail.batch.netAmountPaise,
         feePaise: detail.batch.feePaise,
         feeTaxPaise: detail.batch.feeTaxPaise,
+        adjustmentPaise: detail.batch.adjustmentPaise,
+        refundDeductionPaise: detail.lines.filter((line) => line.type === "refund").reduce((sum, line) => sum - line.amountPaise, 0),
         adjustments: detail.lines.filter((line) => line.type === "adjustment").map((line) => ({
           settlementLineId: line.id,
           amountPaise: line.amountPaise,

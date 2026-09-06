@@ -90,8 +90,12 @@ export class ExpenseService {
       requireExpenseStatus(expense.status, ["paid"]);
       const allocations = await this.repository.allocations(id, tx);
       if (allocations.some((item) => item.ledgerAccountId == null)) throw new AppError("Every allocation requires a ledger account mapping before posting.", 409, "EXPENSE_LEDGER_MAPPING_REQUIRED");
+      const accountIds = [...new Set(allocations.map((item) => item.ledgerAccountId!))];
+      const accounts = await this.repository.ledgerAccounts(accountIds, tx);
+      const accountCodeById = new Map(accounts.filter((account) => account.isActive).map((account) => [account.id, account.code]));
+      if (accountCodeById.size !== accountIds.length) throw new AppError("Every allocation requires an active ledger account mapping before posting.", 409, "EXPENSE_LEDGER_MAPPING_REQUIRED");
       const now = new Date(); const updated = await this.change(tx, actor, expense, "posted", { postedBy: actor.userId, postedAt: now });
-      await this.event(tx, actor, updated, "expense.posted", now, { allocations: allocations.map((item) => ({ storeId: item.storeId, categoryId: item.categoryId, categoryName: item.categoryName, classification: item.categoryClassification, ledgerAccountId: item.ledgerAccountId, costCenter: item.costCenter, amountPaise: item.amountPaise })) });
+      await this.event(tx, actor, updated, "expense.posted", now, { allocations: allocations.map((item) => ({ storeId: item.storeId, categoryId: item.categoryId, categoryName: item.categoryName, classification: item.categoryClassification, ledgerAccountId: item.ledgerAccountId, ledgerAccountCode: accountCodeById.get(item.ledgerAccountId!), costCenter: item.costCenter, amountPaise: item.amountPaise })) });
       return updated;
     });
   }
@@ -110,7 +114,7 @@ export class ExpenseService {
     return this.command(actor, id, "reverse", key, { reason }, "finance.expenses.pay", async (tx, expense) => {
       requireExpenseStatus(expense.status, ["posted"]); const now = new Date();
       const updated = await this.change(tx, actor, expense, "reversed", { reversedBy: actor.userId, reversedAt: now, reversalReason: reason }, { reason });
-      await this.event(tx, actor, updated, "expense.reversed", now, { originalPostingSourceKey: `expense:${expense.id}:expense.posted:${expense.version}`, reason, authorizedActorId: actor.userId, effectiveBusinessDate: expense.expenseDate }); return updated;
+      await this.event(tx, actor, updated, "expense.reversed", now, { originalPostingSourceKey: `expense:${expense.id}:expense.posted:${expense.version}`, originalPostingSource: { sourceType: "expense", sourceId: expense.id, eventType: "expense.posted", sourceVersion: expense.version }, reason, authorizedActorId: actor.userId, effectiveBusinessDate: expense.expenseDate }); return updated;
     });
   }
 

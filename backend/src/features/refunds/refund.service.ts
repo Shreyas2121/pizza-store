@@ -1,5 +1,6 @@
 import type { AuthPrincipal } from "../auth/auth.types";
 import { AppError } from "../../utils/error";
+import { businessDateFor } from "../../utils/business-date";
 import { env } from "../../utils/zodSchema";
 import authorizationService, { resourceNotFound } from "../access/access.service";
 import auditService from "../audit/audit.service";
@@ -23,6 +24,8 @@ import {
   requireRefundStatus,
 } from "./refund.policy";
 import cashService, { type CashSourceWriter } from "../cash-management/cash.service";
+import financialEventService from "../finance-events/financial-event.service";
+import type { FinancialEventWriter } from "../finance-events/financial-event.types";
 
 export interface ProviderRefundWebhookEntity {
   id: string;
@@ -60,7 +63,8 @@ const isUniqueViolation = (error: unknown) =>
 export class RefundService {
   constructor(
     private readonly repository: RefundRepository = refundRepository,
-    private readonly cashWriter?: CashSourceWriter
+    private readonly cashWriter: CashSourceWriter = cashService,
+    private readonly eventWriter: FinancialEventWriter = financialEventService
   ) { }
 
   async list(actor: AuthPrincipal, query: RefundsQueryInput) {
@@ -207,7 +211,7 @@ export class RefundService {
     const identity = await this.repository.findById(refundId);
     if (!identity) throw resourceNotFound();
     const prepared = await this.repository.transaction(async (tx) => {
-      const attempt = await this.lockParents(tx, identity.refund.orderId, identity.refund.paymentAttemptId);
+      const { attempt } = await this.lockParents(tx, identity.refund.orderId, identity.refund.paymentAttemptId);
       const refund = await this.repository.lockRefund(tx, refundId);
       if (!refund) throw resourceNotFound();
       await authorizationService.requireResourceStorePermission({
@@ -238,7 +242,7 @@ export class RefundService {
     const identity = await this.repository.findById(refundId);
     if (!identity) throw resourceNotFound();
     return this.repository.transaction(async (tx) => {
-      const attempt = await this.lockParents(tx, identity.refund.orderId, identity.refund.paymentAttemptId);
+      const { order, attempt } = await this.lockParents(tx, identity.refund.orderId, identity.refund.paymentAttemptId);
       const refund = await this.repository.lockRefund(tx, refundId);
       if (!refund) throw resourceNotFound();
       const authorization = await authorizationService.requireResourceStorePermission({
@@ -282,15 +286,14 @@ export class RefundService {
           before: { status: "approved" }, after: { status: approved.status },
           metadata: { provider: "cod", evidence: "cash_returned" },
         });
-        if (this.cashWriter) {
-          await this.cashWriter.recordCodRefund(tx, {
-            storeId: refund.storeId,
-            refundId: refund.id,
-            amountPaise: refund.amountPaise,
-            occurredAt: now,
-            actorId: actor.userId,
-          });
-        }
+        const cash = await this.cashWriter.recordCodRefund(tx, {
+          storeId: refund.storeId,
+          refundId: refund.id,
+          amountPaise: refund.amountPaise,
+          occurredAt: now,
+          actorId: actor.userId,
+        });
+        await this.emitProcessedAndDisbursed(tx, approved, order, attempt, actor.userId, now, `cash-movement:${cash.movement.id}`);
       } else {
         if (!attempt.providerPaymentId) {
           throw new AppError("Captured payment is missing its provider payment ID.", 409, "PAYMENT_PROVIDER_REFERENCE_MISSING");
@@ -352,14 +355,15 @@ export class RefundService {
     const identity = await this.repository.findById(refundId);
     if (!identity) throw resourceNotFound();
     return this.repository.transaction(async (tx) => {
-      await this.lockParents(tx, identity.refund.orderId, identity.refund.paymentAttemptId);
+      const { order, attempt } = await this.lockParents(tx, identity.refund.orderId, identity.refund.paymentAttemptId);
       const refund = await this.repository.lockRefund(tx, refundId);
       if (!refund) throw resourceNotFound();
       requireRefundStatus(refund.status, ["submitted", "processing"]);
       const status = providerStatus === "processed" ? "processed" : "processing";
+      const now = new Date();
       const updated = await this.repository.update(tx, refund.id, {
         status, providerRefundId, providerStatus,
-        ...(status === "processed" ? { processedAt: new Date() } : {}),
+        ...(status === "processed" ? { processedAt: now } : {}),
         version: refund.version + 1,
       });
       await auditService.write({
@@ -369,6 +373,9 @@ export class RefundService {
         before: { status: refund.status }, after: { status, providerStatus },
         metadata: { provider: "razorpay", providerRefundId },
       });
+      if (status === "processed") {
+        await this.emitProcessedAndDisbursed(tx, updated, order, attempt, actor.userId, now, providerRefundId);
+      }
       return updated;
     });
   }
@@ -398,13 +405,77 @@ export class RefundService {
     });
   }
 
+  private async emitProcessedAndDisbursed(
+    tx: TransactionType,
+    refund: Awaited<ReturnType<RefundRepository["update"]>>,
+    order: NonNullable<Awaited<ReturnType<RefundRepository["lockOrder"]>>>,
+    attempt: Awaited<ReturnType<RefundRepository["lockPaymentAttempts"]>>[number],
+    actorId: number | null,
+    now: Date,
+    reference: string
+  ) {
+    const [store, allocations] = await Promise.all([
+      this.repository.findStore(tx, refund.storeId),
+      this.repository.allocations(tx, refund.id),
+    ]);
+    if (!store) throw resourceNotFound();
+    const envelope = {
+      schemaVersion: 1,
+      sourceType: "refund",
+      sourceId: refund.id,
+      sourceVersion: refund.version,
+      storeId: refund.storeId,
+      currency: "INR" as const,
+      occurredAt: now,
+      businessDate: businessDateFor(now, store.timezone),
+      timezone: store.timezone,
+      actorId,
+    };
+    await this.eventWriter.write(tx, {
+      ...envelope,
+      eventType: "refund.processed",
+      payload: {
+        refundId: refund.id,
+        orderId: refund.orderId,
+        paymentAttemptId: refund.paymentAttemptId,
+        totalPaise: refund.amountPaise,
+        provider: attempt.provider,
+        providerReference: reference,
+        processedAt: (refund.processedAt ?? now).toISOString(),
+        fulfilmentState: order.status,
+        recognizedAt: order.recognizedAt?.toISOString() ?? null,
+        allocations: allocations.map((item) => ({
+          kind: item.kind,
+          orderItemId: item.orderItemId,
+          quantity: item.quantity,
+          amountPaise: item.amountPaise,
+          taxableAmountPaise: item.taxableAmountPaise,
+          taxPaise: item.taxPaise,
+          discountReversalPaise: item.discountReversalPaise,
+        })),
+      },
+    });
+    await this.eventWriter.write(tx, {
+      ...envelope,
+      eventType: "refund.disbursed",
+      payload: {
+        refundId: refund.id,
+        orderId: refund.orderId,
+        method: attempt.provider === "cod" ? "cash" : "razorpay",
+        disbursedPaise: refund.amountPaise,
+        clearingReference: reference,
+        disbursedAt: (refund.processedAt ?? now).toISOString(),
+      },
+    });
+  }
+
   private async lockParents(tx: TransactionType, orderId: number, paymentAttemptId: number) {
     const order = await this.repository.lockOrder(tx, orderId);
     if (!order) throw resourceNotFound();
     const attempts = await this.repository.lockPaymentAttempts(tx, orderId);
     const attempt = attempts.find((candidate) => candidate.id === paymentAttemptId);
     if (!attempt) throw resourceNotFound();
-    return attempt;
+    return { order, attempt };
   }
 
   private requireIdempotentMatch(
@@ -443,7 +514,7 @@ export class RefundService {
     }
 
     return this.repository.transaction(async (tx) => {
-      const attempt = await this.lockParents(tx, identity.refund.orderId, identity.refund.paymentAttemptId);
+      const { order, attempt } = await this.lockParents(tx, identity.refund.orderId, identity.refund.paymentAttemptId);
       if (attempt.providerPaymentId && attempt.providerPaymentId !== entity.payment_id) {
         throw new AppError(
           "Provider refund payment ID does not match local attempt.",
@@ -521,6 +592,8 @@ export class RefundService {
             event,
           },
         });
+
+        await this.emitProcessedAndDisbursed(tx, updated, order, attempt, null, now, entity.id);
 
         return { refund: updated, duplicate: false as const, inProgress: false };
       }

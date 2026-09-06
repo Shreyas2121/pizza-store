@@ -19,6 +19,7 @@ const concurrentRepository = (initial: Record<string, unknown>) => {
     update: vi.fn(async (_tx: object, _id: number, values: Record<string, unknown>) => { expense = { ...expense, ...values } as typeof base; return { ...expense }; }),
     recordCommand: vi.fn(async (_tx: object, values: Record<string, unknown>) => { commands.set(values.idempotencyKey as string, { id: commands.size + 1, ...values, createdAt: new Date() }); }),
     allocations: vi.fn(async () => [allocation]),
+    ledgerAccounts: vi.fn(async () => [{ id: 33, code: "6901", isActive: true }]),
     detail: vi.fn(async () => ({ expense: { ...expense }, allocations: [allocation] })),
     findStore: vi.fn(async () => ({ id: 1, timezone: "Asia/Kolkata" })),
   };
@@ -67,6 +68,18 @@ describe("expense workflow concurrency and policy", () => {
     const service = new ExpenseService(repository as never, { write: vi.fn() });
     await expect(service.pay(admin, 4, crypto.randomUUID(), { paymentMethod: "cash" })).rejects.toMatchObject({ code: "SEGREGATION_OF_DUTIES_VIOLATION" });
     expect(repository.update).not.toHaveBeenCalled();
+  });
+
+  it("snapshots the active ledger account code when posting a paid expense", async () => {
+    const paid = { ...base, status: "paid", paymentMethod: "bank_transfer", paymentReference: "UTR-1", approvedBy: 7, approvedAt: new Date(), paidBy: 9, paidAt: new Date(), version: 4 };
+    const repository = concurrentRepository(paid);
+    vi.spyOn(authorizationService, "requireResourceStorePermission").mockResolvedValue({ access: "platform", userId: 9, storeId: 1, permission: "finance.expenses.pay" });
+    const events = { write: vi.fn().mockResolvedValue({}) };
+    await new ExpenseService(repository as never, events).post(admin, 4, crypto.randomUUID());
+    expect(events.write).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      eventType: "expense.posted",
+      payload: expect.objectContaining({ allocations: [expect.objectContaining({ ledgerAccountId: 33, ledgerAccountCode: "6901" })] }),
+    }));
   });
 
   it("prevents self-approval and applies the manager approval ceiling", async () => {

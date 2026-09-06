@@ -6,6 +6,7 @@ import {
   paymentAttemptsTable,
   refundAllocationsTable,
   refundsTable,
+  storesTable,
 } from "../../db/schema";
 import type { RefundStatus, TransactionType } from "../../utils/types";
 
@@ -39,6 +40,14 @@ export class RefundRepository {
 
   async getPaymentAttempt(id: number) {
     return (await db.select().from(paymentAttemptsTable).where(eq(paymentAttemptsTable.id, id)))[0];
+  }
+
+  allocations(tx: TransactionType, refundId: number) {
+    return tx.select().from(refundAllocationsTable).where(eq(refundAllocationsTable.refundId, refundId)).orderBy(asc(refundAllocationsTable.id));
+  }
+
+  async findStore(tx: TransactionType, storeId: number) {
+    return (await tx.select({ id: storesTable.id, timezone: storesTable.timezone }).from(storesTable).where(eq(storesTable.id, storeId)))[0];
   }
 
   async lockOrder(tx: TransactionType, orderId: number) {
