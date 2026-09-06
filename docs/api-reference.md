@@ -1151,7 +1151,9 @@ Target financial endpoints mounted under `/api/v1/finance/*` and `/api/v1/checko
 - `GET /finance/expenses/categories` 🔒 / `POST /finance/expenses/categories` 🔒 — Expense categories.
 - `GET /finance/expenses` 🔒 / `GET /finance/expenses/:id` 🔒 / `POST /finance/expenses` 🔒 / `PUT /finance/expenses/:id` 🔒 — Expense records and exact allocations; writes use integer paise.
 - `POST /finance/expenses/:id/submit` 🔒 / `approve` 🔒 / `reject` 🔒 / `pay` 🔒 / `post` 🔒 / `void` 🔒 / `reverse` 🔒 — Idempotent expense lifecycle commands; each requires an `Idempotency-Key` UUID.
-- `GET /finance/expenses/:id/attachments/:attachmentId` 🔒 — Authorized private receipt download.
+- `GET /finance/expenses/:id/attachments` 🔒 / `POST /finance/expenses/:id/attachments` 🔒 — List or upload private draft/rejected-expense receipts. Upload field: `receipt`; accepted content: PDF/JPEG/PNG/WebP up to 5 MiB.
+- `GET /finance/expenses/:id/attachments/:attachmentId` 🔒 — Authorized private receipt download with no public/static URL.
+- `GET /finance/source-margin?storeId=:id` 🔒 — Source-based, pre-ledger delivered-sales, standard-COGS, operating-expense, and margin view with cost-coverage evidence.
 
 ### Payroll-Lite (Operating Cost)
 - `GET /finance/payroll/profiles` 🔒 / `POST /finance/payroll/profiles` 🔒 — Employee finance profiles.

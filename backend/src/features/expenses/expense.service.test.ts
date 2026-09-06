@@ -80,4 +80,11 @@ describe("expense workflow concurrency and policy", () => {
       .rejects.toMatchObject({ code: "EXPENSE_APPROVAL_LIMIT_EXCEEDED" });
     expect(largeRepository.update).not.toHaveBeenCalled();
   });
+
+  it("labels source-margin math as pre-ledger and reports cost coverage", async () => {
+    vi.spyOn(authorizationService, "requireStorePermission").mockResolvedValue({ access: "platform", userId: 9, storeId: 1, permission: "finance.expenses.read" });
+    const repository = { sourceMargin: vi.fn().mockResolvedValue({ deliveredSalesPaise: 100_000, cogsPaise: 40_000, operatingExpensesPaise: 15_000, totalOrderLines: 4, costedOrderLines: 3 }) };
+    const result = await new ExpenseService(repository as never, { write: vi.fn() }).sourceMargin(admin, { storeId: 1 });
+    expect(result).toMatchObject({ grossProfitPaise: 60_000, grossMarginBps: 6000, operatingResultPaise: 45_000, costCoverageComplete: false, basis: "source_based_pre_ledger" });
+  });
 });

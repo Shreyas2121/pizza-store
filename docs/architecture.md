@@ -110,6 +110,12 @@ Product images uploaded via Multer are stored in `backend/uploads/` and served s
 
 All environment variables are validated at startup using a Zod schema in `src/utils/zodSchema.ts`. The validated values are exported from `src/constants.ts`. The server will not start if any required variable is missing or malformed.
 
+### Private expense receipts
+
+Expense receipts use the `ExpenseReceiptStorage` abstraction and demo-local storage under `.private/expense-receipts`, outside both public `/uploads` mounts. The API accepts only PDF, JPEG, PNG, or WebP files up to 5 MiB, verifies filename, declared type, extension, and content signature, stores a SHA-256 metadata record, and authorizes every list/download request. Generated UUID keys are resolved beneath the configured storage root and are never returned by the API.
+
+Production hardening should replace local disk with private object storage, server-side encryption, malware scanning/quarantine, retention policies, and short-lived signed delivery after the same application authorization check. Receipts must never be moved into the public uploads directory.
+
 ## Frontend architecture
 
 ### Rendering and routing

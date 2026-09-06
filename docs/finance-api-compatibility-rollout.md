@@ -386,7 +386,10 @@ POST /api/v1/finance/expenses/:id/pay
 POST /api/v1/finance/expenses/:id/post
 POST /api/v1/finance/expenses/:id/void
 POST /api/v1/finance/expenses/:id/reverse
+GET  /api/v1/finance/expenses/:id/attachments
+POST /api/v1/finance/expenses/:id/attachments
 GET  /api/v1/finance/expenses/:id/attachments/:attachmentId
+GET  /api/v1/finance/source-margin
 ```
 
 ---

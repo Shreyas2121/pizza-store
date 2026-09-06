@@ -43,6 +43,11 @@ export const expensesQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().min(1).max(100).default(25),
 }).strict().refine((value) => !value.from || !value.to || value.from <= value.to, { message: "from must not be after to", path: ["from"] });
+export const sourceMarginQuerySchema = z.object({
+  storeId: z.coerce.number().int().positive(),
+  from: date.optional(),
+  to: date.optional(),
+}).strict().refine((value) => !value.from || !value.to || value.from <= value.to, { message: "from must not be after to", path: ["from"] });
 
 export const emptyExpenseCommandSchema = z.object({}).strict();
 export const rejectExpenseSchema = z.object({ reason }).strict();
@@ -62,6 +67,7 @@ export const expenseIdempotencyKeySchema = z.string().trim().uuid("Idempotency-K
 export type ExpenseWriteInput = z.infer<typeof expenseWriteSchema>;
 export type UpdateExpenseInput = z.infer<typeof updateExpenseSchema>;
 export type ExpensesQueryInput = z.infer<typeof expensesQuerySchema>;
+export type SourceMarginQueryInput = z.infer<typeof sourceMarginQuerySchema>;
 export type PayExpenseInput = z.infer<typeof payExpenseSchema>;
 export type VoidExpenseInput = z.infer<typeof voidExpenseSchema>;
 export type ExpenseCommandAction = "submit" | "approve" | "reject" | "pay" | "post" | "void" | "reverse";

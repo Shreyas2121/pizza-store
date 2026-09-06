@@ -61,7 +61,8 @@ export type ExpenseAuditAction =
   | "expense.paid"
   | "expense.posted"
   | "expense.voided"
-  | "expense.reversed";
+  | "expense.reversed"
+  | "expense.attachment_uploaded";
 
 export type AuditAction = StaffAuditAction | StoreAuditAction | OrderAuditAction | InventoryAuditAction | RefundAuditAction | SettlementAuditAction | CostAuditAction | CashAuditAction | VendorAuditAction | ExpenseAuditAction | SystemAuditAction;
 
@@ -80,6 +81,7 @@ export type AuditResourceType =
   | "vendor"
   | "expense_category"
   | "expense"
+  | "expense_attachment"
   | "system";
 
 export interface StaffAuditState {

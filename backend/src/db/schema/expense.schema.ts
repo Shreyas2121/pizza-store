@@ -101,5 +101,28 @@ export const expenseCommandsTable = pgTable("expense_commands", {
   check("expense_commands_result_version_positive", sql`${table.resultVersion} > 0`),
 ]);
 
+export const expenseAttachmentsTable = pgTable("expense_attachments", {
+  id,
+  expenseId: integer("expense_id").notNull(),
+  expenseStoreId: integer("expense_store_id").notNull(),
+  storageKey: text("storage_key").notNull().unique(),
+  originalName: text("original_name").notNull(),
+  mediaType: text("media_type").notNull(),
+  sizeBytes: integer("size_bytes").notNull(),
+  sha256: text().notNull(),
+  uploadedBy: integer("uploaded_by").references(() => usersTable.id).notNull(),
+  createdAt,
+}, (table) => [
+  foreignKey({ columns: [table.expenseId, table.expenseStoreId], foreignColumns: [expensesTable.id, expensesTable.storeId], name: "expense_attachments_expense_store_fk" }).onDelete("cascade"),
+  unique("expense_attachments_expense_sha_unique").on(table.expenseId, table.sha256),
+  index("expense_attachments_expense_idx").on(table.expenseId, table.id),
+  check("expense_attachments_storage_key_safe", sql`${table.storageKey} ~ '^[0-9a-f-]{36}\\.(pdf|jpg|png|webp)$'`),
+  check("expense_attachments_original_name_valid", sql`nullif(btrim(${table.originalName}), '') is not null and char_length(${table.originalName}) <= 255`),
+  check("expense_attachments_media_type_valid", sql`${table.mediaType} in ('application/pdf','image/jpeg','image/png','image/webp')`),
+  check("expense_attachments_size_valid", sql`${table.sizeBytes} > 0 and ${table.sizeBytes} <= 5242880`),
+  check("expense_attachments_sha256_valid", sql`${table.sha256} ~ '^[0-9a-f]{64}$'`),
+]);
+
 export type Expense = typeof expensesTable.$inferSelect;
 export type ExpenseAllocation = typeof expenseAllocationsTable.$inferSelect;
+export type ExpenseAttachment = typeof expenseAttachmentsTable.$inferSelect;

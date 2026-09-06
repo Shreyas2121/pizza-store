@@ -7,8 +7,8 @@ export const apiMessage = (cause: unknown) => axios.isAxiosError<{ message?: str
 export const humanizeStatus = (value: string) => value.replace(/_/g, " ");
 
 export const financeStatusColor = (status: string) => {
-  if (["processed", "matched", "reconciled", "resolved", "closed"].includes(status)) return "green";
-  if (["failed", "mismatch", "critical"].includes(status)) return "red";
-  if (["requested", "needs_review", "warning"].includes(status)) return "yellow";
+  if (["processed", "matched", "reconciled", "resolved", "closed", "approved", "paid", "posted", "costs complete"].includes(status)) return "green";
+  if (["failed", "mismatch", "critical", "rejected", "voided", "reversed"].includes(status)) return "red";
+  if (["requested", "needs_review", "warning", "submitted", "cost gaps"].includes(status)) return "yellow";
   return "gray";
 };

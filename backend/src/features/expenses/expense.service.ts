@@ -9,7 +9,7 @@ import auditService from "../audit/audit.service";
 import financialEventService from "../finance-events/financial-event.service";
 import type { FinancialEventWriter } from "../finance-events/financial-event.types";
 import expenseRepository, { ExpenseRepository } from "./expense.repository";
-import type { ExpenseCommandAction, ExpensesQueryInput, ExpenseWriteInput, PayExpenseInput, UpdateExpenseInput, VoidExpenseInput } from "./expense.schemas";
+import type { ExpenseCommandAction, ExpensesQueryInput, ExpenseWriteInput, PayExpenseInput, SourceMarginQueryInput, UpdateExpenseInput, VoidExpenseInput } from "./expense.schemas";
 import { hashExpensePayload, requireExpenseStatus, segregationViolation } from "./expense.policy";
 
 const uniqueViolation = (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "23505";
@@ -26,6 +26,13 @@ export class ExpenseService {
     const detail = await this.repository.detail(id); if (!detail) throw resourceNotFound();
     await authorizationService.requireResourceStorePermission({ principal: actor, resourceStoreId: detail.expense.storeId, permission: "finance.expenses.read" });
     return detail;
+  }
+  async sourceMargin(actor: AuthPrincipal, query: SourceMarginQueryInput) {
+    await authorizationService.requireStorePermission({ principal: actor, storeId: query.storeId, permission: "finance.expenses.read" });
+    const source = await this.repository.sourceMargin(query);
+    const grossProfitPaise = source.deliveredSalesPaise - source.cogsPaise;
+    const operatingResultPaise = grossProfitPaise - source.operatingExpensesPaise;
+    return { ...source, grossProfitPaise, grossMarginBps: source.deliveredSalesPaise === 0 ? null : Number(BigInt(grossProfitPaise) * 10_000n / BigInt(source.deliveredSalesPaise)), operatingResultPaise, costCoverageComplete: source.totalOrderLines === source.costedOrderLines, basis: "source_based_pre_ledger" as const };
   }
 
   async create(actor: AuthPrincipal, key: string, input: ExpenseWriteInput) {
