@@ -48,6 +48,9 @@ export const validatePostingCommand = (command: PostingCommand) => {
   if (command.kind === "manual" && (!Number.isInteger(command.postedBy) || (command.postedBy ?? 0) <= 0)) {
     throw invalid("Manual journals require a posting actor.", "JOURNAL_ACTOR_REQUIRED");
   }
+  if (command.softCloseOverride && (command.kind !== "manual" || !command.softCloseOverride.reason.trim() || command.softCloseOverride.reason.length > 500)) {
+    throw invalid("Soft-close override is invalid.", "JOURNAL_OVERRIDE_INVALID");
+  }
   if (!command.source.sourceType.trim() || !String(command.source.sourceId).trim() ||
       !command.source.eventType.trim() || !Number.isInteger(command.source.sourceVersion) || command.source.sourceVersion <= 0) {
     throw invalid("Journal source identity is invalid.");
@@ -68,10 +71,11 @@ export const validatePostingCommand = (command: PostingCommand) => {
 
 export const assertPeriodAllowsPosting = (
   period: { status: "open" | "soft_closed" | "closed" } | undefined,
-  kind: PostingCommand["kind"]
+  kind: PostingCommand["kind"],
+  softCloseOverride = false
 ) => {
   if (!period) throw new AppError("No fiscal period contains the journal business date.", 409, "FISCAL_PERIOD_NOT_FOUND");
-  if (period.status === "closed" || (period.status === "soft_closed" && kind === "manual")) {
+  if (period.status === "closed" || (period.status === "soft_closed" && kind === "manual" && !softCloseOverride)) {
     throw new AppError("Fiscal period does not permit this posting.", 400, "PERIOD_CLOSED");
   }
 };

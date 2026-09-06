@@ -53,6 +53,7 @@ describe("ledger posting policy", () => {
     expect(() => assertPeriodAllowsPosting({ status: "soft_closed" }, "source")).not.toThrow();
     expect(() => assertPeriodAllowsPosting({ status: "soft_closed" }, "manual"))
       .toThrowError(expect.objectContaining({ code: "PERIOD_CLOSED" }));
+    expect(() => assertPeriodAllowsPosting({ status: "soft_closed" }, "manual", true)).not.toThrow();
     expect(() => assertPeriodAllowsPosting({ status: "closed" }, "source"))
       .toThrowError(expect.objectContaining({ code: "PERIOD_CLOSED" }));
     expect(() => assertPeriodAllowsPosting(undefined, "source"))

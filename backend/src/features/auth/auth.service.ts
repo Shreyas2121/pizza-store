@@ -70,6 +70,7 @@ export class AuthenticationService {
       email: user.email,
       platformRole: user.role,
       tokenVersion: user.tokenVersion,
+      authenticatedAt: new Date(claims.iat * 1000),
     };
   }
 

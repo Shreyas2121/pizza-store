@@ -33,6 +33,7 @@ export interface PostingCommand {
   description: string;
   postedBy?: number | null;
   source: PostingSourceIdentity;
+  softCloseOverride?: { reason: string };
   lines: readonly PostingLine[];
 }
 

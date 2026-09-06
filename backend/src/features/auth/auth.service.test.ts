@@ -125,6 +125,7 @@ describe("AuthenticationService", () => {
       email: admin.email,
       platformRole: "admin",
       tokenVersion: admin.tokenVersion,
+      authenticatedAt: expect.any(Date),
     });
   });
 

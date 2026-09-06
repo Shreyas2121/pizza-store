@@ -63,8 +63,15 @@ export type ExpenseAuditAction =
   | "expense.voided"
   | "expense.reversed"
   | "expense.attachment_uploaded";
+export type LedgerAuditAction =
+  | "ledger.period_opened"
+  | "ledger.period_soft_closed"
+  | "ledger.period_closed"
+  | "ledger.period_reopened"
+  | "ledger.manual_journal_posted"
+  | "ledger.journal_reversed";
 
-export type AuditAction = StaffAuditAction | StoreAuditAction | OrderAuditAction | InventoryAuditAction | RefundAuditAction | SettlementAuditAction | CostAuditAction | CashAuditAction | VendorAuditAction | ExpenseAuditAction | SystemAuditAction;
+export type AuditAction = StaffAuditAction | StoreAuditAction | OrderAuditAction | InventoryAuditAction | RefundAuditAction | SettlementAuditAction | CostAuditAction | CashAuditAction | VendorAuditAction | ExpenseAuditAction | LedgerAuditAction | SystemAuditAction;
 
 export type AuditResourceType =
   | "store_membership"
@@ -82,6 +89,8 @@ export type AuditResourceType =
   | "expense_category"
   | "expense"
   | "expense_attachment"
+  | "fiscal_period"
+  | "journal_entry"
   | "system";
 
 export interface StaffAuditState {

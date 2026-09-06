@@ -15,6 +15,7 @@ export interface AuthPrincipal {
   email: string;
   platformRole: PlatformRole;
   tokenVersion: number;
+  authenticatedAt?: Date;
 }
 
 export interface SafeUserDto {

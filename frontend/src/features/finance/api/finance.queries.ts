@@ -19,6 +19,11 @@ import type {
   ExpenseAttachment,
   SourceMargin,
   ExpenseWritePayload,
+  LedgerAccount,
+  JournalEntry,
+  JournalDetail,
+  TrialBalance,
+  FiscalPeriod,
 } from "../model/finance.types";
 
 export const financeKeys = {
@@ -35,7 +40,18 @@ export const financeKeys = {
   expense: (id: number | null) => ["finance", "expense", id] as const,
   attachments: (id: number | null) => ["finance", "expense", id, "attachments"] as const,
   sourceMargin: (storeId: number | null) => ["finance", "source-margin", storeId] as const,
+  ledgerAccounts: (storeId: number | null) => ["finance", "ledger", "accounts", storeId] as const,
+  journals: (storeId: number | null) => ["finance", "ledger", "journals", storeId] as const,
+  journal: (id: number | null) => ["finance", "ledger", "journal", id] as const,
+  trialBalance: (storeId: number | null) => ["finance", "ledger", "trial-balance", storeId] as const,
+  periods: (storeId: number | null) => ["finance", "ledger", "periods", storeId] as const,
 };
+
+export const useLedgerAccounts = (storeId: number | null) => useQuery({ queryKey: financeKeys.ledgerAccounts(storeId), queryFn: async () => (await API.get<{ data: LedgerAccount[] }>("/finance/ledger/accounts", { params: { storeId } })).data.data, enabled: Boolean(storeId) });
+export const useJournals = (storeId: number | null) => useQuery({ queryKey: financeKeys.journals(storeId), queryFn: async () => (await API.get<{ data: JournalEntry[] }>("/finance/ledger/journals", { params: { storeId, limit: 50 } })).data.data, enabled: Boolean(storeId) });
+export const useJournal = (id: number | null) => useQuery({ queryKey: financeKeys.journal(id), queryFn: async () => (await API.get<{ data: JournalDetail }>(`/finance/ledger/journals/${id}`)).data.data, enabled: Boolean(id) });
+export const useTrialBalance = (storeId: number | null) => useQuery({ queryKey: financeKeys.trialBalance(storeId), queryFn: async () => (await API.get<{ data: TrialBalance }>("/finance/ledger/trial-balance", { params: { storeId } })).data.data, enabled: Boolean(storeId) });
+export const useFiscalPeriods = (storeId: number | null) => useQuery({ queryKey: financeKeys.periods(storeId), queryFn: async () => (await API.get<{ data: FiscalPeriod[] }>("/finance/ledger/periods", { params: { storeId } })).data.data, enabled: Boolean(storeId) });
 
 export const useProductCosts = (storeId: number | null) => useQuery({ queryKey: financeKeys.costs(storeId), queryFn: async () => (await API.get<{ data: ProductCostRow[] }>("/finance/costs/products", { params: { storeId } })).data.data, enabled: Boolean(storeId) });
 export const useVendors = (storeId: number | null) => useQuery({ queryKey: financeKeys.vendors(storeId), queryFn: async () => (await API.get<ListResponse<Vendor>>("/finance/vendors", { params: { storeId, includeInactive: true, limit: 100 } })).data.data, enabled: Boolean(storeId) });
@@ -160,3 +176,7 @@ export const useCreateExpense = () => useFinanceMutation(async (input: { idempot
 export const useExpenseCommand = () => useFinanceMutation(async (input: { expenseId: number; action: "submit" | "approve" | "reject" | "pay" | "post" | "void" | "reverse"; data?: Record<string, unknown> }) => (await API.post(`/finance/expenses/${input.expenseId}/${input.action}`, input.data ?? {}, { headers: { "Idempotency-Key": crypto.randomUUID() } })).data);
 export const useUploadExpenseReceipt = () => useFinanceMutation(async (input: { expenseId: number; file: File }) => { const body = new FormData(); body.append("receipt", input.file); return (await API.post(`/finance/expenses/${input.expenseId}/attachments`, body, { headers: { "Content-Type": "multipart/form-data" } })).data; });
 export const useDownloadExpenseReceipt = () => useMutation({ mutationFn: async (input: { expenseId: number; attachment: ExpenseAttachment }) => { const response = await API.get<Blob>(`/finance/expenses/${input.expenseId}/attachments/${input.attachment.id}`, { responseType: "blob" }); const url = URL.createObjectURL(response.data); const anchor = document.createElement("a"); anchor.href = url; anchor.download = input.attachment.originalName; anchor.click(); URL.revokeObjectURL(url); } });
+export const useOpenFiscalPeriod = () => useFinanceMutation(async (input: { storeId: number; name: string; startDate: string; endDate: string; reason: string }) => (await API.post("/finance/ledger/periods", input)).data);
+export const usePeriodCommand = () => useFinanceMutation(async (input: { periodId: number; action: "soft-close" | "close" | "reopen"; reason: string }) => (await API.post(`/finance/ledger/periods/${input.periodId}/${input.action}`, { reason: input.reason })).data);
+export const usePostManualJournal = () => useFinanceMutation(async (input: { storeId: number; businessDate: string; description: string; lines: Array<{ accountCode: string; side: "debit" | "credit"; amountPaise: number; description?: string }>; softCloseOverrideReason?: string }) => (await API.post("/finance/ledger/manual-journals", input, { headers: { "Idempotency-Key": crypto.randomUUID() } })).data);
+export const useReverseJournal = () => useFinanceMutation(async (input: { journalId: number; businessDate: string; reason: string }) => (await API.post(`/finance/ledger/journals/${input.journalId}/reverse`, { businessDate: input.businessDate, reason: input.reason })).data);
