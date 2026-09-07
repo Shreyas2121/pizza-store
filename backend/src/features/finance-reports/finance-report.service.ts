@@ -1,6 +1,7 @@
 import type { AuthPrincipal } from "../auth/auth.types";
 import authorizationService, { resourceNotFound } from "../access/access.service";
 import type { Permission } from "../access/access.permissions";
+import { buildFinanceReportCsv, financeExportFilename, type FinanceExportType } from "./finance-report.csv";
 import financeReportRepository, { FinanceReportRepository } from "./finance-report.repository";
 import { comparisonPeriodFor, groupFinanceReport, projectFinanceReport, type FinanceMovement } from "./finance-report.policy";
 import {
@@ -93,6 +94,20 @@ export class FinanceReportService {
       policy: this.policy(scope, now), period, comparisonPeriod, groupBy: query.groupBy, totals: current.totals,
       series: marginSeries(current.rows, query.groupBy), comparison: { totals: comparison.totals, series: marginSeries(comparison.rows, query.groupBy) },
     });
+  }
+
+  async exportCsv(actor: AuthPrincipal, reportType: FinanceExportType, query: GroupedFinanceReportQuery, now = new Date()) {
+    const report = reportType === "overview"
+      ? await this.overview(actor, query, now)
+      : reportType === "profit-and-loss"
+        ? await this.profitAndLoss(actor, query, now)
+        : reportType === "sales"
+          ? await this.sales(actor, query, now)
+          : await this.margins(actor, query, now);
+    return {
+      body: buildFinanceReportCsv({ reportType, report } as Parameters<typeof buildFinanceReportCsv>[0]),
+      filename: financeExportFilename(reportType, report),
+    };
   }
 
   private async resolveScope(actor: AuthPrincipal, storeId: number | undefined, permission: Permission): Promise<Scope> {

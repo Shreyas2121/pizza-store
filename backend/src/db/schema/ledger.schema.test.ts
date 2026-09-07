@@ -14,6 +14,13 @@ describe("ledger database schema", () => {
     ]));
   });
 
+  it("has the partial date-leading index used by consolidated finance reports", () => {
+    const indexes = getTableConfig(journalEntriesTable).indexes;
+    expect(indexes.map((item) => item.config.name)).toContain("journal_entries_finance_report_idx");
+    const reportIndex = indexes.find((item) => item.config.name === "journal_entries_finance_report_idx");
+    expect(reportIndex?.config.where).toBeDefined();
+  });
+
   it("requires one positive side per line and exact period state evidence", () => {
     expect(getTableConfig(journalLinesTable).checks.map((item) => item.name)).toEqual(expect.arrayContaining([
       "journal_lines_exactly_one_side",

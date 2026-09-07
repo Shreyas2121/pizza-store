@@ -46,4 +46,27 @@ describe("finance report service", () => {
     expect(result.periods).toEqual([expect.objectContaining({ period: "2026-04", recognizedRevenuePaise: "10000", grossProfitPaise: "10000" })]);
     expect(result.comparison.totals.recognizedRevenuePaise).toBe("10000");
   });
+
+  it("exports the same exact totals as the screen service with identical authorization", async () => {
+    vi.spyOn(authorizationService, "requireStorePermission").mockResolvedValue({ access: "membership", userId: 8, storeId: 1, permission: "finance.sales.read", membershipId: 4, membershipRole: "finance_manager" });
+    const repo = repository();
+    repo.stores.mockResolvedValue([{ id: 1, timezone: "Asia/Kolkata" }]);
+    const service = new FinanceReportService(repo as never);
+    const query = { from: "2026-04-01", to: "2026-04-30", storeId: 1, groupBy: "month" } as const;
+    const screen = await service.sales(finance, query, new Date("2026-05-01T00:00:00.000Z"));
+    const exported = await service.exportCsv(finance, "sales", query, new Date("2026-05-01T00:00:00.000Z"));
+    const currentTotals = Object.fromEntries(exported.body.split("\r\n").slice(1).filter(Boolean).map((line) => line.split(",")).filter((columns) => columns[12] === "current_total").map((columns) => [columns[16], columns[17]]));
+    const screenTotals = Object.fromEntries(Object.entries(screen.totals).map(([metric, value]) => [metric, value === null ? "" : String(value)]));
+    expect(currentTotals).toEqual(screenTotals);
+    expect(exported.filename).toBe("finance-sales-store-1-2026-04-01-2026-04-30.csv");
+    expect(authorizationService.requireStorePermission).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not load export data when report permission is denied", async () => {
+    vi.spyOn(authorizationService, "requireStorePermission").mockRejectedValue(Object.assign(new Error("denied"), { code: "PERMISSION_DENIED" }));
+    const repo = repository();
+    const service = new FinanceReportService(repo as never);
+    await expect(service.exportCsv(finance, "profit-and-loss", { from: "2026-04-01", to: "2026-04-30", storeId: 1, groupBy: "month" })).rejects.toMatchObject({ code: "PERMISSION_DENIED" });
+    expect(repo.movements).not.toHaveBeenCalled();
+  });
 });

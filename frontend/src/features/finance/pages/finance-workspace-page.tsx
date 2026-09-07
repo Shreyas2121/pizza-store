@@ -15,6 +15,8 @@ import { LedgerPanel } from "../components/ledger-panel";
 import { FinanceOverviewPanel, FinanceProfitAndLossPanel, FinanceSalesMarginsPanel, PaymentsSummary, type FinanceDrillDown } from "../components/finance-report-panels";
 import { JournalDrillDown } from "../components/journal-drilldown";
 import { PeriodClosePanel } from "../components/period-close-panel";
+import { FinanceExportButtons } from "../components/finance-export-buttons";
+import type { FinanceExportType } from "../api/finance.queries";
 import type { FinanceReportGroup, JournalFilters, LedgerAccountType } from "../model/finance.types";
 
 const defaultDates = () => {
@@ -57,6 +59,13 @@ export const FinanceWorkspacePage = () => {
   const availableTabs = [canOverview && "overview", canOverview && "pnl", canSales && "sales-margin", canReadRefunds && "refunds", canReadExpenses && "expenses", canReadSettlements && "settlements", canManageCash && "cash", canReadLedger && "ledger", canReadLedger && "close", canReadSettlements && "issues", (canReadCosts || canReadExpenses) && "configuration"].filter((value): value is string => Boolean(value));
   const requestedTab = params.get("tab");
   const selectedTab = requestedTab && availableTabs.includes(requestedTab) ? requestedTab : availableTabs[0] ?? null;
+  const exportTypes: FinanceExportType[] = selectedTab === "overview"
+    ? ["overview"]
+    : selectedTab === "pnl"
+      ? ["profit-and-loss"]
+      : selectedTab === "sales-margin"
+        ? ["sales", "margins"]
+        : [];
   const setParam = (key: string, value?: string) => setParams((current) => { const next = new URLSearchParams(current); if (value) next.set(key, value); else next.delete(key); return next; }, { replace: true });
   const setTab = (value: string | null) => setParam("tab", value ?? undefined);
 
@@ -96,7 +105,7 @@ export const FinanceWorkspacePage = () => {
   const reports = { storeId: reportStoreId, from, to, groupBy, onDrillDown: drillDown };
   return <div className="space-y-5">
     <PageHeader eyebrow="Management accounting" title="Finance workspace" description={`Ledger-backed performance, cash, expenses, refunds, and close controls${consolidated ? " across all stores" : selectedStore ? ` for ${selectedStore}` : ""}. Amounts are exact INR.`} />
-    {(canOverview || canSales) && <Group align="end" wrap="wrap"><TextInput type="date" label="From" value={from} onChange={(event) => setParam("from", event.currentTarget.value)} /><TextInput type="date" label="To" value={to} onChange={(event) => setParam("to", event.currentTarget.value)} /><Select label="Group reports by" value={groupBy} onChange={(value) => setParam("groupBy", value ?? "month")} data={[{ value: "month", label: "Month" }, { value: "quarter", label: "Quarter" }, { value: "fiscal_year", label: "Indian fiscal year" }]} />{owner && <Select label="Report scope" value={consolidated ? "all" : "store"} onChange={(value) => setParam("scope", value === "store" ? "store" : undefined)} data={[{ value: "all", label: "All stores (consolidated)" }, { value: "store", label: activeStoreId ? "Selected store" : "Selected store (choose one first)", disabled: !activeStoreId }]} />}</Group>}
+    {(canOverview || canSales) && <Group align="end" wrap="wrap"><TextInput type="date" label="From" value={from} onChange={(event) => setParam("from", event.currentTarget.value)} /><TextInput type="date" label="To" value={to} onChange={(event) => setParam("to", event.currentTarget.value)} /><Select label="Group reports by" value={groupBy} onChange={(value) => setParam("groupBy", value ?? "month")} data={[{ value: "month", label: "Month" }, { value: "quarter", label: "Quarter" }, { value: "fiscal_year", label: "Indian fiscal year" }]} />{owner && <Select label="Report scope" value={consolidated ? "all" : "store"} onChange={(value) => setParam("scope", value === "store" ? "store" : undefined)} data={[{ value: "all", label: "All stores (consolidated)" }, { value: "store", label: activeStoreId ? "Selected store" : "Selected store (choose one first)", disabled: !activeStoreId }]} />}{exportTypes.length > 0 && reportStoreId !== undefined && <FinanceExportButtons reportTypes={exportTypes} storeId={reportStoreId} from={from} to={to} groupBy={groupBy} />}</Group>}
     {from > to && <Alert color="red" title="Invalid date range">The end date must be on or after the start date.</Alert>}
     <Tabs value={selectedTab} onChange={setTab} keepMounted={false}>
       <Tabs.List aria-label="Finance workspace sections">

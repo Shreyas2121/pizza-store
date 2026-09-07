@@ -70,6 +70,9 @@ export const journalEntriesTable = pgTable("journal_entries", {
   unique("journal_entries_id_store_unique").on(table.id, table.storeId),
   index("journal_entries_store_date_idx").on(table.storeId, table.businessDate.desc(), table.id.desc()),
   index("journal_entries_store_status_idx").on(table.storeId, table.status),
+  index("journal_entries_finance_report_idx")
+    .on(table.businessDate, table.storeId)
+    .where(sql`${table.status} in ('posted', 'reversed') and ${table.currency} = 'INR'`),
   check("journal_entries_number_present", sql`nullif(btrim(${table.journalNumber}), '') is not null and char_length(${table.journalNumber}) <= 100`),
   check("journal_entries_description_present", sql`nullif(btrim(${table.description}), '') is not null and char_length(${table.description}) <= 500`),
   check("journal_entries_source_present", sql`nullif(btrim(${table.sourceType}), '') is not null and nullif(btrim(${table.sourceId}), '') is not null and nullif(btrim(${table.eventType}), '') is not null`),

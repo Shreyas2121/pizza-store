@@ -15,6 +15,8 @@ export const groupedFinanceReportQuerySchema = financeReportQuerySchema.safeExte
   groupBy: z.enum(["month", "quarter", "fiscal_year"]).default("month"),
 });
 
+export const financeExportTypeSchema = z.enum(["overview", "profit-and-loss", "sales", "margins"]);
+
 const policySchema = z.object({
   currency: z.literal("INR"),
   timezone: z.string().min(1),
@@ -106,3 +108,7 @@ export const profitAndLossResponseSchema = baseReportSchema.extend({
 export type FinanceReportQuery = z.infer<typeof financeReportQuerySchema>;
 export type GroupedFinanceReportQuery = z.infer<typeof groupedFinanceReportQuerySchema>;
 export type ReportTotalsDto = z.infer<typeof reportTotalsSchema>;
+export type FinanceOverviewDto = z.infer<typeof overviewResponseSchema>;
+export type FinanceProfitAndLossDto = z.infer<typeof profitAndLossResponseSchema>;
+export type FinanceSalesDto = z.infer<typeof salesResponseSchema>;
+export type FinanceMarginsDto = z.infer<typeof marginsResponseSchema>;

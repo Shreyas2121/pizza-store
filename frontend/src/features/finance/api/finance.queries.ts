@@ -71,6 +71,19 @@ export const useFinanceOverview = (storeId: number | null | undefined, from: str
 export const useFinanceProfitAndLoss = (storeId: number | null | undefined, from: string, to: string, groupBy: FinanceReportGroup) => useQuery({ queryKey: financeKeys.profitAndLoss(storeId, from, to, groupBy), queryFn: async () => (await API.get<{ data: FinanceProfitAndLossReport }>("/finance/profit-and-loss", { params: reportParams(storeId, from, to, groupBy) })).data.data, enabled: reportEnabled(storeId, from, to), staleTime: 60_000 });
 export const useFinanceSales = (storeId: number | null | undefined, from: string, to: string, groupBy: FinanceReportGroup) => useQuery({ queryKey: financeKeys.salesReport(storeId, from, to, groupBy), queryFn: async () => (await API.get<{ data: FinanceSalesReport }>("/finance/sales", { params: reportParams(storeId, from, to, groupBy) })).data.data, enabled: reportEnabled(storeId, from, to), staleTime: 60_000 });
 export const useFinanceMargins = (storeId: number | null | undefined, from: string, to: string, groupBy: FinanceReportGroup) => useQuery({ queryKey: financeKeys.marginsReport(storeId, from, to, groupBy), queryFn: async () => (await API.get<{ data: FinanceMarginsReport }>("/finance/margins", { params: reportParams(storeId, from, to, groupBy) })).data.data, enabled: reportEnabled(storeId, from, to), staleTime: 60_000 });
+export type FinanceExportType = "overview" | "profit-and-loss" | "sales" | "margins";
+export const useDownloadFinanceExport = () => useMutation({ mutationFn: async (input: { reportType: FinanceExportType; storeId: number | null; from: string; to: string; groupBy: FinanceReportGroup }) => {
+  const response = await API.get<Blob>(`/finance/exports/${input.reportType}`, { params: reportParams(input.storeId, input.from, input.to, input.groupBy), responseType: "blob" });
+  const disposition = String(response.headers["content-disposition"] ?? "");
+  const filename = disposition.match(/filename="([^"]+)"/)?.[1] ?? `finance-${input.reportType}-${input.from}-${input.to}.csv`;
+  const url = URL.createObjectURL(response.data);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+  return filename;
+} });
 
 export const useProductCosts = (storeId: number | null) => useQuery({ queryKey: financeKeys.costs(storeId), queryFn: async () => (await API.get<{ data: ProductCostRow[] }>("/finance/costs/products", { params: { storeId } })).data.data, enabled: Boolean(storeId) });
 export const useVendors = (storeId: number | null) => useQuery({ queryKey: financeKeys.vendors(storeId), queryFn: async () => (await API.get<ListResponse<Vendor>>("/finance/vendors", { params: { storeId, includeInactive: true, limit: 100 } })).data.data, enabled: Boolean(storeId) });

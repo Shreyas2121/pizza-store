@@ -1,0 +1,1 @@
+CREATE INDEX "journal_entries_finance_report_idx" ON "journal_entries" USING btree ("business_date","store_id") WHERE "journal_entries"."status" in ('posted', 'reversed') and "journal_entries"."currency" = 'INR';

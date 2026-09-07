@@ -169,6 +169,13 @@
       "when": 1788695950193,
       "tag": "0023_balanced_posting_kernel",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1788759949692,
+      "tag": "0024_finance_report_index",
+      "breakpoints": true
     }
   ]
 }
