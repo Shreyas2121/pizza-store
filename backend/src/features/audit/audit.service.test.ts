@@ -18,6 +18,7 @@ describe("AuditService", () => {
       resourceId: 12,
       before: { role: "operator", status: "active", bankAccountNumber: "1234567890" },
       after: { role: "inventory_staff", status: "suspended", taxIdentifierEncrypted: "encrypted-value" },
+      metadata: { nested: { gross_pay_paise: 900000, safeCount: 2 }, paymentReference: "UTR-PRIVATE" },
     });
 
     expect(values).toHaveBeenCalledWith(
@@ -26,6 +27,7 @@ describe("AuditService", () => {
         metadata: {
           before: { role: "operator", status: "active" },
           after: { role: "inventory_staff", status: "suspended" },
+          nested: { safeCount: 2 },
         },
       })
     );
@@ -35,5 +37,8 @@ describe("AuditService", () => {
     expect(serialized).not.toContain("tokenHash");
     expect(serialized).not.toContain("1234567890");
     expect(serialized).not.toContain("encrypted-value");
+    expect(serialized).not.toContain("900000");
+    expect(serialized).not.toContain("UTR-PRIVATE");
+    expect(serialized).toContain("safeCount");
   });
 });

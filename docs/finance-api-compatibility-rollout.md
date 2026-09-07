@@ -407,6 +407,8 @@ PUT  /api/v1/finance/payroll/profiles/:id
 GET  /api/v1/finance/payroll/profiles/:id/compensation
 POST /api/v1/finance/payroll/profiles/:id/compensation
 GET  /api/v1/finance/payroll/pay-runs
+GET  /api/v1/finance/payroll/pay-runs/:id
+GET  /api/v1/finance/payroll/pay-runs/:id/export
 POST /api/v1/finance/payroll/pay-runs
 POST /api/v1/finance/payroll/pay-runs/:id/calculate
 POST /api/v1/finance/payroll/pay-runs/:id/approve
@@ -414,6 +416,8 @@ POST /api/v1/finance/payroll/pay-runs/:id/pay
 POST /api/v1/finance/payroll/pay-runs/:id/void
 GET  /api/v1/finance/payroll/pay-runs/:id/statements/:employeeId
 ```
+
+Pay-run creation and every lifecycle command require an `Idempotency-Key` UUID. Calculation is deterministic and draft-only, and records immutable employee/component snapshots. Approval and payment enforce separate actors plus recent authentication. List, detail, and export remain behind `payroll.read`; cross-store and missing records are both returned as `404`, and exports omit payment references and sensitive identifiers. Statement generation and ledger posting are delivered by the subsequent payroll phases.
 
 ---
 
@@ -446,6 +450,12 @@ All endpoints return uniform error payloads with stable machine-readable codes:
 | `PAYROLL_ENCRYPTION_NOT_CONFIGURED` | 503 | Sensitive payroll metadata was supplied without a dedicated encryption key |
 | `COMPENSATION_VERSION_OVERLAP` | 422 | Proposed compensation dates overlap an existing employee version |
 | `COMPENSATION_DEDUCTIONS_EXCEED_EARNINGS` | 422 | Recurring employee deductions exceed recurring earnings |
+| `PAY_RUN_PERIOD_CONFLICT` | 409 | A monthly pay run already exists for the store and period |
+| `PAY_RUN_INVALID_STATE` | 409 | Pay-run command is not allowed from the current lifecycle state |
+| `PAY_RUN_NO_ELIGIBLE_EMPLOYEES` | 422 | No active employee finance profiles overlap the pay period |
+| `PAY_RUN_COMPENSATION_MISSING` | 422 | An eligible employee has no compensation effective at period end |
+| `PAY_RUN_SEGREGATION_VIOLATION` | 403 | Drafter/calculator attempted approval, or drafter/calculator/approver attempted payment |
+| `RECENT_AUTHENTICATION_REQUIRED` | 401 | A high-risk payroll command requires authentication within the last 15 minutes |
 | `SEGREGATION_OF_DUTIES_VIOLATION` | 403 | Actor attempted self-approval or forbidden dual action (e.g. create + approve expense) |
 | `STORE_SCOPE_MISMATCH` | 404 | Resource belongs to a different store (masked as 404 to prevent resource existence disclosure) |
 | `ACTIVE_CASH_SESSION_EXISTS` | 409 | Attempted opening a second cash session for the same store and date |
@@ -501,8 +511,9 @@ Role membership alone is necessary but **not sufficient** to execute high-risk o
 2. **Expense payment**: An actor cannot pay an expense they created or approved (unless platform admin override is explicitly audited).
 3. **Refund approval**: An actor cannot approve a refund they requested.
 4. **Pay-run approval**: An actor who calculated or drafted a pay run cannot be the sole approver.
-5. **Cross-store masking**: If a user attempts to access a financial resource (e.g. `/finance/expenses/:id`) belonging to a store where they lack active membership, the system returns `404 Not Found` (never `403 Forbidden`) to eliminate object-enumeration risks per OWASP API Security standards.
-6. **Privacy boundary**: Non-payroll roles (including store managers and operators) are prevented from seeing compensation rates, employee bank details, or detailed payslips in any API response or export.
+5. **Pay-run payment**: An actor who drafted, calculated, or approved a pay run cannot mark it paid.
+6. **Cross-store masking**: If a user attempts to access a financial resource (e.g. `/finance/expenses/:id`) belonging to a store where they lack active membership, the system returns `404 Not Found` (never `403 Forbidden`) to eliminate object-enumeration risks per OWASP API Security standards.
+7. **Privacy boundary**: Non-payroll roles (including store managers and operators) are prevented from seeing compensation rates, employee bank details, or detailed payslips in any API response or export.
 
 ---
 

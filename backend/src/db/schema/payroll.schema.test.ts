@@ -1,6 +1,6 @@
 import { getTableConfig } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
-import { compensationComponentsTable, compensationVersionsTable, employeeFinanceProfilesTable } from "./payroll.schema";
+import { compensationComponentsTable, compensationVersionsTable, employeeFinanceProfilesTable, payRunCommandsTable, payRunEmployeesTable, payRunLinesTable, payRunsTable } from "./payroll.schema";
 
 describe("payroll database schema", () => {
   it("keeps employment separate from access and sensitive values paired with masks", () => {
@@ -27,5 +27,18 @@ describe("payroll database schema", () => {
       "compensation_components_type_valid",
       "compensation_components_amount_positive",
     ]));
+  });
+
+  it("enforces complete immutable pay-run snapshots and command idempotency", () => {
+    const runs = getTableConfig(payRunsTable);
+    expect(runs.checks.map((item) => item.name)).toEqual(expect.arrayContaining([
+      "pay_runs_monthly_period",
+      "pay_runs_totals_complete",
+      "pay_runs_payment_evidence",
+      "pay_runs_reversal_evidence",
+    ]));
+    expect(getTableConfig(payRunEmployeesTable).checks.map((item) => item.name)).toContain("pay_run_employees_totals_valid");
+    expect(getTableConfig(payRunLinesTable).uniqueConstraints.map((item) => item.name)).toContain("pay_run_lines_employee_type_code_unique");
+    expect(getTableConfig(payRunCommandsTable).uniqueConstraints.map((item) => item.name)).toContain("pay_run_commands_idempotency_unique");
   });
 });

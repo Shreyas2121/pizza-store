@@ -8,17 +8,32 @@ import type { AuditWriter, WriteAuditInput } from "./audit.types";
 const SENSITIVE_KEYS = new Set([
   "password",
   "token",
-  "tokenHash",
-  "token_hash",
+  "tokenhash",
+  "tokenversion",
   "secret",
-  "refreshToken",
-  "apiKey",
-  "webhookSecret",
-  "bankAccountNumber",
-  "bankAccountEncrypted",
-  "taxIdentifier",
-  "taxIdentifierEncrypted",
+  "refreshtoken",
+  "apikey",
+  "webhooksecret",
+  "bankaccountnumber",
+  "bankaccountencrypted",
+  "taxidentifier",
+  "taxidentifierencrypted",
+  "paymentreference",
+  "grosspaypaise",
+  "deductionpaise",
+  "netpaypaise",
+  "employercostpaise",
+  "totalemployercostpaise",
 ]);
+
+const normalizedKey = (key: string) => key.toLowerCase().replaceAll("_", "").replaceAll("-", "");
+
+const sanitizeValue = (value: unknown): unknown => {
+  if (Array.isArray(value)) return value.map(sanitizeValue);
+  if (value instanceof Date) return value;
+  if (value && typeof value === "object") return sanitizeRecord(value as Record<string, unknown>);
+  return value;
+};
 
 const sanitizeRecord = (
   record?: Record<string, unknown>
@@ -26,8 +41,8 @@ const sanitizeRecord = (
   if (!record || typeof record !== "object") return undefined;
   const clean: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(record)) {
-    if (!SENSITIVE_KEYS.has(key) && value !== undefined) {
-      clean[key] = value;
+    if (!SENSITIVE_KEYS.has(normalizedKey(key)) && value !== undefined) {
+      clean[key] = sanitizeValue(value);
     }
   }
   return Object.keys(clean).length > 0 ? clean : undefined;

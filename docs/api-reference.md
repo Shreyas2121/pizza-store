@@ -1171,10 +1171,13 @@ Financial endpoints are mounted under `/api/v1/finance/*` and `/api/v1/checkout/
 
 All compensation amounts are positive integer paise, currency is INR, and responses carry `demoOnly: true` plus a non-statutory boundary. Store managers and finance managers do not inherit payroll access. Compensation values and encrypted identifiers are excluded from audit metadata.
 
-### Planned Payroll Run Workflow
-- `GET /finance/payroll/pay-runs` 🔒 / `POST /finance/payroll/pay-runs` 🔒 — Pay-run lifecycle.
-- `POST /finance/payroll/pay-runs/:id/calculate` 🔒 / `POST /finance/payroll/pay-runs/:id/approve` 🔒 / `POST /finance/payroll/pay-runs/:id/pay` 🔒 / `POST /finance/payroll/pay-runs/:id/void` 🔒.
-- `GET /finance/payroll/pay-runs/:id/statements/:employeeId` 🔒 — Demo payslip statement view.
+### Payroll Run Workflow
+- `GET /finance/payroll/pay-runs?storeId=:id` 🔒 / `GET /finance/payroll/pay-runs/:id` 🔒 — Restricted pay-run list and detail. Detail includes immutable employee, compensation-version, and component snapshots after calculation.
+- `GET /finance/payroll/pay-runs/:id/export` 🔒 — Restricted CSV snapshot export. Payment references and sensitive employee identifiers are excluded.
+- `POST /finance/payroll/pay-runs` 🔒 — Create one draft for a complete calendar month; requires `payroll.manage` and an `Idempotency-Key` UUID.
+- `POST /finance/payroll/pay-runs/:id/calculate` 🔒 / `approve` 🔒 / `pay` 🔒 / `void` 🔒 — Idempotent lifecycle commands. Every command requires a distinct `Idempotency-Key` UUID and recent authentication; calculate, approve, and pay require their matching payroll permission.
+
+Calculation snapshots all eligible employees and the compensation effective at period end, uses exact integer paise, and is permitted only from `draft`. Approval must be performed by someone other than the drafter/calculator, and payment by someone other than the drafter/calculator/approver. Payment references are returned only in restricted detail and never written to logs or audit metadata. The `posted` and `reversed` terminal states are reserved for the payroll-ledger posting workflow.
 
 ---
 

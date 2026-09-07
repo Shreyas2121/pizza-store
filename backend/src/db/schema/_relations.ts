@@ -51,7 +51,7 @@ import { productCostVersionsTable } from "./product-cost.schema";
 import { cashMovementsTable, cashSessionClosuresTable, cashSessionsTable } from "./cash.schema";
 import { expenseCategoriesTable, vendorsTable } from "./vendor.schema";
 import { fiscalPeriodsTable, journalEntriesTable, journalLinesTable, ledgerAccountsTable } from "./ledger.schema";
-import { compensationComponentsTable, compensationVersionsTable, employeeFinanceProfilesTable } from "./payroll.schema";
+import { compensationComponentsTable, compensationVersionsTable, employeeFinanceProfilesTable, payRunCommandsTable, payRunEmployeesTable, payRunLinesTable, payRunsTable } from "./payroll.schema";
 
 /**
  * All Drizzle relations live here to avoid circular imports between
@@ -795,4 +795,26 @@ export const compensationComponentsRelations = relations(compensationComponentsT
     fields: [compensationComponentsTable.compensationVersionId],
     references: [compensationVersionsTable.id],
   }),
+}));
+
+export const payRunsRelations = relations(payRunsTable, ({ one, many }) => ({
+  store: one(storesTable, { fields: [payRunsTable.storeId], references: [storesTable.id] }),
+  employees: many(payRunEmployeesTable),
+  commands: many(payRunCommandsTable),
+}));
+
+export const payRunEmployeesRelations = relations(payRunEmployeesTable, ({ one, many }) => ({
+  payRun: one(payRunsTable, { fields: [payRunEmployeesTable.payRunId], references: [payRunsTable.id] }),
+  profile: one(employeeFinanceProfilesTable, { fields: [payRunEmployeesTable.profileId], references: [employeeFinanceProfilesTable.id] }),
+  compensationVersion: one(compensationVersionsTable, { fields: [payRunEmployeesTable.compensationVersionId], references: [compensationVersionsTable.id] }),
+  lines: many(payRunLinesTable),
+}));
+
+export const payRunLinesRelations = relations(payRunLinesTable, ({ one }) => ({
+  employee: one(payRunEmployeesTable, { fields: [payRunLinesTable.payRunEmployeeId], references: [payRunEmployeesTable.id] }),
+  compensationComponent: one(compensationComponentsTable, { fields: [payRunLinesTable.compensationComponentId], references: [compensationComponentsTable.id] }),
+}));
+
+export const payRunCommandsRelations = relations(payRunCommandsTable, ({ one }) => ({
+  payRun: one(payRunsTable, { fields: [payRunCommandsTable.payRunId], references: [payRunsTable.id] }),
 }));

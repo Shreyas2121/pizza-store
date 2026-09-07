@@ -183,6 +183,13 @@
       "when": 1788763046339,
       "tag": "0025_rare_scarecrow",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1788765116357,
+      "tag": "0026_mixed_mentallo",
+      "breakpoints": true
     }
   ]
 }

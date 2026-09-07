@@ -73,7 +73,12 @@ export type LedgerAuditAction =
 export type PayrollAuditAction =
   | "payroll.profile_created"
   | "payroll.profile_updated"
-  | "payroll.compensation_version_created";
+  | "payroll.compensation_version_created"
+  | "payroll.pay_run_created"
+  | "payroll.pay_run_calculated"
+  | "payroll.pay_run_approved"
+  | "payroll.pay_run_paid"
+  | "payroll.pay_run_voided";
 
 export type AuditAction = StaffAuditAction | StoreAuditAction | OrderAuditAction | InventoryAuditAction | RefundAuditAction | SettlementAuditAction | CostAuditAction | CashAuditAction | VendorAuditAction | ExpenseAuditAction | LedgerAuditAction | PayrollAuditAction | SystemAuditAction;
 
@@ -97,6 +102,7 @@ export type AuditResourceType =
   | "journal_entry"
   | "employee_finance_profile"
   | "compensation_version"
+  | "pay_run"
   | "system";
 
 export interface StaffAuditState {

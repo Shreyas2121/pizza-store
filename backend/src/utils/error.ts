@@ -18,17 +18,23 @@ export class AppError extends Error {
 }
 
 export const handleError = (err: unknown, req: Request, res: Response) => {
-  console.error(err); // Log the error for debugging
-
   if (err instanceof ZodError) {
+    logger.error("Request validation failed", {
+      method: req.method,
+      path: req.path,
+      issueCount: err.issues.length,
+    });
     return handleValidationError(err, res);
   }
 
   // Check if the error is an instance of AppError
   if (err instanceof AppError) {
-    logger.error(
-      `${err.status} - ${err.message} - ${req.originalUrl} - ${req.method} - ${req.ip}`
-    );
+    logger.error("Request failed", {
+      status: err.status,
+      code: err.code ?? "APP_ERROR",
+      method: req.method,
+      path: req.path,
+    });
     return res.status(err.status).json({
       message: err.message,
       ...(err.code ? { code: err.code } : {}),
@@ -36,9 +42,12 @@ export const handleError = (err: unknown, req: Request, res: Response) => {
     });
   }
 
-  logger.error(
-    `500 - Internal Server - ${req.originalUrl} - ${req.method} - ${req.ip}`
-  );
+  logger.error("Unhandled request failure", {
+    status: 500,
+    method: req.method,
+    path: req.path,
+    errorType: err instanceof Error ? err.constructor.name : typeof err,
+  });
 
   // For other errors, return a generic error response
   res.status(500).json({ message: "Internal Server Error" });
