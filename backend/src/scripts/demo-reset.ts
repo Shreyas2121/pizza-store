@@ -19,6 +19,7 @@ import { SYSTEM_LEDGER_ACCOUNTS } from "../features/ledger";
 import { URL } from "../constants";
 import { seedCatalog } from "./catalog";
 import { assertDemoResetSafety, buildDemoTruncateSql } from "./demo-reset.policy";
+import { formatDemoScenarioSummary, seedDemoFinancialScenario } from "./demo-financial-scenario";
 
 const SECOND_STORE = {
   name: "PizzaStore - Bengaluru South",
@@ -85,6 +86,11 @@ const run = async () => {
   if (!defaultStore) throw new Error("Default demo store was not created.");
   await db.insert(storeMembershipsTable).values({ userId: users.finance.id, storeId: defaultStore.id, role: "finance_manager", createdBy: users.admin.id, updatedBy: users.admin.id });
   const secondStore = await seedSecondStore(users.admin.id, users.finance.id);
+  const scenario = await seedDemoFinancialScenario({
+    adminId: users.admin.id,
+    customerId: users.customer.id,
+    storeIds: [defaultStore.id, secondStore.id],
+  });
 
   console.log("Demo database reset complete.");
   console.log(`Stores: ${defaultStore.name} (#${defaultStore.id}), ${secondStore.name} (#${secondStore.id})`);
@@ -92,7 +98,8 @@ const run = async () => {
   console.log("Owner: admin@pizzastore.com / admin123");
   console.log("Customer: customer@pizzastore.com / customer123");
   console.log("Finance manager: finance@pizzastore.com / finance123");
-  console.log("The financial ledger starts at zero; use the documented walkthrough to create fully traceable source transactions.");
+  for (const line of formatDemoScenarioSummary(scenario, [defaultStore.id, secondStore.id])) console.log(line);
+  console.log("The complete deterministic finance scenario is ready for immediate report, CSV, and journal drill-down inspection.");
 };
 
 run().then(async () => {

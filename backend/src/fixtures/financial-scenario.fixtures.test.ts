@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   EXPECTED_CONSOLIDATED_TWO_MONTH_TOTAL,
+  EXPECTED_LEDGER_REPORT_CONSOLIDATED_TWO_MONTH_TOTAL,
+  EXPECTED_LEDGER_REPORT_STORE_MONTH_SUMMARIES,
   EXPECTED_STORE_MONTH_SUMMARIES,
   FIXTURE_EMPLOYEES,
   FIXTURE_EXPENSES,
@@ -187,5 +189,19 @@ describe("Deterministic Financial Scenario Fixtures Verification", () => {
       expect(totalPayroll).toBe(EXPECTED_CONSOLIDATED_TWO_MONTH_TOTAL.payrollCostPaise);
       expect(totalOperatingProfit).toBe(EXPECTED_CONSOLIDATED_TWO_MONTH_TOTAL.operatingProfitPaise);
     });
+  });
+
+  it("reconciles tax-exclusive ledger report totals across both stores and months", () => {
+    const summaries = Object.values(EXPECTED_LEDGER_REPORT_STORE_MONTH_SUMMARIES);
+    const additiveKeys = [
+      "salesRevenuePaise", "deliveryRevenuePaise", "discountsPaise", "refundsPaise",
+      "recognizedRevenuePaise", "collectionsPaise", "cogsPaise", "grossProfitPaise",
+      "operatingExpensesPaise", "payrollCostPaise", "operatingResultPaise", "cashVariancePaise",
+    ] as const;
+    for (const key of additiveKeys) {
+      expect(summaries.reduce((sum, summary) => sum + summary[key], 0)).toBe(
+        EXPECTED_LEDGER_REPORT_CONSOLIDATED_TWO_MONTH_TOTAL[key],
+      );
+    }
   });
 });

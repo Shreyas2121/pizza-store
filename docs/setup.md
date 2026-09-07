@@ -110,7 +110,7 @@ After applying migrations, run from the repository root:
 pnpm demo:reset
 ```
 
-This is a destructive development command. It accepts only a local PostgreSQL URL, refuses `NODE_ENV` values other than `development`, truncates application tables, restarts identities, and seeds two stores, catalogue/stock, costs, ledger accounts, and demo personas. It never runs automatically during application startup. See the [finance demo walkthrough](./finance-demo-walkthrough.md).
+This is a destructive development command. It accepts only a local PostgreSQL URL, refuses `NODE_ENV` values other than `development`, truncates application tables, restarts identities, and seeds two stores, catalogue/stock, costs, ledger accounts, demo personas, and the complete deterministic July/August 2026 finance scenario. The scenario includes discounted and refunded orders, a failed payment, reconciled settlements, a COD variance, allocated expenses, compensation history and posted payroll, a closed July period, processed source events, and balanced journals. Reset output prints stable source mappings and the expected headline totals from the checked-in fixture. It never runs automatically during application startup. See the [finance demo walkthrough](./finance-demo-walkthrough.md).
 
 ### Seed individual data sets (optional)
 

@@ -49,7 +49,7 @@ export class FinanceReportRepository {
         storeCondition(storeIds),
         inArray(journalEntriesTable.status, ["posted", "reversed"]),
         inArray(ledgerAccountsTable.code, ["1000", "1100"]),
-        or(eq(journalEntriesTable.eventType, "payment.captured"), eq(original.eventType, "payment.captured")),
+        or(eq(journalEntriesTable.eventType, "payment_attempt.captured"), eq(original.eventType, "payment_attempt.captured")),
         gte(journalEntriesTable.businessDate, from),
         lte(journalEntriesTable.businessDate, to)
       ));

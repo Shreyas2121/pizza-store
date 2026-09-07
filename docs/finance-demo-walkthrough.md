@@ -21,7 +21,7 @@ The reset refuses production and remote database URLs. It truncates local applic
 | Customer | `customer@pizzastore.com` / `customer123` | COD and simulated-online source transactions |
 | Finance manager | `finance@pizzastore.com` / `finance123` | Store-scoped finance boundary |
 
-The ledger intentionally starts at zero so every number shown can be traced to an action performed during the walkthrough.
+The reset seeds the complete checked-in two-store, two-month scenario. Its output lists the store IDs, reporting periods, order mapping, partial refund, settlements, COD session, pay runs, journal count, tax-inclusive customer headlines, and tax-separated ledger report/CSV totals. You can inspect reports and drill-down immediately. Run `pnpm demo:reset` again at any point to discard later walkthrough actions and replay the exact same seeded source data and totals.
 
 ## Simulated online path
 
@@ -45,7 +45,7 @@ The ledger intentionally starts at zero so every number shown can be traced to a
 1. Request a partial refund from Payments & refunds with exact item/delivery allocations.
 2. Approve it as an eligible different actor. For COD, explicitly confirm cash returned; for online, the simulator supplies deterministic provider evidence.
 3. Run the posting worker and drill from refunds to its source journal.
-4. Import the checked-in fixture settlement `set_m1_s1_001`, run reconciliation, and review any issues. The fixture is intentionally deterministic; if the live walkthrough source IDs differ, missing/mismatch issues demonstrate the non-mutating review queue.
+4. Inspect the already imported and reconciled fixture settlement `set_m1_s1_001`. Its payment-attempt and refund links use the source IDs printed by `demo:reset`, so the result is deterministic and ready for journal drill-down.
 5. Resolve only with an evidence note and point out that resolution does not rewrite money.
 
 ## Period close and correction
