@@ -68,7 +68,7 @@ A restore is acceptable only when migrations reach repository head, seeded/admin
 - Management reporting is single-currency INR and uses delivery recognition; it is not statutory bookkeeping, GST filing, an invoice system, or tax advice.
 - Tax rules and HSN/SAC labels are visibly demo-only. No live Razorpay payments are supported.
 - Standard product cost is not recipe/BOM costing. There is no purchase-order, accounts-payable, bank-feed, or inventory valuation subledger.
-- Payroll and invoice endpoints documented as future Phase 6/7 work are not part of the Phase 5 public cut.
+- Payroll-lite is a separate restricted workspace with demo-only compensation, pay-run statements, and reversible ledger posting. See [payroll-demo-scope.md](payroll-demo-scope.md). Invoice endpoints remain future optional Phase 7 work.
 - CSV is a tall, machine-reconcilable export; values identify paise, basis points, or counts explicitly.
 - Report freshness depends on draining the asynchronous financial outbox.
 - The local demo reset is destructive, development-only, and refuses remote PostgreSQL hosts.

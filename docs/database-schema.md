@@ -551,7 +551,7 @@ Financial tables introduced through Phase 5 and the Phase 6 payroll foundations 
 | `compensation_versions`, `compensation_components` | Non-overlapping effective-dated INR demo compensation with positive integer-paise earning, deduction, and employer-cost lines |
 | `pay_runs` | One idempotent store/calendar-month aggregate with exact totals, lifecycle evidence, actor separation, and payment/posting/reversal state |
 | `pay_run_employees`, `pay_run_lines` | Immutable employee identity, compensation-version, component, and exact integer-paise calculation snapshots |
-| `pay_run_commands` | Idempotent calculate/approve/pay/void command outcomes keyed by UUID and canonical payload hash |
+| `pay_run_commands` | Idempotent calculate/approve/pay/post/void/reverse command outcomes keyed by UUID and canonical payload hash |
 
 Key report indexes are `journal_entries_store_date_idx` for store history and the partial date-leading `journal_entries_finance_report_idx` for posted/reversed INR consolidated ranges. `journal_lines_entry_line_unique` also provides the entry-leading join path. Query-plan evidence and acceptance budgets are documented in [finance-report-performance.md](finance-report-performance.md).
 

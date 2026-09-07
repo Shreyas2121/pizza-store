@@ -5,9 +5,11 @@ import type { TransactionType } from "../../utils/types";
 import authorizationService, { resourceNotFound } from "../access/access.service";
 import auditService from "../audit/audit.service";
 import type { AuditWriter, PayrollAuditAction } from "../audit/audit.types";
+import financialEventService from "../finance-events/financial-event.service";
+import type { FinancialEventWriter } from "../finance-events/financial-event.types";
 import { buildPayRunCsv, payRunExportFilename } from "./pay-run.csv";
 import payRunRepository, { PayRunRepository } from "./pay-run.repository";
-import type { CreatePayRunInput, PayPayRunInput, PayRunsQuery, VoidPayRunInput } from "./pay-run.schemas";
+import type { CreatePayRunInput, PayPayRunInput, PayRunsQuery, ReversePayRunInput, VoidPayRunInput } from "./pay-run.schemas";
 import {
   calculatePayRunSnapshot,
   hashPayRunPayload,
@@ -35,19 +37,22 @@ const periodConflict = () => new AppError(
   "A pay run already exists for this store and monthly period.", 409, "PAY_RUN_PERIOD_CONFLICT"
 );
 
-type PayRunCommandAction = "calculate" | "approve" | "pay" | "void";
+type PayRunCommandAction = "calculate" | "approve" | "pay" | "post" | "void" | "reverse";
 type LockedRun = NonNullable<Awaited<ReturnType<PayRunRepository["findRun"]>>>;
-const lifecycleAuditAction: Record<"calculated" | "approved" | "paid" | "voided", PayrollAuditAction> = {
+const lifecycleAuditAction: Record<"calculated" | "approved" | "paid" | "posted" | "voided" | "reversed", PayrollAuditAction> = {
   calculated: "payroll.pay_run_calculated",
   approved: "payroll.pay_run_approved",
   paid: "payroll.pay_run_paid",
+  posted: "payroll.pay_run_posted",
   voided: "payroll.pay_run_voided",
+  reversed: "payroll.pay_run_reversed",
 };
 
 export class PayRunService {
   constructor(
     private readonly repository: PayRunRepository = payRunRepository,
     private readonly audit: AuditWriter = auditService,
+    private readonly eventWriter: FinancialEventWriter = financialEventService,
   ) {}
 
   async list(actor: AuthPrincipal, query: PayRunsQuery) {
@@ -69,6 +74,33 @@ export class PayRunService {
     return {
       body: buildPayRunCsv(result.data),
       filename: payRunExportFilename(result.data.run),
+    };
+  }
+
+  async statement(actor: AuthPrincipal, id: number, employeeId: number) {
+    const result = await this.get(actor, id);
+    const employee = result.data.employees.find((item) => item.id === employeeId);
+    if (!employee) throw resourceNotFound();
+    return {
+      data: {
+        payRun: {
+          id: result.data.run.id, storeId: result.data.run.storeId, periodStart: result.data.run.periodStart,
+          periodEnd: result.data.run.periodEnd, status: result.data.run.status, currency: result.data.run.currency,
+        },
+        employee: {
+          id: employee.id, employeeCode: employee.employeeCode, displayName: employee.displayName,
+          compensationVersionId: employee.compensationVersionId,
+        },
+        lines: employee.lines.map((line) => ({
+          type: line.type, componentCode: line.componentCode, componentName: line.componentName, amountPaise: line.amountPaise,
+        })),
+        totals: {
+          grossPayPaise: employee.grossPayPaise, deductionPaise: employee.deductionPaise,
+          netPayPaise: employee.netPayPaise, employerCostPaise: employee.employerCostPaise,
+          totalEmployerCostPaise: employee.totalEmployerCostPaise,
+        },
+      },
+      policy: POLICY,
     };
   }
 
@@ -149,6 +181,29 @@ export class PayRunService {
     });
   }
 
+  post(actor: AuthPrincipal, id: number, key: string, now = new Date()) {
+    return this.command(actor, id, "post", key, {}, "payroll.pay", async (tx, run) => {
+      requireRecentPayrollAuthentication(actor, now);
+      requirePayRunStatus(run.status, ["paid"]);
+      const store = await this.repository.findStore(run.storeId, tx);
+      if (!store || run.grossPayPaise === null || run.deductionPaise === null || run.netPayPaise === null
+        || run.employerCostPaise === null || run.totalEmployerCostPaise === null || !run.paymentReference) throw resourceNotFound();
+      const updated = await this.change(tx, actor, run, "posted", { postedBy: actor.userId, postedAt: now });
+      await this.eventWriter.write(tx, {
+        eventType: "pay_run.posted", schemaVersion: 1, sourceType: "pay_run", sourceId: run.id,
+        sourceVersion: updated.version, storeId: run.storeId, currency: "INR", occurredAt: now,
+        businessDate: run.periodEnd, timezone: store.timezone, actorId: actor.userId,
+        payload: {
+          payRunId: run.id, periodStart: run.periodStart, periodEnd: run.periodEnd,
+          grossPayPaise: run.grossPayPaise, deductionPaise: run.deductionPaise, netPayPaise: run.netPayPaise,
+          employerCostPaise: run.employerCostPaise, totalEmployerCostPaise: run.totalEmployerCostPaise,
+          paymentReferenceRecorded: true, postedAt: now.toISOString(),
+        },
+      });
+      return updated;
+    });
+  }
+
   void(actor: AuthPrincipal, id: number, key: string, input: VoidPayRunInput, now = new Date()) {
     return this.command(actor, id, "void", key, input, "payroll.manage", async (tx, run) => {
       requireRecentPayrollAuthentication(actor, now);
@@ -158,6 +213,29 @@ export class PayRunService {
         voidedAt: now,
         voidReason: input.reason,
       }, { reasonRecorded: true });
+    });
+  }
+
+  reverse(actor: AuthPrincipal, id: number, key: string, input: ReversePayRunInput, now = new Date()) {
+    return this.command(actor, id, "reverse", key, input, "payroll.pay", async (tx, run) => {
+      requireRecentPayrollAuthentication(actor, now);
+      requirePayRunStatus(run.status, ["posted"]);
+      const store = await this.repository.findStore(run.storeId, tx);
+      if (!store) throw resourceNotFound();
+      const updated = await this.change(tx, actor, run, "reversed", {
+        reversedBy: actor.userId, reversedAt: now, reversalReason: input.reason,
+      }, { reasonRecorded: true });
+      await this.eventWriter.write(tx, {
+        eventType: "pay_run.reversed", schemaVersion: 1, sourceType: "pay_run", sourceId: run.id,
+        sourceVersion: updated.version, storeId: run.storeId, currency: "INR", occurredAt: now,
+        businessDate: input.effectiveBusinessDate, timezone: store.timezone, actorId: actor.userId,
+        payload: {
+          payRunId: run.id,
+          originalPostingSource: { sourceType: "pay_run", sourceId: run.id, eventType: "pay_run.posted", sourceVersion: run.version },
+          reason: input.reason, authorizedActorId: actor.userId, effectiveBusinessDate: input.effectiveBusinessDate,
+        },
+      });
+      return updated;
     });
   }
 

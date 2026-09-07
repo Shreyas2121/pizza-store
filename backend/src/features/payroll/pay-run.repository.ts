@@ -39,7 +39,7 @@ export class PayRunRepository {
   transaction<T>(work: (tx: TransactionType) => Promise<T>) { return db.transaction(work); }
 
   async findStore(id: number, executor: typeof db | TransactionType = db) {
-    return (await executor.select({ id: storesTable.id }).from(storesTable).where(eq(storesTable.id, id)))[0];
+    return (await executor.select({ id: storesTable.id, timezone: storesTable.timezone }).from(storesTable).where(eq(storesTable.id, id)))[0];
   }
 
   async findRun(id: number, executor: typeof db | TransactionType = db) {
@@ -163,7 +163,7 @@ export class PayRunRepository {
 
   async recordCommand(tx: TransactionType, values: {
     payRunId: number;
-    action: "calculate" | "approve" | "pay" | "void";
+    action: "calculate" | "approve" | "pay" | "post" | "void" | "reverse";
     idempotencyKey: string;
     payloadHash: string;
     resultVersion: number;

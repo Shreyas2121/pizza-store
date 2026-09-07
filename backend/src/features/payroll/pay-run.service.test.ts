@@ -119,4 +119,54 @@ describe("pay run service", () => {
       .rejects.toMatchObject({ code: "PERMISSION_DENIED" });
     expect(repository.list).not.toHaveBeenCalled();
   });
+
+  it("posts only aggregate payroll totals to the outbox and reverses the exact posted source", async () => {
+    authorize();
+    const paid = {
+      ...run, status: "paid" as const, version: 4, calculatedBy: 2, approvedBy: 3, paidBy: 4,
+      grossPayPaise: 300_000, deductionPaise: 10_000, netPayPaise: 290_000,
+      employerCostPaise: 20_000, totalEmployerCostPaise: 320_000, paymentReference: "UTR-PRIVATE",
+    };
+    const posted = { ...paid, status: "posted" as const, version: 5, postedBy: 5, postedAt: now };
+    const eventWriter = { write: vi.fn().mockResolvedValue(undefined) };
+    const repository = {
+      command: vi.fn().mockResolvedValue(undefined), findRun: vi.fn().mockResolvedValue(paid),
+      transaction: (work: (tx: never) => Promise<unknown>) => work({} as never), lockRun: vi.fn().mockResolvedValue(paid),
+      findStore: vi.fn().mockResolvedValue({ id: 1, timezone: "Asia/Kolkata" }), update: vi.fn().mockResolvedValue(posted),
+      recordCommand: vi.fn().mockResolvedValue({ id: 2 }), detail: vi.fn().mockResolvedValue({ run: posted, employees: [] }),
+    };
+    await new PayRunService(repository as never, { write: vi.fn() }, eventWriter).post(actor(5), 4, crypto.randomUUID(), now);
+    const postedEvent = eventWriter.write.mock.calls[0][1];
+    expect(postedEvent).toMatchObject({ eventType: "pay_run.posted", businessDate: "2026-08-31", sourceVersion: 5 });
+    expect(JSON.stringify(postedEvent)).not.toContain("UTR-PRIVATE");
+
+    const reversed = { ...posted, status: "reversed" as const, version: 6, reversedBy: 6, reversedAt: now, reversalReason: "Correction" };
+    Object.assign(repository, {
+      findRun: vi.fn().mockResolvedValue(posted), lockRun: vi.fn().mockResolvedValue(posted),
+      update: vi.fn().mockResolvedValue(reversed), detail: vi.fn().mockResolvedValue({ run: reversed, employees: [] }),
+    });
+    await new PayRunService(repository as never, { write: vi.fn() }, eventWriter).reverse(
+      actor(6), 4, crypto.randomUUID(), { reason: "Correction", effectiveBusinessDate: "2026-09-07" }, now,
+    );
+    expect(eventWriter.write.mock.calls[1][1]).toMatchObject({
+      eventType: "pay_run.reversed", sourceVersion: 6,
+      payload: { originalPostingSource: { eventType: "pay_run.posted", sourceVersion: 5 } },
+    });
+  });
+
+  it("returns a restricted payslip-style statement from the immutable snapshot", async () => {
+    authorize();
+    const employee = {
+      id: 11, payRunId: 4, payRunStoreId: 1, profileId: 8, compensationVersionId: 12,
+      employeeCode: "EMP-08", displayName: "Employee Eight", grossPayPaise: 200_000,
+      deductionPaise: 10_000, netPayPaise: 190_000, employerCostPaise: 20_000,
+      totalEmployerCostPaise: 220_000, createdAt: now,
+      lines: [{ id: 1, payRunEmployeeId: 11, compensationComponentId: 31, type: "earning", componentCode: "BASE", componentName: "Base", amountPaise: 200_000, createdAt: now }],
+    };
+    const repository = { findRun: vi.fn().mockResolvedValue(run), detail: vi.fn().mockResolvedValue({ run, employees: [employee] }) };
+    const result = await new PayRunService(repository as never).statement(actor(7), 4, 11);
+    expect(result.data).toMatchObject({ employee: { employeeCode: "EMP-08" }, totals: { netPayPaise: 190_000 } });
+    expect(JSON.stringify(result)).not.toContain("paymentReference");
+    await expect(new PayRunService(repository as never).statement(actor(7), 4, 999)).rejects.toMatchObject({ code: "RESOURCE_NOT_FOUND" });
+  });
 });

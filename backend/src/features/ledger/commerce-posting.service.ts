@@ -19,6 +19,7 @@ import {
   buildExpensePosting,
   buildExpenseReversal,
 } from "./cash-expense-posting.policy";
+import { buildPayRunPosting, buildPayRunReversal } from "./payroll-posting.policy";
 
 export class CommercePostingService implements FinancialEventProcessor {
   readonly supportedEventTypes = [
@@ -36,6 +37,8 @@ export class CommercePostingService implements FinancialEventProcessor {
     "expense.posted",
     "expense.voided",
     "expense.reversed",
+    "pay_run.posted",
+    "pay_run.reversed",
   ] as const;
 
   constructor(private readonly ledger: LedgerService = ledgerService) {}
@@ -75,6 +78,12 @@ export class CommercePostingService implements FinancialEventProcessor {
         return this.ledger.post(buildExpensePosting(event));
       case "expense.reversed": {
         const command = buildExpenseReversal(event);
+        return this.ledger.reverseSource(command.originalSource, command.reversal);
+      }
+      case "pay_run.posted":
+        return this.ledger.post(buildPayRunPosting(event));
+      case "pay_run.reversed": {
+        const command = buildPayRunReversal(event);
         return this.ledger.reverseSource(command.originalSource, command.reversal);
       }
       case "refund.failed":

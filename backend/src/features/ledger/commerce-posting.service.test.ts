@@ -2,13 +2,14 @@ import { describe, expect, it, vi } from "vitest";
 import { CommercePostingService } from "./commerce-posting.service";
 
 describe("commerce posting service", () => {
-  it("registers the implemented commerce, refund, settlement, cash, and expense events", () => {
+  it("registers the implemented commerce, refund, settlement, cash, expense, and payroll events", () => {
     const service = new CommercePostingService({} as never);
     expect(service.supportedEventTypes).toEqual([
       "payment_attempt.captured", "order.delivered", "order.recognition_reversed",
       "refund.processed", "refund.failed", "refund.disbursed", "settlement.reconciled",
       "cash.movement_recorded", "cash.session_closed", "cash.session_reopened",
       "expense.paid", "expense.posted", "expense.voided", "expense.reversed",
+      "pay_run.posted", "pay_run.reversed",
     ]);
     expect(service.supportedEventTypes).not.toContain("payment_attempt.failed");
     expect(service.supportedEventTypes).not.toContain("order.out_for_delivery" as never);

@@ -8,7 +8,7 @@ export type EmploymentStatus = "active" | "on_leave" | "terminated";
 export type PayFrequency = "monthly";
 export type CompensationComponentType = "earning" | "deduction" | "employer_cost";
 export type PayRunStatus = "draft" | "calculated" | "approved" | "paid" | "posted" | "voided" | "reversed";
-export type PayRunCommandAction = "calculate" | "approve" | "pay" | "void";
+export type PayRunCommandAction = "calculate" | "approve" | "pay" | "post" | "void" | "reverse";
 
 export const employeeFinanceProfilesTable = pgTable("employee_finance_profiles", {
   id,
@@ -202,7 +202,7 @@ export const payRunCommandsTable = pgTable("pay_run_commands", {
 }, (table) => [
   unique("pay_run_commands_idempotency_unique").on(table.idempotencyKey),
   index("pay_run_commands_run_action_idx").on(table.payRunId, table.action, table.id),
-  check("pay_run_commands_action_valid", sql`${table.action} in ('calculate', 'approve', 'pay', 'void')`),
+  check("pay_run_commands_action_valid", sql`${table.action} in ('calculate', 'approve', 'pay', 'post', 'void', 'reverse')`),
   check("pay_run_commands_key_uuid", sql`${table.idempotencyKey} ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'`),
   check("pay_run_commands_payload_hash", sql`${table.payloadHash} ~ '^[a-f0-9]{64}$'`),
   check("pay_run_commands_result_version_positive", sql`${table.resultVersion} > 0`),

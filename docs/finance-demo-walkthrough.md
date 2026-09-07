@@ -70,3 +70,5 @@ The ledger intentionally starts at zero so every number shown can be traced to a
 - Posted journals are append-only and balanced. Corrections are reversals.
 - Screens and CSV exports share one service/query policy, so reconciliation is structural rather than visual.
 - This is a portfolio management-accounting system, not a statutory tax/payroll product.
+
+For the restricted Phase 6 payroll operating-cost scenario, actor separation, statement masking, ledger reconciliation, and reversal, follow [payroll-demo-scope.md](payroll-demo-scope.md#recruiter-walkthrough).

@@ -1,0 +1,2 @@
+ALTER TABLE "pay_run_commands" DROP CONSTRAINT "pay_run_commands_action_valid";--> statement-breakpoint
+ALTER TABLE "pay_run_commands" ADD CONSTRAINT "pay_run_commands_action_valid" CHECK ("pay_run_commands"."action" in ('calculate', 'approve', 'pay', 'post', 'void', 'reverse'));

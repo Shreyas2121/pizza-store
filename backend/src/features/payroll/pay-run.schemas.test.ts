@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createPayRunSchema, payPayRunSchema, payRunsQuerySchema } from "./pay-run.schemas";
+import { createPayRunSchema, payPayRunSchema, payRunsQuerySchema, reversePayRunSchema } from "./pay-run.schemas";
 
 describe("pay run schemas", () => {
   it("accepts only a complete calendar month", () => {
@@ -12,5 +12,7 @@ describe("pay run schemas", () => {
   it("bounds list filters and requires a payment reference", () => {
     expect(payRunsQuerySchema.safeParse({ storeId: 1, from: "2026-08-01", to: "2026-07-01" }).success).toBe(false);
     expect(payPayRunSchema.safeParse({ paymentReference: "" }).success).toBe(false);
+    expect(reversePayRunSchema.safeParse({ reason: "Correction", effectiveBusinessDate: "2026-09-07" }).success).toBe(true);
+    expect(reversePayRunSchema.safeParse({ reason: "x", effectiveBusinessDate: "later" }).success).toBe(false);
   });
 });

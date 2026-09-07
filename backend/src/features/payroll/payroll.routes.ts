@@ -12,6 +12,7 @@ import {
   payPayRunSchema,
   payRunIdempotencyKeySchema,
   payRunsQuerySchema,
+  reversePayRunSchema,
   voidPayRunSchema,
 } from "./pay-run.schemas";
 import {
@@ -80,6 +81,12 @@ payrollRoutes.get("/payroll/pay-runs/:payRunId/export", asyncHandler(async (req:
   }).send(result.body);
 }));
 
+payrollRoutes.get("/payroll/pay-runs/:payRunId/statements/:employeeId", asyncHandler(async (req: Auth, res) => {
+  res.set({ "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" }).json(await payRunService.statement(
+    req.principal!, payRunId(req), parseIntegerParam(req.params.employeeId, "Pay-run employee ID"),
+  ));
+}));
+
 payrollRoutes.post("/payroll/pay-runs", validateBody(createPayRunSchema), asyncHandler(async (req: Auth, res) => {
   res.status(201).json(await payRunService.create(req.principal!, idempotencyKey(req), req.body));
 }));
@@ -96,6 +103,14 @@ payrollRoutes.post("/payroll/pay-runs/:payRunId/pay", validateBody(payPayRunSche
   res.json(await payRunService.pay(req.principal!, payRunId(req), idempotencyKey(req), req.body));
 }));
 
+payrollRoutes.post("/payroll/pay-runs/:payRunId/post", validateBody(emptyPayRunCommandSchema), asyncHandler(async (req: Auth, res) => {
+  res.json(await payRunService.post(req.principal!, payRunId(req), idempotencyKey(req)));
+}));
+
 payrollRoutes.post("/payroll/pay-runs/:payRunId/void", validateBody(voidPayRunSchema), asyncHandler(async (req: Auth, res) => {
   res.json(await payRunService.void(req.principal!, payRunId(req), idempotencyKey(req), req.body));
+}));
+
+payrollRoutes.post("/payroll/pay-runs/:payRunId/reverse", validateBody(reversePayRunSchema), asyncHandler(async (req: Auth, res) => {
+  res.json(await payRunService.reverse(req.principal!, payRunId(req), idempotencyKey(req), req.body));
 }));

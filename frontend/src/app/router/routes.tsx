@@ -36,6 +36,7 @@ const AdminStaff = lazy(() => import("@/features/staff").then((m) => ({ default:
 const AcceptStaffInvitation = lazy(() => import("@/features/staff").then((m) => ({ default: m.AcceptStaffInvitationPage })));
 const AdminAudit = lazy(() => import("@/features/audit").then((m) => ({ default: m.AdminAuditPage })));
 const FinanceWorkspace = lazy(() => import("@/features/finance").then((m) => ({ default: m.FinanceWorkspacePage })));
+const PayrollWorkspace = lazy(() => import("@/features/payroll").then((m) => ({ default: m.PayrollWorkspacePage })));
 
 export const AppRoutes = () => (
   <>
@@ -162,6 +163,14 @@ export const AppRoutes = () => (
         element={
           <StaffProtectedRoute requiredPermission="finance.refunds.create">
             <FinanceWorkspace />
+          </StaffProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/payroll"
+        element={
+          <StaffProtectedRoute requiredPermission="payroll.read">
+            <PayrollWorkspace />
           </StaffProtectedRoute>
         }
       />

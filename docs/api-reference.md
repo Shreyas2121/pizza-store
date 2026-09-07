@@ -1174,10 +1174,11 @@ All compensation amounts are positive integer paise, currency is INR, and respon
 ### Payroll Run Workflow
 - `GET /finance/payroll/pay-runs?storeId=:id` 🔒 / `GET /finance/payroll/pay-runs/:id` 🔒 — Restricted pay-run list and detail. Detail includes immutable employee, compensation-version, and component snapshots after calculation.
 - `GET /finance/payroll/pay-runs/:id/export` 🔒 — Restricted CSV snapshot export. Payment references and sensitive employee identifiers are excluded.
+- `GET /finance/payroll/pay-runs/:id/statements/:employeeId` 🔒 — Restricted payslip-style gross-to-net statement from the immutable employee snapshot; marked demo-only.
 - `POST /finance/payroll/pay-runs` 🔒 — Create one draft for a complete calendar month; requires `payroll.manage` and an `Idempotency-Key` UUID.
-- `POST /finance/payroll/pay-runs/:id/calculate` 🔒 / `approve` 🔒 / `pay` 🔒 / `void` 🔒 — Idempotent lifecycle commands. Every command requires a distinct `Idempotency-Key` UUID and recent authentication; calculate, approve, and pay require their matching payroll permission.
+- `POST /finance/payroll/pay-runs/:id/calculate` 🔒 / `approve` 🔒 / `pay` 🔒 / `post` 🔒 / `void` 🔒 / `reverse` 🔒 — Idempotent lifecycle commands. Every command requires a distinct `Idempotency-Key` UUID and recent authentication; calculate, approve, and pay/post/reverse require their matching payroll permission. Reversal accepts `reason` and `effectiveBusinessDate`.
 
-Calculation snapshots all eligible employees and the compensation effective at period end, uses exact integer paise, and is permitted only from `draft`. Approval must be performed by someone other than the drafter/calculator, and payment by someone other than the drafter/calculator/approver. Payment references are returned only in restricted detail and never written to logs or audit metadata. The `posted` and `reversed` terminal states are reserved for the payroll-ledger posting workflow.
+Calculation snapshots all eligible employees and the compensation effective at period end, uses exact integer paise, and is permitted only from `draft`. Approval must be performed by someone other than the drafter/calculator, and payment by someone other than the drafter/calculator/approver. Payment references are returned only in restricted detail and never written to exports, statements, logs, audit metadata, or ledger events. Posting uses the finance outbox and existing balanced ledger kernel; posted runs require exact reversal.
 
 ---
 

@@ -413,11 +413,13 @@ POST /api/v1/finance/payroll/pay-runs
 POST /api/v1/finance/payroll/pay-runs/:id/calculate
 POST /api/v1/finance/payroll/pay-runs/:id/approve
 POST /api/v1/finance/payroll/pay-runs/:id/pay
+POST /api/v1/finance/payroll/pay-runs/:id/post
 POST /api/v1/finance/payroll/pay-runs/:id/void
+POST /api/v1/finance/payroll/pay-runs/:id/reverse
 GET  /api/v1/finance/payroll/pay-runs/:id/statements/:employeeId
 ```
 
-Pay-run creation and every lifecycle command require an `Idempotency-Key` UUID. Calculation is deterministic and draft-only, and records immutable employee/component snapshots. Approval and payment enforce separate actors plus recent authentication. List, detail, and export remain behind `payroll.read`; cross-store and missing records are both returned as `404`, and exports omit payment references and sensitive identifiers. Statement generation and ledger posting are delivered by the subsequent payroll phases.
+Pay-run creation and every lifecycle command require an `Idempotency-Key` UUID. Calculation is deterministic and draft-only, and records immutable employee/component snapshots. Approval and payment enforce separate actors plus recent authentication. List, detail, statement, and export remain behind `payroll.read`; cross-store and missing records are both returned as `404`, and exports/statements omit payment references and sensitive identifiers. Posting and exact reversal use the transactional finance outbox and balanced ledger kernel.
 
 ---
 
@@ -526,4 +528,4 @@ Role membership alone is necessary but **not sufficient** to execute high-risk o
 - [x] Phase 3 establishes cash sessions, standard product costs, vendors, and expenses.
 - [x] Phase 4 implements the general ledger posting kernel, fiscal periods, and trial balance.
 - [x] Phase 5 builds the owner Finance Workspace, management reports, drill-down, and CSV exports.
-- [ ] Phase 6 adds payroll-lite profiles, compensation versioning, and pay runs as an operating cost.
+- [x] Phase 6 adds restricted payroll-lite profiles, effective compensation, pay runs, statements, and reversible ledger-backed operating cost.

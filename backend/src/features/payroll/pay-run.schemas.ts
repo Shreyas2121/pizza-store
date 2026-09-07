@@ -35,9 +35,14 @@ export const payPayRunSchema = z.object({
   paymentReference: z.string().trim().min(3).max(200),
 }).strict();
 export const voidPayRunSchema = z.object({ reason }).strict();
+export const reversePayRunSchema = z.object({
+  reason,
+  effectiveBusinessDate: businessDate,
+}).strict();
 export const payRunIdempotencyKeySchema = z.string().trim().uuid("Idempotency-Key must be a UUID");
 
 export type PayRunsQuery = z.infer<typeof payRunsQuerySchema>;
 export type CreatePayRunInput = z.infer<typeof createPayRunSchema>;
 export type PayPayRunInput = z.infer<typeof payPayRunSchema>;
 export type VoidPayRunInput = z.infer<typeof voidPayRunSchema>;
+export type ReversePayRunInput = z.infer<typeof reversePayRunSchema>;

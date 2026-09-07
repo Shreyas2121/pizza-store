@@ -11,6 +11,7 @@ import {
   ScrollText,
   Users,
   Landmark,
+  WalletCards,
 } from "lucide-react";
 
 export interface SidebarLinkConfig {
@@ -61,6 +62,12 @@ export const sidebarLinks: SidebarLinkConfig[] = [
     to: "/admin/finance",
     icon: Landmark,
     requiredPermission: "finance.refunds.create",
+  },
+  {
+    label: "Payroll",
+    to: "/admin/payroll",
+    icon: WalletCards,
+    requiredPermission: "payroll.read",
   },
   {
     label: "Staff",

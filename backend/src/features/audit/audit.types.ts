@@ -78,6 +78,8 @@ export type PayrollAuditAction =
   | "payroll.pay_run_calculated"
   | "payroll.pay_run_approved"
   | "payroll.pay_run_paid"
+  | "payroll.pay_run_posted"
+  | "payroll.pay_run_reversed"
   | "payroll.pay_run_voided";
 
 export type AuditAction = StaffAuditAction | StoreAuditAction | OrderAuditAction | InventoryAuditAction | RefundAuditAction | SettlementAuditAction | CostAuditAction | CashAuditAction | VendorAuditAction | ExpenseAuditAction | LedgerAuditAction | PayrollAuditAction | SystemAuditAction;
