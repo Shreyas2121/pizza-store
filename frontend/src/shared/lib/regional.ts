@@ -39,6 +39,15 @@ const parseDate = (value: DateValue) => {
 export const formatPrice = (price: number) => moneyFormatter.format(price);
 export const formatPaise = (paise: number) => formatPrice(paise / 100);
 
+export const parseRupeesToPaise = (value: number | string): number => {
+  const normalized = String(value).trim();
+  const match = /^(\d+)(?:\.(\d{1,2}))?$/.exec(normalized);
+  if (!match) throw new Error("Amount must have at most two decimal places");
+  const paise = Number(match[1]) * 100 + Number((match[2] ?? "").padEnd(2, "0"));
+  if (!Number.isSafeInteger(paise)) throw new Error("Amount is too large");
+  return paise;
+};
+
 export const formatDate = (
   value: DateValue,
   options: Intl.DateTimeFormatOptions = { dateStyle: "medium" },

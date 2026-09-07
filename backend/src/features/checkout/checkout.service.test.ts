@@ -35,7 +35,7 @@ describe("CheckoutService stock integration", () => {
           id: 101,
           productId: 1,
           quantity: 2,
-          price: 200,
+          pricePaise: 20_000,
           product: { name: "Margherita" },
           customizations: [],
         },
@@ -169,7 +169,7 @@ describe("CheckoutService stock integration", () => {
           id: 101,
           productId: 1,
           quantity: 5,
-          price: 200,
+          pricePaise: 20_000,
           product: { name: "Margherita" },
           customizations: [],
         },
@@ -236,7 +236,7 @@ describe("CheckoutService stock integration", () => {
           id: 101,
           productId: 1,
           quantity: 1,
-          price: 200,
+          pricePaise: 20_000,
           product: { name: "Margherita" },
           customizations: [],
         },
@@ -598,12 +598,12 @@ describe("CheckoutService calculatePublicQuote", () => {
             where: () => {
               if (table === productsTable) {
                 return Promise.resolve([
-                  { id: 1, name: "Margherita", price: 350 },
+                  { id: 1, name: "Margherita", pricePaise: 35_000 },
                 ]);
               }
               if (table === customizationOptionsTable) {
                 return Promise.resolve([
-                  { id: 101, name: "Extra Cheese", price: 50 },
+                  { id: 101, name: "Extra Cheese", pricePaise: 5_000 },
                 ]);
               }
               return Promise.resolve([]);
@@ -662,7 +662,7 @@ describe("CheckoutService calculatePublicQuote", () => {
           id: 101,
           productId: 1,
           quantity: 2,
-          price: 200,
+          pricePaise: 20_000,
           product: { name: "Margherita" },
           customizations: [],
         },

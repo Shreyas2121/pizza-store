@@ -16,9 +16,8 @@ import {
   allocateProportional,
   calculateBasisPoints,
   calculateInclusiveTax,
+  formatPaiseToRupeesString,
   multiplyPaiseByQuantity,
-  roundHalfAwayFromZero,
-  rupeesToPaise,
   subtractPaise,
 } from "../../utils/money";
 import type { DatabaseType, TransactionType } from "../../utils/types";
@@ -657,19 +656,12 @@ export class PricingService {
     if (now < coupon.startDate || now > coupon.endDate) {
       throw new AppError("Coupon is expired or not yet valid", 400);
     }
-    if (!Number.isFinite(coupon.minOrderValue) || coupon.minOrderValue < 0) {
+    if (!Number.isSafeInteger(coupon.minimumOrderPaise) || coupon.minimumOrderPaise < 0) {
       throw new AppError("Coupon has an invalid minimum order value", 400);
     }
-
-    let minimumPaise: number;
-    try {
-      minimumPaise = rupeesToPaise(coupon.minOrderValue);
-    } catch {
-      throw new AppError("Coupon has an invalid minimum order value", 400);
-    }
-    if (itemsSubtotalPaise < minimumPaise) {
+    if (itemsSubtotalPaise < coupon.minimumOrderPaise) {
       throw new AppError(
-        `Minimum order value of ${coupon.minOrderValue} not met`,
+        `Minimum order value of ${formatPaiseToRupeesString(coupon.minimumOrderPaise)} not met`,
         400
       );
     }
@@ -689,21 +681,20 @@ export class PricingService {
     coupon: CouponRecord,
     itemsSubtotalPaise: number
   ) {
-    if (!Number.isFinite(coupon.discountValue) || coupon.discountValue <= 0) {
-      throw new AppError("Coupon has an invalid discount", 400);
-    }
-
     let rawDiscount: number;
     try {
       if (coupon.discountType === "percentage") {
-        const scaledRate = coupon.discountValue * 100;
-        const rateBps = roundHalfAwayFromZero(scaledRate);
-        if (Math.abs(scaledRate - rateBps) > 1e-8) {
-          throw new RangeError("Percentage supports at most two decimals");
+        const rateBps = coupon.discountRateBps;
+        if (rateBps === null || !Number.isSafeInteger(rateBps) || rateBps <= 0 || rateBps > 10_000) {
+          throw new RangeError("Percentage discount rate is invalid");
         }
         rawDiscount = calculateBasisPoints(itemsSubtotalPaise, rateBps);
       } else if (coupon.discountType === "fixed") {
-        rawDiscount = rupeesToPaise(coupon.discountValue);
+        const amountPaise = coupon.discountAmountPaise;
+        if (amountPaise === null || !Number.isSafeInteger(amountPaise) || amountPaise <= 0) {
+          throw new RangeError("Fixed discount amount is invalid");
+        }
+        rawDiscount = amountPaise;
       } else {
         throw new AppError("Coupon has an invalid discount type", 400);
       }

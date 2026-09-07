@@ -76,7 +76,7 @@ Relations: one-to-many with products.
 | `slug` | text | UNIQUE, NOT NULL | URL-safe identifier |
 | `veg` | boolean | default `false` | |
 | `has_customization` | boolean | NOT NULL, default `false` | Determines if customization UI is shown |
-| `price` | real | NOT NULL | Base price before customizations |
+| `price_paise` | integer | NOT NULL, CHECK >= 0 | Base price before customizations, in paise |
 | `image` | text | NOT NULL | Path relative to uploads dir |
 | `is_available` | boolean | NOT NULL, default `true` | |
 | `category_id` | integer | FK → categories, NOT NULL | |
@@ -109,7 +109,7 @@ Relations: one-to-many with store products, delivery zones, delivery pricing rul
 | `id` | integer | PK, generated always | |
 | `store_id` | integer | FK → stores, NOT NULL | |
 | `product_id` | integer | FK → products, NOT NULL | |
-| `price` | real | NOT NULL | Store-specific product price |
+| `price_paise` | integer | NOT NULL, CHECK >= 0 | Store-specific product price, in paise |
 | `is_available` | boolean | NOT NULL, default `true` | Store-level manual availability |
 | `on_hand_quantity` | integer | nullable, CHECK >= 0 | Physical stock count; `NULL` = untracked stock |
 | `low_stock_threshold` | integer | NOT NULL, default `5`, CHECK >= 0 | Threshold for low stock status and alerts |
@@ -179,7 +179,7 @@ Relations: one-to-many with options; many-to-many with products (via mapping).
 | `id` | integer | PK | |
 | `group_id` | integer | FK → customization_groups, NOT NULL | |
 | `name` | text | NOT NULL | e.g., "Large", "Extra Cheese" |
-| `price` | real | default `0` | Additional cost |
+| `price_paise` | integer | NOT NULL, default `0`, CHECK >= 0 | Additional cost in paise |
 | `is_available` | boolean | NOT NULL, default `true` | |
 | `created_at`, `updated_at` | timestamptz | | |
 
@@ -219,7 +219,7 @@ Junction table linking menu items to products.
 | --- | --- | --- | --- |
 | `id` | integer | PK | |
 | `user_id` | integer | FK → users, NOT NULL | |
-| `total_price` | double precision | NOT NULL, default `0` | Denormalized running total |
+| `total_paise` | integer | NOT NULL, default `0`, CHECK >= 0 | Denormalized running total in paise; never authoritative for checkout |
 | `store_id` | integer | FK → stores, nullable | Cart may exist before store resolution |
 | `created_at`, `updated_at` | timestamptz | | |
 
@@ -233,7 +233,7 @@ Relations: one-to-many with cart items.
 | `cart_id` | integer | FK → cart (CASCADE DELETE), NOT NULL | |
 | `product_id` | integer | FK → products, NOT NULL | |
 | `quantity` | integer | NOT NULL, default `1` | |
-| `price` | double precision | NOT NULL, default `0` | Snapshot of product price at time of add |
+| `price_paise` | integer | NOT NULL, default `0`, CHECK >= 0 | Snapshot of product price at time of add |
 | `created_at`, `updated_at` | timestamptz | | |
 
 Relations: one-to-many with cart item customizations.
@@ -245,7 +245,7 @@ Relations: one-to-many with cart item customizations.
 | `id` | integer | PK | |
 | `cart_item_id` | integer | FK → cart_items (CASCADE DELETE), NOT NULL | |
 | `customization_option_id` | integer | FK → customization_options, NOT NULL | |
-| `price` | double precision | NOT NULL | Snapshot of option price |
+| `price_paise` | integer | NOT NULL, CHECK >= 0 | Snapshot of option price |
 | `created_at`, `updated_at` | timestamptz | | |
 
 ### `coupons`
@@ -255,8 +255,9 @@ Relations: one-to-many with cart item customizations.
 | `id` | integer | PK | |
 | `code` | text | UNIQUE, NOT NULL | Case-sensitive coupon code |
 | `discount_type` | text | NOT NULL | `"percentage"` or `"fixed"` |
-| `discount_value` | double precision | NOT NULL | Percentage or absolute amount |
-| `min_order_value` | double precision | NOT NULL | Minimum order total to apply |
+| `discount_rate_bps` | integer | nullable, CHECK 1–10000 | Percentage rate in basis points; set only for percentage coupons |
+| `discount_amount_paise` | integer | nullable, CHECK > 0 | Fixed discount in paise; set only for fixed coupons |
+| `minimum_order_paise` | integer | NOT NULL, default `0`, CHECK >= 0 | Minimum item subtotal in paise |
 | `start_date` | timestamptz | NOT NULL | |
 | `end_date` | timestamptz | NOT NULL | |
 | `is_active` | boolean | NOT NULL, default `true` | |

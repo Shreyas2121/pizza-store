@@ -234,11 +234,15 @@ export const updateCartCustomizationSchema = z.object({
 export const createCouponSchema = z.object({
   code: z.string().min(1, "Coupon code is required"),
   discountType: z.enum(["percentage", "fixed"]),
-  discountValue: z.number().positive("Discount value must be positive"),
-  minOrderValue: z.number().nonnegative().optional(),
+  discountValue: z.number().positive("Discount value must be positive").max(5_000).multipleOf(0.01),
+  minOrderValue: z.number().nonnegative().max(5_000).multipleOf(0.01).optional(),
   maxRedemptions: z.number().int().optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
+}).superRefine((coupon, context) => {
+  if (coupon.discountType === "percentage" && coupon.discountValue > 100) {
+    context.addIssue({ code: "custom", path: ["discountValue"], message: "Percentage discount cannot exceed 100" });
+  }
 });
 
 const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
@@ -316,7 +320,7 @@ export const addDeliveryZonesSchema = z.object({
 
 const storeProductMappingSchema = z.object({
   productId: z.number().int().positive("Product ID must be a positive integer"),
-  price: z.number().nonnegative("Price must be non-negative"),
+  pricePaise: z.number().int().nonnegative("Price must be non-negative").max(100_000),
   isAvailable: z.boolean().optional().default(true),
 });
 
@@ -341,10 +345,10 @@ export const mapStoreProductsSchema = z
 
 export const updateStoreProductSchema = z
   .object({
-    price: z.number().nonnegative("Price must be non-negative").optional(),
+    pricePaise: z.number().int().nonnegative("Price must be non-negative").max(100_000).optional(),
     isAvailable: z.boolean().optional(),
   })
   .refine(
-    (data) => data.price !== undefined || data.isAvailable !== undefined,
+    (data) => data.pricePaise !== undefined || data.isAvailable !== undefined,
     "Price or availability is required"
   );

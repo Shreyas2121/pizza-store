@@ -4,7 +4,7 @@ import { Alert, Button, Card, Checkbox, Group, Modal, NumberInput, Select, Stack
 import { AlertTriangle } from "lucide-react";
 import { API } from "@/shared/api";
 import type { OrderRes } from "@/features/orders";
-import { error, formatPaise, success } from "@/shared/lib";
+import { error, formatPaise, parseRupeesToPaise, success } from "@/shared/lib";
 import { useRequestRefund } from "../api/finance.queries";
 import { apiMessage } from "../model/finance.helpers";
 
@@ -24,7 +24,7 @@ export const RefundRequestModal = ({ opened, onClose }: { opened: boolean; onClo
     enabled: Boolean(lookupOrderId),
     retry: false,
   });
-  const amountPaise = typeof amountRupees === "number" ? Math.round(amountRupees * 100) : 0;
+  const amountPaise = amountRupees === "" ? 0 : parseRupeesToPaise(amountRupees);
   const selectedItem = order.data?.items.find((item) => String(item.id) === orderItemId);
   const quantityNumber = typeof quantity === "number" ? quantity : 0;
   const valid = Boolean(selectedItem && quantityNumber > 0 && quantityNumber <= selectedItem.quantity && amountPaise > 0 && confirmed);
@@ -54,8 +54,8 @@ export const RefundRequestModal = ({ opened, onClose }: { opened: boolean; onClo
     <Group align="end" grow><NumberInput label="Order ID" min={1} value={orderId} onChange={setOrderId} allowDecimal={false} /><Button variant="default" loading={order.isFetching} onClick={() => { const parsed = Number(orderId); if (Number.isInteger(parsed) && parsed > 0) setLookupOrderId(parsed); }}>Load order</Button></Group>
     {order.isError && <Alert color="red" icon={<AlertTriangle size={17} />}>Order could not be loaded or is outside your store access.</Alert>}
     {order.data && <>
-      <Alert color="blue" title={`Order #${order.data.id}`}>Order total {formatPaise(Math.round(order.data.totalPrice * 100))}. The server will verify captured balance, quantities, tax, and prior refunds.</Alert>
-      <Select label="Item to refund" placeholder="Choose an order item" value={orderItemId} onChange={(value) => { setOrderItemId(value); setConfirmed(false); }} data={order.data.items.map((item) => ({ value: String(item.id), label: `${item.product.name} · ${item.quantity} × ${formatPaise(Math.round(item.price * 100))}` }))} />
+      <Alert color="blue" title={`Order #${order.data.id}`}>Order total {formatPaise(order.data.grandTotalPaise)}. The server will verify captured balance, quantities, tax, and prior refunds.</Alert>
+      <Select label="Item to refund" placeholder="Choose an order item" value={orderItemId} onChange={(value) => { setOrderItemId(value); setConfirmed(false); }} data={order.data.items.map((item) => ({ value: String(item.id), label: `${item.product.name} · ${item.quantity} × ${formatPaise(item.unitPricePaise)}` }))} />
       <Group grow align="start"><NumberInput label="Quantity" min={1} max={selectedItem?.quantity ?? 1} value={quantity} onChange={(value) => { setQuantity(value); setConfirmed(false); }} allowDecimal={false} /><NumberInput label="Exact refund amount" prefix="₹" min={0.01} decimalScale={2} fixedDecimalScale value={amountRupees} onChange={(value) => { setAmountRupees(value); setConfirmed(false); }} /></Group>
       <Select label="Reason" value={reasonCode} onChange={(value) => value && setReasonCode(value)} data={[{ value: "customer_request", label: "Customer request" }, { value: "quality_issue", label: "Quality issue" }, { value: "missing_item", label: "Missing item" }, { value: "delivery_issue", label: "Delivery issue" }]} />
       <Textarea label="Internal note" value={reasonNote} onChange={(event) => setReasonNote(event.currentTarget.value)} maxLength={1000} />

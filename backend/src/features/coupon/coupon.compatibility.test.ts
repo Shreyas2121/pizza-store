@@ -7,8 +7,9 @@ describe("legacy coupon validation response", () => {
       id: 7,
       code: "SAVE10",
       discountType: "percentage" as const,
-      discountValue: 10,
-      minOrderValue: 100,
+      discountRateBps: 1_000,
+      discountAmountPaise: null,
+      minimumOrderPaise: 10_000,
       startDate: new Date("2026-08-01T00:00:00.000Z"),
       endDate: new Date("2026-09-01T00:00:00.000Z"),
       isActive: true,
@@ -30,8 +31,9 @@ describe("legacy coupon validation response", () => {
       coupon: { id: 7, code: "SAVE10", discountPaise: 2_000, applied: true },
     });
 
-    expect(response).toMatchObject(coupon);
     expect(response).toMatchObject({
+      discountValue: 10,
+      minOrderValue: 100,
       quoteVersion: "2026-08-31-01",
       currency: "INR",
       pricingPolicyVersion: 1,

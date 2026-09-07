@@ -5,7 +5,7 @@ import { ImageOff, Settings2, ShoppingCart } from "lucide-react";
 import { Product } from "../../model/catalog.types";
 import { catalogKeys } from "../../model/catalog.keys";
 import { BASE_URL } from "@/shared/config";
-import { formatPrice, handleStockApiError, success, warning } from "@/shared/lib";
+import { formatPaise, handleStockApiError, success, warning } from "@/shared/lib";
 import { cartKeys, useAddToCart } from "@/features/cart";
 import { useAuthModalStore } from "@/shared/model";
 import { Login, useUser } from "@/features/auth";
@@ -125,7 +125,7 @@ export const ProductCard = ({ product }: { product: Product }) => {
 
           <div className="mt-5 border-t border-border pt-4">
             <p className="text-xs font-medium text-ink-muted">From</p>
-            <p className="mt-0.5 text-xl font-bold tabular-nums text-ink">{formatPrice(product.price)}</p>
+            <p className="mt-0.5 text-xl font-bold tabular-nums text-ink">{formatPaise(product.pricePaise)}</p>
             <Button
               fullWidth
               mt="md"

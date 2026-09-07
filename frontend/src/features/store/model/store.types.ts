@@ -21,7 +21,7 @@ export interface StoreProduct {
   id: number;
   storeId: number;
   productId: number;
-  price: number;
+  pricePaise: number;
   isAvailable: boolean;
   createdAt: string;
   updatedAt: string;
@@ -29,7 +29,7 @@ export interface StoreProduct {
     id: number;
     name: string;
     slug: string;
-    price: number;
+    pricePaise: number;
     image: string;
     isAvailable: boolean;
     categoryId: number;

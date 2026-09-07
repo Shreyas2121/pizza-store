@@ -9,6 +9,7 @@ import { filterImage, generateSlug } from "../../utils";
 import productService from "./product.service";
 import { Product } from "../../utils/types";
 import { parseIntegerParam } from "../../utils/request";
+import { MONEY_CAPS, parsePaise } from "../../utils/money";
 
 export const productRoutes = Router();
 
@@ -28,7 +29,7 @@ productRoutes.post(
 
     const [product] = await productService.createProduct({
       ...data,
-      price: Number(data.price),
+      pricePaise: parsePaise(data.pricePaise, MONEY_CAPS.ITEM_PRICE, "Product price"),
       categoryId: Number(data.categoryId),
       veg: data.veg === "true" || data.veg === true,
       image: filteredImage,

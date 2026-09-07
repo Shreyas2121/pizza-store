@@ -49,18 +49,18 @@ const seedDemoUsers = async () => {
 
 const seedSecondStore = async (adminId: number, financeId: number) => {
   const [store] = await db.insert(storesTable).values(SECOND_STORE).returning();
-  const products = await db.select({ id: productsTable.id, price: productsTable.price }).from(productsTable).orderBy(productsTable.id);
+  const products = await db.select({ id: productsTable.id, pricePaise: productsTable.pricePaise }).from(productsTable).orderBy(productsTable.id);
   const mapped = await db.insert(storeProductsTable).values(products.map((product) => ({
-    storeId: store.id, productId: product.id, price: product.price, isAvailable: true,
+    storeId: store.id, productId: product.id, pricePaise: product.pricePaise, isAvailable: true,
     onHandQuantity: 100, lowStockThreshold: 10, lastRestockedAt: new Date("2026-07-01T03:30:00.000Z"),
-  }))).returning({ id: storeProductsTable.id, price: storeProductsTable.price });
+  }))).returning({ id: storeProductsTable.id, pricePaise: storeProductsTable.pricePaise });
   await db.insert(inventoryMovementsTable).values(mapped.map((product) => ({
     storeProductId: product.id, changeType: "restock" as const, quantityChange: 100,
     previousQuantity: 0, newQuantity: 100, reason: "Deterministic demo opening stock",
     idempotencyKey: `demo-reset:store-product:${product.id}`,
   })));
   await db.insert(productCostVersionsTable).values(mapped.map((product) => ({
-    storeProductId: product.id, storeId: store.id, unitCostPaise: Math.round(product.price * 40),
+    storeProductId: product.id, storeId: store.id, unitCostPaise: Math.round(product.pricePaise * 40 / 100),
     effectiveFrom: "2026-01-01", source: "deterministic_demo_reset", createdBy: adminId,
   })));
   await db.insert(deliveryZonesTable).values({ storeId: store.id, pincode: store.pincode });

@@ -6,6 +6,7 @@ import { ArrowRight, Clock3, MapPin, ShoppingCart, Store as StoreIcon } from "lu
 import { useNavigate } from "react-router";
 import { AddressForm, useGetAddresses } from "@/features/account";
 import { CustomizationDrawer } from "@/features/catalog";
+import { useCheckoutQuote, type CheckoutQuoteRequest } from "@/features/checkout";
 import { EmptyState, PageHeader } from "@/shared/ui";
 
 import { useAuthModalStore } from "@/shared/model";
@@ -23,7 +24,7 @@ import CartSummary from "../components/cart-summary";
 
 export const CartPage = () => {
   const { data: rawCart } = useGetCart();
-  const cart = rawCart || { id: 0, userId: 0, items: [], totalPrice: 0, storeId: null, store: null };
+  const cart = rawCart || { id: 0, userId: 0, items: [], totalPaise: 0, storeId: null, store: null };
   const queryClient = useQueryClient();
   const { openModal, closeModal } = useAuthModalStore();
   const updateCartM = useUpdateCartItemQuantity();
@@ -44,22 +45,24 @@ export const CartPage = () => {
     });
   }, []);
 
-  const visibleItems = cart.items.filter((item) => !pendingRemoval.has(item.id));
+  const visibleItems = useMemo(
+    () => cart.items.filter((item) => !pendingRemoval.has(item.id)),
+    [cart.items, pendingRemoval]
+  );
   const itemCount = visibleItems.reduce((total, item) => total + item.quantity, 0);
   const storeMatchesCart = itemCount === 0 || (!!resolvedStore && cart.storeId === resolvedStore.id);
-  const subtotal = useMemo(() => {
-    const hiddenTotal = cart.items
-      .filter((item) => pendingRemoval.has(item.id))
-      .reduce(
-        (total, item) =>
-          total +
-          (item.price +
-            item.customizations.reduce((sum, option) => sum + option.price, 0)) *
-            item.quantity,
-        0
-      );
-    return Math.max(0, cart.totalPrice - hiddenTotal);
-  }, [cart.items, cart.totalPrice, pendingRemoval]);
+  const quoteRequest = useMemo((): CheckoutQuoteRequest | null => {
+    if (!cart.storeId || visibleItems.length === 0) return null;
+    return {
+      storeId: cart.storeId,
+      items: visibleItems.map((item) => ({
+        productId: item.productId,
+        quantity: item.quantity,
+        customizationOptionIds: item.customizations.map((option) => option.optionId),
+      })),
+    };
+  }, [cart.storeId, visibleItems]);
+  const cartQuote = useCheckoutQuote(quoteRequest, { enabled: quoteRequest !== null });
 
   const finishAddress = () => {
     closeModal();
@@ -67,7 +70,7 @@ export const CartPage = () => {
   };
 
   const checkout = () => {
-    if (addressesLoading || itemCount === 0) return;
+    if (addressesLoading || cartQuote.isPending || cartQuote.isError || !cartQuote.data || itemCount === 0) return;
     if (!isStoreResolved || !resolvedStore) { openPincodeModal(); return; }
     if (!storeMatchesCart) { error("Choose the delivery area for the store attached to your cart, or clear the cart by changing areas."); openPincodeModal(); return; }
     if (addresses?.length) navigate("/checkout");
@@ -185,10 +188,11 @@ export const CartPage = () => {
           </div>
 
           <CartSummary
-            subtotal={subtotal}
+            subtotalPaise={cartQuote.data?.itemsSubtotalPaise ?? null}
             itemCount={itemCount}
-            loading={addressesLoading}
-            disabled={!isStoreResolved || !storeMatchesCart}
+            loading={addressesLoading || cartQuote.isPending}
+            error={cartQuote.isError ? "The server could not price this cart. Refresh or update the cart and try again." : null}
+            disabled={!isStoreResolved || !storeMatchesCart || !cartQuote.data}
             onCheckout={checkout}
           />
         </div>

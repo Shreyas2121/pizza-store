@@ -7,7 +7,7 @@ import { Link, useNavigate } from "react-router";
 import { useGetCategoriesSelect } from "../../api/category.queries";
 import { useCreateProduct } from "../../api/product.queries";
 import { productSchema, TProduct } from "../../model/catalog.schemas";
-import { APP_CURRENCY_SYMBOL, success } from "@/shared/lib";
+import { APP_CURRENCY_SYMBOL, parseRupeesToPaise, success } from "@/shared/lib";
 
 export const ProductForm = () => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -28,7 +28,7 @@ export const ProductForm = () => {
     const payload = new FormData();
     payload.append("name", data.name.trim());
     payload.append("description", data.description ?? "");
-    payload.append("price", String(data.price));
+    payload.append("pricePaise", String(parseRupeesToPaise(data.price)));
     payload.append("categoryId", String(data.categoryId));
     payload.append("veg", String(data.isVeg));
     payload.append("image", data.image);

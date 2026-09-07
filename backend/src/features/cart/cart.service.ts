@@ -98,7 +98,7 @@ class CartService {
 
           await tx
             .update(cartTable)
-            .set({ storeId, totalPrice: 0 })
+            .set({ storeId, totalPaise: 0 })
             .where(eq(cartTable.id, existingCart.id));
         }
 
@@ -106,7 +106,7 @@ class CartService {
           .update(cartTable)
           .set({
             storeId,
-            totalPrice: sql`COALESCE(${cartTable.totalPrice}, 0) + ${storeProduct.price}`,
+            totalPaise: sql`COALESCE(${cartTable.totalPaise}, 0) + ${storeProduct.pricePaise}`,
           })
           .where(eq(cartTable.id, existingCart.id));
       } else {
@@ -115,14 +115,14 @@ class CartService {
           .values({
             userId,
             storeId,
-            totalPrice: storeProduct.price,
+            totalPaise: storeProduct.pricePaise,
           })
           .returning();
         cartId = id;
       }
 
       const [cartItem] = await this.addToCartItem(
-        { cartId, productId, price: storeProduct.price },
+        { cartId, productId, pricePaise: storeProduct.pricePaise },
         cIds,
         tx
       );
@@ -150,13 +150,13 @@ class CartService {
                 {
                   cartItemId: cartItem.id,
                   customizationOptionId: id,
-                  price: option.price!,
+                  pricePaise: option.pricePaise,
                 },
                 tx
               );
             }
 
-            await this.updateCartPrice(cartId, option.price!, tx);
+            await this.updateCartPrice(cartId, option.pricePaise, tx);
           })
         );
       }
@@ -194,7 +194,7 @@ class CartService {
     const [storeProduct] = await dbT
       .select({
         id: storeProductsTable.id,
-        price: storeProductsTable.price,
+        pricePaise: storeProductsTable.pricePaise,
         isAvailable: storeProductsTable.isAvailable,
         onHandQuantity: storeProductsTable.onHandQuantity,
         lowStockThreshold: storeProductsTable.lowStockThreshold,
@@ -344,14 +344,14 @@ class CartService {
 
   async updateCartPrice(
     cartId: number,
-    newTotalPrice: number,
+    amountPaise: number,
     tx?: TransactionType
   ) {
     const dbT = tx ?? db;
     return await dbT
       .update(cartTable)
       .set({
-        totalPrice: sql`COALESCE(${cartTable.totalPrice}, 0) + ${newTotalPrice}`,
+        totalPaise: sql`COALESCE(${cartTable.totalPaise}, 0) + ${amountPaise}`,
       })
       .where(eq(cartTable.id, cartId));
   }
@@ -487,8 +487,8 @@ class CartService {
     }
 
     let updatedPrice =
-      cartItem.customizations.reduce((prev, curr) => prev + curr.price, 0) +
-      cartItem.price;
+      cartItem.customizations.reduce((prev, curr) => prev + curr.pricePaise, 0) +
+      cartItem.pricePaise;
 
     return await db.transaction(async (tx) => {
       const currentQuantity = cartItem.quantity!;
@@ -507,7 +507,7 @@ class CartService {
       await tx
         .update(cartTable)
         .set({
-          totalPrice: sql`${cartTable.totalPrice} + ${updatedPrice}`,
+          totalPaise: sql`${cartTable.totalPaise} + ${updatedPrice}`,
         })
         .where(eq(cartTable.id, cartItem.cartId));
     });
@@ -522,16 +522,16 @@ class CartService {
     const options = await Promise.all(uniqueIds.map((id) => customizeService.getCustomizationOptionById(id)));
     if (options.some((option) => !option || !option.isAvailable)) throw new AppError("One or more customization options are unavailable", 400);
 
-    const oldExtras = cartItem.customizations.reduce((sum, option) => sum + option.price, 0);
-    const newExtras = options.reduce((sum, option) => sum + (option?.price ?? 0), 0);
+    const oldExtras = cartItem.customizations.reduce((sum, option) => sum + option.pricePaise, 0);
+    const newExtras = options.reduce((sum, option) => sum + (option?.pricePaise ?? 0), 0);
     const priceDifference = (newExtras - oldExtras) * cartItem.quantity;
 
     await db.transaction(async (tx) => {
       await tx.delete(cartItemCustomizationsTable).where(eq(cartItemCustomizationsTable.cartItemId, cartItemId));
       if (options.length > 0) {
-        await tx.insert(cartItemCustomizationsTable).values(options.map((option) => ({ cartItemId, customizationOptionId: option!.id, price: option!.price ?? 0 })));
+        await tx.insert(cartItemCustomizationsTable).values(options.map((option) => ({ cartItemId, customizationOptionId: option!.id, pricePaise: option!.pricePaise })));
       }
-      await tx.update(cartTable).set({ totalPrice: sql`${cartTable.totalPrice} + ${priceDifference}` }).where(eq(cartTable.id, cart.id));
+      await tx.update(cartTable).set({ totalPaise: sql`${cartTable.totalPaise} + ${priceDifference}` }).where(eq(cartTable.id, cart.id));
     });
   }
 
@@ -540,8 +540,8 @@ class CartService {
       const cartItem = await this.getCartItemById(itemId);
 
       const updatedPrice =
-        (cartItem.price +
-          cartItem.customizations.reduce((prev, curr) => prev + curr.price, 0)) *
+        (cartItem.pricePaise +
+          cartItem.customizations.reduce((prev, curr) => prev + curr.pricePaise, 0)) *
         cartItem.quantity;
 
       await tx.delete(cartItemsTable).where(eq(cartItemsTable.id, itemId));
@@ -549,7 +549,7 @@ class CartService {
       await tx
         .update(cartTable)
         .set({
-          totalPrice: sql`${cartTable.totalPrice} - ${updatedPrice}`,
+          totalPaise: sql`${cartTable.totalPaise} - ${updatedPrice}`,
         })
         .where(eq(cartTable.id, cartItem.cartId));
     });

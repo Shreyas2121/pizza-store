@@ -1,5 +1,5 @@
 import { BASE_URL } from "@/shared/config";
-import { formatPrice } from "@/shared/lib";
+import { formatPaise } from "@/shared/lib";
 
 import { OrderItemRes } from "../model/order.types";
 
@@ -22,7 +22,7 @@ export const OrderItems = ({ items }: { items: OrderItemRes[] }) => (
                   <h3 className="font-semibold text-ink">{item.product.name}</h3>
                   <p className="mt-1 text-sm text-ink-muted">Quantity: {item.quantity}</p>
                 </div>
-                <p className="shrink-0 font-bold tabular-nums text-ink">{formatPrice(item.price)}</p>
+                <p className="shrink-0 font-bold tabular-nums text-ink">{formatPaise(item.unitPricePaise)}</p>
               </div>
               {item.options && item.options.length > 0 && (
                 <ul className="mt-3 flex flex-wrap gap-1.5" aria-label="Customizations">

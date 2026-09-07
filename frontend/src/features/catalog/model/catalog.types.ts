@@ -23,7 +23,7 @@ export type Product = {
   veg: boolean | null;
   hasCustomization: boolean;
   isAvailable: boolean;
-  price: number;
+  pricePaise: number;
   image: string;
   categoryId: number;
   stockStatus?: StockStatus;
@@ -55,7 +55,7 @@ export type CustomizationOption = {
   name: string;
   createdAt: string;
   updatedAt: string;
-  price: number | null;
+  pricePaise: number;
   isAvailable: boolean;
   groupId: number;
 };

@@ -11,7 +11,7 @@ describe("CartService stock validation", () => {
     it("allows adding product within available stock limit", async () => {
       const mockStoreProduct = {
         id: 10,
-        price: 299,
+        pricePaise: 29_900,
         isAvailable: true,
         productName: "Margherita",
         productIsAvailable: true,
@@ -28,7 +28,7 @@ describe("CartService stock validation", () => {
         id: 1,
         userId: 10,
         storeId: 1,
-        totalPrice: 299,
+        totalPaise: 29_900,
       } as any);
 
       const mockTx = {
@@ -55,7 +55,7 @@ describe("CartService stock validation", () => {
         cb(mockTx as any)
       );
       vi.spyOn(cartService, "addToCartItem").mockResolvedValue([
-        { id: 101, cartId: 1, productId: 1, quantity: 3, price: 299 },
+        { id: 101, cartId: 1, productId: 1, quantity: 3, pricePaise: 29_900 },
       ] as any);
 
       // 2 in cart + 1 = 3 <= 5 -> success
@@ -72,7 +72,7 @@ describe("CartService stock validation", () => {
     it("throws INSUFFICIENT_STOCK when adding exceeds available stock across customized lines", async () => {
       const mockStoreProduct = {
         id: 10,
-        price: 299,
+        pricePaise: 29_900,
         isAvailable: true,
         productName: "Margherita",
         productIsAvailable: true,
@@ -89,7 +89,7 @@ describe("CartService stock validation", () => {
         id: 1,
         userId: 10,
         storeId: 1,
-        totalPrice: 897,
+        totalPaise: 89_700,
       } as any);
 
       const mockTx = {
@@ -142,7 +142,7 @@ describe("CartService stock validation", () => {
         cartId: 1,
         productId: 1,
         quantity: 2,
-        price: 299,
+        pricePaise: 29_900,
         customizations: [],
       } as any);
       vi.spyOn(cartService, "getExistingCart").mockResolvedValue({

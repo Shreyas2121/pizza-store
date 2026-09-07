@@ -99,7 +99,7 @@ export const CheckoutPage = () => {
   const cartMatchesStore = !!resolvedStore && cart?.storeId === resolvedStore.id;
   const storeOpen = !!resolvedStore && isStoreOpen(resolvedStore.opensAt, resolvedStore.closesAt);
 
-  const totalPaise = quote?.grandTotalPaise ?? (cart ? cart.totalPrice * 100 : 0);
+  const totalPaise = quote?.grandTotalPaise ?? 0;
 
   const applyCoupon = () => {
     const normalized = code.trim().toUpperCase();
@@ -130,6 +130,10 @@ export const CheckoutPage = () => {
     if (!addressMatchesStore) { error(`Choose an address in pincode ${userPincode}.`); return; }
     if (quoteIsError) {
       error(quoteErrorMessage ?? "Cannot place order due to pricing discrepancy. Please review your cart.");
+      return;
+    }
+    if (!quote) {
+      error("The server is still calculating the authoritative total. Please wait and try again.");
       return;
     }
     if (paymentType === "razorpay" && !paymentMethods?.razorpay) {
@@ -323,7 +327,8 @@ export const CheckoutPage = () => {
             addressMatchesStore &&
             cartMatchesStore &&
             storeOpen &&
-            !quoteIsError
+            !quoteIsError &&
+            !!quote
           }
           onCodeChange={(newCode) => setCode(newCode)}
           onApplyCoupon={applyCoupon}

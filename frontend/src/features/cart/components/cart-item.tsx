@@ -2,7 +2,7 @@ import { Settings2, Trash2 } from "lucide-react";
 import { ItemRes } from "../model/cart.types";
 import QuantityStepper from "./quantity-stepper";
 import { BASE_URL } from "@/shared/config";
-import { formatPrice } from "@/shared/lib";
+import { formatPaise } from "@/shared/lib";
 
 type CartItemProps = {
   item: ItemRes;
@@ -30,7 +30,7 @@ export const CartItemCard = ({
         <div className="min-w-0 flex-1">
           <h2 className="text-card-title-scale">{item.product.name}</h2>
           <p className="mt-1 font-bold tabular-nums text-brand">
-            {formatPrice(item.price)}
+            {formatPaise(item.pricePaise)}
           </p>
           {item.customizations.length > 0 && (
             <ul
@@ -43,7 +43,7 @@ export const CartItemCard = ({
                   className="rounded-pill bg-surface-muted px-2.5 py-1 text-xs text-ink-muted"
                 >
                   {customization.name}
-                  {customization.price > 0 ? ` +${formatPrice(customization.price)}` : ""}
+                  {customization.pricePaise > 0 ? ` +${formatPaise(customization.pricePaise)}` : ""}
                 </li>
               ))}
             </ul>

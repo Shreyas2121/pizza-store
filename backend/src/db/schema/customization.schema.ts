@@ -1,10 +1,11 @@
 import {
   boolean,
+  check,
   integer,
   pgTable,
-  real,
   text,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { id, createdAt, updatedAt } from "./_helpers";
 import { CustomizationType } from "../../utils/types";
 import { productsTable } from "./catalog.schema";
@@ -32,11 +33,13 @@ export const customizationOptionsTable = pgTable("customization_options", {
     .references(() => customizationGroupsTable.id)
     .notNull(),
   name: text().notNull(),
-  price: real().default(0),
+  pricePaise: integer("price_paise").default(0).notNull(),
   isAvailable: boolean("is_available").notNull().default(true),
   createdAt,
   updatedAt,
-});
+}, (table) => [
+  check("customization_options_price_paise_nonnegative", sql`${table.pricePaise} >= 0`),
+]);
 
 // ──────────────────────────────────────────────
 // Product ↔ Customization Group Mapping

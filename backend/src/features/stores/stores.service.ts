@@ -286,7 +286,7 @@ export class StoreService {
           id: productsTable.id,
           name: productsTable.name,
           slug: productsTable.slug,
-          price: productsTable.price,
+          pricePaise: productsTable.pricePaise,
           image: productsTable.image,
           isAvailable: productsTable.isAvailable,
           categoryId: productsTable.categoryId,
@@ -328,7 +328,7 @@ export class StoreService {
     storeId: number,
     mappings: Array<{
       productId: number;
-      price: number;
+      pricePaise: number;
       isAvailable: boolean;
     }>,
     actor?: AuthPrincipal
@@ -378,7 +378,7 @@ export class StoreService {
         .onConflictDoUpdate({
           target: [storeProductsTable.storeId, storeProductsTable.productId],
           set: {
-            price: sql`excluded.price`,
+            pricePaise: sql`excluded.price_paise`,
             isAvailable: sql`excluded.is_available`,
             updatedAt: new Date(),
           },
@@ -397,7 +397,7 @@ export class StoreService {
             mappedCount: mappings.length,
             mappings: mappings.map((m) => ({
               productId: m.productId,
-              price: m.price,
+              pricePaise: m.pricePaise,
               isAvailable: m.isAvailable,
             })),
           },
@@ -411,11 +411,11 @@ export class StoreService {
   async updateStoreProduct(
     storeId: number,
     productId: number,
-    data: { price?: number; isAvailable?: boolean },
+    data: { pricePaise?: number; isAvailable?: boolean },
     actor?: AuthPrincipal
   ) {
     if (actor) {
-      if (data.price !== undefined) {
+      if (data.pricePaise !== undefined) {
         await this.authorizationService.requireStorePermission({
           principal: actor,
           storeId,
@@ -449,7 +449,7 @@ export class StoreService {
       }
 
       const before = {
-        price: existing.price,
+        pricePaise: existing.pricePaise,
         isAvailable: existing.isAvailable,
       };
 
@@ -469,7 +469,7 @@ export class StoreService {
           resourceId: mapping.id,
           before,
           after: {
-            price: mapping.price,
+            pricePaise: mapping.pricePaise,
             isAvailable: mapping.isAvailable,
           },
           metadata: {

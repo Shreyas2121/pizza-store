@@ -14,7 +14,6 @@ import {
   storeProductsTable,
 } from "../../db/schema";
 import { AppError } from "../../utils/error";
-import { rupeesToPaise } from "../../utils/money";
 import type { CouponRedemptionStatus, TransactionType } from "../../utils/types";
 import cartService from "../cart/cart.service";
 import inventoryService from "../inventory/inventory.service";
@@ -46,11 +45,11 @@ export const toPricingItems = (cart: CheckoutCart): PricingItemInput[] => {
       productId: item.productId,
       productName: item.product.name,
       quantity: item.quantity,
-      baseUnitPricePaise: rupeesToPaise(item.price),
+      baseUnitPricePaise: item.pricePaise,
       customizations: item.customizations.map((customization) => ({
         customizationOptionId: customization.customizationOptionId,
         name: customization.customizationOption.name,
-        pricePaise: rupeesToPaise(customization.price),
+        pricePaise: customization.pricePaise,
       })),
     }));
   } catch (error) {
@@ -239,7 +238,7 @@ class CheckoutService {
           return {
             customizationOptionId: option.id,
             name: option.name,
-            pricePaise: rupeesToPaise(option.price ?? 0),
+            pricePaise: option.pricePaise,
           };
         });
 
@@ -248,7 +247,7 @@ class CheckoutService {
           productId: product.id,
           productName: product.name,
           quantity: item.quantity,
-          baseUnitPricePaise: rupeesToPaise(product.price),
+          baseUnitPricePaise: product.pricePaise,
           customizations,
         };
       });

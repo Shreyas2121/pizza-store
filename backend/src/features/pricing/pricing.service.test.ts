@@ -52,8 +52,9 @@ const coupon = (overrides: Partial<CouponRecord> = {}): CouponRecord => ({
   id: 7,
   code: "SAVE10",
   discountType: "percentage",
-  discountValue: 10,
-  minOrderValue: 0,
+  discountRateBps: 1_000,
+  discountAmountPaise: null,
+  minimumOrderPaise: 0,
   startDate: new Date("2026-08-01T00:00:00.000Z"),
   endDate: new Date("2026-09-30T23:59:59.000Z"),
   isActive: true,
@@ -237,7 +238,7 @@ describe("PricingService", () => {
   });
 
   it("uses half-away-from-zero percentage rounding and caps fixed discounts", async () => {
-    const percentage = createHarness(coupon({ discountValue: 50 }));
+    const percentage = createHarness(coupon({ discountRateBps: 5_000 }));
     const oneLine = [{ ...items[1], baseUnitPricePaise: 101 }];
     await expect(
       percentage.service.buildQuote({ storeId: 1, items: oneLine, couponCode: "SAVE10", now })
@@ -246,7 +247,7 @@ describe("PricingService", () => {
     });
 
     const fixed = createHarness(
-      coupon({ discountType: "fixed", discountValue: 500 })
+      coupon({ discountType: "fixed", discountRateBps: null, discountAmountPaise: 50_000 })
     );
     await expect(
       fixed.service.buildQuote({ storeId: 1, items: oneLine, couponCode: "SAVE10", now })
@@ -299,7 +300,7 @@ describe("PricingService", () => {
     [null, 0, "Coupon not found", 404],
     [coupon({ isActive: false }), 0, "Coupon is not active", 400],
     [coupon({ startDate: new Date("2026-09-01T00:00:00.000Z") }), 0, "Coupon is expired or not yet valid", 400],
-    [coupon({ minOrderValue: 301 }), 0, "Minimum order value of 301 not met", 400],
+    [coupon({ minimumOrderPaise: 30_100 }), 0, "Minimum order value of 301.00 not met", 400],
     [coupon({ maxRedemptions: 2, redemptionCount: 0 }), 2, "Coupon maximum redemption limit reached", 400],
   ] as const)(
     "rejects invalid coupon context %#",

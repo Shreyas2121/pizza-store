@@ -9,6 +9,7 @@ export {
   formatDateTime,
   formatPaise,
   formatPrice,
+  parseRupeesToPaise,
   formatStoreHours,
   formatTime,
 } from "./regional";

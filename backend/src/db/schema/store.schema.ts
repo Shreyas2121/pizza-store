@@ -5,7 +5,6 @@ import {
   doublePrecision,
   integer,
   pgTable,
-  real,
   text,
   timestamp,
   unique,
@@ -52,7 +51,7 @@ export const storeProductsTable = pgTable(
     productId: integer("product_id")
       .references(() => productsTable.id)
       .notNull(),
-    price: real().notNull(),
+    pricePaise: integer("price_paise").notNull(),
     isAvailable: boolean("is_available").notNull().default(true),
     onHandQuantity: integer("on_hand_quantity"),
     lowStockThreshold: integer("low_stock_threshold").notNull().default(10),
@@ -73,6 +72,10 @@ export const storeProductsTable = pgTable(
     check(
       "store_products_low_stock_threshold_nonnegative",
       sql`${table.lowStockThreshold} >= 0`
+    ),
+    check(
+      "store_products_price_paise_nonnegative",
+      sql`${table.pricePaise} >= 0`
     ),
   ]
 );

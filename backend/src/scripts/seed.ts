@@ -108,7 +108,7 @@ async function seed() {
       slug: "margherita-pizza",
       veg: true,
       hasCustomization: true,
-      price: 299,
+      pricePaise: 29_900,
       image: "/uploads/pizza-1.avif",
       categoryId: catMap["Pizza"],
     },
@@ -119,7 +119,7 @@ async function seed() {
       slug: "pepperoni-feast",
       veg: false,
       hasCustomization: true,
-      price: 449,
+      pricePaise: 44_900,
       image: "/uploads/pizza-2.avif",
       categoryId: catMap["Pizza"],
     },
@@ -130,7 +130,7 @@ async function seed() {
       slug: "bbq-chicken-pizza",
       veg: false,
       hasCustomization: true,
-      price: 499,
+      pricePaise: 49_900,
       image: "/uploads/pizza-3.avif",
       categoryId: catMap["Pizza"],
     },
@@ -141,7 +141,7 @@ async function seed() {
       slug: "veggie-supreme",
       veg: true,
       hasCustomization: true,
-      price: 399,
+      pricePaise: 39_900,
       image: "/uploads/pizza-4.webp",
       categoryId: catMap["Pizza"],
     },
@@ -152,7 +152,7 @@ async function seed() {
       slug: "farmhouse-pizza",
       veg: true,
       hasCustomization: true,
-      price: 379,
+      pricePaise: 37_900,
       image: "/uploads/pizza-5.avif",
       categoryId: catMap["Pizza"],
     },
@@ -163,7 +163,7 @@ async function seed() {
       slug: "meat-lovers-pizza",
       veg: false,
       hasCustomization: true,
-      price: 549,
+      pricePaise: 54_900,
       image: "/uploads/pizza-6.avif",
       categoryId: catMap["Pizza"],
     },
@@ -174,7 +174,7 @@ async function seed() {
       slug: "cheese-burst-pizza",
       veg: true,
       hasCustomization: true,
-      price: 429,
+      pricePaise: 42_900,
       image: "/uploads/pizza-7.avif",
       categoryId: catMap["Pizza"],
     },
@@ -187,7 +187,7 @@ async function seed() {
       slug: "creamy-alfredo-pasta",
       veg: true,
       hasCustomization: false,
-      price: 249,
+      pricePaise: 24_900,
       image: "/uploads/pasta.avif",
       categoryId: catMap["Pasta"],
     },
@@ -200,7 +200,7 @@ async function seed() {
       slug: "garlic-breadsticks",
       veg: true,
       hasCustomization: false,
-      price: 149,
+      pricePaise: 14_900,
       image: "/uploads/bread.avif",
       categoryId: catMap["Sides"],
     },
@@ -211,7 +211,7 @@ async function seed() {
       slug: "classic-french-fries",
       veg: true,
       hasCustomization: false,
-      price: 129,
+      pricePaise: 12_900,
       image: "/uploads/fries.avif",
       categoryId: catMap["Sides"],
     },
@@ -224,7 +224,7 @@ async function seed() {
       slug: "grilled-chicken-wings",
       veg: false,
       hasCustomization: false,
-      price: 299,
+      pricePaise: 29_900,
       image: "/uploads/chicken.avif",
       categoryId: catMap["Chicken"],
     },
@@ -236,7 +236,7 @@ async function seed() {
       slug: "coca-cola",
       veg: true,
       hasCustomization: false,
-      price: 60,
+      pricePaise: 6_000,
       image: "/uploads/coke.avif",
       categoryId: catMap["Beverages"],
     },
@@ -247,7 +247,7 @@ async function seed() {
       slug: "fresh-lemonade",
       veg: true,
       hasCustomization: false,
-      price: 99,
+      pricePaise: 9_900,
       image: "/uploads/lemon-drink.avif",
       categoryId: catMap["Beverages"],
     },
@@ -258,7 +258,7 @@ async function seed() {
       slug: "cold-coffee",
       veg: true,
       hasCustomization: false,
-      price: 129,
+      pricePaise: 12_900,
       image: "/uploads/coffee.avif",
       categoryId: catMap["Beverages"],
     },
@@ -269,7 +269,7 @@ async function seed() {
       slug: "fruit-punch",
       veg: true,
       hasCustomization: false,
-      price: 119,
+      pricePaise: 11_900,
       image: "/uploads/drink.avif",
       categoryId: catMap["Beverages"],
     },
@@ -295,9 +295,9 @@ async function seed() {
     .returning();
 
   await db.insert(customizationOptionsTable).values([
-    { groupId: sizeGroup.id, name: "Regular", price: 0 },
-    { groupId: sizeGroup.id, name: "Medium", price: 100 },
-    { groupId: sizeGroup.id, name: "Large", price: 200 },
+    { groupId: sizeGroup.id, name: "Regular", pricePaise: 0 },
+    { groupId: sizeGroup.id, name: "Medium", pricePaise: 10_000 },
+    { groupId: sizeGroup.id, name: "Large", pricePaise: 20_000 },
   ]);
   console.log("  ✅ Size group: Regular / Medium (+₹100) / Large (+₹200)");
 
@@ -308,10 +308,10 @@ async function seed() {
     .returning();
 
   await db.insert(customizationOptionsTable).values([
-    { groupId: crustGroup.id, name: "Hand Tossed", price: 0 },
-    { groupId: crustGroup.id, name: "Thin Crust", price: 0 },
-    { groupId: crustGroup.id, name: "Cheese Burst", price: 120 },
-    { groupId: crustGroup.id, name: "New York Style", price: 80 },
+    { groupId: crustGroup.id, name: "Hand Tossed", pricePaise: 0 },
+    { groupId: crustGroup.id, name: "Thin Crust", pricePaise: 0 },
+    { groupId: crustGroup.id, name: "Cheese Burst", pricePaise: 12_000 },
+    { groupId: crustGroup.id, name: "New York Style", pricePaise: 8_000 },
   ]);
   console.log(
     "  ✅ Crust group: Hand Tossed / Thin Crust / Cheese Burst (+₹120) / New York Style (+₹80)"
@@ -324,13 +324,13 @@ async function seed() {
     .returning();
 
   await db.insert(customizationOptionsTable).values([
-    { groupId: toppingsGroup.id, name: "Extra Cheese", price: 60 },
-    { groupId: toppingsGroup.id, name: "Jalapenos", price: 40 },
-    { groupId: toppingsGroup.id, name: "Mushrooms", price: 50 },
-    { groupId: toppingsGroup.id, name: "Olives", price: 50 },
-    { groupId: toppingsGroup.id, name: "Onions", price: 30 },
-    { groupId: toppingsGroup.id, name: "Paneer", price: 70 },
-    { groupId: toppingsGroup.id, name: "Grilled Chicken", price: 90 },
+    { groupId: toppingsGroup.id, name: "Extra Cheese", pricePaise: 6_000 },
+    { groupId: toppingsGroup.id, name: "Jalapenos", pricePaise: 4_000 },
+    { groupId: toppingsGroup.id, name: "Mushrooms", pricePaise: 5_000 },
+    { groupId: toppingsGroup.id, name: "Olives", pricePaise: 5_000 },
+    { groupId: toppingsGroup.id, name: "Onions", pricePaise: 3_000 },
+    { groupId: toppingsGroup.id, name: "Paneer", pricePaise: 7_000 },
+    { groupId: toppingsGroup.id, name: "Grilled Chicken", pricePaise: 9_000 },
   ]);
   console.log(
     "  ✅ Toppings group: Extra Cheese / Jalapenos / Mushrooms / Olives / Onions / Paneer / Grilled Chicken\n"

@@ -482,7 +482,7 @@ describe("StoreService — Authorization & Scoping", () => {
                       id: 50,
                       storeId: 1,
                       productId: 1,
-                      price: 250,
+                      pricePaise: 25_000,
                       isAvailable: true,
                       onHandQuantity: 20,
                       lowStockThreshold: 5,
@@ -542,7 +542,7 @@ describe("StoreService — Authorization & Scoping", () => {
         insert: vi.fn().mockReturnValue({
           values: vi.fn().mockReturnValue({
             onConflictDoUpdate: vi.fn().mockReturnValue({
-              returning: vi.fn().mockResolvedValue([{ id: 101, storeId: 1, productId: 1, price: 299 }]),
+              returning: vi.fn().mockResolvedValue([{ id: 101, storeId: 1, productId: 1, pricePaise: 29_900 }]),
             }),
           }),
         }),
@@ -553,7 +553,7 @@ describe("StoreService — Authorization & Scoping", () => {
       // Manager succeeds
       const result = await storeService.mapStoreProducts(
         1,
-        [{ productId: 1, price: 299, isAvailable: true }],
+        [{ productId: 1, pricePaise: 29_900, isAvailable: true }],
         managerActor
       );
       expect(result).toHaveLength(1);
@@ -564,7 +564,7 @@ describe("StoreService — Authorization & Scoping", () => {
       await expect(
         storeService.mapStoreProducts(
           1,
-          [{ productId: 1, price: 299, isAvailable: true }],
+          [{ productId: 1, pricePaise: 29_900, isAvailable: true }],
           operatorActor
         )
       ).rejects.toMatchObject({
@@ -576,7 +576,7 @@ describe("StoreService — Authorization & Scoping", () => {
       await expect(
         storeService.mapStoreProducts(
           1,
-          [{ productId: 1, price: 299, isAvailable: true }],
+          [{ productId: 1, pricePaise: 29_900, isAvailable: true }],
           inventoryActor
         )
       ).rejects.toMatchObject({
@@ -588,7 +588,7 @@ describe("StoreService — Authorization & Scoping", () => {
     it("allows inventory staff to update availability only, but denies price updates", async () => {
       const { storeService, writtenAudits } = createTestHarness();
 
-      const existing = { id: 101, storeId: 1, productId: 1, price: 250, isAvailable: true };
+      const existing = { id: 101, storeId: 1, productId: 1, pricePaise: 25_000, isAvailable: true };
       const updated = { ...existing, isAvailable: false };
 
       const mockTx = {
@@ -628,7 +628,7 @@ describe("StoreService — Authorization & Scoping", () => {
         storeService.updateStoreProduct(
           1,
           1,
-          { price: 300 },
+          { pricePaise: 30_000 },
           inventoryActor
         )
       ).rejects.toMatchObject({
@@ -640,8 +640,8 @@ describe("StoreService — Authorization & Scoping", () => {
     it("requires both permissions for a mixed price + availability payload", async () => {
       const { storeService, writtenAudits } = createTestHarness();
 
-      const existing = { id: 101, storeId: 1, productId: 1, price: 250, isAvailable: true };
-      const updated = { ...existing, price: 320, isAvailable: false };
+      const existing = { id: 101, storeId: 1, productId: 1, pricePaise: 25_000, isAvailable: true };
+      const updated = { ...existing, pricePaise: 32_000, isAvailable: false };
 
       const mockTx = {
         select: vi.fn().mockReturnValue({
@@ -669,7 +669,7 @@ describe("StoreService — Authorization & Scoping", () => {
         storeService.updateStoreProduct(
           1,
           1,
-          { price: 320, isAvailable: false },
+          { pricePaise: 32_000, isAvailable: false },
           inventoryActor
         )
       ).rejects.toMatchObject({
@@ -681,10 +681,10 @@ describe("StoreService — Authorization & Scoping", () => {
       const managerResult = await storeService.updateStoreProduct(
         1,
         1,
-        { price: 320, isAvailable: false },
+        { pricePaise: 32_000, isAvailable: false },
         managerActor
       );
-      expect(managerResult.price).toBe(320);
+      expect(managerResult.pricePaise).toBe(32_000);
       expect(managerResult.isAvailable).toBe(false);
       expect(writtenAudits).toHaveLength(1);
     });

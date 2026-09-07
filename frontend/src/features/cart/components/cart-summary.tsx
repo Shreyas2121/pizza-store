@@ -1,19 +1,21 @@
 import { Button } from "@mantine/core";
 import { ArrowRight } from "lucide-react";
-import { formatPrice } from "@/shared/lib";
+import { formatPaise } from "@/shared/lib";
 
 type CartSummaryProps = {
-  subtotal: number;
+  subtotalPaise: number | null;
   itemCount: number;
   loading?: boolean;
+  error?: string | null;
   disabled?: boolean;
   onCheckout: () => void;
 };
 
 export const CartSummary = ({
-  subtotal,
+  subtotalPaise,
   itemCount,
   loading,
+  error,
   disabled,
   onCheckout,
 }: CartSummaryProps) => {
@@ -30,19 +32,20 @@ export const CartSummary = ({
           <div className="flex justify-between">
             <dt className="text-ink-muted">Items subtotal</dt>
             <dd className="font-medium tabular-nums text-ink">
-              {formatPrice(subtotal)}
+              {subtotalPaise === null ? "Calculating…" : formatPaise(subtotalPaise)}
             </dd>
           </div>
           <div className="flex justify-between border-t border-border pt-4 text-base font-bold">
             <dt>Subtotal</dt>
             <dd className="text-xl tabular-nums text-brand">
-              {formatPrice(subtotal)}
+              {subtotalPaise === null ? "Calculating…" : formatPaise(subtotalPaise)}
             </dd>
           </div>
         </dl>
         <p className="mt-2 text-xs text-ink-muted">
           Delivery fee, discounts, and included taxes are calculated at checkout.
         </p>
+        {error && <p className="mt-2 text-xs font-medium text-danger" role="alert">{error}</p>}
         <Button
           fullWidth
           size="md"
@@ -67,7 +70,7 @@ export const CartSummary = ({
                 {itemCount} {itemCount === 1 ? "item" : "items"}
               </p>
               <p className="text-lg font-bold tabular-nums text-ink">
-                {formatPrice(subtotal)}
+                {subtotalPaise === null ? "Calculating…" : formatPaise(subtotalPaise)}
               </p>
             </div>
             <Button

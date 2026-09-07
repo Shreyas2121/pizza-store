@@ -15,7 +15,7 @@ import {
   DEMO_TAX_DISCLAIMER,
 } from "../db/schema";
 import { eq } from "drizzle-orm";
-import { calculateInclusiveTax, rupeesToPaise } from "../utils/money";
+import { calculateInclusiveTax } from "../utils/money";
 
 (async function seedOrders() {
   console.log(`Seeding Orders...`);
@@ -153,7 +153,7 @@ import { calculateInclusiveTax, rupeesToPaise } from "../utils/money";
 
         insertedProducts.add(randomProduct.id);
 
-        const baseUnitPricePaise = rupeesToPaise(randomProduct.price);
+        const baseUnitPricePaise = randomProduct.pricePaise;
         const quantity = faker.number.int({
           min: 1,
           max: 2,
@@ -195,7 +195,7 @@ import { calculateInclusiveTax, rupeesToPaise } from "../utils/money";
             const options = pickRandomOptions(group.options, pickCount);
 
             for (const op of options) {
-              const optionPricePaise = rupeesToPaise(op.price ?? 0);
+              const optionPricePaise = op.pricePaise;
               customizationUnitPricePaise += optionPricePaise;
               customizationsToInsert.push({
                 optionId: op.id,

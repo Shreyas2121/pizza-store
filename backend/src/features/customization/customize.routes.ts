@@ -3,6 +3,7 @@ import { AppError, asyncHandler } from "../../utils/error";
 import { authenticateAdmin } from "../../middleware/authenticateUser";
 import customizeService from "./customize.service";
 import { parseIntegerParam } from "../../utils/request";
+import { MONEY_CAPS, parsePaise } from "../../utils/money";
 
 export const customizationRoutes = Router();
 
@@ -25,7 +26,8 @@ customizationRoutes.post(
   authenticateAdmin,
   asyncHandler(async (req, res) => {
     const data = req.body;
-    const [option] = await customizeService.createCustomizationOption(data);
+    const pricePaise = parsePaise(data.pricePaise ?? 0, MONEY_CAPS.CUSTOMIZATION_PRICE, "Customization price");
+    const [option] = await customizeService.createCustomizationOption({ ...data, pricePaise });
     res.status(201).json({ data: option });
   })
 );

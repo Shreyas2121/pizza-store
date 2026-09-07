@@ -66,7 +66,7 @@ export async function seedDefaultStore() {
     }
 
     const products = await tx
-      .select({ id: productsTable.id, price: productsTable.price })
+      .select({ id: productsTable.id, pricePaise: productsTable.pricePaise })
       .from(productsTable);
     const existingMappings = await tx
       .select({ productId: storeProductsTable.productId })
@@ -80,7 +80,7 @@ export async function seedDefaultStore() {
       .map((product) => ({
         storeId: store.id,
         productId: product.id,
-        price: product.price,
+        pricePaise: product.pricePaise,
         isAvailable: true,
       }));
 

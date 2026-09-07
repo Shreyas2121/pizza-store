@@ -6,7 +6,7 @@ export type Cart = {
   createdAt: string;
   updatedAt: string;
   userId: number;
-  totalPrice: number;
+  totalPaise: number;
   storeId: number | null;
 };
 
@@ -15,7 +15,7 @@ export type CartItem = {
   createdAt: string;
   updatedAt: string;
   cartId: number;
-  price: number;
+  pricePaise: number;
   productId: number;
   quantity: number;
 };
@@ -24,7 +24,7 @@ export interface ItemRes extends CartItem {
   product: Product;
   customizations: {
     optionId: number;
-    price: number;
+    pricePaise: number;
     name: string;
   }[];
 }

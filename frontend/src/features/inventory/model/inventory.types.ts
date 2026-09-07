@@ -12,7 +12,7 @@ export interface InventoryItem {
   productId: number;
   productName: string;
   productImage: string;
-  price: number;
+  pricePaise: number;
   isAvailable: boolean;
   productIsAvailable: boolean;
   onHandQuantity: number | null;

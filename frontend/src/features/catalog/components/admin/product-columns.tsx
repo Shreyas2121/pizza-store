@@ -2,7 +2,7 @@ import type { DataTableColumnDef } from "@/shared/ui";
 import { Badge } from "@mantine/core";
 import { ProductWithCategory } from "../../model/catalog.types";
 import { BASE_URL } from "@/shared/config";
-import { cap, formatPrice } from "@/shared/lib";
+import { cap, formatPaise } from "@/shared/lib";
 
 export const ProductsCol: DataTableColumnDef<ProductWithCategory>[] = [
   {
@@ -32,8 +32,8 @@ export const ProductsCol: DataTableColumnDef<ProductWithCategory>[] = [
   },
   {
     header: "Price",
-    accessorKey: "price",
-    cell: ({ row }) => <span className="font-semibold tabular-nums">{formatPrice(row.original.price)}</span>,
+    accessorKey: "pricePaise",
+    cell: ({ row }) => <span className="font-semibold tabular-nums">{formatPaise(row.original.pricePaise)}</span>,
   },
   {
     header: "Availability",

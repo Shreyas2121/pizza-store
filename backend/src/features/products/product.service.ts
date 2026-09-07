@@ -62,13 +62,13 @@ class ProductService {
 
       case "price_low":
         order = asc(
-          storeId !== undefined ? storeProductsTable.price : productsTable.price
+          storeId !== undefined ? storeProductsTable.pricePaise : productsTable.pricePaise
         );
         break;
 
       case "price_high":
         order = desc(
-          storeId !== undefined ? storeProductsTable.price : productsTable.price
+          storeId !== undefined ? storeProductsTable.pricePaise : productsTable.pricePaise
         );
         break;
 
@@ -100,7 +100,7 @@ class ProductService {
       const rows = await db
         .select({
           ...getTableColumns(productsTable),
-          price: storeProductsTable.price,
+          pricePaise: storeProductsTable.pricePaise,
           onHandQuantity: storeProductsTable.onHandQuantity,
           lowStockThreshold: storeProductsTable.lowStockThreshold,
           reservedQuantity:
@@ -209,13 +209,13 @@ class ProductService {
 
       case "price_low":
         order = asc(
-          storeId !== undefined ? storeProductsTable.price : productsTable.price
+          storeId !== undefined ? storeProductsTable.pricePaise : productsTable.pricePaise
         );
         break;
 
       case "price_high":
         order = desc(
-          storeId !== undefined ? storeProductsTable.price : productsTable.price
+          storeId !== undefined ? storeProductsTable.pricePaise : productsTable.pricePaise
         );
         break;
 
@@ -247,7 +247,7 @@ class ProductService {
       const rows = await db
         .select({
           ...getTableColumns(productsTable),
-          price: storeProductsTable.price,
+          pricePaise: storeProductsTable.pricePaise,
           onHandQuantity: storeProductsTable.onHandQuantity,
           lowStockThreshold: storeProductsTable.lowStockThreshold,
           reservedQuantity:

@@ -2,7 +2,7 @@ import { Accordion, Badge, Button } from "@mantine/core";
 import { Boxes, PackagePlus, SlidersHorizontal } from "lucide-react";
 import ProductAssignment from "../components/admin/product-assignment";
 import { useGetAllCustomizations } from "../api/customization.queries";
-import { formatPrice } from "@/shared/lib";
+import { formatPaise } from "@/shared/lib";
 import { useAuthModalStore } from "@/shared/model";
 import { ListSkeleton, PageHeader } from "@/shared/ui";
 
@@ -36,7 +36,7 @@ export const AdminCustomizationsPage = () => {
                       {group.options.length ? group.options.map((option) => (
                         <div key={option.id} className="flex min-h-12 items-center justify-between gap-3 px-4 py-2">
                           <div><p className="font-medium text-ink">{option.name}</p><p className="text-xs text-ink-muted">{option.isAvailable ? "Available" : "Unavailable"}</p></div>
-                          <span className="font-medium tabular-nums text-ink-muted">{option.price ? `+${formatPrice(option.price)}` : "Included"}</span>
+                          <span className="font-medium tabular-nums text-ink-muted">{option.pricePaise ? `+${formatPaise(option.pricePaise)}` : "Included"}</span>
                         </div>
                       )) : <p className="p-4 text-sm text-ink-muted">No options have been added.</p>}
                     </div>

@@ -27,6 +27,7 @@ export type Order = {
   updatedAt: string;
   userId: number;
   totalPrice: number;
+  grandTotalPaise: number;
   orderDate: string | null;
   discountAmount: number;
   couponId: number | null;
@@ -40,6 +41,8 @@ export type OrderItem = {
   createdAt: string;
   updatedAt: string;
   price: number;
+  unitPricePaise: number;
+  lineSubtotalPaise: number;
   productId: number;
   quantity: number;
   orderId: number;

@@ -64,7 +64,7 @@ export const useStoreProducts = (storeId: number) => useQuery({
 export const useMapStoreProducts = (storeId: number) => {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: async (mappings: Array<{ productId: number; price: number; isAvailable: boolean }>) =>
+    mutationFn: async (mappings: Array<{ productId: number; pricePaise: number; isAvailable: boolean }>) =>
       (await API.post(`/stores/${storeId}/products`, mappings)).data,
     onSuccess: () => client.invalidateQueries({ queryKey: storeKeys.products(storeId) }),
   });
@@ -73,7 +73,7 @@ export const useMapStoreProducts = (storeId: number) => {
 export const useUpdateStoreProduct = (storeId: number) => {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: async ({ productId, data }: { productId: number; data: { price?: number; isAvailable?: boolean } }) =>
+    mutationFn: async ({ productId, data }: { productId: number; data: { pricePaise?: number; isAvailable?: boolean } }) =>
       (await API.put(`/stores/${storeId}/products/${productId}`, data)).data,
     onSuccess: () => client.invalidateQueries({ queryKey: storeKeys.products(storeId) }),
   });

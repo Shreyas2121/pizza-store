@@ -55,7 +55,7 @@ cartRoutes.get(
         if (item.product.hasCustomization) {
           const c = item.customizations.map((c) => ({
             optionId: c.customizationOptionId,
-            price: c.price,
+            pricePaise: c.pricePaise,
             name: c.customizationOption.name,
           }));
           return {
@@ -99,7 +99,7 @@ cartRoutes.get(
         ...item,
         customizations: item.customizations.map((customization) => ({
           optionId: customization.customizationOptionId,
-          price: customization.price,
+          pricePaise: customization.pricePaise,
           name: customization.customizationOption.name,
         })),
       })),

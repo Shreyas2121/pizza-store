@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useGetProductCustomization } from "../../api/customization.queries";
 import { Group, Product } from "../../model/catalog.types";
 import { catalogKeys } from "../../model/catalog.keys";
-import { formatPrice, handleStockApiError, success, warning } from "@/shared/lib";
+import { formatPaise, handleStockApiError, success, warning } from "@/shared/lib";
 import { cartKeys, useAddToCart, useUpdateCartItemCustomizations, ItemRes } from "@/features/cart";
 import { LoadingRegion } from "@/shared/ui";
 import { useStoreStore } from "@/features/store";
@@ -41,7 +41,7 @@ export const CustomizationDrawer = ({ product, close, cartItem }: { product: Pro
   );
 
   const extrasTotal = useMemo(
-    () => groups.flatMap((group) => group.options).filter((option) => selectedIds.includes(option.id)).reduce((sum, option) => sum + (option.price ?? 0), 0),
+    () => groups.flatMap((group) => group.options).filter((option) => selectedIds.includes(option.id)).reduce((sum, option) => sum + option.pricePaise, 0),
     [groups, selectedIds]
   );
 
@@ -127,7 +127,7 @@ export const CustomizationDrawer = ({ product, close, cartItem }: { product: Pro
           <h3 className="mt-1 text-xl font-bold text-ink">{product.name}</h3>
           <div className="mt-3 flex items-center justify-between text-sm">
             <span className="text-ink-muted">Base price</span>
-            <span className="font-semibold tabular-nums text-ink">{formatPrice(product.price)}</span>
+            <span className="font-semibold tabular-nums text-ink">{formatPaise(product.pricePaise)}</span>
           </div>
         </div>
 
@@ -166,7 +166,7 @@ export const CustomizationDrawer = ({ product, close, cartItem }: { product: Pro
                             value={String(option.id)}
                             disabled={!option.isAvailable}
                             className="rounded-control px-2 py-2 hover:bg-surface-muted"
-                            label={<span className="flex w-full items-center justify-between gap-4"><span>{option.name}{!option.isAvailable && <span className="ml-2 text-xs text-ink-muted">Unavailable</span>}</span><span className="whitespace-nowrap text-sm font-medium tabular-nums text-ink-muted">{option.price ? `+${formatPrice(option.price)}` : "Included"}</span></span>}
+                            label={<span className="flex w-full items-center justify-between gap-4"><span>{option.name}{!option.isAvailable && <span className="ml-2 text-xs text-ink-muted">Unavailable</span>}</span><span className="whitespace-nowrap text-sm font-medium tabular-nums text-ink-muted">{option.pricePaise ? `+${formatPaise(option.pricePaise)}` : "Included"}</span></span>}
                           />
                         ))}
                       </div>
@@ -180,7 +180,7 @@ export const CustomizationDrawer = ({ product, close, cartItem }: { product: Pro
                             value={String(option.id)}
                             disabled={!option.isAvailable}
                             className="rounded-control px-2 py-2 hover:bg-surface-muted"
-                            label={<span className="flex w-full items-center justify-between gap-4"><span>{option.name}{!option.isAvailable && <span className="ml-2 text-xs text-ink-muted">Unavailable</span>}</span><span className="whitespace-nowrap text-sm font-medium tabular-nums text-ink-muted">{option.price ? `+${formatPrice(option.price)}` : "Included"}</span></span>}
+                            label={<span className="flex w-full items-center justify-between gap-4"><span>{option.name}{!option.isAvailable && <span className="ml-2 text-xs text-ink-muted">Unavailable</span>}</span><span className="whitespace-nowrap text-sm font-medium tabular-nums text-ink-muted">{option.pricePaise ? `+${formatPaise(option.pricePaise)}` : "Included"}</span></span>}
                           />
                         ))}
                       </div>
@@ -198,7 +198,7 @@ export const CustomizationDrawer = ({ product, close, cartItem }: { product: Pro
           <p className="mb-3 flex items-start gap-2 text-xs font-medium text-brand" role="status"><AlertCircle size={15} className="mt-px shrink-0" aria-hidden="true" />Choose an option in {incompleteGroups.map((group) => group.name).join(", ")}.</p>
         )}
         <div className="flex items-center justify-between gap-4">
-          <div><p className="text-xs text-ink-muted">Total</p><p className="text-xl font-bold tabular-nums text-ink">{formatPrice(product.price + extrasTotal)}</p></div>
+          <div><p className="text-xs text-ink-muted">Estimated total</p><p className="text-xl font-bold tabular-nums text-ink">{formatPaise(product.pricePaise + extrasTotal)}</p></div>
           <Button
             size="md"
             loading={addToCartM.isPending || updateCustomizationsM.isPending}

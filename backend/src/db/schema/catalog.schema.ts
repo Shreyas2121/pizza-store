@@ -1,10 +1,11 @@
 import {
   boolean,
+  check,
   integer,
   pgTable,
-  real,
   text,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { id, createdAt, updatedAt, isActive } from "./_helpers";
 
 // ──────────────────────────────────────────────
@@ -31,7 +32,7 @@ export const productsTable = pgTable("products", {
   slug: text().unique().notNull(),
   veg: boolean("veg").default(false),
   hasCustomization: boolean("has_customization").default(false).notNull(),
-  price: real().notNull(),
+  pricePaise: integer("price_paise").notNull(),
   image: text().notNull(),
   isAvailable: boolean("is_available").notNull().default(true),
   categoryId: integer("category_id")
@@ -39,4 +40,6 @@ export const productsTable = pgTable("products", {
     .notNull(),
   createdAt,
   updatedAt,
-});
+}, (table) => [
+  check("products_price_paise_nonnegative", sql`${table.pricePaise} >= 0`),
+]);

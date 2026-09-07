@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Button, Checkbox, NumberInput, TextInput } from "@mantine/core";
 import { Search } from "lucide-react";
 import type { ProductWithCategory } from "@/features/catalog";
-import { APP_CURRENCY_SYMBOL, error, formatPrice, success } from "@/shared/lib";
+import { APP_CURRENCY_SYMBOL, error, formatPaise, parseRupeesToPaise, success } from "@/shared/lib";
 import { useMapStoreProducts } from "../../api/store.queries";
 
 export function AddStoreProducts({ storeId, products, onSaved }: { storeId: number; products: ProductWithCategory[]; onSaved: () => void }) {
@@ -14,11 +14,11 @@ export function AddStoreProducts({ storeId, products, onSaved }: { storeId: numb
 
   const toggle = (product: ProductWithCategory) => {
     setSelected((current) => current.includes(product.id) ? current.filter((id) => id !== product.id) : [...current, product.id]);
-    setPrices((current) => current[product.id] === undefined ? { ...current, [product.id]: product.price } : current);
+    setPrices((current) => current[product.id] === undefined ? { ...current, [product.id]: product.pricePaise / 100 } : current);
   };
 
   const submit = () => {
-    const mappings = selected.map((productId) => ({ productId, price: Number(prices[productId]), isAvailable: true }));
+    const mappings = selected.map((productId) => ({ productId, pricePaise: parseRupeesToPaise(prices[productId]), isAvailable: true }));
     mapProducts.mutate(mappings, {
       onSuccess: () => { success(`${mappings.length} product${mappings.length === 1 ? "" : "s"} added to the store.`); onSaved(); },
       onError: () => error("Products could not be added to the store."),
@@ -34,8 +34,8 @@ export function AddStoreProducts({ storeId, products, onSaved }: { storeId: numb
           return (
             <div key={product.id} className={`rounded-control border p-3 ${checked ? "border-brand bg-brand-soft" : "border-border"}`}>
               <div className="flex items-center justify-between gap-3">
-                <Checkbox label={<span><span className="font-semibold text-ink">{product.name}</span><span className="ml-2 text-xs text-ink-muted">Base {formatPrice(product.price)}</span></span>} checked={checked} onChange={() => toggle(product)} />
-                {checked && <NumberInput aria-label={`Price for ${product.name}`} hideControls prefix={`${APP_CURRENCY_SYMBOL} `} min={0} decimalScale={2} className="w-32" value={prices[product.id] ?? product.price} onChange={(value) => setPrices((current) => ({ ...current, [product.id]: value }))} />}
+                <Checkbox label={<span><span className="font-semibold text-ink">{product.name}</span><span className="ml-2 text-xs text-ink-muted">Base {formatPaise(product.pricePaise)}</span></span>} checked={checked} onChange={() => toggle(product)} />
+                {checked && <NumberInput aria-label={`Price for ${product.name}`} hideControls prefix={`${APP_CURRENCY_SYMBOL} `} min={0} decimalScale={2} className="w-32" value={prices[product.id] ?? product.pricePaise / 100} onChange={(value) => setPrices((current) => ({ ...current, [product.id]: value }))} />}
               </div>
             </div>
           );

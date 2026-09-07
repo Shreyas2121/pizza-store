@@ -1,8 +1,5 @@
-import {
-  doublePrecision,
-  integer,
-  pgTable,
-} from "drizzle-orm/pg-core";
+import { check, integer, pgTable } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { id, createdAt, updatedAt } from "./_helpers";
 import { usersTable } from "./user.schema";
 import { productsTable } from "./catalog.schema";
@@ -18,11 +15,13 @@ export const cartTable = pgTable("cart", {
   userId: integer("user_id")
     .references(() => usersTable.id)
     .notNull(),
-  totalPrice: doublePrecision("total_price").default(0).notNull(),
+  totalPaise: integer("total_paise").default(0).notNull(),
   storeId: integer("store_id").references(() => storesTable.id),
   createdAt,
   updatedAt,
-});
+}, (table) => [
+  check("cart_total_paise_nonnegative", sql`${table.totalPaise} >= 0`),
+]);
 
 // ──────────────────────────────────────────────
 // Cart Items
@@ -39,10 +38,12 @@ export const cartItemsTable = pgTable("cart_items", {
     .references(() => productsTable.id)
     .notNull(),
   quantity: integer().default(1).notNull(),
-  price: doublePrecision("price").default(0).notNull(),
+  pricePaise: integer("price_paise").default(0).notNull(),
   createdAt,
   updatedAt,
-});
+}, (table) => [
+  check("cart_items_price_paise_nonnegative", sql`${table.pricePaise} >= 0`),
+]);
 
 // ──────────────────────────────────────────────
 // Cart Item Customizations
@@ -58,7 +59,9 @@ export const cartItemCustomizationsTable = pgTable("cart_item_customizations", {
   customizationOptionId: integer("customization_option_id")
     .references(() => customizationOptionsTable.id)
     .notNull(),
-  price: doublePrecision("price").notNull(),
+  pricePaise: integer("price_paise").notNull(),
   createdAt,
   updatedAt,
-});
+}, (table) => [
+  check("cart_item_customizations_price_paise_nonnegative", sql`${table.pricePaise} >= 0`),
+]);

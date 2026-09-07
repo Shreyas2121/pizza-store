@@ -2,7 +2,7 @@ import { Badge, Button } from "@mantine/core";
 import { ChevronRight, LockKeyhole } from "lucide-react";
 import { CartRes } from "@/features/cart";
 import { BASE_URL } from "@/shared/config";
-import { formatPaise, formatPrice } from "@/shared/lib";
+import { formatPaise } from "@/shared/lib";
 import { Coupon, PaymentType, PricingQuote } from "../model/checkout.types";
 import CouponField from "./coupon-field";
 
@@ -43,9 +43,7 @@ export const CheckoutSummary = ({
   onRemoveCoupon,
   onPlaceOrder,
 }: CheckoutSummaryProps) => {
-  const subtotalFormatted = quote
-    ? formatPaise(quote.itemsSubtotalPaise)
-    : formatPrice(cart.totalPrice);
+  const subtotalFormatted = quote ? formatPaise(quote.itemsSubtotalPaise) : "Calculating…";
 
   const discountPaise = quote?.discountPaise ?? 0;
   const deliveryFeePaise = quote?.deliveryFeePaise ?? 0;
@@ -53,9 +51,7 @@ export const CheckoutSummary = ({
     quote?.deliveryPricing.freeDeliveryApplied ||
     (quote !== null && deliveryFeePaise === 0);
 
-  const grandTotalFormatted = quote
-    ? formatPaise(quote.grandTotalPaise)
-    : formatPrice(cart.totalPrice);
+  const grandTotalFormatted = quote ? formatPaise(quote.grandTotalPaise) : "Calculating…";
 
   return (
     <aside
@@ -72,7 +68,7 @@ export const CheckoutSummary = ({
       </div>
 
       <ul className="mt-4 max-h-52 space-y-3 overflow-y-auto border-y border-border py-4">
-        {cart.items.map((item) => (
+        {cart.items.map((item, index) => (
           <li key={item.id} className="flex gap-3">
             <img
               src={`${BASE_URL}${item.product.image}`}
@@ -86,11 +82,7 @@ export const CheckoutSummary = ({
               <p className="text-xs text-ink-muted">Qty {item.quantity}</p>
             </div>
             <p className="text-sm font-semibold tabular-nums text-ink">
-              {formatPrice(
-                (item.price +
-                  item.customizations.reduce((sum, option) => sum + option.price, 0)) *
-                  item.quantity
-              )}
+              {quote ? formatPaise(quote.items[index]?.lineSubtotalPaise ?? 0) : "Calculating…"}
             </p>
           </li>
         ))}

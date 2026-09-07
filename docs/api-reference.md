@@ -127,7 +127,7 @@ catalog behavior is preserved.
     {
       "id": 1,
       "name": "Margherita",
-      "price": 299,
+      "pricePaise": 29900,
       "image": "/uploads/...",
       "stockStatus": "low_stock",
       "stockCount": 3
@@ -163,7 +163,7 @@ Create a new product. Accepts `multipart/form-data`.
 **Form fields:**
 - `name` — string
 - `description` — string (optional)
-- `price` — number
+- `pricePaise` — non-negative integer paise
 - `isVeg` — boolean
 - `categoryId` — number
 - `image` — file (JPEG/PNG/GIF, max 5MB)
@@ -210,7 +210,7 @@ Get customization groups and options for a product.
     {
       "group": {
         "id": 1, "name": "Size", "type": "single", "required": true,
-        "options": [ { "id": 1, "name": "Small", "price": 0 }, { "id": 2, "name": "Large", "price": 50 } ]
+        "options": [ { "id": 1, "name": "Small", "pricePaise": 0 }, { "id": 2, "name": "Large", "pricePaise": 5000 } ]
       }
     }
   ]
@@ -290,8 +290,8 @@ Bulk-create or update up to 100 store-product mappings.
 **Body:**
 ```json
 [
-  { "productId": 1, "price": 299, "isAvailable": true },
-  { "productId": 2, "price": 349, "isAvailable": false }
+  { "productId": 1, "pricePaise": 29900, "isAvailable": true },
+  { "productId": 2, "pricePaise": 34900, "isAvailable": false }
 ]
 ```
 
@@ -302,7 +302,7 @@ Update a mapped product's store-specific price, availability, or both.
 **Body:**
 ```json
 {
-  "price": 319,
+  "pricePaise": 31900,
   "isAvailable": true
 }
 ```
@@ -390,13 +390,13 @@ customizations. Cart item prices are store-price snapshots from add time.
 ```json
 {
   "data": {
-    "id": 1, "storeId": 2, "totalPrice": 547,
+    "id": 1, "storeId": 2, "totalPaise": 54700,
     "store": { "id": 2, "name": "PizzaStore - Koramangala" },
     "items": [
       {
-        "id": 1, "productId": 3, "quantity": 2, "price": 199,
+        "id": 1, "productId": 3, "quantity": 2, "pricePaise": 19900,
         "product": { "id": 3, "name": "Margherita", "image": "..." },
-        "customizations": [ { "optionId": 5, "name": "Extra Cheese", "price": 49 } ]
+        "customizations": [ { "optionId": 5, "name": "Extra Cheese", "pricePaise": 4900 } ]
       }
     ]
   }
@@ -405,7 +405,7 @@ customizations. Cart item prices are store-price snapshots from add time.
 
 ### `GET /cart/checkout` 🔒
 
-Get cart summary for checkout (cart without items).
+Get the full paise-native cart used to construct an authoritative checkout quote.
 
 ### `PATCH /cart/update` 🔒
 
@@ -804,7 +804,7 @@ List paginated inventory for a store with real-time calculated available quantit
       "productId": 3,
       "productName": "Margherita",
       "productImage": "/uploads/...",
-      "price": 299,
+      "pricePaise": 29900,
       "isAvailable": true,
       "productIsAvailable": true,
       "onHandQuantity": 15,
@@ -838,7 +838,7 @@ Get single product inventory details including the 20 most recent inventory move
     "productId": 3,
     "productName": "Margherita",
     "productImage": "/uploads/...",
-    "price": 299,
+    "pricePaise": 29900,
     "isAvailable": true,
     "productIsAvailable": true,
     "onHandQuantity": 15,
