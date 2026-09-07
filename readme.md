@@ -1,6 +1,6 @@
 # PizzaStore — Food Delivery Platform
 
-PizzaStore is a full-stack food delivery application with a React storefront, an Express API server, and a PostgreSQL database. It covers product browsing with multi-level customization, cart management, coupon application, Cash on Delivery checkout, real-time order and chat notifications over Socket.IO, and a role-separated admin panel with analytics.
+PizzaStore is a full-stack food delivery and management-accounting application with a React storefront, an Express API server, and PostgreSQL. It covers authoritative checkout pricing, COD and credential-free simulated online payments, inventory, refunds, settlements, expenses, append-only double-entry posting, period close, store/consolidated finance reports, CSV exports, and real-time operations.
 
 The project is structured as two independent packages (`backend/` and `frontend/`) in a single repository. Each package manages its own dependencies and dev server.
 
@@ -12,10 +12,11 @@ The project is structured as two independent packages (`backend/` and `frontend/
 4. Admin operations (product creation, order status updates, inventory management, coupon management, dashboard analytics) are role-gated.
 5. Real-time communication uses Socket.IO for order placement notifications, low-stock threshold alerts, and live chat support.
 6. All environment-specific values are loaded through validated environment variables.
+7. Financial amounts are exact integer paise; payment capture and delivery recognition are distinct, and posted journals are corrected through reversal rather than editing.
 
 ## Chosen stack
 
-- React 19 with Vite 6 and TypeScript for the storefront and admin interfaces
+- React 19 with Vite 8 and TypeScript for the storefront and admin interfaces
 - Mantine 7 component library with Tailwind CSS 3 for styling
 - TanStack Query 5 for server-state management and caching
 - TanStack Table 8 for admin data tables
@@ -23,8 +24,8 @@ The project is structured as two independent packages (`backend/` and `frontend/
 - React Hook Form with Zod resolvers for form validation
 - Socket.IO Client for real-time events
 - Recharts and Mantine Charts for admin analytics visualizations
-- Node.js with Express 4 for the API server
-- Drizzle ORM 0.38 with PostgreSQL for schema, queries, and migrations
+- Node.js 22 with Express 5 for the API server
+- Drizzle ORM 0.45 with PostgreSQL for schema, queries, and migrations
 - Zod for request and environment validation
 - Socket.IO for server-side WebSocket events
 - JSON Web Tokens for stateless authentication
@@ -46,6 +47,9 @@ See [architecture.md](docs/architecture.md) for component boundaries and [databa
 | [Finance lifecycle and event contracts](docs/finance-lifecycle-contracts.md) | Planned state machines, event payloads, reversals, and database lock order |
 | [Finance API compatibility and rollout map](docs/finance-api-compatibility-rollout.md) | Endpoint contracts, server quote consolidation, error codes, and permission matrix |
 | [Deterministic two-store financial fixtures](docs/two-store-financial-fixtures.md) | Reference scenario, P&L benchmarks, settlement matching, and expected outputs |
+| [Finance demo walkthrough](docs/finance-demo-walkthrough.md) | Credential-free online/COD walkthrough from source transaction through P&L and CSV |
+| [Finance operations runbook](docs/finance-operations-runbook.md) | Reconciliation, refunds, outbox recovery, period close, migrations, and limitations |
+| [Finance report performance](docs/finance-report-performance.md) | Report latency target, query-plan harness, and index decision |
 | [store-staff-authorization.md](docs/store-staff-authorization.md) | Staff role matrix, lifecycle operations, deployment, rollback, and security verification |
 | [razorpay-runbook.md](docs/razorpay-runbook.md) | Online payment lifecycle, inventory reservations, monitoring, and reconciliation |
 
@@ -55,27 +59,31 @@ A user opens the storefront, browses menu categories, selects a product with opt
 
 ## Development
 
-Prerequisites: Node.js 20+, pnpm, and a running PostgreSQL instance.
+Prerequisites: Node.js 22.13+, pnpm, and a local PostgreSQL instance.
 
 ```text
 # Backend
 cd backend
-cp .env.example .env        # configure database credentials and JWT secret
+# create .env using the values in docs/setup.md
 pnpm install
-pnpm run db:generate        # generate migrations
-npx drizzle-kit push        # apply schema to database
-pnpm run seed:users         # seed test users
-pnpm run seed:addresses     # seed test addresses
-pnpm run seed:orders        # seed test orders
+pnpm run db:migrate         # apply checked-in migrations
 pnpm run test               # run backend unit test suite
 pnpm run dev                # start Express on port 3000
 
 # Frontend
 cd frontend
-cp .env.example .env        # set VITE_BACKEND_URL
+# create .env using the values in docs/setup.md
 pnpm install
 pnpm run dev                # start Vite on port 3150
 ```
+
+For the deterministic two-store portfolio demo, configure a local development database, apply migrations, then run this destructive local-only command from the repository root:
+
+```text
+pnpm demo:reset
+```
+
+It creates owner, customer, and finance-manager personas and refuses remote or production databases. Continue with the [finance demo walkthrough](docs/finance-demo-walkthrough.md).
 
 ## Repository layout
 
@@ -96,6 +104,9 @@ food/
         inventory/           Stock queries, bulk restock, adjustments, movements
         coupon/              CRUD, validation, redemption
         dashboard/           Revenue, orders, active users, low stock analytics
+        finance-reports/     Ledger-backed overview, P&L, sales/margins, CSV exports
+        ledger/              Chart, balanced journals, reversal, trial balance, periods
+        finance-events/      Transactional outbox and idempotent posting worker
         chat/                Real-time support sessions and messaging
       middleware/            JWT auth (user and admin guards)
       utils/                 Error handling, logging, multer, Zod schemas, types

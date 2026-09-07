@@ -173,6 +173,29 @@ Client-side validation uses React Hook Form with Zod resolvers. Validation schem
 
 ## Cross-cutting concerns
 
+### Financial write and reporting architecture
+
+Checkout pricing is server-authoritative and immutable after order creation. Domain services persist source state and a versioned financial-outbox event in the same PostgreSQL transaction. The posting worker claims eligible events with leases and `SKIP LOCKED`, derives typed debit/credit commands, and posts through the ledger kernel. Source identity plus version makes retries idempotent; failed work backs off and eventually dead-letters without leaking raw sensitive errors.
+
+Posted journals are immutable. Every journal has at least two positive one-sided lines and equal debit/credit totals, enforced by service policy and database triggers. Reversal creates a linked counter-entry. Fiscal periods provide open, soft-closed, and closed posting policy with recent-owner authentication and audited reasons for sensitive transitions.
+
+Management reports read posted/reversed journal lines through one repository and one projection policy. Store and platform-owner consolidated scopes share the same date, INR, delivery-recognition, comparison, and included-status metadata. The React Finance workspace and CSV exports call those same service methods; aggregate drill-down filters resolve back to journals and source identities.
+
+```text
+quote/order/payment/refund/expense/cash/settlement
+                    |
+             source transaction
+                    +-- financial_outbox (same commit)
+                                  |
+                           posting worker
+                                  |
+                    balanced journal entries/lines
+                         |                    |
+                 reports + CSV          drill-down/audit
+```
+
+Operational recovery and limitations are in [finance-operations-runbook.md](finance-operations-runbook.md). The deterministic browser narrative is in [finance-demo-walkthrough.md](finance-demo-walkthrough.md).
+
 ### Authentication flow
 
 1. User submits credentials via login/register form.

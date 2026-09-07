@@ -229,9 +229,11 @@ GET  /api/v1/finance/ledger/journals/:id
 GET  /api/v1/finance/ledger/trial-balance
 POST /api/v1/finance/ledger/manual-journals
 POST /api/v1/finance/ledger/journals/:id/reverse
-GET  /api/v1/finance/fiscal-periods
-POST /api/v1/finance/fiscal-periods/:id/close
-POST /api/v1/finance/fiscal-periods/:id/reopen
+GET  /api/v1/finance/ledger/periods
+POST /api/v1/finance/ledger/periods
+POST /api/v1/finance/ledger/periods/:id/soft-close
+POST /api/v1/finance/ledger/periods/:id/close
+POST /api/v1/finance/ledger/periods/:id/reopen
 ```
 
 #### `GET /api/v1/finance/ledger/trial-balance`
@@ -345,15 +347,16 @@ transaction-level provider matching remains part of P2.9.
 ### 5.4 Cash management
 
 ```text
-GET  /api/v1/finance/cash-sessions
-GET  /api/v1/finance/cash-sessions/current
-POST /api/v1/finance/cash-sessions/open
-POST /api/v1/finance/cash-sessions/:id/movements
-POST /api/v1/finance/cash-sessions/:id/close
-POST /api/v1/finance/cash-sessions/:id/reopen
+GET  /api/v1/finance/cash/sessions
+GET  /api/v1/finance/cash/sessions/:id
+POST /api/v1/finance/cash/sessions
+POST /api/v1/finance/cash/sessions/:id/movements
+POST /api/v1/finance/cash/sessions/:id/close
+POST /api/v1/finance/cash/sessions/:id/reopen
+POST /api/v1/finance/cash/movements/:id/reverse
 ```
 
-#### `POST /api/v1/finance/cash-sessions/:id/close`
+#### `POST /api/v1/finance/cash/sessions/:id/close`
 - **Headers**: `Idempotency-Key: <uuid>`
 - **Body**:
 ```json
@@ -503,8 +506,8 @@ Role membership alone is necessary but **not sufficient** to execute high-risk o
 - [x] Operational dashboard maintains Gross Order Value semantics (Q01).
 - [x] Phase 0.6 introduces `finance_manager` and `payroll_manager` store roles and the permission foundation.
 - [x] Phase 1 introduces `pricing.service.ts`, server quote endpoint, and canonical `delivered`/`out_for_delivery` lifecycle.
-- [ ] Phase 2 decomposes payment reconciliation and introduces payment attempts, refunds, and settlement reconciliation.
-- [ ] Phase 3 establishes cash sessions, standard product costs, vendors, and expenses.
-- [ ] Phase 4 implements the general ledger posting kernel, fiscal periods, and trial balance.
-- [ ] Phase 5 builds the owner Finance Workspace and management reporting layer.
+- [x] Phase 2 decomposes payment reconciliation and introduces payment attempts, refunds, and settlement reconciliation.
+- [x] Phase 3 establishes cash sessions, standard product costs, vendors, and expenses.
+- [x] Phase 4 implements the general ledger posting kernel, fiscal periods, and trial balance.
+- [x] Phase 5 builds the owner Finance Workspace, management reports, drill-down, and CSV exports.
 - [ ] Phase 6 adds payroll-lite profiles, compensation versioning, and pay runs as an operating cost.

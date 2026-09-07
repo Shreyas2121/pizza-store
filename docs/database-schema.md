@@ -529,6 +529,29 @@ erDiagram
     chat_sessions ||--o{ chat_messages : contains
 ```
 
+## Financial schema addendum
+
+Financial tables introduced through Phase 5 are owned by focused Drizzle schema modules:
+
+| Table | Purpose and critical invariants |
+| --- | --- |
+| `payment_attempts` | Order-to-many COD/simulator/Test Mode attempts; unique client/provider identities and integer paise |
+| `refunds`, `refund_allocations` | Idempotent request/approval/provider lifecycle; item/delivery allocations reconcile to the refund amount |
+| `settlement_batches`, `settlement_lines` | Immutable provider import snapshots, fee/tax/net arithmetic, and deterministic matching |
+| `reconciliation_issues` | Non-mutating discrepancy workflow with explicit resolution evidence |
+| `financial_outbox` | Versioned source events committed with domain writes; claim lease, attempts, status, payload hash |
+| `product_cost_versions` | Store-product effective-dated standard cost used for delivered-order COGS snapshots |
+| `cash_sessions`, `cash_movements`, `cash_session_closures` | One open store session, immutable movements/reversals, and counted-versus-expected closure evidence |
+| `vendors`, `expense_categories` | Store/platform masters with normalized conditional uniqueness |
+| `expenses`, `expense_allocations`, `expense_commands`, `expense_attachments` | Exact allocated expense workflow, idempotent commands, private attachment metadata |
+| `ledger_accounts` | Owner-business INR chart with protected system account semantics |
+| `journal_entries`, `journal_lines` | Append-only source/manual journals, unique source identity/version, positive one-sided lines, balanced-posting triggers |
+| `fiscal_periods` | Non-overlapping store periods with open/soft-closed/closed evidence |
+
+Key report indexes are `journal_entries_store_date_idx` for store history and the partial date-leading `journal_entries_finance_report_idx` for posted/reversed INR consolidated ranges. `journal_lines_entry_line_unique` also provides the entry-leading join path. Query-plan evidence and acceptance budgets are documented in [finance-report-performance.md](finance-report-performance.md).
+
+Money columns use the `_paise` suffix and integers. Aggregate API values that can exceed JavaScript's safe integer range serialize as decimal strings. Business dates are stored separately from timestamps and are derived using the store timezone. Posted/reversed rows are never updated for correction except the controlled original-status transition performed alongside a linked reversal.
+
 ## Transaction boundaries
 
 The following operations use database transactions:

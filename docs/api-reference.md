@@ -1095,7 +1095,7 @@ Send a message in a chat session.
 
 ## Finance & Management Accounting
 
-Target financial endpoints mounted under `/api/v1/finance/*` and `/api/v1/checkout/quote`. Detailed request/response schemas, rollout transitions, error codes, and permission matrices are documented in [Finance API compatibility and rollout map](finance-api-compatibility-rollout.md).
+Financial endpoints are mounted under `/api/v1/finance/*` and `/api/v1/checkout/quote`. Detailed request/response schemas, rollout transitions, error codes, and permission matrices are documented in [Finance API compatibility and rollout map](finance-api-compatibility-rollout.md).
 
 ### Pricing & Server Quote
 - `POST /checkout/quote` — Authoritative paise pricing, tax extraction, and discount calculation.
@@ -1107,6 +1107,10 @@ Target financial endpoints mounted under `/api/v1/finance/*` and `/api/v1/checko
 - `GET /finance/sales` 🔒 — Sales, discount allocations, and delivery revenue breakdown.
 - `GET /finance/margins` 🔒 — Product and store contribution margin analysis.
 - `GET /finance/exports/:reportType` 🔒 — CSV exports with formula-injection mitigation.
+  - `reportType`: `overview`, `profit-and-loss`, `sales`, or `margins`.
+  - Query: `from`, `to`, optional `storeId`, and optional `groupBy=month|quarter|fiscal_year`.
+  - Store staff must provide an authorized store. Only a platform owner can omit `storeId` for consolidation.
+  - Response is `text/csv; charset=utf-8`, `Cache-Control: private, no-store`, with deterministic period/scope filename. Rows identify timezone, date basis, currency, and whether each value is paise, basis points, or a count.
 
 ### General Ledger & Fiscal Periods
 - `GET /finance/ledger/accounts` 🔒 — Chart of accounts master.
@@ -1115,9 +1119,11 @@ Target financial endpoints mounted under `/api/v1/finance/*` and `/api/v1/checko
 - `GET /finance/ledger/trial-balance` 🔒 — Double-entry trial balance (debits = credits = 0 net).
 - `POST /finance/ledger/manual-journals` 🔒 — Post audited manual adjustment journal.
 - `POST /finance/ledger/journals/:id/reverse` 🔒 — Post linked reversal journal for an open period.
-- `GET /finance/fiscal-periods` 🔒 — List fiscal periods and statuses.
-- `POST /finance/fiscal-periods/:id/close` 🔒 — Lock fiscal period against backdated posting.
-- `POST /finance/fiscal-periods/:id/reopen` 🔒 — Controlled reopen with mandatory audit reason.
+- `GET /finance/ledger/periods?storeId=:id` 🔒 — List fiscal periods and statuses.
+- `POST /finance/ledger/periods` 🔒 — Open a non-overlapping store period with an audit reason.
+- `POST /finance/ledger/periods/:id/soft-close` 🔒 — Soft close; ordinary posting stops and owner override requires a reason.
+- `POST /finance/ledger/periods/:id/close` 🔒 — Lock fiscal period against every posting.
+- `POST /finance/ledger/periods/:id/reopen` 🔒 — Controlled reopen with mandatory audit reason.
 
 ### Refunds & Reconciliation
 - `GET /finance/refunds` 🔒 — List refunds and line item allocations.
@@ -1137,12 +1143,13 @@ Target financial endpoints mounted under `/api/v1/finance/*` and `/api/v1/checko
 - `POST /finance/reconciliation/issues/:id/resolve` 🔒 — Resolve reconciliation issue with audit note.
 
 ### Cash Management
-- `GET /finance/cash-sessions` 🔒 — List store cash sessions.
-- `GET /finance/cash-sessions/current` 🔒 — Get currently open store session.
-- `POST /finance/cash-sessions/open` 🔒 — Open cash session with initial float.
-- `POST /finance/cash-sessions/:id/movements` 🔒 — Record manual cash in/out or adjustment.
-- `POST /finance/cash-sessions/:id/close` 🔒 — Close session with counted cash and variance.
-- `POST /finance/cash-sessions/:id/reopen` 🔒 — Controlled session reopen.
+- `GET /finance/cash/sessions` 🔒 — List store cash sessions.
+- `GET /finance/cash/sessions/:id` 🔒 — Get session, movements, and closure history.
+- `POST /finance/cash/sessions` 🔒 — Open cash session with initial float.
+- `POST /finance/cash/sessions/:id/movements` 🔒 — Record manual cash in/out or adjustment.
+- `POST /finance/cash/sessions/:id/close` 🔒 — Close session with counted cash and variance.
+- `POST /finance/cash/sessions/:id/reopen` 🔒 — Controlled session reopen.
+- `POST /finance/cash/movements/:id/reverse` 🔒 — Append a reversal for a manual movement.
 
 ### Costs, Vendors, and Expenses
 - `GET /finance/costs/products` 🔒 — Standard unit cost history.
@@ -1155,7 +1162,7 @@ Target financial endpoints mounted under `/api/v1/finance/*` and `/api/v1/checko
 - `GET /finance/expenses/:id/attachments/:attachmentId` 🔒 — Authorized private receipt download with no public/static URL.
 - `GET /finance/source-margin?storeId=:id` 🔒 — Source-based, pre-ledger delivered-sales, standard-COGS, operating-expense, and margin view with cost-coverage evidence.
 
-### Payroll-Lite (Operating Cost)
+### Planned Payroll-Lite (not implemented in Phase 5)
 - `GET /finance/payroll/profiles` 🔒 / `POST /finance/payroll/profiles` 🔒 — Employee finance profiles.
 - `GET /finance/payroll/compensation` 🔒 / `POST /finance/payroll/compensation` 🔒 — Effective compensation structure.
 - `GET /finance/payroll/pay-runs` 🔒 / `POST /finance/payroll/pay-runs` 🔒 — Pay-run lifecycle.

@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- **Node.js** 20+ and **pnpm** package manager
+- **Node.js** 22.13+ and **pnpm** package manager
 - **PostgreSQL** 15+ running locally or remotely
 - A terminal (PowerShell, CMD, or bash)
 
@@ -92,12 +92,21 @@ psql -U postgres -c "CREATE DATABASE pizzastore;"
 ### Apply the schema and migrations
 
 ```bash
-# Run database migrations
-pnpm run db:generate
+# Apply the checked-in migration history
 pnpm run db:migrate
 ```
 
-### Seed test data (optional)
+### Reset and seed the deterministic demo (recommended)
+
+After applying migrations, run from the repository root:
+
+```bash
+pnpm demo:reset
+```
+
+This is a destructive development command. It accepts only a local PostgreSQL URL, refuses `NODE_ENV` values other than `development`, truncates application tables, restarts identities, and seeds two stores, catalogue/stock, costs, ledger accounts, and demo personas. It never runs automatically during application startup. See the [finance demo walkthrough](./finance-demo-walkthrough.md).
+
+### Seed individual data sets (optional)
 
 The project includes seed scripts in `src/scripts/`:
 
@@ -230,16 +239,19 @@ For step-by-step credential creation during development, see the
 
 | Script | Command | Description |
 | --- | --- | --- |
-| `dev` | `tsx watch src/index.ts` | Start dev server with hot reload |
+| `dev` | `nodemon src/index.ts` | Start dev server with hot reload |
 | `test` | `vitest run src --pool=threads` | Run backend unit test suite |
 | `test:watch` | `vitest src` | Run backend unit tests in interactive watch mode |
 | `build` | `tsc -p tsconfig.json` | Compile TypeScript backend to JavaScript |
 | `typecheck` | `tsc --noEmit` | Check TypeScript types without emitting files |
-| `payments:reconcile` | `tsx src/scripts/reconcile-stale-payments.ts` | Run background reconciliation for stale payments and expired reservations |
-| `seed:users` | `tsx src/scripts/users.ts` | Seed user accounts |
-| `seed:addresses` | `tsx src/scripts/address.ts` | Seed delivery addresses |
-| `seed:orders` | `tsx src/scripts/order.ts` | Seed sample orders |
+| `payments:reconcile` | `ts-node src/scripts/reconcile-payments.ts` | Run background reconciliation for stale payments and expired reservations |
+| `seed:users` | `ts-node src/scripts/user.ts` | Seed user accounts |
+| `seed:addresses` | `ts-node src/scripts/address.ts` | Seed delivery addresses |
+| `seed:orders` | `ts-node src/scripts/order.ts` | Seed sample orders |
 | `seed:staff` | `ts-node src/scripts/staff.ts` | Idempotently assign existing users to a store in development only |
+| `demo:reset` | `ts-node src/scripts/demo-reset.ts --confirm-local-demo-reset` | Destructively reset and seed the local two-store demo |
+| `finance:post-events` | `ts-node src/scripts/post-financial-events.ts` | Claim and post up to 100 pending financial events |
+| `db:migrate` | `drizzle-kit migrate` | Apply checked-in migrations through repository head |
 
 ### Frontend (`frontend/package.json`)
 
@@ -261,7 +273,7 @@ pnpm run db:generate
 To apply pending migrations:
 
 ```bash
-npx drizzle-kit push
+pnpm run db:migrate
 ```
 
 To open Drizzle Studio (visual database browser):
@@ -269,6 +281,8 @@ To open Drizzle Studio (visual database browser):
 ```bash
 npx drizzle-kit studio
 ```
+
+Do not use `db:push` as a production migration substitute. For backup, forward-only recovery, failed migration handling, and post-migration finance checks, follow the [finance operations runbook](./finance-operations-runbook.md#migration-deployment-and-recovery).
 
 ## File upload directory
 
