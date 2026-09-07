@@ -1106,7 +1106,8 @@ Financial endpoints are mounted under `/api/v1/finance/*` and `/api/v1/checkout/
 - `GET /finance/profit-and-loss` 🔒 — Multi-period store and consolidated income statement.
 - `GET /finance/sales` 🔒 — Sales, discount allocations, and delivery revenue breakdown.
 - `GET /finance/margins` 🔒 — Product and store contribution margin analysis.
-- Every aggregate report includes currency, timezone, journal-business-date basis, delivery-recognition basis, included journal statuses, generation time, selected scope, comparison period, and the latest successful settlement reconciliation time (`null` when none exists in scope).
+- Every aggregate report includes currency, timezone, journal-business-date basis, delivery-recognition basis, included journal statuses, generation time, selected scope, comparison period, the latest successful settlement reconciliation time (`null` when none exists in scope), and `payrollCostVisibility`.
+- Exact `payrollCostPaise` requires both the report permission and `payroll.read` for the selected store; platform administrators retain exact consolidated and store reporting. Without that permission, `payrollCostVisibility` is `suppressed`, and both `payrollCostPaise` and the payroll-derived `operatingResultPaise` are `null` across current totals, comparisons, grouped periods, drill-down links, and CSV exports. Suppressing the derived result prevents reconstructing payroll through subtraction. Other operating expenses remain payroll-exclusive.
 
 Headline metric definitions:
 
@@ -1118,14 +1119,15 @@ Headline metric definitions:
 | COGS | Standard-cost snapshots recognized at delivery; refunds do not reverse COGS unless inventory is separately accepted back. |
 | Gross profit | Recognized revenue minus COGS. |
 | Operating expenses | Net posted expense-account movements excluding COGS and payroll, including gateway charges, cash variance, and rounding movements. |
-| Payroll cost | Total employer cost from posted pay runs; may include earnings, deductions, and employer-cost components and is not take-home pay. |
+| Payroll cost | Employer cost from posted pay runs; may include earning, deduction, and employer-cost components and is not take-home pay. Exact values require `payroll.read`. |
+| Operating result | Gross profit minus operating expenses and payroll employer cost; suppressed with payroll cost to prevent subtraction. |
 | Unsettled Razorpay | Net Razorpay clearing balance through the report end date, including prior captures, refunds, and settlements. |
 | Cash variance | Net posted cash shortages less overages from closed COD sessions. |
 - `GET /finance/exports/:reportType` 🔒 — CSV exports with formula-injection mitigation.
   - `reportType`: `overview`, `profit-and-loss`, `sales`, or `margins`.
   - Query: `from`, `to`, optional `storeId`, and optional `groupBy=month|quarter|fiscal_year`.
   - Store staff must provide an authorized store. Only a platform owner can omit `storeId` for consolidation.
-  - Response is `text/csv; charset=utf-8`, `Cache-Control: private, no-store`, with deterministic period/scope filename. Rows identify timezone, date and recognition basis, included journal statuses, generation and last-reconciliation times, currency, and whether each value is paise, basis points, or a count.
+  - Response is `text/csv; charset=utf-8`, `Cache-Control: private, no-store`, with deterministic period/scope filename. Rows identify timezone, date and recognition basis, included journal statuses, generation and last-reconciliation times, payroll-cost visibility, currency, and whether each value is paise, basis points, or a count. Suppressed payroll and operating-result cells are blank.
 
 ### General Ledger & Fiscal Periods
 - `GET /finance/ledger/accounts` 🔒 — Chart of accounts master.

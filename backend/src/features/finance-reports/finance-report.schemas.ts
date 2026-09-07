@@ -25,6 +25,7 @@ const policySchema = z.object({
   includedJournalStatuses: z.tuple([z.literal("posted"), z.literal("reversed")]),
   generatedAt: z.iso.datetime(),
   lastReconciledAt: z.iso.datetime().nullable(),
+  payrollCostVisibility: z.enum(["detailed", "suppressed"]),
   scope,
 }).strict();
 
@@ -39,8 +40,8 @@ const reportTotalsSchema = z.object({
   grossProfitPaise: aggregatePaise,
   grossMarginBps: z.number().int().nullable(),
   operatingExpensesPaise: aggregatePaise,
-  payrollCostPaise: aggregatePaise,
-  operatingResultPaise: aggregatePaise,
+  payrollCostPaise: aggregatePaise.nullable(),
+  operatingResultPaise: aggregatePaise.nullable(),
   unsettledRazorpayPaise: aggregatePaise,
   cashVariancePaise: aggregatePaise,
 }).strict();
@@ -94,8 +95,8 @@ const profitAndLossPointSchema = z.object({
   grossProfitPaise: aggregatePaise,
   grossMarginBps: z.number().int().nullable(),
   operatingExpensesPaise: aggregatePaise,
-  payrollCostPaise: aggregatePaise,
-  operatingResultPaise: aggregatePaise,
+  payrollCostPaise: aggregatePaise.nullable(),
+  operatingResultPaise: aggregatePaise.nullable(),
 }).strict();
 
 export const profitAndLossResponseSchema = baseReportSchema.extend({

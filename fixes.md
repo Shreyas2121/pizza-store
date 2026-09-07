@@ -102,6 +102,8 @@ The report index and benchmark SQL exist, but the performance document explicitl
 
 ## Priority 5 — Close the payroll aggregate privacy gap
 
+**Status: Implemented in the working tree.** Finance reports now require explicit `payroll.read` in addition to the report permission before returning exact payroll employer cost. Restricted current, comparison, grouped, drill-down, and CSV representations suppress both payroll cost and the payroll-derived operating result, with explicit response/export metadata and UI messaging. Platform administrators retain exact store and consolidated reporting.
+
 Payroll profile, compensation, pay-run, statement, and export permissions are separated, but finance overview/P&L responses expose `payrollCostPaise` to users with general finance-report access. In a store with a very small payroll population, this may allow compensation inference.
 
 ### Required changes

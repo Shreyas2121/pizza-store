@@ -14,7 +14,13 @@ import {
 } from "./finance-report.schemas";
 
 type Period = { from: string; to: string };
-type Scope = { kind: "store" | "consolidated"; storeIds: number[]; timezone: string };
+type Scope = { kind: "store" | "consolidated"; storeIds: number[]; timezone: string; canReadPayrollCost: boolean };
+
+type PayrollDerivedValues = { payrollCostPaise: string | null; operatingResultPaise: string | null };
+
+const applyPayrollPrivacy = <T extends PayrollDerivedValues>(value: T, canReadPayrollCost: boolean): T => canReadPayrollCost
+  ? value
+  : { ...value, payrollCostPaise: null, operatingResultPaise: null };
 
 const salesSeries = (rows: FinanceMovement[], groupBy: GroupedFinanceReportQuery["groupBy"]) => groupFinanceReport(rows, groupBy).map((row) => ({
   period: row.period,
@@ -33,7 +39,7 @@ const marginSeries = (rows: FinanceMovement[], groupBy: GroupedFinanceReportQuer
   grossMarginBps: row.grossMarginBps,
 }));
 
-const profitAndLossSeries = (rows: FinanceMovement[], groupBy: GroupedFinanceReportQuery["groupBy"]) => groupFinanceReport(rows, groupBy).map((row) => ({
+const profitAndLossSeries = (rows: FinanceMovement[], groupBy: GroupedFinanceReportQuery["groupBy"], canReadPayrollCost: boolean) => groupFinanceReport(rows, groupBy).map((row) => applyPayrollPrivacy({
   period: row.period,
   recognizedRevenuePaise: row.recognizedRevenuePaise,
   cogsPaise: row.cogsPaise,
@@ -42,7 +48,7 @@ const profitAndLossSeries = (rows: FinanceMovement[], groupBy: GroupedFinanceRep
   operatingExpensesPaise: row.operatingExpensesPaise,
   payrollCostPaise: row.payrollCostPaise,
   operatingResultPaise: row.operatingResultPaise,
-}));
+}, canReadPayrollCost));
 
 export class FinanceReportService {
   constructor(private readonly repository: FinanceReportRepository = financeReportRepository) {}
@@ -57,9 +63,9 @@ export class FinanceReportService {
     ]);
     return overviewResponseSchema.parse({
       policy: this.policy(scope, now, lastReconciledAt), period, comparisonPeriod,
-      kpis: { ...current.totals, openReconciliationIssues: issues },
-      comparison: { period: comparisonPeriod, kpis: { ...comparison.totals, openReconciliationIssues: null } },
-      drillDownUrls: this.drillDownUrls(query),
+      kpis: { ...applyPayrollPrivacy(current.totals, scope.canReadPayrollCost), openReconciliationIssues: issues },
+      comparison: { period: comparisonPeriod, kpis: { ...applyPayrollPrivacy(comparison.totals, scope.canReadPayrollCost), openReconciliationIssues: null } },
+      drillDownUrls: this.drillDownUrls(query, scope.canReadPayrollCost),
     });
   }
 
@@ -70,8 +76,8 @@ export class FinanceReportService {
     const [current, comparison, lastReconciledAt] = await Promise.all([this.load(scope, period), this.load(scope, comparisonPeriod), this.repository.lastReconciledAt(scope.storeIds)]);
     return profitAndLossResponseSchema.parse({
       policy: this.policy(scope, now, lastReconciledAt), period, comparisonPeriod, groupBy: query.groupBy,
-      totals: current.totals, operatingExpenseLines: current.operatingExpenseLines, periods: profitAndLossSeries(current.rows, query.groupBy),
-      comparison: { totals: comparison.totals, operatingExpenseLines: comparison.operatingExpenseLines, periods: profitAndLossSeries(comparison.rows, query.groupBy) },
+      totals: applyPayrollPrivacy(current.totals, scope.canReadPayrollCost), operatingExpenseLines: current.operatingExpenseLines, periods: profitAndLossSeries(current.rows, query.groupBy, scope.canReadPayrollCost),
+      comparison: { totals: applyPayrollPrivacy(comparison.totals, scope.canReadPayrollCost), operatingExpenseLines: comparison.operatingExpenseLines, periods: profitAndLossSeries(comparison.rows, query.groupBy, scope.canReadPayrollCost) },
     });
   }
 
@@ -81,8 +87,8 @@ export class FinanceReportService {
     const comparisonPeriod = comparisonPeriodFor(query.from, query.to);
     const [current, comparison, lastReconciledAt] = await Promise.all([this.load(scope, period), this.load(scope, comparisonPeriod), this.repository.lastReconciledAt(scope.storeIds)]);
     return salesResponseSchema.parse({
-      policy: this.policy(scope, now, lastReconciledAt), period, comparisonPeriod, groupBy: query.groupBy, totals: current.totals,
-      series: salesSeries(current.rows, query.groupBy), comparison: { totals: comparison.totals, series: salesSeries(comparison.rows, query.groupBy) },
+      policy: this.policy(scope, now, lastReconciledAt), period, comparisonPeriod, groupBy: query.groupBy, totals: applyPayrollPrivacy(current.totals, scope.canReadPayrollCost),
+      series: salesSeries(current.rows, query.groupBy), comparison: { totals: applyPayrollPrivacy(comparison.totals, scope.canReadPayrollCost), series: salesSeries(comparison.rows, query.groupBy) },
     });
   }
 
@@ -92,8 +98,8 @@ export class FinanceReportService {
     const comparisonPeriod = comparisonPeriodFor(query.from, query.to);
     const [current, comparison, lastReconciledAt] = await Promise.all([this.load(scope, period), this.load(scope, comparisonPeriod), this.repository.lastReconciledAt(scope.storeIds)]);
     return marginsResponseSchema.parse({
-      policy: this.policy(scope, now, lastReconciledAt), period, comparisonPeriod, groupBy: query.groupBy, totals: current.totals,
-      series: marginSeries(current.rows, query.groupBy), comparison: { totals: comparison.totals, series: marginSeries(comparison.rows, query.groupBy) },
+      policy: this.policy(scope, now, lastReconciledAt), period, comparisonPeriod, groupBy: query.groupBy, totals: applyPayrollPrivacy(current.totals, scope.canReadPayrollCost),
+      series: marginSeries(current.rows, query.groupBy), comparison: { totals: applyPayrollPrivacy(comparison.totals, scope.canReadPayrollCost), series: marginSeries(comparison.rows, query.groupBy) },
     });
   }
 
@@ -114,10 +120,13 @@ export class FinanceReportService {
   private async resolveScope(actor: AuthPrincipal, storeId: number | undefined, permission: Permission): Promise<Scope> {
     if (storeId === undefined) authorizationService.requirePlatformAdmin(actor);
     else await authorizationService.requireStorePermission({ principal: actor, storeId, permission });
+    const canReadPayrollCost = storeId === undefined || actor.platformRole === "admin"
+      ? true
+      : await authorizationService.hasStorePermission(actor, storeId, "payroll.read");
     const stores = await this.repository.stores(storeId);
     if (storeId !== undefined && stores.length !== 1) throw resourceNotFound();
     const timezones = [...new Set(stores.map((store) => store.timezone))];
-    return { kind: storeId === undefined ? "consolidated" : "store", storeIds: stores.map((store) => store.id), timezone: timezones.length <= 1 ? (timezones[0] ?? "Asia/Kolkata") : "multiple" };
+    return { kind: storeId === undefined ? "consolidated" : "store", storeIds: stores.map((store) => store.id), timezone: timezones.length <= 1 ? (timezones[0] ?? "Asia/Kolkata") : "multiple", canReadPayrollCost };
   }
 
   private async load(scope: Scope, period: Period) {
@@ -130,14 +139,20 @@ export class FinanceReportService {
   }
 
   private policy(scope: Scope, now: Date, lastReconciledAt: Date | null) {
-    return { currency: "INR" as const, timezone: scope.timezone, dateBasis: "journal_business_date" as const, recognitionBasis: "delivery" as const, includedJournalStatuses: ["posted", "reversed"] as const, generatedAt: now.toISOString(), lastReconciledAt: lastReconciledAt?.toISOString() ?? null, scope: { kind: scope.kind, storeIds: scope.storeIds } };
+    return { currency: "INR" as const, timezone: scope.timezone, dateBasis: "journal_business_date" as const, recognitionBasis: "delivery" as const, includedJournalStatuses: ["posted", "reversed"] as const, generatedAt: now.toISOString(), lastReconciledAt: lastReconciledAt?.toISOString() ?? null, payrollCostVisibility: scope.canReadPayrollCost ? "detailed" as const : "suppressed" as const, scope: { kind: scope.kind, storeIds: scope.storeIds } };
   }
 
-  private drillDownUrls(query: FinanceReportQuery) {
+  private drillDownUrls(query: FinanceReportQuery, canReadPayrollCost: boolean) {
     const params = new URLSearchParams({ from: query.from, to: query.to });
     if (query.storeId !== undefined) params.set("storeId", String(query.storeId));
     const suffix = params.toString();
-    return { revenue: `/api/v1/finance/sales?${suffix}`, cogs: `/api/v1/finance/margins?${suffix}`, expenses: `/api/v1/finance/expenses?${suffix}`, refunds: `/api/v1/finance/refunds?${suffix}` };
+    return {
+      revenue: `/api/v1/finance/sales?${suffix}`,
+      cogs: `/api/v1/finance/margins?${suffix}`,
+      expenses: `/api/v1/finance/expenses?${suffix}`,
+      refunds: `/api/v1/finance/refunds?${suffix}`,
+      ...(canReadPayrollCost ? { payroll: `/api/v1/finance/ledger/journals?${suffix}&accountCodes=6200` } : {}),
+    };
   }
 }
 

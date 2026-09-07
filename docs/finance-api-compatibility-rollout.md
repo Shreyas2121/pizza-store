@@ -192,6 +192,7 @@ GET /api/v1/finance/exports/:reportType
       "includedJournalStatuses": ["posted", "reversed"],
       "generatedAt": "2026-08-31T12:00:00.000Z",
       "lastReconciledAt": "2026-08-30T10:30:00.000Z",
+      "payrollCostVisibility": "detailed",
       "scope": { "kind": "store", "storeIds": [1] }
     },
     "kpis": {
@@ -219,6 +220,8 @@ GET /api/v1/finance/exports/:reportType
 ```
 
 `lastReconciledAt` is the latest `reconciledAt` timestamp from a successfully reconciled Razorpay settlement in the selected store scope. It is independent of the requested report date range and is `null` when no settlement in that scope has reached `reconciled` status. The same policy metadata is returned by overview, P&L, sales, and margins and is embedded in their CSV exports.
+
+Payroll employer-cost aggregates have a second authorization boundary. A store report exposes exact `payrollCostPaise` only when the actor has both the applicable finance-report permission and `payroll.read`; platform administrators retain exact store and consolidated values. Otherwise `payrollCostVisibility` is `suppressed`, `payrollCostPaise` and the derived `operatingResultPaise` are `null` in current, comparison, and grouped data, the payroll drill-down is absent, and CSV cells are blank. Suppressing the derived result prevents reconstructing payroll by subtracting known revenue, COGS, and non-payroll operating expenses. Employer cost may include earning, deduction, and employer-cost components and is not necessarily take-home pay.
 
 #### `GET /api/v1/finance/profit-and-loss`
 - **Query params**: `from`, `to`, `storeId`, `groupBy` (`month` | `quarter` | `fiscal_year`).
@@ -521,7 +524,7 @@ Role membership alone is necessary but **not sufficient** to execute high-risk o
 4. **Pay-run approval**: An actor who calculated or drafted a pay run cannot be the sole approver.
 5. **Pay-run payment**: An actor who drafted, calculated, or approved a pay run cannot mark it paid.
 6. **Cross-store masking**: If a user attempts to access a financial resource (e.g. `/finance/expenses/:id`) belonging to a store where they lack active membership, the system returns `404 Not Found` (never `403 Forbidden`) to eliminate object-enumeration risks per OWASP API Security standards.
-7. **Privacy boundary**: Non-payroll roles (including store managers and operators) are prevented from seeing compensation rates, employee bank details, or detailed payslips in any API response or export.
+7. **Privacy boundary**: Non-payroll roles (including store and finance managers) are prevented from seeing compensation rates, employee bank details, detailed statements, exact payroll employer-cost aggregates, or payroll-derived operating results in any API response or export.
 
 ---
 

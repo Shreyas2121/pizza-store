@@ -18,7 +18,7 @@ const HEADINGS = [
   "report_type", "scope_kind", "store_ids", "period_from", "period_to",
   "comparison_from", "comparison_to", "timezone", "currency", "date_basis",
   "recognition_basis", "included_journal_statuses", "generated_at", "last_reconciled_at",
-  "amount_unit", "group_by", "row_type", "row_key", "account_code",
+  "payroll_cost_visibility", "amount_unit", "group_by", "row_type", "row_key", "account_code",
   "account_name", "metric", "value",
 ] as const;
 
@@ -65,6 +65,7 @@ export const buildFinanceReportCsv = (input: FinanceExport) => {
     report.policy.includedJournalStatuses.join("|"),
     report.policy.generatedAt,
     report.policy.lastReconciledAt,
+    report.policy.payrollCostVisibility,
   ];
   const rows: unknown[][] = [];
   const appendMetrics = (

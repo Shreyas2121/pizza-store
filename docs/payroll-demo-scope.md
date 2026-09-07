@@ -14,6 +14,7 @@ It is a portfolio demo, not a payroll bureau or statutory system. It does not ca
 - Bank-account and PAN-like identifiers are encrypted at rest with the dedicated payroll key. APIs expose only last-four masks. They never appear in pay-run snapshots, exports, statements, audit records, or financial events.
 - Payment references are visible only in restricted pay-run detail. CSV exports, statements, audit metadata, logs, and ledger/outbox payloads record at most that a reference exists.
 - The frontend hides payroll navigation without `payroll.read`, but backend authorization remains authoritative.
+- Finance reports apply the same boundary to aggregates. Exact payroll employer cost requires the applicable finance-report permission plus `payroll.read`; platform administrators retain exact consolidated reporting. For other report viewers, payroll cost and the derived operating result are `null` in current totals, comparisons, grouped periods, and screen/CSV output, and payroll drill-down is unavailable. Employer-cost aggregates can include earning, deduction, and employer-cost components and are not necessarily take-home pay.
 
 ## Calculation and accounting
 

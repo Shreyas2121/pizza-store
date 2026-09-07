@@ -34,8 +34,8 @@ const METRIC_DEFINITIONS = {
   cogsPaise: "Standard-cost snapshots recognized when orders are delivered. A refund does not reverse COGS unless inventory is separately accepted back.",
   grossProfitPaise: "Recognized revenue minus cost of goods sold.",
   operatingExpensesPaise: "Net posted expense-account movements excluding COGS and payroll; includes gateway charges, cash variance, and rounding movements.",
-  payrollCostPaise: "Total employer payroll cost from posted pay runs. It can include earnings, deductions, and employer-cost components and is not take-home pay.",
-  operatingResultPaise: "Gross profit minus operating expenses and payroll cost.",
+  payrollCostPaise: "Employer cost from posted pay runs. It may include earning, deduction, and employer-cost components and is not take-home pay. Exact values require payroll access.",
+  operatingResultPaise: "Gross profit minus operating expenses and payroll employer cost. It is suppressed when payroll cost is restricted to prevent subtraction.",
   unsettledRazorpayPaise: "Net Razorpay clearing balance through the report end date, including earlier captures, refunds, and settlements.",
   cashVariancePaise: "Net posted cash shortages less overages from closed COD cash sessions.",
   openReconciliationIssues: "Current open settlement reconciliation issues in the selected store scope; this count is not historical.",
@@ -57,6 +57,7 @@ const ReportStatus = ({ policy, isFetching, isStale, partial }: { policy: Financ
     <Text size="xs" c="dimmed">Generated {new Date(policy.generatedAt).toLocaleString("en-IN")} · {policy.timezone} · {policy.scope.kind}</Text>
   </Group>
   <Text size="xs" c="dimmed">{policy.lastReconciledAt ? `Last settlement reconciliation ${new Date(policy.lastReconciledAt).toLocaleString("en-IN")}` : "No successful settlement reconciliation in this scope yet"}</Text>
+  {policy.payrollCostVisibility === "suppressed" && <Text size="xs" c="dimmed">Payroll employer cost and derived operating result are restricted. Payroll values are available only with explicit payroll access.</Text>}
 </Stack>;
 
 const LoadState = ({ loading, error, retry, label }: { loading: boolean; error: boolean; retry: () => void; label: string }) => {
@@ -66,13 +67,16 @@ const LoadState = ({ loading, error, retry, label }: { loading: boolean; error: 
 };
 
 const AmountLink = ({ value, label, onClick }: { value: string; label: string; onClick: () => void }) => <UnstyledButton onClick={onClick} aria-label={`View transactions for ${label}`} className="tabular-nums font-semibold text-primary hover:underline">{amount(value)}</UnstyledButton>;
+const ProtectedAmount = ({ value, label, onClick }: { value: string | null; label: string; onClick: () => void }) => value === null
+  ? <Text size="sm" c="dimmed" fw={600}>Restricted</Text>
+  : <AmountLink value={value} label={label} onClick={onClick} />;
 
 const KPI_FILTERS: Record<string, FinanceDrillDown> = {
   recognizedRevenuePaise: { tab: "ledger", filters: { accountTypes: ["revenue", "contra_revenue"] } },
   collectionsPaise: { tab: "ledger", filters: { eventType: "payment_attempt.captured" } },
   refundsPaise: { tab: "ledger", filters: { accountCodes: ["4110"] } },
   cogsPaise: { tab: "ledger", filters: { accountCodes: ["5000"] } },
-  grossProfitPaise: { tab: "ledger", filters: { accountTypes: ["revenue", "contra_revenue", "expense"] } },
+  grossProfitPaise: { tab: "ledger", filters: { accountCodes: ["4000", "4010", "4100", "4110", "5000"] } },
   operatingExpensesPaise: { tab: "ledger", filters: { accountTypes: ["expense"], excludeAccountCodes: ["5000", "6200"] } },
   payrollCostPaise: { tab: "ledger", filters: { accountCodes: ["6200"] } },
   operatingResultPaise: { tab: "ledger", filters: { accountTypes: ["revenue", "contra_revenue", "expense"] } },
@@ -102,8 +106,9 @@ export const FinanceOverviewPanel = (props: ReportProps) => {
     <SimpleGrid cols={{ base: 1, sm: 2, xl: 4 }}>{KPI_CARDS.map(({ key, label }) => {
       const value = report.kpis[key];
       const prior = report.comparison.kpis[key];
-      const display = key === "openReconciliationIssues" ? String(value ?? "Not historical") : amount(String(value));
-      return <Card key={key} withBorder h="100%"><Group justify="space-between" align="start"><div><Text size="xs" c="dimmed"><MetricLabel metric={key as DefinedMetric} label={label} /></Text><UnstyledButton onClick={() => props.onDrillDown(KPI_FILTERS[key])} aria-label={`Drill down current ${label}`}><Text fw={800} size="lg" className="tabular-nums text-primary hover:underline">{display}</Text></UnstyledButton></div><ArrowRight size={16} /></Group>{key === "openReconciliationIssues" ? <Text size="xs" c="dimmed">Previous: not historical</Text> : <UnstyledButton onClick={() => props.onDrillDown(dateTarget(KPI_FILTERS[key], report.comparisonPeriod))} aria-label={`Drill down previous ${label}`}><Text size="xs" c="dimmed" className="hover:underline">Previous: {amount(String(prior))}</Text></UnstyledButton>}</Card>;
+      const restricted = value === null;
+      const display = key === "openReconciliationIssues" ? String(value ?? "Not historical") : restricted ? "Restricted" : amount(String(value));
+      return <Card key={key} withBorder h="100%"><Group justify="space-between" align="start"><div><Text size="xs" c="dimmed"><MetricLabel metric={key as DefinedMetric} label={label} /></Text>{restricted ? <Text fw={800} size="lg" c="dimmed">{display}</Text> : <UnstyledButton onClick={() => props.onDrillDown(KPI_FILTERS[key])} aria-label={`Drill down current ${label}`}><Text fw={800} size="lg" className="tabular-nums text-primary hover:underline">{display}</Text></UnstyledButton>}</div>{!restricted && <ArrowRight size={16} />}</Group>{key === "openReconciliationIssues" ? <Text size="xs" c="dimmed">Previous: not historical</Text> : restricted || prior === null ? <Text size="xs" c="dimmed">Previous: restricted</Text> : <UnstyledButton onClick={() => props.onDrillDown(dateTarget(KPI_FILTERS[key], report.comparisonPeriod))} aria-label={`Drill down previous ${label}`}><Text size="xs" c="dimmed" className="hover:underline">Previous: {amount(String(prior))}</Text></UnstyledButton>}</Card>;
     })}</SimpleGrid>
     <Text size="xs" c="dimmed">Accounting truth: posted and reversed journals · recognition basis: delivery · comparison {report.comparisonPeriod.from} to {report.comparisonPeriod.to}</Text>
   </Stack>;
@@ -119,9 +124,9 @@ export const FinanceProfitAndLossPanel = (props: ReportProps) => {
     ["Operating expenses", "operatingExpensesPaise"], ["Payroll cost", "payrollCostPaise"], ["Operating result", "operatingResultPaise"],
   ] as const;
   return <Stack gap="md"><ReportStatus policy={report.policy} isFetching={query.isFetching} isStale={query.isStale} />
-    <Card withBorder><Text fw={700}>Income statement</Text><Table mt="sm" withTableBorder><Table.Thead><Table.Tr><Table.Th>Line</Table.Th><Table.Th>Current</Table.Th><Table.Th>Previous period</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{rows.map(([label, key]) => <Table.Tr key={key}><Table.Td><MetricLabel metric={key} label={label} /></Table.Td><Table.Td><AmountLink label={label} value={report.totals[key]} onClick={() => props.onDrillDown(KPI_FILTERS[key])} /></Table.Td><Table.Td><AmountLink label={`previous ${label}`} value={report.comparison.totals[key]} onClick={() => props.onDrillDown(dateTarget(KPI_FILTERS[key], report.comparisonPeriod))} /></Table.Td></Table.Tr>)}</Table.Tbody></Table></Card>
+    <Card withBorder><Text fw={700}>Income statement</Text><Table mt="sm" withTableBorder><Table.Thead><Table.Tr><Table.Th>Line</Table.Th><Table.Th>Current</Table.Th><Table.Th>Previous period</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{rows.map(([label, key]) => <Table.Tr key={key}><Table.Td><MetricLabel metric={key} label={label} /></Table.Td><Table.Td><ProtectedAmount label={label} value={report.totals[key]} onClick={() => props.onDrillDown(KPI_FILTERS[key])} /></Table.Td><Table.Td><ProtectedAmount label={`previous ${label}`} value={report.comparison.totals[key]} onClick={() => props.onDrillDown(dateTarget(KPI_FILTERS[key], report.comparisonPeriod))} /></Table.Td></Table.Tr>)}</Table.Tbody></Table></Card>
     {!report.operatingExpenseLines.length ? <EmptyState title="No operating expenses" description="No posted operating-expense journals exist in this period." /> : <Card withBorder><Text fw={700}>Operating expense accounts</Text><Table mt="sm"><Table.Tbody>{report.operatingExpenseLines.map((line) => <Table.Tr key={line.accountCode}><Table.Td>{line.accountCode} · {line.accountName}</Table.Td><Table.Td><AmountLink label={line.accountName} value={line.amountPaise} onClick={() => props.onDrillDown({ tab: "ledger", filters: { accountCodes: [line.accountCode] } })} /></Table.Td></Table.Tr>)}</Table.Tbody></Table></Card>}
-    <Card withBorder><Text fw={700}>Period trend</Text>{!report.periods.length ? <Text size="sm" c="dimmed" mt="sm">No period rows.</Text> : <Table mt="sm"><Table.Thead><Table.Tr><Table.Th>Period</Table.Th><Table.Th>Revenue</Table.Th><Table.Th>COGS</Table.Th><Table.Th>Gross profit</Table.Th><Table.Th>Operating result</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{report.periods.map((row) => <Table.Tr key={row.period}><Table.Td>{row.period}</Table.Td><Table.Td><AmountLink label={`${row.period} revenue`} value={row.recognizedRevenuePaise} onClick={() => props.onDrillDown(periodTarget(KPI_FILTERS.recognizedRevenuePaise, row.period, props.groupBy))} /></Table.Td><Table.Td><AmountLink label={`${row.period} COGS`} value={row.cogsPaise} onClick={() => props.onDrillDown(periodTarget(KPI_FILTERS.cogsPaise, row.period, props.groupBy))} /></Table.Td><Table.Td><AmountLink label={`${row.period} gross profit`} value={row.grossProfitPaise} onClick={() => props.onDrillDown(periodTarget(KPI_FILTERS.grossProfitPaise, row.period, props.groupBy))} /></Table.Td><Table.Td><AmountLink label={`${row.period} operating result`} value={row.operatingResultPaise} onClick={() => props.onDrillDown(periodTarget(KPI_FILTERS.operatingResultPaise, row.period, props.groupBy))} /></Table.Td></Table.Tr>)}</Table.Tbody></Table>}</Card>
+    <Card withBorder><Text fw={700}>Period trend</Text>{!report.periods.length ? <Text size="sm" c="dimmed" mt="sm">No period rows.</Text> : <Table mt="sm"><Table.Thead><Table.Tr><Table.Th>Period</Table.Th><Table.Th>Revenue</Table.Th><Table.Th>COGS</Table.Th><Table.Th>Gross profit</Table.Th><Table.Th>Operating result</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{report.periods.map((row) => <Table.Tr key={row.period}><Table.Td>{row.period}</Table.Td><Table.Td><AmountLink label={`${row.period} revenue`} value={row.recognizedRevenuePaise} onClick={() => props.onDrillDown(periodTarget(KPI_FILTERS.recognizedRevenuePaise, row.period, props.groupBy))} /></Table.Td><Table.Td><AmountLink label={`${row.period} COGS`} value={row.cogsPaise} onClick={() => props.onDrillDown(periodTarget(KPI_FILTERS.cogsPaise, row.period, props.groupBy))} /></Table.Td><Table.Td><AmountLink label={`${row.period} gross profit`} value={row.grossProfitPaise} onClick={() => props.onDrillDown(periodTarget(KPI_FILTERS.grossProfitPaise, row.period, props.groupBy))} /></Table.Td><Table.Td><ProtectedAmount label={`${row.period} operating result`} value={row.operatingResultPaise} onClick={() => props.onDrillDown(periodTarget(KPI_FILTERS.operatingResultPaise, row.period, props.groupBy))} /></Table.Td></Table.Tr>)}</Table.Tbody></Table>}</Card>
   </Stack>;
 };
 
