@@ -176,6 +176,13 @@
       "when": 1788759949692,
       "tag": "0024_finance_report_index",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1788763046339,
+      "tag": "0025_rare_scarecrow",
+      "breakpoints": true
     }
   ]
 }

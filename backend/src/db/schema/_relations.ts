@@ -51,6 +51,7 @@ import { productCostVersionsTable } from "./product-cost.schema";
 import { cashMovementsTable, cashSessionClosuresTable, cashSessionsTable } from "./cash.schema";
 import { expenseCategoriesTable, vendorsTable } from "./vendor.schema";
 import { fiscalPeriodsTable, journalEntriesTable, journalLinesTable, ledgerAccountsTable } from "./ledger.schema";
+import { compensationComponentsTable, compensationVersionsTable, employeeFinanceProfilesTable } from "./payroll.schema";
 
 /**
  * All Drizzle relations live here to avoid circular imports between
@@ -89,6 +90,7 @@ export const usersRelations = relations(usersTable, ({ many, one }) => ({
   cancelledRefunds: many(refundsTable, { relationName: "refundCancelledBy" }),
   submittedRefunds: many(refundsTable, { relationName: "refundSubmittedBy" }),
   processedRefunds: many(refundsTable, { relationName: "refundProcessedBy" }),
+  employeeFinanceProfiles: many(employeeFinanceProfilesTable, { relationName: "employeeFinanceProfileUser" }),
 }));
 
 export const addressesRelations = relations(addressTable, ({ many, one }) => ({
@@ -768,4 +770,29 @@ export const fiscalPeriodsRelations = relations(fiscalPeriodsTable, ({ one }) =>
   store: one(storesTable, { fields: [fiscalPeriodsTable.storeId], references: [storesTable.id] }),
   softClosedByUser: one(usersTable, { fields: [fiscalPeriodsTable.softClosedBy], references: [usersTable.id], relationName: "fiscalPeriodSoftCloser" }),
   closedByUser: one(usersTable, { fields: [fiscalPeriodsTable.closedBy], references: [usersTable.id], relationName: "fiscalPeriodCloser" }),
+}));
+
+export const employeeFinanceProfilesRelations = relations(employeeFinanceProfilesTable, ({ one, many }) => ({
+  store: one(storesTable, { fields: [employeeFinanceProfilesTable.storeId], references: [storesTable.id] }),
+  user: one(usersTable, {
+    fields: [employeeFinanceProfilesTable.userId],
+    references: [usersTable.id],
+    relationName: "employeeFinanceProfileUser",
+  }),
+  compensationVersions: many(compensationVersionsTable),
+}));
+
+export const compensationVersionsRelations = relations(compensationVersionsTable, ({ one, many }) => ({
+  profile: one(employeeFinanceProfilesTable, {
+    fields: [compensationVersionsTable.profileId],
+    references: [employeeFinanceProfilesTable.id],
+  }),
+  components: many(compensationComponentsTable),
+}));
+
+export const compensationComponentsRelations = relations(compensationComponentsTable, ({ one }) => ({
+  version: one(compensationVersionsTable, {
+    fields: [compensationComponentsTable.compensationVersionId],
+    references: [compensationVersionsTable.id],
+  }),
 }));

@@ -531,7 +531,7 @@ erDiagram
 
 ## Financial schema addendum
 
-Financial tables introduced through Phase 5 are owned by focused Drizzle schema modules:
+Financial tables introduced through Phase 5 and the Phase 6 payroll foundations are owned by focused Drizzle schema modules:
 
 | Table | Purpose and critical invariants |
 | --- | --- |
@@ -547,6 +547,8 @@ Financial tables introduced through Phase 5 are owned by focused Drizzle schema 
 | `ledger_accounts` | Owner-business INR chart with protected system account semantics |
 | `journal_entries`, `journal_lines` | Append-only source/manual journals, unique source identity/version, positive one-sided lines, balanced-posting triggers |
 | `fiscal_periods` | Non-overlapping store periods with open/soft-closed/closed evidence |
+| `employee_finance_profiles` | Employment identity separate from access membership; store scope, dates/status, and encrypted bank/PAN-like metadata with last-four masks |
+| `compensation_versions`, `compensation_components` | Non-overlapping effective-dated INR demo compensation with positive integer-paise earning, deduction, and employer-cost lines |
 
 Key report indexes are `journal_entries_store_date_idx` for store history and the partial date-leading `journal_entries_finance_report_idx` for posted/reversed INR consolidated ranges. `journal_lines_entry_line_unique` also provides the entry-leading join path. Query-plan evidence and acceptance budgets are documented in [finance-report-performance.md](finance-report-performance.md).
 

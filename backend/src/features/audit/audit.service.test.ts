@@ -16,8 +16,8 @@ describe("AuditService", () => {
       action: "staff.membership.updated",
       resourceType: "store_membership",
       resourceId: 12,
-      before: { role: "operator", status: "active" },
-      after: { role: "inventory_staff", status: "suspended" },
+      before: { role: "operator", status: "active", bankAccountNumber: "1234567890" },
+      after: { role: "inventory_staff", status: "suspended", taxIdentifierEncrypted: "encrypted-value" },
     });
 
     expect(values).toHaveBeenCalledWith(
@@ -33,5 +33,7 @@ describe("AuditService", () => {
     expect(serialized).not.toContain("tokenVersion");
     expect(serialized).not.toContain("password");
     expect(serialized).not.toContain("tokenHash");
+    expect(serialized).not.toContain("1234567890");
+    expect(serialized).not.toContain("encrypted-value");
   });
 });

@@ -70,8 +70,12 @@ export type LedgerAuditAction =
   | "ledger.period_reopened"
   | "ledger.manual_journal_posted"
   | "ledger.journal_reversed";
+export type PayrollAuditAction =
+  | "payroll.profile_created"
+  | "payroll.profile_updated"
+  | "payroll.compensation_version_created";
 
-export type AuditAction = StaffAuditAction | StoreAuditAction | OrderAuditAction | InventoryAuditAction | RefundAuditAction | SettlementAuditAction | CostAuditAction | CashAuditAction | VendorAuditAction | ExpenseAuditAction | LedgerAuditAction | SystemAuditAction;
+export type AuditAction = StaffAuditAction | StoreAuditAction | OrderAuditAction | InventoryAuditAction | RefundAuditAction | SettlementAuditAction | CostAuditAction | CashAuditAction | VendorAuditAction | ExpenseAuditAction | LedgerAuditAction | PayrollAuditAction | SystemAuditAction;
 
 export type AuditResourceType =
   | "store_membership"
@@ -91,6 +95,8 @@ export type AuditResourceType =
   | "expense_attachment"
   | "fiscal_period"
   | "journal_entry"
+  | "employee_finance_profile"
+  | "compensation_version"
   | "system";
 
 export interface StaffAuditState {

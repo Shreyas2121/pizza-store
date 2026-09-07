@@ -45,6 +45,9 @@ FE_URL=http://localhost:3150
 # Credential-free simulator is the safe default
 PAYMENT_PROVIDER_MODE=simulator
 
+# Required only when storing bank/PAN-like payroll metadata (32+ characters)
+# PAYROLL_ENCRYPTION_KEY=<dedicated random secret from your secret manager>
+
 # Optional Razorpay Test Mode (configure all three together)
 RAZORPAY_ENABLED=false
 RAZORPAY_KEY_ID=rzp_test_...
@@ -72,10 +75,13 @@ All variables are validated at startup via Zod. The server will not start if any
 | `RAZORPAY_KEY_SECRET` | No** | Server-only Razorpay API key secret |
 | `RAZORPAY_WEBHOOK_SECRET` | No** | Server-only secret used to validate webhook signatures |
 | `RAZORPAY_ENABLED` | No | Set to `true` to offer new/retried online checkouts; defaults to `false` |
+| `PAYROLL_ENCRYPTION_KEY` | Conditional | Dedicated 32+ character secret used for authenticated encryption of payroll-sensitive identifiers |
 
 \* Either `DATABASE_URL` or the individual `DB_*` variables must be provided.
 
 \** Razorpay variables may be omitted in simulator mode. If any one is set, all three are required. Live key IDs are rejected, and secrets must never be exposed to the frontend.
+
+`PAYROLL_ENCRYPTION_KEY` is required before creating or updating a payroll profile containing bank/PAN-like metadata. Generate it independently from `JWT_SECRET`, retain it in a secret manager, and do not rotate it without a data re-encryption plan.
 
 `RAZORPAY_ENABLED=true` requires all three credentials. Setting it to `false`
 immediately removes Razorpay from checkout and blocks new/retried attempts while

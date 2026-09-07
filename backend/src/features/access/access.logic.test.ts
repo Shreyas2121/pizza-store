@@ -109,6 +109,14 @@ describe("store permission policy", () => {
     expect(roleHasPermission("manager", "unknown.permission")).toBe(false);
   });
 
+  it("does not grant employee compensation access to operational or finance managers", () => {
+    for (const permission of ["payroll.read", "payroll.manage"] as const) {
+      expect(roleHasPermission("payroll_manager", permission)).toBe(true);
+      expect(roleHasPermission("manager", permission)).toBe(false);
+      expect(roleHasPermission("finance_manager", permission)).toBe(false);
+    }
+  });
+
   it("keeps platform capabilities separate and admin-only", () => {
     for (const capability of PLATFORM_CAPABILITIES) {
       expect(platformHasCapability("admin", capability)).toBe(true);

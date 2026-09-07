@@ -1162,9 +1162,16 @@ Financial endpoints are mounted under `/api/v1/finance/*` and `/api/v1/checkout/
 - `GET /finance/expenses/:id/attachments/:attachmentId` 🔒 — Authorized private receipt download with no public/static URL.
 - `GET /finance/source-margin?storeId=:id` 🔒 — Source-based, pre-ledger delivered-sales, standard-COGS, operating-expense, and margin view with cost-coverage evidence.
 
-### Planned Payroll-Lite (not implemented in Phase 5)
-- `GET /finance/payroll/profiles` 🔒 / `POST /finance/payroll/profiles` 🔒 — Employee finance profiles.
-- `GET /finance/payroll/compensation` 🔒 / `POST /finance/payroll/compensation` 🔒 — Effective compensation structure.
+### Payroll-Lite Profiles & Compensation
+- `GET /finance/payroll/profiles?storeId=:id` 🔒 — Restricted, paginated employee finance profiles. Bank/PAN-like values are never returned; only last-four masks are exposed.
+- `GET /finance/payroll/profiles/:id` 🔒 — Restricted profile detail with cross-store not-found masking.
+- `POST /finance/payroll/profiles` 🔒 / `PUT /finance/payroll/profiles/:id` 🔒 — Create or update employment dates/status and encrypted sensitive metadata; requires `payroll.manage`.
+- `GET /finance/payroll/profiles/:id/compensation?asOf=YYYY-MM-DD` 🔒 — Effective compensation history and exact recurring totals; requires `payroll.read`.
+- `POST /finance/payroll/profiles/:id/compensation` 🔒 — Append a non-overlapping effective-dated set of earning, deduction, and employer-cost components; requires `payroll.manage`.
+
+All compensation amounts are positive integer paise, currency is INR, and responses carry `demoOnly: true` plus a non-statutory boundary. Store managers and finance managers do not inherit payroll access. Compensation values and encrypted identifiers are excluded from audit metadata.
+
+### Planned Payroll Run Workflow
 - `GET /finance/payroll/pay-runs` 🔒 / `POST /finance/payroll/pay-runs` 🔒 — Pay-run lifecycle.
 - `POST /finance/payroll/pay-runs/:id/calculate` 🔒 / `POST /finance/payroll/pay-runs/:id/approve` 🔒 / `POST /finance/payroll/pay-runs/:id/pay` 🔒 / `POST /finance/payroll/pay-runs/:id/void` 🔒.
 - `GET /finance/payroll/pay-runs/:id/statements/:employeeId` 🔒 — Demo payslip statement view.

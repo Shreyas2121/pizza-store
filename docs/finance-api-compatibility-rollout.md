@@ -401,10 +401,11 @@ GET  /api/v1/finance/source-margin
 
 ```text
 GET  /api/v1/finance/payroll/profiles
+GET  /api/v1/finance/payroll/profiles/:id
 POST /api/v1/finance/payroll/profiles
 PUT  /api/v1/finance/payroll/profiles/:id
-GET  /api/v1/finance/payroll/compensation
-POST /api/v1/finance/payroll/compensation
+GET  /api/v1/finance/payroll/profiles/:id/compensation
+POST /api/v1/finance/payroll/profiles/:id/compensation
 GET  /api/v1/finance/payroll/pay-runs
 POST /api/v1/finance/payroll/pay-runs
 POST /api/v1/finance/payroll/pay-runs/:id/calculate
@@ -441,6 +442,10 @@ All endpoints return uniform error payloads with stable machine-readable codes:
 | `STALE_QUOTE_VERSION` | 409 | Order checkout quote has expired or underlying prices changed |
 | `TAX_RULE_NOT_FOUND` | 422 | No valid tax rule found for effective business date |
 | `COST_VERSION_OVERLAP` | 422 | Proposed standard cost effective dates overlap an existing cost version |
+| `PAYROLL_PROFILE_CONFLICT` | 409 | Employee code or linked user is already assigned within the store |
+| `PAYROLL_ENCRYPTION_NOT_CONFIGURED` | 503 | Sensitive payroll metadata was supplied without a dedicated encryption key |
+| `COMPENSATION_VERSION_OVERLAP` | 422 | Proposed compensation dates overlap an existing employee version |
+| `COMPENSATION_DEDUCTIONS_EXCEED_EARNINGS` | 422 | Recurring employee deductions exceed recurring earnings |
 | `SEGREGATION_OF_DUTIES_VIOLATION` | 403 | Actor attempted self-approval or forbidden dual action (e.g. create + approve expense) |
 | `STORE_SCOPE_MISMATCH` | 404 | Resource belongs to a different store (masked as 404 to prevent resource existence disclosure) |
 | `ACTIVE_CASH_SESSION_EXISTS` | 409 | Attempted opening a second cash session for the same store and date |

@@ -14,6 +14,10 @@ const SENSITIVE_KEYS = new Set([
   "refreshToken",
   "apiKey",
   "webhookSecret",
+  "bankAccountNumber",
+  "bankAccountEncrypted",
+  "taxIdentifier",
+  "taxIdentifierEncrypted",
 ]);
 
 const sanitizeRecord = (
