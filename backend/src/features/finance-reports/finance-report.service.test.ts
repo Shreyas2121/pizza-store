@@ -13,6 +13,7 @@ const repository = () => ({
   collectionTotal: vi.fn().mockResolvedValue("12000"),
   unsettledRazorpay: vi.fn().mockResolvedValue("2000"),
   openReconciliationIssues: vi.fn().mockResolvedValue(2),
+  lastReconciledAt: vi.fn().mockResolvedValue(new Date("2026-04-29T10:00:00.000Z")),
 });
 
 afterEach(() => vi.restoreAllMocks());
@@ -21,9 +22,16 @@ describe("finance report service", () => {
   it("returns validated consolidated overview metadata and string aggregates", async () => {
     const repo = repository();
     const result = await new FinanceReportService(repo as never).overview(admin, { from: "2026-04-01", to: "2026-04-30" }, new Date("2026-05-01T00:00:00.000Z"));
-    expect(result.policy).toMatchObject({ currency: "INR", timezone: "Asia/Kolkata", dateBasis: "journal_business_date", recognitionBasis: "delivery", scope: { kind: "consolidated", storeIds: [1, 2] } });
+    expect(result.policy).toMatchObject({ currency: "INR", timezone: "Asia/Kolkata", dateBasis: "journal_business_date", recognitionBasis: "delivery", lastReconciledAt: "2026-04-29T10:00:00.000Z", scope: { kind: "consolidated", storeIds: [1, 2] } });
     expect(result.kpis).toMatchObject({ recognizedRevenuePaise: "10000", collectionsPaise: "12000", unsettledRazorpayPaise: "2000", openReconciliationIssues: 2 });
     expect(result.comparison.period).toEqual({ from: "2026-03-02", to: "2026-03-31" });
+  });
+
+  it("returns null reconciliation metadata when the selected scope has never reconciled a settlement", async () => {
+    const repo = repository();
+    repo.lastReconciledAt.mockResolvedValue(null);
+    const result = await new FinanceReportService(repo as never).overview(admin, { from: "2026-04-01", to: "2026-04-30" });
+    expect(result.policy.lastReconciledAt).toBeNull();
   });
 
   it("requires store scope for staff and enforces the report permission", async () => {
@@ -55,7 +63,9 @@ describe("finance report service", () => {
     const query = { from: "2026-04-01", to: "2026-04-30", storeId: 1, groupBy: "month" } as const;
     const screen = await service.sales(finance, query, new Date("2026-05-01T00:00:00.000Z"));
     const exported = await service.exportCsv(finance, "sales", query, new Date("2026-05-01T00:00:00.000Z"));
-    const currentTotals = Object.fromEntries(exported.body.split("\r\n").slice(1).filter(Boolean).map((line) => line.split(",")).filter((columns) => columns[12] === "current_total").map((columns) => [columns[16], columns[17]]));
+    const [heading, ...csvRows] = exported.body.split("\r\n").filter(Boolean).map((line) => line.split(","));
+    const column = (name: string) => heading.indexOf(name);
+    const currentTotals = Object.fromEntries(csvRows.filter((columns) => columns[column("row_type")] === "current_total").map((columns) => [columns[column("metric")], columns[column("value")]]));
     const screenTotals = Object.fromEntries(Object.entries(screen.totals).map(([metric, value]) => [metric, value === null ? "" : String(value)]));
     expect(currentTotals).toEqual(screenTotals);
     expect(exported.filename).toBe("finance-sales-store-1-2026-04-01-2026-04-30.csv");

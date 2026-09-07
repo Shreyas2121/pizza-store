@@ -1106,11 +1106,26 @@ Financial endpoints are mounted under `/api/v1/finance/*` and `/api/v1/checkout/
 - `GET /finance/profit-and-loss` 🔒 — Multi-period store and consolidated income statement.
 - `GET /finance/sales` 🔒 — Sales, discount allocations, and delivery revenue breakdown.
 - `GET /finance/margins` 🔒 — Product and store contribution margin analysis.
+- Every aggregate report includes currency, timezone, journal-business-date basis, delivery-recognition basis, included journal statuses, generation time, selected scope, comparison period, and the latest successful settlement reconciliation time (`null` when none exists in scope).
+
+Headline metric definitions:
+
+| Metric | Definition |
+| --- | --- |
+| Recognized revenue | Tax-exclusive food and delivery revenue recognized at delivery, less posted discounts and finalized post-delivery refunds. |
+| Collections | Captured COD and Razorpay amounts in the selected period; cash flow, not revenue. |
+| Refunds | Tax-exclusive contra revenue from finalized post-delivery refunds; separately reversed included tax is excluded. |
+| COGS | Standard-cost snapshots recognized at delivery; refunds do not reverse COGS unless inventory is separately accepted back. |
+| Gross profit | Recognized revenue minus COGS. |
+| Operating expenses | Net posted expense-account movements excluding COGS and payroll, including gateway charges, cash variance, and rounding movements. |
+| Payroll cost | Total employer cost from posted pay runs; may include earnings, deductions, and employer-cost components and is not take-home pay. |
+| Unsettled Razorpay | Net Razorpay clearing balance through the report end date, including prior captures, refunds, and settlements. |
+| Cash variance | Net posted cash shortages less overages from closed COD sessions. |
 - `GET /finance/exports/:reportType` 🔒 — CSV exports with formula-injection mitigation.
   - `reportType`: `overview`, `profit-and-loss`, `sales`, or `margins`.
   - Query: `from`, `to`, optional `storeId`, and optional `groupBy=month|quarter|fiscal_year`.
   - Store staff must provide an authorized store. Only a platform owner can omit `storeId` for consolidation.
-  - Response is `text/csv; charset=utf-8`, `Cache-Control: private, no-store`, with deterministic period/scope filename. Rows identify timezone, date basis, currency, and whether each value is paise, basis points, or a count.
+  - Response is `text/csv; charset=utf-8`, `Cache-Control: private, no-store`, with deterministic period/scope filename. Rows identify timezone, date and recognition basis, included journal statuses, generation and last-reconciliation times, currency, and whether each value is paise, basis points, or a count.
 
 ### General Ledger & Fiscal Periods
 - `GET /finance/ledger/accounts` 🔒 — Chart of accounts master.

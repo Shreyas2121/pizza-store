@@ -24,6 +24,7 @@ const policySchema = z.object({
   recognitionBasis: z.literal("delivery"),
   includedJournalStatuses: z.tuple([z.literal("posted"), z.literal("reversed")]),
   generatedAt: z.iso.datetime(),
+  lastReconciledAt: z.iso.datetime().nullable(),
   scope,
 }).strict();
 

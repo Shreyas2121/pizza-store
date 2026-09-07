@@ -19,6 +19,7 @@
     "db:migrate":  "pnpm --filter backend db:migrate",
     "db:seed":     "pnpm --filter backend seed",
     "demo:reset":  "pnpm --filter backend demo:reset",
+    "finance:reconcile-fixture": "pnpm --filter backend finance:reconcile-fixture",
 
     "preflight":   "pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run build"
   }

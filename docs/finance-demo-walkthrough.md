@@ -62,6 +62,8 @@ The reset seeds the complete checked-in two-store, two-month scenario. Its outpu
 3. Compare a current-total CSV metric to the screen and its journal drill-down.
 4. Log in as the finance manager. They can see only stores with active membership and cannot request an unscoped consolidated report.
 
+For a deterministic all-report check, run `pnpm finance:reconcile-fixture`. It calculates overview, P&L, sales, margins, period series, and all four CSV exports for both stores and consolidated scope from the checked-in financial scenario, then fails on the first mismatch with `financial-scenario.fixtures.ts`.
+
 ## What to explain
 
 - Browser prices are never authoritative; the server stores an immutable quote snapshot in integer paise.

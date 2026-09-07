@@ -187,8 +187,12 @@ GET /api/v1/finance/exports/:reportType
     "policy": {
       "currency": "INR",
       "timezone": "Asia/Kolkata",
-      "dateBasis": "delivered_business_date",
-      "generatedAt": "2026-08-31T12:00:00.000Z"
+      "dateBasis": "journal_business_date",
+      "recognitionBasis": "delivery",
+      "includedJournalStatuses": ["posted", "reversed"],
+      "generatedAt": "2026-08-31T12:00:00.000Z",
+      "lastReconciledAt": "2026-08-30T10:30:00.000Z",
+      "scope": { "kind": "store", "storeIds": [1] }
     },
     "kpis": {
       "recognizedRevenuePaise": 15000000,
@@ -213,6 +217,8 @@ GET /api/v1/finance/exports/:reportType
   }
 }
 ```
+
+`lastReconciledAt` is the latest `reconciledAt` timestamp from a successfully reconciled Razorpay settlement in the selected store scope. It is independent of the requested report date range and is `null` when no settlement in that scope has reached `reconciled` status. The same policy metadata is returned by overview, P&L, sales, and margins and is embedded in their CSV exports.
 
 #### `GET /api/v1/finance/profit-and-loss`
 - **Query params**: `from`, `to`, `storeId`, `groupBy` (`month` | `quarter` | `fiscal_year`).

@@ -257,6 +257,7 @@ For step-by-step credential creation during development, see the
 | `seed:staff` | `ts-node src/scripts/staff.ts` | Idempotently assign existing users to a store in development only |
 | `demo:reset` | `ts-node src/scripts/demo-reset.ts --confirm-local-demo-reset` | Destructively reset and seed the local two-store demo |
 | `finance:post-events` | `ts-node src/scripts/post-financial-events.ts` | Claim and post up to 100 pending financial events |
+| `finance:reconcile-fixture` | `ts-node src/scripts/reconcile-financial-scenario.ts` | Reconcile every finance report and CSV export against the checked-in two-store expected results |
 | `db:migrate` | `drizzle-kit migrate` | Apply checked-in migrations through repository head |
 
 ### Frontend (`frontend/package.json`)

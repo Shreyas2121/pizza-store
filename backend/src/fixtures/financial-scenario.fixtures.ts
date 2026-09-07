@@ -699,6 +699,7 @@ export interface FixtureLedgerReportSummary {
   collectionsPaise: number;
   cogsPaise: number;
   grossProfitPaise: number;
+  grossMarginBps: number;
   operatingExpensesPaise: number;
   payrollCostPaise: number;
   operatingResultPaise: number;
@@ -707,10 +708,10 @@ export interface FixtureLedgerReportSummary {
 }
 
 export const EXPECTED_LEDGER_REPORT_STORE_MONTH_SUMMARIES: Record<string, FixtureLedgerReportSummary> = {
-  "store_1_2026_07": { storeId: 1, month: "2026-07", salesRevenuePaise: 142857, deliveryRevenuePaise: 14286, discountsPaise: 4762, refundsPaise: 38095, recognizedRevenuePaise: 114286, collectionsPaise: 160000, cogsPaise: 56500, grossProfitPaise: 57786, operatingExpensesPaise: 1953242, payrollCostPaise: 4000000, operatingResultPaise: -5895456, unsettledRazorpayPaise: 0, cashVariancePaise: 1000 },
-  "store_2_2026_07": { storeId: 2, month: "2026-07", salesRevenuePaise: 28571, deliveryRevenuePaise: 4762, discountsPaise: 0, refundsPaise: 0, recognizedRevenuePaise: 33333, collectionsPaise: 35000, cogsPaise: 10000, grossProfitPaise: 23333, operatingExpensesPaise: 2150000, payrollCostPaise: 3600000, operatingResultPaise: -5726667, unsettledRazorpayPaise: 0, cashVariancePaise: 0 },
-  "store_1_2026_08": { storeId: 1, month: "2026-08", salesRevenuePaise: 38095, deliveryRevenuePaise: 4762, discountsPaise: 0, refundsPaise: 0, recognizedRevenuePaise: 42857, collectionsPaise: 45000, cogsPaise: 16000, grossProfitPaise: 26857, operatingExpensesPaise: 2020000, payrollCostPaise: 4300000, operatingResultPaise: -6293143, unsettledRazorpayPaise: 45000, cashVariancePaise: 0 },
-  "store_2_2026_08": { storeId: 2, month: "2026-08", salesRevenuePaise: 109524, deliveryRevenuePaise: 9524, discountsPaise: 0, refundsPaise: 0, recognizedRevenuePaise: 119048, collectionsPaise: 125000, cogsPaise: 45500, grossProfitPaise: 73548, operatingExpensesPaise: 2181652, payrollCostPaise: 3600000, operatingResultPaise: -5708104, unsettledRazorpayPaise: 0, cashVariancePaise: 0 },
+  "store_1_2026_07": { storeId: 1, month: "2026-07", salesRevenuePaise: 142857, deliveryRevenuePaise: 14286, discountsPaise: 4762, refundsPaise: 38095, recognizedRevenuePaise: 114286, collectionsPaise: 160000, cogsPaise: 56500, grossProfitPaise: 57786, grossMarginBps: 5056, operatingExpensesPaise: 1953242, payrollCostPaise: 4000000, operatingResultPaise: -5895456, unsettledRazorpayPaise: 0, cashVariancePaise: 1000 },
+  "store_2_2026_07": { storeId: 2, month: "2026-07", salesRevenuePaise: 28571, deliveryRevenuePaise: 4762, discountsPaise: 0, refundsPaise: 0, recognizedRevenuePaise: 33333, collectionsPaise: 35000, cogsPaise: 10000, grossProfitPaise: 23333, grossMarginBps: 6999, operatingExpensesPaise: 2150000, payrollCostPaise: 3600000, operatingResultPaise: -5726667, unsettledRazorpayPaise: 0, cashVariancePaise: 0 },
+  "store_1_2026_08": { storeId: 1, month: "2026-08", salesRevenuePaise: 38095, deliveryRevenuePaise: 4762, discountsPaise: 0, refundsPaise: 0, recognizedRevenuePaise: 42857, collectionsPaise: 45000, cogsPaise: 16000, grossProfitPaise: 26857, grossMarginBps: 6266, operatingExpensesPaise: 2020000, payrollCostPaise: 4300000, operatingResultPaise: -6293143, unsettledRazorpayPaise: 45000, cashVariancePaise: 0 },
+  "store_2_2026_08": { storeId: 2, month: "2026-08", salesRevenuePaise: 109524, deliveryRevenuePaise: 9524, discountsPaise: 0, refundsPaise: 0, recognizedRevenuePaise: 119048, collectionsPaise: 125000, cogsPaise: 45500, grossProfitPaise: 73548, grossMarginBps: 6178, operatingExpensesPaise: 2181652, payrollCostPaise: 3600000, operatingResultPaise: -5708104, unsettledRazorpayPaise: 0, cashVariancePaise: 0 },
 };
 
 export const EXPECTED_LEDGER_REPORT_CONSOLIDATED_TWO_MONTH_TOTAL = {
@@ -722,8 +723,11 @@ export const EXPECTED_LEDGER_REPORT_CONSOLIDATED_TWO_MONTH_TOTAL = {
   collectionsPaise: 365000,
   cogsPaise: 128000,
   grossProfitPaise: 181524,
+  grossMarginBps: 5864,
   operatingExpensesPaise: 8304894,
   payrollCostPaise: 15500000,
   operatingResultPaise: -23623370,
   cashVariancePaise: 1000,
+  unsettledRazorpayPaise: 45000,
+  openReconciliationIssues: 0,
 };

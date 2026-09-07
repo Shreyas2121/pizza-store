@@ -51,11 +51,12 @@ export class FinanceReportService {
     const scope = await this.resolveScope(actor, query.storeId, "finance.overview.read");
     const period = { from: query.from, to: query.to };
     const comparisonPeriod = comparisonPeriodFor(query.from, query.to);
-    const [current, comparison, issues] = await Promise.all([
+    const [current, comparison, issues, lastReconciledAt] = await Promise.all([
       this.load(scope, period), this.load(scope, comparisonPeriod), this.repository.openReconciliationIssues(scope.storeIds),
+      this.repository.lastReconciledAt(scope.storeIds),
     ]);
     return overviewResponseSchema.parse({
-      policy: this.policy(scope, now), period, comparisonPeriod,
+      policy: this.policy(scope, now, lastReconciledAt), period, comparisonPeriod,
       kpis: { ...current.totals, openReconciliationIssues: issues },
       comparison: { period: comparisonPeriod, kpis: { ...comparison.totals, openReconciliationIssues: null } },
       drillDownUrls: this.drillDownUrls(query),
@@ -66,9 +67,9 @@ export class FinanceReportService {
     const scope = await this.resolveScope(actor, query.storeId, "finance.overview.read");
     const period = { from: query.from, to: query.to };
     const comparisonPeriod = comparisonPeriodFor(query.from, query.to);
-    const [current, comparison] = await Promise.all([this.load(scope, period), this.load(scope, comparisonPeriod)]);
+    const [current, comparison, lastReconciledAt] = await Promise.all([this.load(scope, period), this.load(scope, comparisonPeriod), this.repository.lastReconciledAt(scope.storeIds)]);
     return profitAndLossResponseSchema.parse({
-      policy: this.policy(scope, now), period, comparisonPeriod, groupBy: query.groupBy,
+      policy: this.policy(scope, now, lastReconciledAt), period, comparisonPeriod, groupBy: query.groupBy,
       totals: current.totals, operatingExpenseLines: current.operatingExpenseLines, periods: profitAndLossSeries(current.rows, query.groupBy),
       comparison: { totals: comparison.totals, operatingExpenseLines: comparison.operatingExpenseLines, periods: profitAndLossSeries(comparison.rows, query.groupBy) },
     });
@@ -78,9 +79,9 @@ export class FinanceReportService {
     const scope = await this.resolveScope(actor, query.storeId, "finance.sales.read");
     const period = { from: query.from, to: query.to };
     const comparisonPeriod = comparisonPeriodFor(query.from, query.to);
-    const [current, comparison] = await Promise.all([this.load(scope, period), this.load(scope, comparisonPeriod)]);
+    const [current, comparison, lastReconciledAt] = await Promise.all([this.load(scope, period), this.load(scope, comparisonPeriod), this.repository.lastReconciledAt(scope.storeIds)]);
     return salesResponseSchema.parse({
-      policy: this.policy(scope, now), period, comparisonPeriod, groupBy: query.groupBy, totals: current.totals,
+      policy: this.policy(scope, now, lastReconciledAt), period, comparisonPeriod, groupBy: query.groupBy, totals: current.totals,
       series: salesSeries(current.rows, query.groupBy), comparison: { totals: comparison.totals, series: salesSeries(comparison.rows, query.groupBy) },
     });
   }
@@ -89,9 +90,9 @@ export class FinanceReportService {
     const scope = await this.resolveScope(actor, query.storeId, "finance.sales.read");
     const period = { from: query.from, to: query.to };
     const comparisonPeriod = comparisonPeriodFor(query.from, query.to);
-    const [current, comparison] = await Promise.all([this.load(scope, period), this.load(scope, comparisonPeriod)]);
+    const [current, comparison, lastReconciledAt] = await Promise.all([this.load(scope, period), this.load(scope, comparisonPeriod), this.repository.lastReconciledAt(scope.storeIds)]);
     return marginsResponseSchema.parse({
-      policy: this.policy(scope, now), period, comparisonPeriod, groupBy: query.groupBy, totals: current.totals,
+      policy: this.policy(scope, now, lastReconciledAt), period, comparisonPeriod, groupBy: query.groupBy, totals: current.totals,
       series: marginSeries(current.rows, query.groupBy), comparison: { totals: comparison.totals, series: marginSeries(comparison.rows, query.groupBy) },
     });
   }
@@ -128,8 +129,8 @@ export class FinanceReportService {
     return { rows, ...projectFinanceReport(rows, { collectionsPaise, unsettledRazorpayPaise }) };
   }
 
-  private policy(scope: Scope, now: Date) {
-    return { currency: "INR" as const, timezone: scope.timezone, dateBasis: "journal_business_date" as const, recognitionBasis: "delivery" as const, includedJournalStatuses: ["posted", "reversed"] as const, generatedAt: now.toISOString(), scope: { kind: scope.kind, storeIds: scope.storeIds } };
+  private policy(scope: Scope, now: Date, lastReconciledAt: Date | null) {
+    return { currency: "INR" as const, timezone: scope.timezone, dateBasis: "journal_business_date" as const, recognitionBasis: "delivery" as const, includedJournalStatuses: ["posted", "reversed"] as const, generatedAt: now.toISOString(), lastReconciledAt: lastReconciledAt?.toISOString() ?? null, scope: { kind: scope.kind, storeIds: scope.storeIds } };
   }
 
   private drillDownUrls(query: FinanceReportQuery) {

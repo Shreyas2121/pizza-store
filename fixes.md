@@ -31,7 +31,9 @@ Phase 1 is not complete while financial values are stored or read as `real`, `do
 - Cart, quote preview, and final checkout display the same server-calculated amounts.
 - Existing exact-paise pricing and checkout tests continue to pass.
 
-## Priority 2 — Seed the complete deterministic finance scenario
+## Priority 2 — Seed the complete deterministic finance scenario — Implemented
+
+Implementation status: completed in commit `b6eac91`. The local-only demo reset now recreates the checked-in two-store, two-month scenario with traceable sources, processed events, balanced journals, stable source mappings, and customer/report expected totals.
 
 The current demo reset creates configuration and master data but intentionally starts the ledger at zero. It does not reproduce the complete expected financial fixture required by the plan.
 
@@ -60,7 +62,9 @@ The current demo reset creates configuration and master data but intentionally s
 - The seeded journals are balanced and traceable to their source records.
 - Report and CSV totals can be compared with one checked-in expected-results fixture.
 
-## Priority 3 — Finish Phase 5 report completeness
+## Priority 3 — Finish Phase 5 report completeness — Implemented
+
+Implementation status: completed in the current working tree. Aggregate report policy metadata now includes the latest successful settlement reconciliation for the selected scope (or `null`), the finance workspace exposes accessible metric definitions, and `pnpm finance:reconcile-fixture` reconciles overview, P&L, sales, margins, period series, and all CSV variants against the checked-in expected-results fixture.
 
 The core ledger-backed reports, comparison periods, drill-down, CSV export, generated timestamp, stale state, and partial-data state exist. The remaining report metadata and presentation requirements should be completed.
 

@@ -1,7 +1,7 @@
-import { and, asc, count, eq, gte, inArray, lte, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, eq, gte, inArray, lte, max, or, sql, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "../../db";
-import { journalEntriesTable, journalLinesTable, ledgerAccountsTable, reconciliationIssuesTable, storesTable } from "../../db/schema";
+import { journalEntriesTable, journalLinesTable, ledgerAccountsTable, reconciliationIssuesTable, settlementBatchesTable, storesTable } from "../../db/schema";
 import type { FinanceMovement } from "./finance-report.policy";
 
 const storeCondition = (storeIds: number[]): SQL => storeIds.length === 0
@@ -73,6 +73,17 @@ export class FinanceReportRepository {
     const [row] = await db.select({ total: count() }).from(reconciliationIssuesTable)
       .where(and(scope, eq(reconciliationIssuesTable.status, "open")));
     return Number(row.total);
+  }
+
+  async lastReconciledAt(storeIds: number[]) {
+    if (storeIds.length === 0) return null;
+    const [row] = await db.select({ value: max(settlementBatchesTable.reconciledAt) })
+      .from(settlementBatchesTable)
+      .where(and(
+        inArray(settlementBatchesTable.storeId, storeIds),
+        eq(settlementBatchesTable.status, "reconciled"),
+      ));
+    return row.value;
   }
 }
 
