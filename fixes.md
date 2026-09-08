@@ -170,6 +170,8 @@ Structured logs and recovery runbooks exist, but runtime metrics for the finance
 
 ## Priority 8 — Finish operations and rollout documentation
 
+**Status: Implemented in the working tree.** The operations runbook now provides executable expense and payroll correction procedures covering permissions, recent authentication, idempotency, closed periods, audit evidence, and reconciliation. The rollout map records the completed frontend migration, intentionally retires the proposed transitional flag, and defines the v1 dashboard/Finance Workspace compatibility policy. Limitations now link directly to payroll, demo-tax, currency, provider, and pending performance-verification boundaries.
+
 ### Required changes
 
 - Add a dedicated procedure for correcting a posted expense through void/reversal and replacement.

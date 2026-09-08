@@ -1,6 +1,6 @@
 # Finance operations runbook
 
-This runbook covers the management-accounting features shipped through Phase 5. Amounts are integer paise, currency is INR, and business dates use each store's configured timezone. These reports are operational management reports, not statutory accounts or tax filings.
+This runbook covers the management-accounting and payroll-lite features shipped through Phase 6. Amounts are integer paise, currency is INR, and business dates use each store's configured timezone. These reports are operational management reports, not statutory accounts or tax filings.
 
 ## Routine checks
 
@@ -49,6 +49,41 @@ Writers store domain state and the outbox event in one transaction. Workers clai
 Only a recently authenticated platform owner can open, soft-close, close, or reopen periods.
 
 Before soft close: drain the outbox, reconcile payments/refunds/settlements, resolve or document open issues, post approved expenses, and verify the trial balance. Soft close blocks ordinary source postings; an owner may use an explicit audited override. Close only after review. Closed periods reject every posting. Reopen only with a documented correction reason, post the reversal/replacement, rerun reports, and close again.
+
+## Correct a voided or posted expense
+
+Never edit the source row, allocations, outbox payload, or journal. Preserve the supplier/payment evidence and use one of these paths:
+
+- An expense in `draft`, `submitted`, `approved`, `paid`, or `rejected` can be voided with `POST /api/v1/finance/expenses/:id/void`. This requires `finance.expenses.approve`. A paid expense also requires `paymentReversed: true` and a non-empty `reversalReference`; do not claim reversal until the external payment has actually been recovered. A `posted` expense cannot be voided.
+- A `posted` expense must be reversed with `POST /api/v1/finance/expenses/:id/reverse`, permission `finance.expenses.pay`, and body `{ "reason": "..." }`. The resulting `expense.reversed.v1` event creates an exact opposite journal linked to the original.
+
+For either path, send a new UUID `Idempotency-Key` for each command. Retrying the same action after an uncertain response must reuse the same key and identical payload meaning; the service returns the recorded result. Reusing a key for another expense, action, or payload returns `DUPLICATE_IDEMPOTENCY_KEY`. The expense lifecycle does not currently require step-up/recent authentication. If the original expense date is in a closed fiscal period, have a platform administrator reopen it before requesting reversal; period reopen requires authentication within 15 minutes and an explicit reason. Drain the reversal, then run the normal soft-close and close checks again.
+
+Then create a replacement expense with a new idempotency key and the corrected date, vendor, description, totals, and allocations. Use the normal submit → approve → pay → post flow, with a new key per transition. The creator cannot approve; the creator or approver cannot pay unless a platform administrator supplies the supported audited override reason. Do not reuse the old payment reference unless it identifies the real replacement payment.
+
+Retain and verify this evidence before declaring the correction complete:
+
+1. The original expense is `voided` or `reversed`, its reason is visible, and the immutable original remains readable.
+2. Audit history contains the void/reversal and replacement lifecycle actors and request IDs; command records contain the idempotency evidence.
+3. For a posted correction, both `expense.reversed.v1` and the replacement `expense.posted.v1` reach `processed`; the original journal plus its linked reversal nets to zero.
+4. The replacement journal matches its corrected allocations, the trial balance remains balanced, and the expense report and CSV agree.
+5. If a period was reopened, rerun close checks, soft-close it, and close it again with correction-specific reasons.
+
+## Correct a voided or posted payroll run
+
+Do not change compensation or pay-run snapshots to rewrite history. Before posting, `draft`, `calculated`, or `approved` runs can be voided through `POST /api/v1/finance/payroll/pay-runs/:id/void` with `payroll.manage`, a new `Idempotency-Key`, and `{ "reason": "..." }`. A `paid` run cannot be voided: post it only after confirming the recorded payment evidence, then use the posted-run reversal below. Every payroll lifecycle command requires authentication within the preceding 15 minutes.
+
+For a `posted` run:
+
+1. A payroll-authorized reviewer with `payroll.pay` confirms the immutable employee/component snapshot, payment evidence, original posting journal, correction reason, and corrected aggregate schedule. Keep employee-level evidence only in the restricted payroll process.
+2. Choose an `effectiveBusinessDate` in an open fiscal period. The original payroll period may remain closed; the correction date controls the reversal journal and retains a link to the original journal.
+3. Call `POST /api/v1/finance/payroll/pay-runs/:id/reverse` with a new UUID `Idempotency-Key` and `{ "reason": "...", "effectiveBusinessDate": "YYYY-MM-DD" }`. Retry an uncertain response with the same key and identical payload. Reusing it with changed meaning returns `DUPLICATE_IDEMPOTENCY_KEY`.
+4. Drain `pay_run.reversed.v1` and verify the exact linked reversal nets every original payroll account line to zero.
+5. Post the corrected aggregate replacement through `POST /api/v1/finance/ledger/manual-journals` on an open business date. This requires `finance.ledger.post`, its own UUID idempotency key, a correction description referencing the reversed pay-run ID, and balanced lines using only aggregate values: debit Payroll Expense (`6200`) for corrected total employer cost; credit Payroll Payable (`2300`) for net pay and Payroll Deductions Payable (`2310`) for deductions plus employer cost; then debit `2300` and credit Bank (`1010`) for net pay already disbursed. A soft-close override is restricted to a recently authenticated platform administrator and must carry a reason; never post to a closed period.
+
+The schema intentionally permits only one immutable pay-run snapshot per store/month, so the replacement is an aggregate corrective journal, not a second pay-run or replacement payslip. This corrects management accounts without fabricating revised statutory payroll evidence. If corrected employee statements are required, this demo is insufficient and the case must be handled outside it under the organization's payroll controls.
+
+Confirm audit history contains `payroll.pay_run_reversed`, the request/actor/reason evidence, the original and reversal journal link, and `ledger.manual_journal_posted` for the replacement. Finally verify the reversal outbox event is `processed`, the replacement journal is balanced, account `6200` equals the approved corrected employer cost, liability/bank lines match the payment evidence, payroll-visible reports and their CSVs agree, and the trial balance difference is zero. Do not put employee names, bank details, PAN-like identifiers, payment references, or per-employee compensation into the manual journal description or metadata.
 
 ## High-risk audit evidence
 
@@ -111,10 +146,12 @@ A restore is acceptable only when migrations reach repository head, seeded/admin
 
 ## Current limitations
 
-- Management reporting is single-currency INR and uses delivery recognition; it is not statutory bookkeeping, GST filing, an invoice system, or tax advice.
-- Tax rules and HSN/SAC labels are visibly demo-only. No live Razorpay payments are supported.
+- Management reporting uses the [single-currency INR and exact-money assumptions](adr/0001-money-representation-and-rounding.md) and delivery recognition; it is not statutory bookkeeping, GST filing, an invoice system, or tax advice.
+- Tax rules and HSN/SAC labels follow the explicitly non-statutory [demo tax policy](adr/0004-tax-inclusive-demo-policy.md).
+- Payment/refund behavior is limited to the local simulator or Razorpay Test Mode. Live processing is rejected; see the [provider modes and limitations](razorpay-runbook.md).
 - Standard product cost is not recipe/BOM costing. There is no purchase-order, accounts-payable, bank-feed, or inventory valuation subledger.
-- Payroll-lite is a separate restricted workspace with demo-only compensation, pay-run statements, and reversible ledger posting. See [payroll-demo-scope.md](payroll-demo-scope.md). Invoice endpoints remain future optional Phase 7 work.
+- Payroll-lite is a separate restricted workspace with demo-only compensation, pay-run statements, and reversible ledger posting; its [statutory and privacy boundaries](payroll-demo-scope.md) exclude tax/contribution calculation, filing, and remittance. Invoice endpoints remain future optional Phase 7 work.
 - CSV is a tall, machine-reconcilable export; values identify paise, basis points, or counts explicitly.
 - Report freshness depends on draining the asynchronous financial outbox.
+- The representative 12-month database benchmark remains a release gate. See the [report performance verification requirement](finance-report-performance.md); no production-scale latency claim is made until its plans and results are retained.
 - The local demo reset is destructive, development-only, and refuses remote PostgreSQL hosts.

@@ -48,7 +48,7 @@ See [architecture.md](docs/architecture.md) for component boundaries and [databa
 | [Finance API compatibility and rollout map](docs/finance-api-compatibility-rollout.md) | Endpoint contracts, server quote consolidation, error codes, and permission matrix |
 | [Deterministic two-store financial fixtures](docs/two-store-financial-fixtures.md) | Reference scenario, P&L benchmarks, settlement matching, and expected outputs |
 | [Finance demo walkthrough](docs/finance-demo-walkthrough.md) | Credential-free online/COD walkthrough from source transaction through P&L and CSV |
-| [Finance operations runbook](docs/finance-operations-runbook.md) | Reconciliation, refunds, outbox recovery, period close, migrations, and limitations |
+| [Finance operations runbook](docs/finance-operations-runbook.md) | Reconciliation, immutable expense/payroll corrections, outbox recovery, period close, metrics, migrations, and limitations |
 | [Finance report performance](docs/finance-report-performance.md) | Report latency target, query-plan harness, and index decision |
 | [store-staff-authorization.md](docs/store-staff-authorization.md) | Staff role matrix, lifecycle operations, deployment, rollback, and security verification |
 | [razorpay-runbook.md](docs/razorpay-runbook.md) | Online payment lifecycle, inventory reservations, monitoring, and reconciliation |

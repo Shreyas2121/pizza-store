@@ -1,7 +1,7 @@
 # Finance API compatibility and rollout map
 
-- Status: Target contract accepted for phased implementation
-- Date: 2026-08-31
+- Status: Finance frontend migration complete; compatibility policy active
+- Date: 2026-09-08
 - Target branch: `feature/financial-overhaul`
 - Related documents: [Overhaul plan](../plan.md), [Implementation guide](../guide.md), [ADR-001](adr/0001-money-representation-and-rounding.md), [ADR-002](adr/0002-revenue-cogs-recognition-and-refunds.md), [ADR-003](adr/0003-ledger-accounts-and-posting-rules.md), [ADR-004](adr/0004-tax-inclusive-demo-policy.md), [ADR-005](adr/0005-store-timezone-business-date-financial-year.md), [Finance lifecycle contracts](finance-lifecycle-contracts.md)
 
@@ -39,8 +39,21 @@ The legacy `/api/v1/dashboard` endpoint serves the operations overview page and 
 ### 2.2 Transition strategy
 
 1. **Phase 0–4**: Operational dashboard remains the default admin landing page. Cards and charts display gross order value (GOV) with clear non-accounting semantics.
-2. **Phase 5**: New **Finance Workspace** (`/admin/finance/*`) launches, powered exclusively by `/api/v1/finance/*`.
+2. **Phase 5**: The new **Finance Workspace** (`/admin/finance/*`) launched, powered exclusively by `/api/v1/finance/*`.
 3. **Post-overhaul evolution**: `/api/v1/dashboard` is retained as an operational kitchen/store overview. Financial fields (GOV/AOV) will be formally deprecated in favor of `/api/v1/finance/overview`, while operational order queues, active user counts, and low-stock indicators remain permanent.
+
+### 2.3 Final rollout decision and retirement policy
+
+The frontend migration is complete. `/admin/finance` is registered directly in the application router, appears through permission-aware navigation, and reads only `/api/v1/finance/*`; `/admin/payroll` is separately protected by `payroll.read`. There is no legacy/new finance screen switch and no stored-data dual-read or dual-write path. A transitional finance feature flag would now add an untested state without providing rollback isolation, so it is intentionally not added.
+
+The two workspaces coexist by purpose rather than rollout stage:
+
+- The existing admin dashboard remains the default operational overview. Its order count, active-user, and low-stock data are permanent operational contracts.
+- Dashboard `Gross Order Value`, `Average Order Value`, and `revenueOverTime` remain compatibility fields in API v1 and are explicitly order-flow/GOV measures, not recognized revenue or profit. They are deprecated for accounting decisions.
+- The Finance Workspace is the sole frontend authority for recognized revenue, collections, refunds, COGS, margins, operating expenses, payroll-aware operating result, settlement exposure, cash variance, journal drill-down, and exports.
+- Permission checks, not a deployment flag, control workspace visibility. The backend remains authoritative even if a route is reached directly.
+
+Do not remove or silently redefine the v1 dashboard finance fields. Their retirement requires a documented breaking API version, migration of every remaining consumer to the Finance Workspace, a deprecation window, and updated characterization tests. Removing those fields does not retire the operational dashboard itself.
 
 ---
 
@@ -540,3 +553,5 @@ Role membership alone is necessary but **not sufficient** to execute high-risk o
 - [x] Phase 5 builds the owner Finance Workspace, management reports, drill-down, and CSV exports.
 - [x] Phase 6 adds restricted payroll-lite profiles, effective compensation, pay runs, statements, and reversible ledger-backed operating cost.
 - [x] High-risk finance/payroll success, denial, and terminal failure outcomes have append-only request-correlated audit evidence with sensitive-data redaction.
+- [x] Finance and payroll frontend routes are fully migrated and permission-gated; no transitional finance feature flag remains necessary.
+- [x] Dashboard compatibility fields retain GOV semantics in v1, while the Finance Workspace is canonical for accounting metrics and has an explicit breaking-version retirement policy.
