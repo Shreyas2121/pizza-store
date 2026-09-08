@@ -19,20 +19,20 @@ Drizzle ORM
 PostgreSQL
 ```
 
-Dependencies point inward: route handlers call services, services call the database through Drizzle. Services never import Express types. Route handlers never write raw SQL.
+Route handlers generally call services, which access the database through Drizzle. Larger domains also have repositories, policy helpers, schemas, and injected collaborators. See [case-study evidence](case-study-evidence.md) for the reviewed source revision, transaction boundaries, and current limitations; this overview does not establish production deployment or concurrency guarantees.
 
 ## Backend architecture
 
 ### Feature modules
 
-Each business domain lives under `src/features/<name>/`. Routes stay thin, while complex domains may split business policy, persistence, provider adapters, and workflows into focused collaborators:
+Backend domains live under `backend/src/features/<name>/`. Routes stay thin; services are common entry points rather than a fixed two-file rule, and complex domains split business policy, persistence, provider adapters, and workflows into focused collaborators:
 
 | File | Responsibility |
 | --- | --- |
 | `<name>.routes.ts` | Express router. Binds HTTP methods to handlers. Applies middleware (auth guards, validation). Transforms request/response shapes. |
 | `<name>.service.ts` and collaborators | Typed business workflows and domain logic. Complex services may delegate to repositories, policies, or focused workflow services. Never touches `req` or `res`. |
 
-Current feature modules:
+Selected business modules (supporting domains also include `auth`, `access`, `staff`, `audit`, `realtime`, `checkout`, `stores`, and `system-maintenance`):
 
 | Module | Domain |
 | --- | --- |
@@ -57,32 +57,38 @@ The inventory system tracks physical on-hand stock and active reservations at th
 
 - **Source-of-Truth Invariants**:
   ```text
-  available_quantity = on_hand_quantity - active_reserved_quantity
+  available_quantity = NULL when on_hand_quantity IS NULL
+  otherwise available_quantity = max(0, on_hand_quantity - active_reserved_quantity)
 
   sellable = products.is_available
           && store_products.is_available
           && (on_hand_quantity IS NULL || available_quantity > 0)
   ```
 - **Customization aggregation**: Customized cart lines share the same base product availability (demand is aggregated across variants by `productId`).
-- **Global lock order**: Every operation that mutates stock or reservations acquires locks in strict ascending order to prevent deadlocks:
+- **Allocation/consumption lock ordering**: Checkout locks the cart and stock rows; payment finalization locks the order/payment and then sorted stock/reservation rows. Its consumption path is:
   ```text
-  1. Existing owning row when required (cart, order, or payment)
+  1. Existing order/payment rows locked by finalization
   2. store_products rows, ordered by ascending store_products.id
   3. inventory_reservations rows, ordered by ascending inventory_reservations.id
   4. inventory_movements append
   ```
-- **Movement audit ledger**: `inventory_movements` is append-only and strictly checks `new_quantity = previous_quantity + quantity_change`.
+- **Limits to the ordering claim**: Release performs a bulk reservation update without explicit sorting; cancellation releases reservations before locking stock for restoration. Coupons and staff membership locks add other dependencies. This is not a verified universal lock order or proof of deadlock freedom. See the evidence document's lock-order audit.
+- **Reservation deadlines**: Active totals include all rows still marked `reserved`, even after their deadline. The default 30-minute deadline requires explicit reconciliation; it does not release stock by itself.
+- **Movement audit ledger**: Normal inventory writes append movement records. Schema/migration checks enforce `new_quantity = previous_quantity + quantity_change` and nonnegative balances, with unique sale/cancellation idempotency keys. The system-maintenance clear operation can truncate these records, so the ledger is not globally immutable.
 - **Manual availability independence**: Manual toggles (`is_available`) are managed solely by admins and are never overwritten by inventory logic.
 
 ### Middleware layer
 
 | Middleware | Purpose |
 | --- | --- |
-| `authenticateUser` | Extracts and verifies the JWT from the `Authorization: Bearer` header. Attaches decoded user to `req.user`. |
-| `authenticateAdmin` | Same as above, plus verifies `role === "admin"`. |
+| `authenticateUser` | Verifies bearer JWT claims and reloads the active user/token version; attaches `req.principal`. |
+| `authenticateAdmin` | Authentication plus `req.principal.platformRole === "admin"`. |
+| `requireStorePermission` | Checks current active membership/store and a named store permission; platform admins bypass membership checks. Some routes invoke the authorization service directly. |
 | `validateBody` | Accepts a Zod schema and validates `req.body` before the route handler executes. Returns 400 with structured errors on failure. |
 | `asyncHandler` | Wraps async route handlers to forward thrown errors to Express error middleware. |
-| `globalErrorHandler` | Catches all errors. Returns structured JSON with status code and message. Logs errors via Winston. |
+| `handleError` | Formats application/unexpected errors from the final Express error middleware. |
+
+Middleware ordering is route-specific. Customer COD creation uses normal body parsing, CORS, HTTP logging, authentication, and body validation before the transactional quote checks. Razorpay webhooks are mounted before normal body parsers and use raw bytes for signature verification.
 
 ### Database layer
 
@@ -92,15 +98,16 @@ Migrations are managed by `drizzle-kit`. Configuration lives in `drizzle.config.
 
 ### Real-time events
 
-Socket.IO is initialized alongside the Express server. Events flow in both directions:
+Socket.IO shares the HTTP server. Handshake authentication derives personal, platform, and store rooms from the current principal and memberships; clients do not select arbitrary rooms through a `joinRoom` event. See [staff authorization](store-staff-authorization.md) for audience definitions.
 
 | Event | Direction | Payload | Purpose |
 | --- | --- | --- | --- |
-| `joinRoom` | Client → Server | `{ userId }` | Associates a socket with a user for targeted events |
 | `orderPlaced` | Server → Client | `{ orderId, total, status }` | Notifies admin dashboard of new/finalized orders |
 | `lowStock` | Server → Client | `LowStockAlert` object | Notifies admin panel of downward stock threshold crossings post-commit |
 | `chatRequest` | Server → Client | `{ userId }` | Notifies admin of new support requests |
 | `newMessage` | Server → Client | `Message` object | Delivers chat messages to the other party |
+
+These are delivery notifications, not a durable event log. COD emits after transaction commit; no outbox was found. Payment route audience selection currently has missing store/user context in some reconciliation return values, and CLI reconciliation does not emit socket events. See claim RT-02 in the evidence document before claiming complete customer/store notification coverage.
 
 ### Static file serving
 
@@ -120,15 +127,15 @@ Production hardening should replace local disk with private object storage, serv
 
 ### Rendering and routing
 
-The app uses React Router 7 with a `BrowserRouter`. Routes are defined in `src/routes.tsx` and organized into three layout shells:
+The app uses React Router with a `BrowserRouter`. Routes are defined in `frontend/src/app/router/routes.tsx` and organized into three current layout shells:
 
 | Layout | Routes | Purpose |
 | --- | --- | --- |
-| `MainLayout` | `/`, `/cart`, `/checkout`, `/profile/*` | Public storefront with navbar and footer |
+| `MainLayout` | `/`, `/cart`, `/checkout`, `/staff-invitations/accept`, profile routes | Storefront shell; customer account/cart/checkout routes have their own auth guards |
 | `ProfileLayout` | `/profile`, `/address`, `/orders`, `/order/:id` | Nested within MainLayout, adds profile sidebar |
-| `AdminLayout` | `/admin/*` | Admin panel with sidebar; guards against non-admin users |
+| `AdminLayout` | `/admin/*` | Staff workspace guarded by `StaffProtectedRoute`; platform-only pages have additional guards |
 
-Cart and Checkout pages are lazy-loaded with `React.lazy()` and wrapped in `<Suspense>`.
+Feature pages are lazy-loaded with `React.lazy()` and rendered under Suspense. The C03 public `DocsLayout` serves `/docs` independently of storefront/admin layouts and guards, with a nested loading/error boundary and docs-specific not-found page. The C02 app boundary excludes `/docs` and its descendants from `BusinessRuntime`, which owns authenticated chat/socket effects and the global app modal. Unmount disconnects and clears the owned socket, closes the modal, and permits in-flight chat sync cancellation. Browser lifecycle checks were not performed and further runtime checks were waived by the owner during C03. See [public docs authoring](public-docs.md) and the implementation guide handoffs.
 
 ### State management
 
@@ -140,13 +147,13 @@ The frontend separates server state from client state:
 | Auth state | Zustand (persisted) | Current user, JWT token, login/logout |
 | UI state | Zustand (ephemeral) | Modal open/close, socket instance, chat session, date filters |
 
-The Axios instance (`src/lib/axios.ts`) attaches the JWT from the Zustand user store to every outgoing request via a request interceptor.
+The Axios instance (`frontend/src/shared/api/api-client.ts`) attaches the JWT through a token getter configured by `frontend/src/app/providers/app-providers.tsx`. This keeps the shared API layer independent of feature stores.
 
 ### Hooks architecture
 
-API interactions are abstracted into hook modules under `src/hooks/`. Each module exports a namespace object (e.g., `CART_API_HOOKS`, `ORDER_API_HOOKS`) containing custom hooks that wrap `useQuery`, `useSuspenseQuery`, and `useMutation` from TanStack Query.
+API interactions live in feature-level `api/` modules with query/mutation hooks. Some use shared factories; others call TanStack Query directly.
 
-Three factory functions in `src/hooks/useApi.ts` reduce boilerplate:
+Three factory functions in `frontend/src/shared/api/query-helpers.ts` reduce boilerplate:
 
 | Factory | Wraps | Purpose |
 | --- | --- | --- |
@@ -159,17 +166,15 @@ Three factory functions in `src/hooks/useApi.ts` reduce boilerplate:
 Components are organized by domain:
 
 ```text
-components/
-  admin/       Admin-specific UI (sidebar, dashboard cards, transfer)
-  auth/        Login and register forms
-  common/      Shared components (global modal, error boundary, chat, order display)
-  main/        Storefront components (navbar, footer, product cards, menu, customization)
-  table/       Reusable data table with pagination and search
+frontend/src/
+  app/         Router, layouts, providers, application integration
+  features/    Domain pages, components, API hooks, models
+  shared/      Reusable UI, API client/helpers, config, utilities
 ```
 
 ### Form validation
 
-Client-side validation uses React Hook Form with Zod resolvers. Validation schemas are defined in `src/lib/zodSchema.ts` for registration, login, product creation, and menu creation. The address form defines its schema inline.
+Client-side validation uses React Hook Form with Zod resolvers. Schemas live in feature `model/` modules, including auth, catalogue, account address, store, and inventory schemas. Dependency versions should be read from package manifests/lockfiles; the C01 evidence record notes an installed frontend Zod mismatch.
 
 ## Cross-cutting concerns
 
@@ -202,7 +207,7 @@ Operational recovery and limitations are in [finance-operations-runbook.md](fina
 2. Backend validates, hashes password (register) or compares hash (login), and returns a JWT + user object.
 3. Frontend stores both in Zustand's persisted user store (localStorage).
 4. Every subsequent Axios request attaches `Authorization: Bearer <token>` via interceptor.
-5. Backend middleware decodes the JWT and attaches the user to the request.
+5. Backend middleware verifies JWT claims, loads the active user and token version, and attaches `req.principal`. Store authorization loads current membership where required; memberships are not embedded in JWTs.
 
 ### Error handling
 

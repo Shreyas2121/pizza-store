@@ -4,6 +4,17 @@ This runbook covers optional Test Mode validation, monitoring, and rollback.
 Live payment processing is unsupported; the deterministic simulator is the
 default and Cash on Delivery (COD) remains available.
 
+## Audit status (reviewed after branch integration on 2026-09-08)
+
+This runbook includes rollout requirements, not proof of a deployed release.
+The historical `15362b5` audit found missing method-discovery and retry routes.
+After integrating the financial-overhaul branch, both routes are registered in
+`payment.routes.ts`. The retry service still does not recreate inventory
+reservations that an earlier terminal failure released, so that recovery gap and
+the checklist's deployment-dependent steps must not be claimed complete. See
+[case-study evidence](case-study-evidence.md) for the dated baseline,
+cancellation matrix, and known limitations.
+
 ## Release controls
 
 Razorpay requires `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, and
@@ -55,12 +66,14 @@ demonstrates provider boundaries and reconciliation without moving real funds.
 
 ## Inventory reservation lifecycle under Razorpay
 
-Online payments utilize a two-phase stock commitment to avoid overselling and double deductions:
+Online payments separate reservation from consumption. This is application
+workflow terminology, not a distributed two-phase commit protocol. Source paths
+and test limitations are recorded in the evidence document.
 
 1. **Initiation (`POST /payments/razorpay/orders`)**:
-   - Creates `inventory_reservations` rows in `reserved` status with a 30-minute expiry window.
+   - Creates `inventory_reservations` rows for tracked stock in `reserved` status with a default 30-minute deadline.
    - Does **not** decrement `on_hand_quantity`.
-   - Decreases `available_quantity = on_hand_quantity - active_reservations`.
+   - Decreases displayed tracked availability, `max(0, on_hand_quantity - active_reserved_quantity)`; untracked availability is `null`.
    - Emits `"lowStock"` alert only if `available_quantity` drops past threshold.
 
 2. **Capture (`POST /payments/razorpay/verify` or Webhook `payment.captured`)**:
@@ -69,15 +82,34 @@ Online payments utilize a two-phase stock commitment to avoid overselling and do
    - Decrements `on_hand_quantity` and appends `sale` movements with idempotent key `sale:{orderId}:{storeProductId}`.
    - No duplicate low-stock alerts are emitted (available quantity remains constant).
 
-3. **Terminal Failure / User Cancellation**:
-   - Marks reservations `released`.
-   - Restores available quantity to general stock.
+3. **Provider failure / authorized order cancellation**:
+   - Releases active reservations, making their stock available again.
+   - Closing the browser payment modal alone does not release reservations.
+   - Status cancellation does not issue a provider refund or reverse consumed
+     coupon redemptions. Paid-order cancellation restores recorded tracked stock
+     while leaving the completed payment unchanged.
 
-4. **Expiry Reconciliation (`pnpm payments:reconcile`)**:
+4. **Expiry Reconciliation (`pnpm run inventory:reconcile-reservations`)**:
    - Scans expired active reservations (`status = 'reserved' AND expires_at < now()`).
    - Verifies the provider payment status with Razorpay outside database transactions.
-   - If payment was not captured, releases the reservations.
-   - If payment was captured, finalizes the order and consumes the reservations safely.
+   - Preserves reservations on provider/configuration errors, ambiguous paid or
+     authorized states, and processing payments without an attached provider order.
+   - When provider state permits expiry and the local order is still awaiting
+     payment, cancels that order and releases stock/coupon reservations.
+   - Confirmed captured/paid state follows normal finalization and exact amount
+     checks. A deadline alone does not prevent consumption of still-reserved rows.
+   - Capture after release/cancellation conflicts; it does not automatically
+     reallocate stock or refund payment. Escalate for operational resolution.
+
+`pnpm run payments:reconcile` is a different one-shot command: it scans stale
+processing/failed payments and can recover unattached provider orders by receipt.
+It does not run the inventory expiry scan. Neither command is scheduled by
+`backend/src/index.ts`, and no hosting scheduler was established by this audit.
+
+CLI reconciliation does not emit realtime notifications. Some HTTP/webhook
+finalization responses also lack store/user context needed by audience selection;
+verify delivery separately rather than assuming a successful reconciliation
+means the store received an event.
 
 ## Monitoring and alerts
 
@@ -115,6 +147,25 @@ ORDER BY updated_at;
 
 Do not manually mark a payment completed or an order pending. Use reconciliation,
 which re-fetches Razorpay and validates association, currency, and exact amount.
+
+### Diagnostic correlation
+
+Start with the local order and payment IDs. The deterministic receipt connects
+those records to provider-order recovery; provider order/payment IDs connect the
+local attempt to Razorpay; webhook event ID/type connect delivery attempts to
+`payment_webhook_events`. Persisted provider status and failure code/description
+add the last recorded observation.
+
+Payment and webhook logs include the applicable identifiers as structured
+metadata. Winston writes console output and dated local `error.log` and
+`combined.log` files. Reconciliation commands print count and per-item JSON, so
+retain their complete output and inspect reservation `conflicts` as well as
+`errors`.
+
+The reviewed source has no generated request correlation ID, centralized log
+sink, retention policy, or trace spanning browser, API, Razorpay, and Socket.IO.
+Local log-file durability and aggregation depend on the hosting arrangement,
+which is not included in this repository.
 
 ## Incident rollback
 

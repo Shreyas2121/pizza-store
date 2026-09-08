@@ -19,7 +19,7 @@ The project is structured as two independent packages (`backend/` and `frontend/
 - React 19 with Vite 8 and TypeScript for the storefront and admin interfaces
 - Mantine 7 component library with Tailwind CSS 3 for styling
 - TanStack Query 5 for server-state management and caching
-- TanStack Table 8 for admin data tables
+- TanStack Table for admin data tables
 - Zustand 5 for transient client state (auth, modals, chat, date filters)
 - React Hook Form with Zod resolvers for form validation
 - Socket.IO Client for real-time events
@@ -28,12 +28,32 @@ The project is structured as two independent packages (`backend/` and `frontend/
 - Drizzle ORM 0.45 with PostgreSQL for schema, queries, and migrations
 - Zod for request and environment validation
 - Socket.IO for server-side WebSocket events
-- JSON Web Tokens for stateless authentication
+- JSON Web Tokens with current-user and token-version validation on authenticated requests
 - bcrypt for password hashing
 - Multer for image uploads
 - Winston for structured file and console logging
 
 See [architecture.md](docs/architecture.md) for component boundaries and [database-schema.md](docs/database-schema.md) for the full data model.
+
+Package manifests and lockfiles define dependency versions. See the dated
+[case-study evidence audit](docs/case-study-evidence.md) for the verification
+baseline and implementation limits. Its route-wiring and dependency findings are
+historical; use the newer release verification report and current test results for
+the integrated branch.
+
+## Engineering case study
+
+The frontend publishes a public engineering notebook at `/docs`. In local
+development, open `http://localhost:3150/docs`. It covers application boundaries,
+checkout and payment states, inventory locking and reservations, engineering
+decisions, and recovery evidence. The inventory page includes a deterministic
+last-item scenario explorer; it is a teaching model rather than a database test.
+
+Use the [two-minute walkthrough](docs/case-study-walkthrough.md) for a guided tour
+and the [release verification report](docs/case-study-verification.md) for current
+results and publication gaps. A public repository URL, deployed URL, current
+screenshot, and personal contribution statement are intentionally omitted until
+verified.
 
 ## Documentation map
 
@@ -52,21 +72,28 @@ See [architecture.md](docs/architecture.md) for component boundaries and [databa
 | [Finance report performance](docs/finance-report-performance.md) | Report latency target, query-plan harness, and index decision |
 | [store-staff-authorization.md](docs/store-staff-authorization.md) | Staff role matrix, lifecycle operations, deployment, rollback, and security verification |
 | [razorpay-runbook.md](docs/razorpay-runbook.md) | Online payment lifecycle, inventory reservations, monitoring, and reconciliation |
+| [case-study-evidence.md](docs/case-study-evidence.md) | Reviewed source claims, transaction/cancellation maps, test categories, baseline results, and limitations |
+| [case-study-walkthrough.md](docs/case-study-walkthrough.md) | Two-minute case-study tour, interview prompts, and remaining publication inputs |
+| [case-study-verification.md](docs/case-study-verification.md) | Reproducible static results, pending runtime checks, and publication readiness |
+| [public-docs.md](docs/public-docs.md) | Public docs authoring, evidence-link, hosting, and verification guidance |
 
 ## Application in one workflow
 
-A user opens the storefront, browses menu categories, selects a product with optional customizations (e.g., toppings, sizes), and adds it to their cart subject to available store stock. At checkout, they select a saved delivery address, optionally apply a coupon code, and choose Cash on Delivery or online payment. The backend atomically creates the order, verifies/deducts or reserves stock, copies cart items and customizations to order records, clears the cart, and emits a Socket.IO event. The admin panel receives real-time order and low-stock notifications, monitors inventory counts, performs restocks or adjustments, and updates orders through fulfillment. A live chat system allows users to request support and exchange messages with an admin in real time.
+A user opens the storefront, browses menu categories, selects a product with optional customizations (e.g., toppings, sizes), and adds it to their cart subject to available store stock. Checkout uses a saved delivery address and optional coupon. COD creation atomically records the order/payment, deducts tracked stock, copies item/customization prices, and clears the cart; its route emits notifications after commit. Online initiation reserves tracked stock locally before calling the configured provider, with verification and reconciliation handled separately. Payment-method discovery and retry routes are registered after financial-overhaul integration; the remaining retry-reservation and notification limitations are documented in the evidence audit and Razorpay runbook. Staff interfaces expose order fulfillment, finance, payroll, stock operations, and support chat.
 
 ## Development
 
-Prerequisites: Node.js 22.13+, pnpm, and a local PostgreSQL instance.
+Prerequisites: a Node.js version compatible with both package manifests (backend requires at least 22.13.0), pnpm, and a running PostgreSQL instance. Use an isolated database for development and seeds.
 
 ```text
 # Backend
 cd backend
 # create .env using the values in docs/setup.md
 pnpm install
-pnpm run db:migrate         # apply checked-in migrations
+pnpm run db:migrate         # apply committed migrations; follow migration preflight in the staff runbook
+pnpm run seed:users         # seed test users
+pnpm run seed:addresses     # seed test addresses
+pnpm run seed:orders        # seed test orders
 pnpm run test               # run backend unit test suite
 pnpm run dev                # start Express on port 3000
 
@@ -74,6 +101,8 @@ pnpm run dev                # start Express on port 3000
 cd frontend
 # create .env using the values in docs/setup.md
 pnpm install
+pnpm run test               # run deterministic frontend model tests
+pnpm run build              # create the production bundle in frontend/dist
 pnpm run dev                # start Vite on port 3150
 ```
 
@@ -117,6 +146,7 @@ food/
     src/
       app/                   Layouts, providers, router
       features/              Feature modules (api, components, model, pages)
+        docs/                Public engineering case study and inventory explorer
         inventory/           Admin stock table, restock modals, movement drawer
         catalog/             Product cards, customization drawer, stock badges
         cart/                Cart page, item mutations, stock conflict handling

@@ -32,6 +32,7 @@ export function StorefrontFooter() {
           <ul className="mt-4 space-y-3 text-sm text-surface-muted/75">
             <li>Cash on delivery</li>
             <li>Freshly made to order</li>
+            <li><Link to="/docs" className="hover:text-white">Engineering case study</Link></li>
             <li><a href="mailto:support@pizzastore.com" className="hover:text-white">Order support</a></li>
           </ul>
         </section>

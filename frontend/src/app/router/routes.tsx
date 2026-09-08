@@ -6,6 +6,15 @@ import { StaffProtectedRoute } from "./guards/staff-route";
 import { PlatformAdminProtectedRoute } from "./guards/platform-admin-route";
 import { NotFoundPage as NotFound } from "./not-found-page";
 
+const DocsLayout = lazy(() => import("@/features/docs/components/docs-layout"));
+const DocsIndex = lazy(() => import("@/features/docs/pages/docs-index-page"));
+const DocsArchitecture = lazy(() => import("@/features/docs/pages/architecture-page"));
+const DocsOrderLifecycle = lazy(() => import("@/features/docs/pages/order-lifecycle-page"));
+const DocsInventory = lazy(() => import("@/features/docs/pages/inventory-page"));
+const DocsDecisions = lazy(() => import("@/features/docs/pages/decisions-page"));
+const DocsReliability = lazy(() => import("@/features/docs/pages/reliability-page"));
+const DocsNotFound = lazy(() => import("@/features/docs/pages/docs-not-found-page"));
+
 const Home = lazy(() => import("@/features/catalog").then((m) => ({ default: m.HomePage })));
 const AdminProducts = lazy(() => import("@/features/catalog").then((m) => ({ default: m.AdminProductsPage })));
 const AdminNewProduct = lazy(() => import("@/features/catalog").then((m) => ({ default: m.AdminNewProductPage })));
@@ -40,6 +49,15 @@ const PayrollWorkspace = lazy(() => import("@/features/payroll").then((m) => ({ 
 
 export const AppRoutes = () => (
   <>
+    <Route path="/docs" element={<DocsLayout />}>
+      <Route index element={<DocsIndex />} />
+      <Route path="architecture" element={<DocsArchitecture />} />
+      <Route path="order-lifecycle" element={<DocsOrderLifecycle />} />
+      <Route path="inventory" element={<DocsInventory />} />
+      <Route path="decisions" element={<DocsDecisions />} />
+      <Route path="reliability" element={<DocsReliability />} />
+      <Route path="*" element={<DocsNotFound />} />
+    </Route>
     <Route element={<MainLayout />}>
       <Route path="/" element={<Home />} />
       <Route path="/staff-invitations/accept" element={<AcceptStaffInvitation />} />

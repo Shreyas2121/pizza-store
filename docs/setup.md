@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- **Node.js** 22.13+ and **pnpm** package manager
+- **Node.js** 22.13.0+ and **pnpm** package manager
 - **PostgreSQL** 15+ running locally or remotely
 - A terminal (PowerShell, CMD, or bash)
 
@@ -169,6 +169,24 @@ pnpm run dev
 
 The frontend will start on `http://localhost:3150`. It connects to the backend URL specified in `.env`.
 
+### Build and host the public case study
+
+The public engineering case study is available at `/docs` and does not require
+authentication or a working backend. Build the frontend with `pnpm run build`
+and deploy the generated `frontend/dist/` directory as a single-page app.
+
+Configure the host to serve `index.html` for application paths that do not map
+to a real static file. This fallback is required for direct loads and refreshes
+of `/docs`, `/docs/architecture`, `/docs/order-lifecycle`, `/docs/inventory`,
+`/docs/decisions`, and `/docs/reliability`. Preserve normal 404 handling for
+missing assets. The nested docs router handles unknown `/docs/*` paths after the
+SPA entry point loads.
+
+Optional `VITE_DOCS_REPOSITORY_URL` may contain the public HTTPS GitHub repository
+root. Omit it when no public repository is available; repository actions then
+remain hidden. Verify the host's fallback with direct URLs after deployment,
+because local client navigation does not establish hosted refresh behavior.
+
 ## 4. Verify the setup
 
 1. Open `http://localhost:3150` in a browser.
@@ -187,12 +205,14 @@ Configure automatic capture in the Razorpay Dashboard: verification deliberately
 keeps an order in `awaiting_payment` until Razorpay reports its payment as
 `captured` and its order as `paid`.
 
-The frontend loads Razorpay Checkout directly from Razorpay when the customer
-chooses **Pay online**. Do not add a Razorpay key or secret to the frontend
-environment: the public key ID, amount, currency, and provider order ID all come
-from the authenticated initiation response. If Checkout is closed or payment
-verification is interrupted, the customer can resume the same payment from the
-order-details page instead of placing a duplicate order.
+The frontend contains Razorpay Checkout and retry integration. Do not add a
+Razorpay key or secret to the frontend environment: the public key ID, amount,
+currency, and provider order ID belong in the authenticated initiation response.
+At the audited revision, however, the frontend calls payment-method discovery
+and retry endpoints that are not registered by `payment.routes.ts`, and retry
+service code does not recreate released inventory reservations. Treat the
+browser steps below as release checks that remain blocked until that wiring and
+recovery behavior are completed and re-audited.
 
 To exercise the default simulator browser flow, select **Pay online** and submit
 the order. The frontend requests the deterministic `successful` scenario and
@@ -217,19 +237,30 @@ Dashboard webhook secret to the exact `RAZORPAY_WEBHOOK_SECRET` value. The URL
 must be public HTTPS. Do not send browser requests to this endpoint and do not
 place it behind JWT authentication or JSON-transforming middleware.
 
-Run stale-payment reconciliation periodically from a trusted scheduler or
-operations shell:
+Run stale-payment reconciliation from a trusted scheduler or operations shell:
 
 ```bash
-pnpm payments:reconcile
+pnpm run payments:reconcile
 ```
 
 Optional `RECONCILE_OLDER_THAN_MINUTES` (default `15`) and `RECONCILE_LIMIT`
 (default `25`, maximum `50`) environment variables control each batch. The
-command exits non-zero if any candidate could not be reconciled. The equivalent
-admin API is `POST /api/v1/payments/razorpay/reconcile`.
+command exits non-zero when its result reports one or more errors. Failed or
+unchanged payment outcomes remain in the JSON result and need inspection. The
+equivalent admin API is `POST /api/v1/payments/razorpay/reconcile`.
+
+Expired inventory reservations use a separate one-shot command:
+
+```bash
+pnpm run inventory:reconcile-reservations
+```
+
+`RECONCILE_LIMIT` defaults to `25` and has a maximum of `100` for this command.
+It exits non-zero on reported errors; conflicts are separate results and must
+also be inspected. Neither reconciliation command is scheduled by application
+startup, and no scheduler is included in this repository.
 See [the Razorpay operations runbook](./razorpay-runbook.md) for optional Test
-Mode validation, monitoring, rollback, and reconciliation.
+Mode validation, monitoring, rollback, and reconciliation. Live mode is unsupported.
 For step-by-step credential creation during development, see the
 [Razorpay Test Mode credentials guide](./razorpay-test-credentials.md).
 
@@ -245,12 +276,13 @@ For step-by-step credential creation during development, see the
 
 | Script | Command | Description |
 | --- | --- | --- |
-| `dev` | `nodemon src/index.ts` | Start dev server with hot reload |
+| `dev` | `nodemon src/index.ts` | Start the development server with restart-on-change behavior |
 | `test` | `vitest run src --pool=threads` | Run backend unit test suite |
-| `test:watch` | `vitest src` | Run backend unit tests in interactive watch mode |
+| `test:watch` | `vitest src --pool=threads` | Run backend tests in interactive watch mode |
 | `build` | `tsc -p tsconfig.json` | Compile TypeScript backend to JavaScript |
 | `typecheck` | `tsc --noEmit` | Check TypeScript types without emitting files |
-| `payments:reconcile` | `ts-node src/scripts/reconcile-payments.ts` | Run background reconciliation for stale payments and expired reservations |
+| `payments:reconcile` | `ts-node src/scripts/reconcile-payments.ts` | Run one bounded stale-payment reconciliation batch |
+| `inventory:reconcile-reservations` | `ts-node src/scripts/reconcile-inventory-reservations.ts` | Run one bounded expired-reservation reconciliation batch |
 | `seed:users` | `ts-node src/scripts/user.ts` | Seed user accounts |
 | `seed:addresses` | `ts-node src/scripts/address.ts` | Seed delivery addresses |
 | `seed:orders` | `ts-node src/scripts/order.ts` | Seed sample orders |
@@ -267,6 +299,7 @@ For step-by-step credential creation during development, see the
 | `dev` | `vite --port 3150` | Start Vite dev server |
 | `build` | `tsc -b && vite build` | Type-check and build for production |
 | `lint` | `eslint .` | Run ESLint |
+| `test` | `vitest run` | Run deterministic frontend unit tests |
 | `preview` | `vite preview` | Preview production build locally |
 
 ## 6. Database migrations

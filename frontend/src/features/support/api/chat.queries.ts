@@ -28,12 +28,13 @@ export const useSyncChatStatus = (enabled: boolean = true) => {
   const { setChatSession } = useSocketStore();
   return useQuery({
     queryKey: supportKeys.user(),
-    queryFn: async () => {
-      const { data } = await API.get("/chat/active");
+    queryFn: async ({ signal }) => {
+      const { data } = await API.get("/chat/active", { signal });
       const chat = data.data as ChatSession | undefined;
       if (chat) {
         setChatSession(chat.status === "open" || chat.status === "pending" ? chat.status : null);
       } else setChatSession(null);
+      return chat ?? null;
     },
     enabled,
   });

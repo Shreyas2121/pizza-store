@@ -64,7 +64,7 @@ Assignment reuses a prior membership row and reactivates suspended or revoked me
 3. The recipient signs in or registers with the invited email and opens the acceptance link.
 4. Acceptance verifies the authenticated email, store state, expiry, unused state, and role before creating/reactivating membership transactionally.
 
-Production requires a configured invitation delivery implementation and never returns the raw token. The non-production adapter may return a development URL once to the authorized caller. The frontend holds that URL only in component memory and removes the token from browser history after acceptance. Never copy tokens into logs, tickets, audit metadata, or staff tables.
+Production requires an invitation delivery implementation and never returns the raw token. The current default production adapter is `UnavailableInvitationDelivery`, which fails with `INVITATION_DELIVERY_UNAVAILABLE`; a working production delivery adapter is not included. The non-production adapter may return a development URL once to the authorized caller. The frontend holds that URL only in component memory and removes the token from browser history after acceptance. Never copy tokens into logs, tickets, audit metadata, or staff tables.
 
 Resend creates a replacement invitation and revokes the previous pending invitation in the same transaction. Revoke invalidates a pending invitation without deleting its record.
 
@@ -77,7 +77,7 @@ Resend creates a replacement invitation and revokes the previous pending invitat
 - An active store cannot lose its final active manager.
 - Successful sensitive changes write allow-listed audit metadata.
 
-Membership changes disconnect the affected user's active sockets. A reconnect reloads current memberships and rooms. HTTP membership decisions are also reloaded from the database; neither JWTs nor frontend state cache membership truth.
+Membership changes notify the socket layer after the transaction commits. The current notifier disconnects the affected user's sockets known to the local process adapter; cross-process eviction is not established. A new handshake reloads current memberships and rooms. HTTP membership decisions are also reloaded from the database; neither JWTs nor frontend state cache membership truth.
 
 ## Access-token and forced-logout behavior
 
@@ -102,7 +102,7 @@ Clients provide only the bearer token in `socket.handshake.auth`. The server aut
 | `store:{storeId}:orders` | Store managers, finance managers, and operators |
 | `store:{storeId}:inventory` | Store managers, finance managers, and inventory staff |
 
-Rooms are delivery audiences, never authorization evidence. Order, inventory, support, chat, and payment events target their authoritative user/store audiences; sensitive events do not use global broadcasts.
+Rooms are delivery audiences, never authorization evidence. Route code chooses the audiences. The room-mapping unit tests do not establish complete delivery: at the C01 revision, some payment finalization results omit store/user IDs that their callers expect, so webhook/reconciliation delivery falls back to platform admins. See claim RT-02 in [case-study evidence](case-study-evidence.md).
 
 ## Development staff seed
 
@@ -164,11 +164,11 @@ pnpm run lint
 pnpm run build
 ```
 
-The repository currently has backend unit tests with mocked repositories/services and no new frontend test harness. These tests validate policy behavior but cannot prove PostgreSQL row locks, transaction isolation, partial/unique constraints, SQL scoping, or multi-process Socket.IO behavior. Database-backed integration coverage remains future work.
+The authorization tests use mocked repositories/services and there is no frontend test harness. These tests validate policy behavior but cannot prove PostgreSQL row locks, transaction isolation, partial/unique constraints, SQL scoping, or multi-process Socket.IO behavior. Database-backed integration coverage remains future work. The later C01 audit also found an accidental real-database lookup in a payment test; see the current baseline below before running the entire suite with shared database configuration.
 
 Redis adapters, Kafka, PostgreSQL RLS, custom roles, and external policy engines are deliberately deferred.
 
-P0.6 verification recorded on 2026-08-31:
+Historical P0.6 commit verification recorded on 2026-08-31 (not the current baseline):
 
 | Check | Result |
 | --- | --- |
@@ -182,6 +182,12 @@ P0.6 verification recorded on 2026-08-31:
 | Manual two-store matrix | Not run; requires isolated migrated data as described below |
 
 ### Manual two-store security matrix
+
+The 2026-09-05 [C01 baseline](case-study-evidence.md#test-baseline) records
+backend typecheck/build passing, frontend lint passing with warnings, one failed
+payment test, and a frontend build failure from installed dependency mismatch.
+Those financial/build findings are deferred to the owner's parallel financial
+rework. This audit did not execute the manual matrix below.
 
 Run this against an isolated staging/local database after migration, never a shared production database. Record tester, date, build SHA, store/user IDs, and pass/fail evidence in the release record.
 
