@@ -1197,6 +1197,12 @@ All compensation amounts are positive integer paise, currency is INR, and respon
 
 Calculation snapshots all eligible employees and the compensation effective at period end, uses exact integer paise, and is permitted only from `draft`. Approval must be performed by someone other than the drafter/calculator, and payment by someone other than the drafter/calculator/approver. Payment references are returned only in restricted detail and never written to exports, statements, logs, audit metadata, or ledger events. Posting uses the finance outbox and existing balanced ledger kernel; posted runs require exact reversal.
 
+### High-Risk Audit Contract
+
+Finance and payroll mutation requests return an `X-Request-ID`. Successful sensitive changes persist their lifecycle audit atomically with the mutation. Refund mutations, expense approval/payment, settlement reconciliation/issue resolution, fiscal-period administration, manual journal posting/reversal, compensation-version creation, and pay-run calculation/approval/payment/posting also persist failed or denied attempts.
+
+Attempt actions use the stable `<operation>.failed` or `<operation>.denied` form and store `outcome`, actor ID, store ID when known, safe resource type/ID, request ID, timestamp, and `metadata.reasonCode`. Missing and cross-store resources continue to return the same `404`; internal denial auditing never changes that response. Audit rows exclude bank details, PAN/tax identifiers, compensation/payroll amounts, payment references, secrets, signatures, and raw provider payloads. A required audit-write failure produces `500 AUDIT_PERSISTENCE_FAILED` instead of allowing an unaudited high-risk operation.
+
 ---
 
 ## Authentication legend

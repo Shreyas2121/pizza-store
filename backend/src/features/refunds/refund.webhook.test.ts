@@ -326,6 +326,7 @@ describe("Refund Webhooks and Provider Events (P2.7)", () => {
         expect.objectContaining({
           action: "refund.provider_failed",
           resourceId: 42,
+          outcome: "failure",
         })
       );
     });

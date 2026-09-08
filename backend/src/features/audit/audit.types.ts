@@ -82,7 +82,33 @@ export type PayrollAuditAction =
   | "payroll.pay_run_reversed"
   | "payroll.pay_run_voided";
 
-export type AuditAction = StaffAuditAction | StoreAuditAction | OrderAuditAction | InventoryAuditAction | RefundAuditAction | SettlementAuditAction | CostAuditAction | CashAuditAction | VendorAuditAction | ExpenseAuditAction | LedgerAuditAction | PayrollAuditAction | SystemAuditAction;
+export const HIGH_RISK_AUDIT_OPERATIONS = [
+  "refund.reconcile",
+  "refund.request",
+  "refund.approve",
+  "refund.reject",
+  "refund.retry",
+  "expense.approve",
+  "expense.pay",
+  "settlement.reconcile",
+  "settlement.issue_resolve",
+  "ledger.period_open",
+  "ledger.period_soft_close",
+  "ledger.period_close",
+  "ledger.period_reopen",
+  "ledger.manual_journal_post",
+  "ledger.manual_journal_reverse",
+  "payroll.compensation_change",
+  "payroll.pay_run_calculate",
+  "payroll.pay_run_approve",
+  "payroll.pay_run_pay",
+  "payroll.pay_run_post",
+] as const;
+
+export type HighRiskAuditOperation = (typeof HIGH_RISK_AUDIT_OPERATIONS)[number];
+export type HighRiskAttemptAuditAction = `${HighRiskAuditOperation}.${"denied" | "failed"}`;
+
+export type AuditAction = StaffAuditAction | StoreAuditAction | OrderAuditAction | InventoryAuditAction | RefundAuditAction | SettlementAuditAction | CostAuditAction | CashAuditAction | VendorAuditAction | ExpenseAuditAction | LedgerAuditAction | PayrollAuditAction | SystemAuditAction | HighRiskAttemptAuditAction;
 
 export type AuditResourceType =
   | "store_membership"
@@ -93,6 +119,7 @@ export type AuditResourceType =
   | "order"
   | "refund"
   | "settlement_batch"
+  | "reconciliation_issue"
   | "product_cost_version"
   | "cash_session"
   | "cash_movement"
@@ -123,6 +150,19 @@ export interface WriteAuditInput {
   before?: Record<string, unknown> | StaffAuditState;
   after?: Record<string, unknown> | StaffAuditState;
   metadata?: Record<string, unknown>;
+  outcome?: "success" | "failure";
+  requestId?: string | null;
+}
+
+export interface WriteAuditAttemptInput {
+  actor?: AuthPrincipal | null;
+  storeId: number | null;
+  operation: HighRiskAuditOperation;
+  resourceType: AuditResourceType;
+  resourceId: number | string;
+  outcome: "failure" | "denied";
+  reasonCode: string;
+  requestId?: string | null;
 }
 
 export interface AuditWriter {

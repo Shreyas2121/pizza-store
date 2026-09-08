@@ -400,6 +400,7 @@ export class RefundService {
         resourceType: "refund", resourceId: refund.id,
         before: { status: refund.status }, after: { status: updated.status, failureCode },
         metadata: { provider: "razorpay", ...(providerRefundId ? { providerRefundId } : {}) },
+        outcome: "failure",
       });
       return updated;
     });
@@ -632,6 +633,7 @@ export class RefundService {
             source: "webhook",
             event,
           },
+          outcome: "failure",
         });
 
         return { refund: updated, duplicate: false as const, inProgress: false };

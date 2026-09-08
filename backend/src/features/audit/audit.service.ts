@@ -1,9 +1,10 @@
 import { and, count, desc, eq, gte, lte, type SQL } from "drizzle-orm";
 import { db } from "../../db";
-import { auditLogsTable } from "../../db/schema";
+import { auditLogsTable, storesTable } from "../../db/schema";
 import type { AuthPrincipal } from "../auth/auth.types";
+import { currentRequestId } from "../../utils/request-context";
 import authorizationService, { AuthorizationService } from "../access/access.service";
-import type { AuditWriter, WriteAuditInput } from "./audit.types";
+import type { AuditWriter, WriteAuditAttemptInput, WriteAuditInput } from "./audit.types";
 
 const SENSITIVE_KEYS = new Set([
   "password",
@@ -15,10 +16,20 @@ const SENSITIVE_KEYS = new Set([
   "apikey",
   "webhooksecret",
   "bankaccountnumber",
+  "bankdetails",
   "bankaccountencrypted",
+  "pan",
+  "pannumber",
+  "panlikeidentifier",
   "taxidentifier",
   "taxidentifierencrypted",
+  "compensationamount",
+  "compensationamountpaise",
   "paymentreference",
+  "signature",
+  "providersignature",
+  "rawproviderpayload",
+  "providerpayload",
   "grosspaypaise",
   "deductionpaise",
   "netpaypaise",
@@ -27,6 +38,7 @@ const SENSITIVE_KEYS = new Set([
 ]);
 
 const normalizedKey = (key: string) => key.toLowerCase().replaceAll("_", "").replaceAll("-", "");
+const safeReasonCode = (value: string) => /^[A-Z][A-Z0-9_]{0,127}$/.test(value) ? value : "OPERATION_FAILED";
 
 const sanitizeValue = (value: unknown): unknown => {
   if (Array.isArray(value)) return value.map(sanitizeValue);
@@ -63,6 +75,8 @@ export class AuditService implements AuditWriter {
     before,
     after,
     metadata,
+    outcome = "success",
+    requestId = currentRequestId(),
   }: WriteAuditInput) {
     const cleanBefore = sanitizeRecord(before);
     const cleanAfter = sanitizeRecord(after);
@@ -82,8 +96,36 @@ export class AuditService implements AuditWriter {
       action,
       resourceType,
       resourceId: String(resourceId),
-      outcome: "success",
+      outcome,
+      requestId,
       metadata: auditMetadata,
+    });
+  }
+
+  async writeAttempt({
+    actor,
+    storeId,
+    operation,
+    resourceType,
+    resourceId,
+    outcome,
+    reasonCode,
+    requestId = currentRequestId(),
+  }: WriteAuditAttemptInput) {
+    const verifiedStoreId = storeId === null
+      ? null
+      : (await db.select({ id: storesTable.id }).from(storesTable).where(eq(storesTable.id, storeId)).limit(1))[0]?.id ?? null;
+    await db.insert(auditLogsTable).values({
+      actorUserId: actor?.userId ?? null,
+      actorEmailSnapshot: null,
+      platformRole: actor?.platformRole ?? null,
+      storeId: verifiedStoreId,
+      action: `${operation}.${outcome === "denied" ? "denied" : "failed"}`,
+      resourceType,
+      resourceId: String(resourceId),
+      outcome,
+      requestId,
+      metadata: { reasonCode: safeReasonCode(reasonCode) },
     });
   }
 

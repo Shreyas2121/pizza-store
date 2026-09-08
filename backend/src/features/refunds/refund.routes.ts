@@ -4,6 +4,7 @@ import { validateBody } from "../../middleware/validateBody";
 import { asyncHandler } from "../../utils/error";
 import { parseIntegerParam } from "../../utils/request";
 import type { Auth } from "../../utils/types";
+import { auditHighRiskOperation as highRisk } from "../audit/high-risk-audit.middleware";
 import refundService from "./refund.service";
 import {
   approveRefundSchema,
@@ -38,6 +39,7 @@ refundRoutes.get(
 
 refundRoutes.post(
   "/refunds/reconcile",
+  highRisk({ operation: "refund.reconcile", resourceType: "refund", resourceId: () => "stale-refunds", storeId: (req) => req.body?.storeId }),
   validateBody(reconcileRefundsSchema),
   asyncHandler(async (req: Auth, res) => {
     const data = await refundService.reconcileStaleRefunds(req.principal!, req.body);
@@ -47,6 +49,7 @@ refundRoutes.post(
 
 refundRoutes.post(
   "/orders/:orderId/refunds",
+  highRisk({ operation: "refund.request", resourceType: "order", resourceId: (req) => req.params.orderId }),
   validateBody(requestRefundSchema),
   asyncHandler(async (req: Auth, res) => {
     const orderId = parseIntegerParam(req.params.orderId, "Order ID");
@@ -58,6 +61,7 @@ refundRoutes.post(
 
 refundRoutes.post(
   "/refunds/:refundId/approve",
+  highRisk({ operation: "refund.approve", resourceType: "refund", resourceId: (req) => req.params.refundId }),
   validateBody(approveRefundSchema),
   asyncHandler(async (req: Auth, res) => {
     const refundId = parseIntegerParam(req.params.refundId, "Refund ID");
@@ -68,6 +72,7 @@ refundRoutes.post(
 
 refundRoutes.post(
   "/refunds/:refundId/reject",
+  highRisk({ operation: "refund.reject", resourceType: "refund", resourceId: (req) => req.params.refundId }),
   validateBody(rejectRefundSchema),
   asyncHandler(async (req: Auth, res) => {
     const refundId = parseIntegerParam(req.params.refundId, "Refund ID");
@@ -78,6 +83,7 @@ refundRoutes.post(
 
 refundRoutes.post(
   "/refunds/:refundId/retry",
+  highRisk({ operation: "refund.retry", resourceType: "refund", resourceId: (req) => req.params.refundId }),
   asyncHandler(async (req: Auth, res) => {
     const refundId = parseIntegerParam(req.params.refundId, "Refund ID");
     const data = await refundService.retry(req.principal!, refundId);

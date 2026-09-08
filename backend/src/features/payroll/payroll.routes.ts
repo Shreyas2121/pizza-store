@@ -22,6 +22,7 @@ import {
   payrollProfilesQuerySchema,
   updatePayrollProfileSchema,
 } from "./payroll.schemas";
+import { auditHighRiskOperation as highRisk } from "../audit/high-risk-audit.middleware";
 
 export const payrollRoutes = Router();
 payrollRoutes.use(authenticateUser);
@@ -51,7 +52,7 @@ payrollRoutes.get("/payroll/profiles/:profileId/compensation", asyncHandler(asyn
   ));
 }));
 
-payrollRoutes.post("/payroll/profiles/:profileId/compensation", validateBody(createCompensationVersionSchema), asyncHandler(async (req: Auth, res) => {
+payrollRoutes.post("/payroll/profiles/:profileId/compensation", highRisk({ operation: "payroll.compensation_change", resourceType: "employee_finance_profile", resourceId: (req) => req.params.profileId }), validateBody(createCompensationVersionSchema), asyncHandler(async (req: Auth, res) => {
   res.status(201).json(await payrollService.createCompensation(
     req.principal!,
     parseIntegerParam(req.params.profileId, "Payroll profile ID"),
@@ -91,19 +92,19 @@ payrollRoutes.post("/payroll/pay-runs", validateBody(createPayRunSchema), asyncH
   res.status(201).json(await payRunService.create(req.principal!, idempotencyKey(req), req.body));
 }));
 
-payrollRoutes.post("/payroll/pay-runs/:payRunId/calculate", validateBody(emptyPayRunCommandSchema), asyncHandler(async (req: Auth, res) => {
+payrollRoutes.post("/payroll/pay-runs/:payRunId/calculate", highRisk({ operation: "payroll.pay_run_calculate", resourceType: "pay_run", resourceId: (req) => req.params.payRunId }), validateBody(emptyPayRunCommandSchema), asyncHandler(async (req: Auth, res) => {
   res.json(await payRunService.calculate(req.principal!, payRunId(req), idempotencyKey(req)));
 }));
 
-payrollRoutes.post("/payroll/pay-runs/:payRunId/approve", validateBody(emptyPayRunCommandSchema), asyncHandler(async (req: Auth, res) => {
+payrollRoutes.post("/payroll/pay-runs/:payRunId/approve", highRisk({ operation: "payroll.pay_run_approve", resourceType: "pay_run", resourceId: (req) => req.params.payRunId }), validateBody(emptyPayRunCommandSchema), asyncHandler(async (req: Auth, res) => {
   res.json(await payRunService.approve(req.principal!, payRunId(req), idempotencyKey(req)));
 }));
 
-payrollRoutes.post("/payroll/pay-runs/:payRunId/pay", validateBody(payPayRunSchema), asyncHandler(async (req: Auth, res) => {
+payrollRoutes.post("/payroll/pay-runs/:payRunId/pay", highRisk({ operation: "payroll.pay_run_pay", resourceType: "pay_run", resourceId: (req) => req.params.payRunId }), validateBody(payPayRunSchema), asyncHandler(async (req: Auth, res) => {
   res.json(await payRunService.pay(req.principal!, payRunId(req), idempotencyKey(req), req.body));
 }));
 
-payrollRoutes.post("/payroll/pay-runs/:payRunId/post", validateBody(emptyPayRunCommandSchema), asyncHandler(async (req: Auth, res) => {
+payrollRoutes.post("/payroll/pay-runs/:payRunId/post", highRisk({ operation: "payroll.pay_run_post", resourceType: "pay_run", resourceId: (req) => req.params.payRunId }), validateBody(emptyPayRunCommandSchema), asyncHandler(async (req: Auth, res) => {
   res.json(await payRunService.post(req.principal!, payRunId(req), idempotencyKey(req)));
 }));
 

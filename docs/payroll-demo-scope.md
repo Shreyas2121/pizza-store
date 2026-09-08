@@ -15,6 +15,7 @@ It is a portfolio demo, not a payroll bureau or statutory system. It does not ca
 - Payment references are visible only in restricted pay-run detail. CSV exports, statements, audit metadata, logs, and ledger/outbox payloads record at most that a reference exists.
 - The frontend hides payroll navigation without `payroll.read`, but backend authorization remains authoritative.
 - Finance reports apply the same boundary to aggregates. Exact payroll employer cost requires the applicable finance-report permission plus `payroll.read`; platform administrators retain exact consolidated reporting. For other report viewers, payroll cost and the derived operating result are `null` in current totals, comparisons, grouped periods, and screen/CSV output, and payroll drill-down is unavailable. Employer-cost aggregates can include earning, deduction, and employer-cost components and are not necessarily take-home pay.
+- Compensation-version creation and pay-run calculate/approve/pay/post commands persist safe request-correlated success, denial, and terminal-failure audit evidence. Attempt rows contain stable reason codes and safe profile/pay-run identifiers only; compensation amounts, payment references, bank/PAN-like data, signatures, secrets, and provider payloads are excluded. Cross-store and missing resource responses remain indistinguishable.
 
 ## Calculation and accounting
 

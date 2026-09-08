@@ -11,6 +11,7 @@ import {
   settlementsQuerySchema,
 } from "./settlement.schemas";
 import settlementService from "./settlement.service";
+import { auditHighRiskOperation as highRisk } from "../audit/high-risk-audit.middleware";
 
 export const settlementRoutes = Router();
 settlementRoutes.use(authenticateUser);
@@ -42,6 +43,7 @@ settlementRoutes.post(
 
 settlementRoutes.post(
   "/settlements/:settlementId/reconcile",
+  highRisk({ operation: "settlement.reconcile", resourceType: "settlement_batch", resourceId: (req) => req.params.settlementId }),
   asyncHandler(async (req: Auth, res) => {
     const id = parseIntegerParam(req.params.settlementId, "Settlement ID");
     res.json({ data: await settlementService.reconcile(req.principal!, id) });
@@ -59,6 +61,7 @@ settlementRoutes.get(
 
 settlementRoutes.post(
   "/reconciliation/issues/:issueId/resolve",
+  highRisk({ operation: "settlement.issue_resolve", resourceType: "reconciliation_issue", resourceId: (req) => req.params.issueId }),
   validateBody(resolveReconciliationIssueSchema),
   asyncHandler(async (req: Auth, res) => {
     const id = parseIntegerParam(req.params.issueId, "Reconciliation issue ID");

@@ -525,6 +525,7 @@ Role membership alone is necessary but **not sufficient** to execute high-risk o
 5. **Pay-run payment**: An actor who drafted, calculated, or approved a pay run cannot mark it paid.
 6. **Cross-store masking**: If a user attempts to access a financial resource (e.g. `/finance/expenses/:id`) belonging to a store where they lack active membership, the system returns `404 Not Found` (never `403 Forbidden`) to eliminate object-enumeration risks per OWASP API Security standards.
 7. **Privacy boundary**: Non-payroll roles (including store and finance managers) are prevented from seeing compensation rates, employee bank details, detailed statements, exact payroll employer-cost aggregates, or payroll-derived operating results in any API response or export.
+8. **High-risk audit boundary**: Successful sensitive mutations are audited in their transaction. Denied and failed refund, expense approval/payment, settlement resolution, fiscal-period, manual-journal, compensation, and pay-run commands persist a separate safe attempt row with the request ID and stable reason code. Missing and cross-store resources retain identical `404` responses, and a required audit-write failure fails closed.
 
 ---
 
@@ -538,3 +539,4 @@ Role membership alone is necessary but **not sufficient** to execute high-risk o
 - [x] Phase 4 implements the general ledger posting kernel, fiscal periods, and trial balance.
 - [x] Phase 5 builds the owner Finance Workspace, management reports, drill-down, and CSV exports.
 - [x] Phase 6 adds restricted payroll-lite profiles, effective compensation, pay runs, statements, and reversible ledger-backed operating cost.
+- [x] High-risk finance/payroll success, denial, and terminal failure outcomes have append-only request-correlated audit evidence with sensitive-data redaction.

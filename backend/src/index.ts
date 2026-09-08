@@ -1,7 +1,7 @@
 import express, { NextFunction, Request, Response } from "express";
 import cors from "cors";
 import { logger } from "./utils/logger";
-import { handleError } from "./utils/error";
+import { handleErrorWithAudit } from "./utils/error";
 import { mainRoutes } from "./routes";
 import { Server } from "socket.io";
 import http from "http";
@@ -9,6 +9,7 @@ import { env } from "./utils/zodSchema";
 import { paymentWebhookRoutes } from "./features/payments/payment.webhook.routes";
 import { checkDatabaseConnection, closeDatabase } from "./db";
 import path from "path";
+import { requestContextMiddleware } from "./utils/request-context";
 
 import { createSocketAuthMiddleware } from "./features/realtime/realtime-auth";
 import { setRealtimeIoGetter } from "./features/staff/staff.realtime";
@@ -52,6 +53,8 @@ io.on("connection", (socket) => {
   });
 });
 
+app.use(requestContextMiddleware);
+
 // Razorpay signatures cover the exact request bytes. This route must remain
 // ahead of every middleware that parses or transforms JSON request bodies.
 app.use("/api/v1/payments/razorpay/webhook", paymentWebhookRoutes);
@@ -83,7 +86,7 @@ app.use((req, res, next) => {
 app.use("/api/v1", mainRoutes);
 
 app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
-  handleError(err, req, res);
+  void handleErrorWithAudit(err, req, res);
 });
 
 const port = Number(process.env.PORT || env.PORT || 3000);

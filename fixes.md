@@ -122,6 +122,8 @@ Payroll profile, compensation, pay-run, statement, and export permissions are se
 
 ## Priority 6 — Complete high-risk failure and denial auditing
 
+**Status: Implemented in the working tree.** High-risk finance and payroll routes now persist safe request-correlated denial and terminal-failure audit rows while retaining transactional success audits. The shared contract uses stable action/reason codes, recursively redacts sensitive fields, preserves hidden-resource responses, records provider refund terminal failures, avoids outbox retry noise, and fails closed if required audit persistence fails.
+
 Successful sensitive mutations generally write append-only audit records, while authorization denials are currently written only to structured logs. The plan requires high-risk success, failure, and denial audit events.
 
 ### Required changes

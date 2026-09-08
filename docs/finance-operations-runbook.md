@@ -50,6 +50,24 @@ Only a recently authenticated platform owner can open, soft-close, close, or reo
 
 Before soft close: drain the outbox, reconcile payments/refunds/settlements, resolve or document open issues, post approved expenses, and verify the trial balance. Soft close blocks ordinary source postings; an owner may use an explicit audited override. Close only after review. Closed periods reject every posting. Reopen only with a documented correction reason, post the reversal/replacement, rerun reports, and close again.
 
+## High-risk audit evidence
+
+Every HTTP request receives a bounded `X-Request-ID` (a valid caller UUID is retained; otherwise the server generates one). Successful high-risk mutations write their existing lifecycle audit inside the business transaction, so an audit-write failure rolls the mutation back. Denied and failed attempts are written independently after the business transaction has failed, preserving evidence that would otherwise be rolled back. If this required attempt audit cannot be persisted, the request fails closed with `AUDIT_PERSISTENCE_FAILED`.
+
+| Workflow | Denied/failed action prefix | Safe resource reference |
+| --- | --- | --- |
+| Refund request, approval, rejection, retry, stale reconciliation | `refund.request`, `refund.approve`, `refund.reject`, `refund.retry`, `refund.reconcile` | Requested order/refund ID, or a fixed stale-refund marker |
+| Expense approval and payment | `expense.approve`, `expense.pay` | Requested expense ID |
+| Settlement reconciliation and issue resolution | `settlement.reconcile`, `settlement.issue_resolve` | Requested batch or issue ID |
+| Fiscal-period administration | `ledger.period_open`, `ledger.period_soft_close`, `ledger.period_close`, `ledger.period_reopen` | Requested period ID, or `new` |
+| Manual journal posting and reversal | `ledger.manual_journal_post`, `ledger.manual_journal_reverse` | Requested journal ID, or `new` |
+| Compensation version creation | `payroll.compensation_change` | Requested employee-finance-profile ID |
+| Pay-run calculation, approval, payment, and posting | `payroll.pay_run_calculate`, `payroll.pay_run_approve`, `payroll.pay_run_pay`, `payroll.pay_run_post` | Requested pay-run ID |
+
+The stored action appends `.denied` or `.failed`; `outcome` carries the same classification. Metadata contains only a stable `reasonCode`. Actor ID, store ID when present in the trusted request scope, request ID, resource type/reference, and database timestamp occupy dedicated columns. `RESOURCE_NOT_FOUND` remains a denied outcome with the same public `404` for missing and cross-store resources, so the audit does not alter hidden-resource behavior. Provider refund terminal failures use `outcome=failure`; internal outbox retries continue to use their bounded retry/dead-letter state and do not generate an audit row per retry.
+
+Audit metadata redaction recursively removes passwords/tokens, bank details, PAN/tax identifiers, compensation and payroll amounts, payment references, secrets, signatures, and raw provider payloads. Do not add those values to action names, reason codes, resource identifiers, or request IDs.
+
 ## Migration deployment and recovery
 
 1. Back up the database and record the current migration head.
