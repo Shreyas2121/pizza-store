@@ -10,6 +10,7 @@ import { paymentWebhookRoutes } from "./features/payments/payment.webhook.routes
 import { checkDatabaseConnection, closeDatabase } from "./db";
 import path from "path";
 import { requestContextMiddleware } from "./utils/request-context";
+import { financeMetricsRoutes } from "./features/observability/finance-metrics.routes";
 
 import { createSocketAuthMiddleware } from "./features/realtime/realtime-auth";
 import { setRealtimeIoGetter } from "./features/staff/staff.realtime";
@@ -54,6 +55,7 @@ io.on("connection", (socket) => {
 });
 
 app.use(requestContextMiddleware);
+app.use(financeMetricsRoutes);
 
 // Razorpay signatures cover the exact request bytes. This route must remain
 // ahead of every middleware that parses or transforms JSON request bodies.

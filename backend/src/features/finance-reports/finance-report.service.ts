@@ -12,6 +12,7 @@ import {
   type FinanceReportQuery,
   type GroupedFinanceReportQuery,
 } from "./finance-report.schemas";
+import { financeMetrics, type FinanceReportType } from "../observability/finance-metrics";
 
 type Period = { from: string; to: string };
 type Scope = { kind: "store" | "consolidated"; storeIds: number[]; timezone: string; canReadPayrollCost: boolean };
@@ -62,7 +63,7 @@ export class FinanceReportService {
       this.repository.lastReconciledAt(scope.storeIds),
     ]);
     return overviewResponseSchema.parse({
-      policy: this.policy(scope, now, lastReconciledAt), period, comparisonPeriod,
+      policy: this.policy("overview", scope, now, lastReconciledAt), period, comparisonPeriod,
       kpis: { ...applyPayrollPrivacy(current.totals, scope.canReadPayrollCost), openReconciliationIssues: issues },
       comparison: { period: comparisonPeriod, kpis: { ...applyPayrollPrivacy(comparison.totals, scope.canReadPayrollCost), openReconciliationIssues: null } },
       drillDownUrls: this.drillDownUrls(query, scope.canReadPayrollCost),
@@ -75,7 +76,7 @@ export class FinanceReportService {
     const comparisonPeriod = comparisonPeriodFor(query.from, query.to);
     const [current, comparison, lastReconciledAt] = await Promise.all([this.load(scope, period), this.load(scope, comparisonPeriod), this.repository.lastReconciledAt(scope.storeIds)]);
     return profitAndLossResponseSchema.parse({
-      policy: this.policy(scope, now, lastReconciledAt), period, comparisonPeriod, groupBy: query.groupBy,
+      policy: this.policy("profit_and_loss", scope, now, lastReconciledAt), period, comparisonPeriod, groupBy: query.groupBy,
       totals: applyPayrollPrivacy(current.totals, scope.canReadPayrollCost), operatingExpenseLines: current.operatingExpenseLines, periods: profitAndLossSeries(current.rows, query.groupBy, scope.canReadPayrollCost),
       comparison: { totals: applyPayrollPrivacy(comparison.totals, scope.canReadPayrollCost), operatingExpenseLines: comparison.operatingExpenseLines, periods: profitAndLossSeries(comparison.rows, query.groupBy, scope.canReadPayrollCost) },
     });
@@ -87,7 +88,7 @@ export class FinanceReportService {
     const comparisonPeriod = comparisonPeriodFor(query.from, query.to);
     const [current, comparison, lastReconciledAt] = await Promise.all([this.load(scope, period), this.load(scope, comparisonPeriod), this.repository.lastReconciledAt(scope.storeIds)]);
     return salesResponseSchema.parse({
-      policy: this.policy(scope, now, lastReconciledAt), period, comparisonPeriod, groupBy: query.groupBy, totals: applyPayrollPrivacy(current.totals, scope.canReadPayrollCost),
+      policy: this.policy("sales", scope, now, lastReconciledAt), period, comparisonPeriod, groupBy: query.groupBy, totals: applyPayrollPrivacy(current.totals, scope.canReadPayrollCost),
       series: salesSeries(current.rows, query.groupBy), comparison: { totals: applyPayrollPrivacy(comparison.totals, scope.canReadPayrollCost), series: salesSeries(comparison.rows, query.groupBy) },
     });
   }
@@ -98,7 +99,7 @@ export class FinanceReportService {
     const comparisonPeriod = comparisonPeriodFor(query.from, query.to);
     const [current, comparison, lastReconciledAt] = await Promise.all([this.load(scope, period), this.load(scope, comparisonPeriod), this.repository.lastReconciledAt(scope.storeIds)]);
     return marginsResponseSchema.parse({
-      policy: this.policy(scope, now, lastReconciledAt), period, comparisonPeriod, groupBy: query.groupBy, totals: applyPayrollPrivacy(current.totals, scope.canReadPayrollCost),
+      policy: this.policy("margins", scope, now, lastReconciledAt), period, comparisonPeriod, groupBy: query.groupBy, totals: applyPayrollPrivacy(current.totals, scope.canReadPayrollCost),
       series: marginSeries(current.rows, query.groupBy), comparison: { totals: applyPayrollPrivacy(comparison.totals, scope.canReadPayrollCost), series: marginSeries(comparison.rows, query.groupBy) },
     });
   }
@@ -138,7 +139,8 @@ export class FinanceReportService {
     return { rows, ...projectFinanceReport(rows, { collectionsPaise, unsettledRazorpayPaise }) };
   }
 
-  private policy(scope: Scope, now: Date, lastReconciledAt: Date | null) {
+  private policy(reportType: FinanceReportType, scope: Scope, now: Date, lastReconciledAt: Date | null) {
+    financeMetrics.setReportFreshness(reportType, scope.kind, lastReconciledAt ? (now.getTime() - lastReconciledAt.getTime()) / 1000 : null);
     return { currency: "INR" as const, timezone: scope.timezone, dateBasis: "journal_business_date" as const, recognitionBasis: "delivery" as const, includedJournalStatuses: ["posted", "reversed"] as const, generatedAt: now.toISOString(), lastReconciledAt: lastReconciledAt?.toISOString() ?? null, payrollCostVisibility: scope.canReadPayrollCost ? "detailed" as const : "suppressed" as const, scope: { kind: scope.kind, storeIds: scope.storeIds } };
   }
 

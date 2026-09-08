@@ -3,6 +3,7 @@ import type { TransactionType } from "../../utils/types";
 import ledgerRepository, { LedgerRepository } from "./ledger.repository";
 import { assertPeriodAllowsPosting, hashPostingCommand, validatePostingCommand } from "./ledger.policy";
 import { credit, debit, type PostingCommand, type ReversalCommand } from "./ledger.types";
+import { financeMetrics } from "../observability/finance-metrics";
 
 export class LedgerService {
   constructor(private readonly repository: LedgerRepository = ledgerRepository) {}
@@ -117,6 +118,7 @@ export class LedgerService {
       if (existing.commandHash !== commandHash) {
         throw new AppError("Journal source version conflicts with existing content.", 409, "JOURNAL_SOURCE_CONFLICT");
       }
+      financeMetrics.recordDuplicateSuppression(command.source.eventType);
       return existing;
     }
 

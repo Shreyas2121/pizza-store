@@ -1,6 +1,7 @@
 import type { FinancialOutboxEvent } from "../../db/schema";
 import type { FinancialEventType } from "./financial-event.types";
 import financialEventService, { FinancialEventService } from "./financial-event.service";
+import { financeMetrics } from "../observability/finance-metrics";
 
 export interface FinancialEventProcessor {
   readonly supportedEventTypes: readonly FinancialEventType[];
@@ -33,6 +34,7 @@ export class PostingWorker {
         if (finalized) result.processed += 1;
         else result.leaseLost += 1;
       } catch (cause) {
+        financeMetrics.recordPostingFailure(event.eventType);
         const failed = await this.events.markFailed({
           eventId: event.eventId,
           workerId,

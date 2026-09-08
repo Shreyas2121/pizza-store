@@ -1203,6 +1203,11 @@ Finance and payroll mutation requests return an `X-Request-ID`. Successful sensi
 
 Attempt actions use the stable `<operation>.failed` or `<operation>.denied` form and store `outcome`, actor ID, store ID when known, safe resource type/ID, request ID, timestamp, and `metadata.reasonCode`. Missing and cross-store resources continue to return the same `404`; internal denial auditing never changes that response. Audit rows exclude bank details, PAN/tax identifiers, compensation/payroll amounts, payment references, secrets, signatures, and raw provider payloads. A required audit-write failure produces `500 AUDIT_PERSISTENCE_FAILED` instead of allowing an unaudited high-risk operation.
 
+### Operational Metrics
+
+- `GET /metrics` — Prometheus text metrics for finance outbox, posting, journal-policy rejection, refunds, unsettled captures, settlement matching/variance, cash sessions/variance, and report duration/freshness. It returns `503` when live aggregate collection fails.
+- The endpoint has no application-level identity labels and must be restricted to the monitoring network at the deployment ingress. Metric labels use only documented fixed enums; IDs, emails, provider references, and payroll-sensitive fields are excluded. See [finance-operations-runbook.md](finance-operations-runbook.md#finance-operational-metrics) for names, units, labels, definitions, and investigation thresholds.
+
 ---
 
 ## Authentication legend

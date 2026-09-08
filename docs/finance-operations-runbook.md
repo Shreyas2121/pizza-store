@@ -68,6 +68,34 @@ The stored action appends `.denied` or `.failed`; `outcome` carries the same cla
 
 Audit metadata redaction recursively removes passwords/tokens, bank details, PAN/tax identifiers, compensation and payroll amounts, payment references, secrets, signatures, and raw provider payloads. Do not add those values to action names, reason codes, resource identifiers, or request IDs.
 
+## Finance operational metrics
+
+Scrape `GET /metrics` as Prometheus text. The endpoint performs read-only aggregate queries and returns `503` if collection fails, so a failed scrape is visible rather than publishing stale database gauges. Restrict this operational endpoint at the deployment ingress because metric values contain aggregate business amounts. Labels are deliberately limited to the fixed sets below; store, order, payment, refund, employee, email, provider-reference, and request identifiers are never labels.
+
+Age buckets are `lt_1h`, `1h_24h`, `1d_7d`, and `gte_7d`. Outbox status, settlement match status, posting kind, event type, report type, scope, and outcome are closed application enums; unrecognized event types become `unknown`.
+
+| Metric | Type / unit | Labels | Investigate when |
+| --- | --- | --- | --- |
+| `food_finance_outbox_events` | Gauge / events | `status` | `failed` or `dead_letter` is non-zero, or active work does not drain. This is the dead-letter count. |
+| `food_finance_outbox_oldest_age_seconds` | Gauge / seconds | `status` | Pending/processing/failed age exceeds the normal worker interval; processed age is defined as zero. |
+| `food_finance_outbox_retry_count` | Gauge / attempts | `status` | Attempts rise repeatedly or approach the ten-attempt dead-letter limit. |
+| `food_finance_posting_failures_total` | Counter / failures | `event_type` | Any sustained increase; correlate with sanitized outbox errors. |
+| `food_finance_duplicate_event_suppressions_total` | Counter / suppressions | `event_type` | A burst suggests webhook or worker replay; suppression itself is safe and idempotent. |
+| `food_finance_unbalanced_journal_attempts_total` | Counter / rejected attempts | `posting_kind` | Any increase. Unbalanced journals must never be accepted. |
+| `food_finance_refunds` | Gauge / refunds | `status`, `age_bucket` | Pending work ages into later buckets or failed refunds remain unresolved. |
+| `food_finance_unsettled_captured_payments` | Gauge / payments | `age_bucket` | Captures remain without a matched payment settlement line beyond the provider settlement window. |
+| `food_finance_unsettled_captured_amount_paise` | Gauge / integer paise | `age_bucket` | Old-bucket amounts persist or grow. Reconcile provider settlement evidence. |
+| `food_finance_settlement_lines` | Gauge / lines | `match_status` | `unmatched` or `mismatch` remains after reconciliation. |
+| `food_finance_settlement_match_ratio` | Gauge / ratio 0–1 | none | The ratio drops below the operator baseline; an empty set reports `1`. Ignored lines are excluded. |
+| `food_finance_settlement_variance_paise` | Gauge / absolute integer paise | `match_status` | Non-zero unmatched/mismatch amounts persist. It is exposure by line status, not a signed net. |
+| `food_finance_open_cash_sessions` | Gauge / sessions | none | Sessions remain open beyond the store's business day. |
+| `food_finance_cash_variance_paise` | Gauge / signed integer paise | none | The active, non-reversed closure variance breaches local cash policy or trends consistently positive/negative. |
+| `food_finance_report_duration_seconds` | Histogram / seconds | `report_type`, `scope`, `outcome`, `le` | Upper buckets or failures increase. Buckets are 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, and 10 seconds. |
+| `food_finance_report_freshness_seconds` | Gauge / seconds | `report_type`, `scope` | Age exceeds the reconciliation objective. `-1` means the scope has never reconciled a settlement. |
+| `food_finance_closed_period_posting_attempts_total` | Counter / rejected attempts | `posting_kind` | Any increase; inspect posting dates, delayed outbox work, and authorized correction workflow. |
+
+Database gauges are rebuilt on every scrape. Process counters and report observations reset when the API process restarts; configure the metrics collector to retain counter history across restarts. Settlement match ratio is matched lines divided by matched, unmatched, and mismatch lines. Settlement variance sums absolute payment/refund/adjustment line amounts still marked unmatched or mismatch.
+
 ## Migration deployment and recovery
 
 1. Back up the database and record the current migration head.

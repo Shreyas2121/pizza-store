@@ -1,6 +1,7 @@
 import { createHash } from "crypto";
 import { AppError } from "../../utils/error";
 import type { PostingCommand, PostingLine } from "./ledger.types";
+import { financeMetrics } from "../observability/finance-metrics";
 
 const MAX_PAISE = 2_147_483_647;
 
@@ -65,7 +66,10 @@ export const validatePostingCommand = (command: PostingCommand) => {
     else credits += line.amountPaise;
     if (!Number.isSafeInteger(debits) || !Number.isSafeInteger(credits)) throw invalid("Journal total exceeds the safe integer limit.", "JOURNAL_TOTAL_OVERFLOW");
   }
-  if (debits !== credits) throw invalid("Journal debits and credits must balance.", "JOURNAL_UNBALANCED");
+  if (debits !== credits) {
+    financeMetrics.recordUnbalancedJournalAttempt(command.kind);
+    throw invalid("Journal debits and credits must balance.", "JOURNAL_UNBALANCED");
+  }
   return { debitsPaise: debits, creditsPaise: credits };
 };
 
@@ -76,6 +80,7 @@ export const assertPeriodAllowsPosting = (
 ) => {
   if (!period) throw new AppError("No fiscal period contains the journal business date.", 409, "FISCAL_PERIOD_NOT_FOUND");
   if (period.status === "closed" || (period.status === "soft_closed" && kind === "manual" && !softCloseOverride)) {
+    financeMetrics.recordClosedPeriodPostingAttempt(kind);
     throw new AppError("Fiscal period does not permit this posting.", 400, "PERIOD_CLOSED");
   }
 };

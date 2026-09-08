@@ -143,6 +143,8 @@ Successful sensitive mutations generally write append-only audit records, while 
 
 ## Priority 7 — Add finance operational metrics
 
+**Status: Implemented in the working tree.** The backend now exposes Prometheus text metrics at `GET /metrics`, combining live database aggregates with bounded in-process counters and a report-duration histogram. Instrumentation covers outbox health, posting outcomes, journal policy rejection, refund/payment/settlement age and variance, cash operations, and report latency/freshness without identifier or sensitive-data labels.
+
 Structured logs and recovery runbooks exist, but runtime metrics for the finance workflows were not found.
 
 ### Required changes
