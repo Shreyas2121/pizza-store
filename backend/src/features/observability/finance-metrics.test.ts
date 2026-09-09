@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { requireMetricsBearer } from "./finance-metrics.routes";
 import { FinanceMetrics, type FinanceOperationalSnapshot } from "./finance-metrics";
 
 const snapshot: FinanceOperationalSnapshot = {
@@ -40,5 +41,56 @@ describe("finance operational metrics", () => {
     expect(output).toContain('food_finance_duplicate_event_suppressions_total{event_type="order.delivered"} 1');
     expect(output).toContain('food_finance_report_duration_seconds_bucket{report_type="sales",scope="store",outcome="success",le="0.1"} 1');
     expect(output).toContain('food_finance_report_freshness_seconds{report_type="sales",scope="store"} 120');
+  });
+});
+
+describe("finance metrics authentication", () => {
+  const response = () => {
+    const res = {
+      status: vi.fn(),
+      type: vi.fn(),
+      send: vi.fn(),
+      set: vi.fn(),
+    };
+    res.status.mockReturnValue(res);
+    res.type.mockReturnValue(res);
+    res.set.mockReturnValue(res);
+    return res;
+  };
+
+  it("fails closed when no metrics token is configured", () => {
+    const res = response();
+    const next = vi.fn();
+    requireMetricsBearer()({ get: vi.fn() } as never, res as never, next);
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it("rejects a missing or incorrect bearer token", () => {
+    const expected = "m".repeat(32);
+    for (const authorization of [undefined, "Basic abc", `Bearer ${"x".repeat(32)}`]) {
+      const res = response();
+      const next = vi.fn();
+      requireMetricsBearer(expected)(
+        { get: vi.fn().mockReturnValue(authorization) } as never,
+        res as never,
+        next,
+      );
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(next).not.toHaveBeenCalled();
+    }
+  });
+
+  it("accepts the configured bearer token", () => {
+    const expected = "m".repeat(32);
+    const res = response();
+    const next = vi.fn();
+    requireMetricsBearer(expected)(
+      { get: vi.fn().mockReturnValue(`Bearer ${expected}`) } as never,
+      res as never,
+      next,
+    );
+    expect(next).toHaveBeenCalledOnce();
+    expect(res.status).not.toHaveBeenCalled();
   });
 });

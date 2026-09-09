@@ -23,7 +23,7 @@ const defaults: StoreFormValues = {
   isActive: true,
 };
 
-export function StoreForm({ store, onSaved }: { store?: Store | null; onSaved: () => void }) {
+export function StoreForm({ store, platformAdmin, onSaved }: { store?: Store | null; platformAdmin: boolean; onSaved: () => void }) {
   const createStore = useCreateStore();
   const updateStore = useUpdateStore();
   const isPending = createStore.isPending || updateStore.isPending;
@@ -52,21 +52,27 @@ export function StoreForm({ store, onSaved }: { store?: Store | null; onSaved: (
       slug: values.slug || undefined,
       email: values.email || null,
     };
-    const mutation = store ? updateStore : createStore;
-    mutation.mutate(store ? { id: store.id, data: payload } as never : payload as never, {
-      onSuccess: (response: { message: string }) => {
-        success(response.message || `Store ${store ? "updated" : "created"} successfully.`);
-        onSaved();
-      },
-      onError: () => error(`Store could not be ${store ? "updated" : "created"}.`),
-    });
+    const onSuccess = (response: { message: string }) => {
+      success(response.message || `Store ${store ? "updated" : "created"} successfully.`);
+      onSaved();
+    };
+    const onError = () => error(`Store could not be ${store ? "updated" : "created"}.`);
+
+    if (store) {
+      const managerPayload: Partial<StorePayload> = { ...payload };
+      delete managerPayload.slug;
+      delete managerPayload.isActive;
+      updateStore.mutate({ id: store.id, data: platformAdmin ? payload : managerPayload }, { onSuccess, onError });
+      return;
+    }
+    createStore.mutate(payload, { onSuccess, onError });
   };
 
   return (
     <form onSubmit={handleSubmit(submit)} className="space-y-5" noValidate>
       <div className="grid gap-4 sm:grid-cols-2">
         <TextInput {...register("name")} label="Store name" placeholder="PizzaStore - Koramangala" withAsterisk error={errors.name?.message} disabled={isPending} />
-        <TextInput {...register("slug")} label="Slug" placeholder="Generated from name when blank" error={errors.slug?.message} disabled={isPending} />
+        {platformAdmin && <TextInput {...register("slug")} label="Slug" placeholder="Generated from name when blank" error={errors.slug?.message} disabled={isPending} />}
         <Textarea {...register("address")} className="sm:col-span-2" label="Street address" minRows={2} withAsterisk error={errors.address?.message} disabled={isPending} />
         <TextInput {...register("city")} label="City" withAsterisk error={errors.city?.message} disabled={isPending} />
         <TextInput {...register("state")} label="State" withAsterisk error={errors.state?.message} disabled={isPending} />
@@ -78,9 +84,9 @@ export function StoreForm({ store, onSaved }: { store?: Store | null; onSaved: (
         <TextInput {...register("opensAt")} label="Opens at" type="time" withAsterisk error={errors.opensAt?.message} disabled={isPending} />
         <TextInput {...register("closesAt")} label="Closes at" type="time" withAsterisk error={errors.closesAt?.message} disabled={isPending} />
       </div>
-      <Controller name="isActive" control={control} render={({ field }) => (
+      {platformAdmin && <Controller name="isActive" control={control} render={({ field }) => (
         <Switch label="Store is active" description="Inactive stores cannot resolve for customers." checked={field.value} onChange={(event) => field.onChange(event.currentTarget.checked)} color="basil" disabled={isPending} />
-      )} />
+      )} />}
       <Button type="submit" fullWidth size="md" leftSection={<Save size={17} />} loading={isPending}>
         {store ? "Save changes" : "Create store"}
       </Button>

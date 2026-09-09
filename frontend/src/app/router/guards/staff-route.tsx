@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import { Navigate } from "react-router";
+import { Navigate, useParams } from "react-router";
 import { useUser } from "@/features/auth";
 import {
   hasStorePermission,
@@ -12,15 +12,18 @@ import { RouteSkeleton } from "@/shared/ui";
 interface StaffProtectedRouteProps {
   children: ReactNode;
   requiredPermission?: string;
+  permissionStoreIdParam?: string;
 }
 
 export const StaffProtectedRoute = ({
   children,
   requiredPermission,
+  permissionStoreIdParam,
 }: StaffProtectedRouteProps) => {
   const { isLoggedIn, user } = useUser();
   const { data: access, isLoading } = useAccessMe();
   const { activeStoreId } = useStaffActiveStore();
+  const params = useParams();
 
   if (!isLoggedIn || !user) {
     return <Navigate to="/" replace />;
@@ -42,7 +45,11 @@ export const StaffProtectedRoute = ({
   }
 
   if (requiredPermission && !isPlatformAdmin(access)) {
-    const hasPerm = hasStorePermission(access, activeStoreId, requiredPermission);
+    const routeStoreId = permissionStoreIdParam
+      ? Number(params[permissionStoreIdParam])
+      : activeStoreId;
+    const hasPerm = typeof routeStoreId === "number" && Number.isInteger(routeStoreId) && routeStoreId > 0 &&
+      hasStorePermission(access, routeStoreId, requiredPermission);
     if (!hasPerm) {
       return <Navigate to="/admin" replace />;
     }

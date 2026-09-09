@@ -6,20 +6,34 @@ import { BASE_URL } from "@/shared/config";
 import { APP_CURRENCY_SYMBOL, error, formatPaise, parseRupeesToPaise, success } from "@/shared/lib";
 import { useRemoveStoreProduct, useUpdateStoreProduct } from "../../api/store.queries";
 import type { StoreProduct } from "../../model/store.types";
+import { buildStoreProductUpdate } from "../../model/store-product-update";
 
-export function StoreProductRow({ mapping }: { mapping: StoreProduct }) {
+interface StoreProductRowProps {
+  mapping: StoreProduct;
+  canUpdatePrice: boolean;
+  canUpdateAvailability: boolean;
+  canRemove: boolean;
+}
+
+export function StoreProductRow({ mapping, canUpdatePrice, canUpdateAvailability, canRemove }: StoreProductRowProps) {
   const [price, setPrice] = useState<number | string>(mapping.pricePaise / 100);
   const [available, setAvailable] = useState(mapping.isAvailable);
   const updateProduct = useUpdateStoreProduct(mapping.storeId);
   const removeProduct = useRemoveStoreProduct(mapping.storeId);
-  const changed = price !== "" && (parseRupeesToPaise(price) !== mapping.pricePaise || available !== mapping.isAvailable);
+  const nextPricePaise = price === "" ? mapping.pricePaise : parseRupeesToPaise(price);
+  const update = buildStoreProductUpdate(
+    { pricePaise: mapping.pricePaise, isAvailable: mapping.isAvailable },
+    { pricePaise: nextPricePaise, isAvailable: available },
+    { canUpdatePrice, canUpdateAvailability },
+  );
+  const changed = Object.keys(update).length > 0;
 
   useEffect(() => {
     setPrice(mapping.pricePaise / 100);
     setAvailable(mapping.isAvailable);
   }, [mapping.isAvailable, mapping.pricePaise]);
 
-  const save = () => updateProduct.mutate({ productId: mapping.productId, data: { pricePaise: parseRupeesToPaise(price), isAvailable: available } }, {
+  const save = () => updateProduct.mutate({ productId: mapping.productId, data: update }, {
     onSuccess: () => success(`${mapping.product.name} updated.`),
     onError: () => error("Product mapping could not be updated."),
   });
@@ -42,11 +56,11 @@ export function StoreProductRow({ mapping }: { mapping: StoreProduct }) {
         <img src={`${BASE_URL}${mapping.product.image}`} alt="" className="h-12 w-12 rounded-lg border border-border object-cover" />
         <div className="min-w-0"><p className="truncate font-semibold text-ink">{mapping.product.name}</p><p className="text-xs text-ink-muted">Global price {formatPaise(mapping.product.pricePaise)}</p></div>
       </div>
-      <NumberInput label="Store price" hideControls prefix={`${APP_CURRENCY_SYMBOL} `} min={0} decimalScale={2} value={price} onChange={setPrice} />
-      <Switch label="Available" checked={available} onChange={(event) => setAvailable(event.currentTarget.checked)} color="basil" />
+      <NumberInput label="Store price" hideControls prefix={`${APP_CURRENCY_SYMBOL} `} min={0} decimalScale={2} value={price} onChange={setPrice} disabled={!canUpdatePrice} />
+      <Switch label="Available" checked={available} onChange={(event) => setAvailable(event.currentTarget.checked)} color="basil" disabled={!canUpdateAvailability} />
       <div className="flex gap-2 md:justify-end">
-        <Button size="xs" variant="light" leftSection={<Save size={14} />} disabled={!changed} loading={updateProduct.isPending} onClick={save}>Save</Button>
-        <Button size="xs" variant="subtle" color="red" aria-label={`Remove ${mapping.product.name}`} loading={removeProduct.isPending} onClick={confirmRemove}><Trash2 size={15} /></Button>
+        {(canUpdatePrice || canUpdateAvailability) && <Button size="xs" variant="light" leftSection={<Save size={14} />} disabled={!changed} loading={updateProduct.isPending} onClick={save}>Save</Button>}
+        {canRemove && <Button size="xs" variant="subtle" color="red" aria-label={`Remove ${mapping.product.name}`} loading={removeProduct.isPending} onClick={confirmRemove}><Trash2 size={15} /></Button>}
       </div>
     </div>
   );

@@ -3,6 +3,7 @@ import { Badge, Button, Textarea } from "@mantine/core";
 import { modals } from "@mantine/modals";
 import { ArrowLeft, MapPin, Plus, Trash2 } from "lucide-react";
 import { Link, useParams } from "react-router";
+import { hasStorePermission, useAccessMe } from "@/features/access";
 import { PageHeader, TableSkeleton } from "@/shared/ui";
 import { error, success } from "@/shared/lib";
 import { useAddDeliveryZones, useDeliveryZones, useRemoveDeliveryZone, useStoreDetail } from "../api/store.queries";
@@ -10,6 +11,8 @@ import { useAddDeliveryZones, useDeliveryZones, useRemoveDeliveryZone, useStoreD
 export function AdminStoreDeliveryZonesPage() {
   const storeId = Number(useParams().id);
   const [input, setInput] = useState("");
+  const { data: access } = useAccessMe();
+  const canManage = hasStorePermission(access, storeId, "store.delivery_zones.manage");
   const store = useStoreDetail(storeId);
   const zones = useDeliveryZones(storeId);
   const addZones = useAddDeliveryZones(storeId);
@@ -50,12 +53,12 @@ export function AdminStoreDeliveryZonesPage() {
     <section>
       <PageHeader eyebrow="Delivery coverage" title={store.data?.name ?? "Delivery zones"} description="Manage the pincodes that can resolve to this store." action={<Button component={Link} to="/admin/stores" variant="default" leftSection={<ArrowLeft size={16} />}>Stores</Button>} />
 
-      <div className="mb-6 rounded-card border border-border bg-surface p-5 shadow-subtle">
+      {canManage && <div className="mb-6 rounded-card border border-border bg-surface p-5 shadow-subtle">
         <h2 className="font-bold text-ink">Add delivery pincodes</h2>
         <p className="mt-1 text-sm text-ink-muted">Enter up to 100 six-digit pincodes, separated by commas, spaces, or new lines.</p>
         <Textarea mt="md" minRows={3} placeholder={"560001, 560002\n560003"} value={input} onChange={(event) => setInput(event.currentTarget.value)} disabled={addZones.isPending} />
         <Button mt="md" leftSection={<Plus size={16} />} loading={addZones.isPending} onClick={add}>Add pincodes</Button>
-      </div>
+      </div>}
 
       {isLoading ? <TableSkeleton /> : isError ? (
         <div className="empty-state m-0"><h2 className="text-section-title-scale">Delivery zones unavailable</h2><p className="mt-2 text-supporting-scale">Check the store and refresh the page.</p></div>
@@ -68,7 +71,7 @@ export function AdminStoreDeliveryZonesPage() {
             {zones.data.map((zone) => (
               <div key={zone.id} className="flex min-h-12 items-center justify-between rounded-control border border-border px-4">
                 <span className="flex items-center gap-2 font-semibold tabular-nums text-ink"><MapPin size={16} className="text-brand" />{zone.pincode}</span>
-                <Button variant="subtle" color="red" size="compact-sm" aria-label={`Remove pincode ${zone.pincode}`} loading={removeZone.isPending && removeZone.variables === zone.id} onClick={() => confirmRemove(zone.id, zone.pincode)}><Trash2 size={15} /></Button>
+                {canManage && <Button variant="subtle" color="red" size="compact-sm" aria-label={`Remove pincode ${zone.pincode}`} loading={removeZone.isPending && removeZone.variables === zone.id} onClick={() => confirmRemove(zone.id, zone.pincode)}><Trash2 size={15} /></Button>}
               </div>
             ))}
           </div>

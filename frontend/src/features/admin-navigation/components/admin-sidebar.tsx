@@ -61,6 +61,8 @@ export const AdminSidebar = ({
       return (
         isPlatformAdmin(access) ||
         hasStorePermission(access, activeStoreId, "store.profile.update") ||
+        hasStorePermission(access, activeStoreId, "store.products.read") ||
+        hasStorePermission(access, activeStoreId, "store.delivery_zones.read") ||
         hasStorePermission(access, activeStoreId, "store.staff.read")
       );
     }

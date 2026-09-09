@@ -15,6 +15,7 @@ import {
   updateStoreSchema,
 } from "../../utils/zodSchema";
 import storeService from "./stores.service";
+import productService from "../products/product.service";
 
 export const storeRoutes = Router();
 
@@ -122,6 +123,16 @@ storeRoutes.get(
     const mappings = await storeService.getStoreProducts(storeId, req.principal);
 
     res.json({ data: mappings });
+  })
+);
+
+// Global catalogue choices for staff authorized to add store-product mappings.
+storeRoutes.get(
+  "/:id/products/catalog",
+  authenticateUser,
+  requireStorePermission("store.products.mapping.manage", fromParam("id")),
+  asyncHandler(async (_req: AuthenticatedRequest, res) => {
+    res.json({ data: await productService.getStoreMappingCatalog() });
   })
 );
 

@@ -1,12 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { API } from "@/shared/api";
-import type { DeliveryZone, Store, StorePayload, StoreProduct } from "../model/store.types";
+import type { DeliveryZone, Store, StoreCatalogProduct, StorePayload, StoreProduct } from "../model/store.types";
 
 export const storeKeys = {
   all: ["stores"] as const,
   list: () => ["stores", "list"] as const,
   detail: (id: number) => ["stores", "detail", id] as const,
   products: (id: number) => ["stores", id, "products"] as const,
+  productCatalog: (id: number) => ["stores", id, "products", "catalog"] as const,
   zones: (id: number) => ["stores", id, "delivery-zones"] as const,
 };
 
@@ -59,6 +60,12 @@ export const useStoreProducts = (storeId: number) => useQuery({
   queryKey: storeKeys.products(storeId),
   queryFn: async () => (await API.get<{ data: StoreProduct[] }>(`/stores/${storeId}/products`)).data.data,
   enabled: storeId > 0,
+});
+
+export const useStoreProductCatalog = (storeId: number, enabled: boolean) => useQuery({
+  queryKey: storeKeys.productCatalog(storeId),
+  queryFn: async () => (await API.get<{ data: StoreCatalogProduct[] }>(`/stores/${storeId}/products/catalog`)).data.data,
+  enabled: enabled && storeId > 0,
 });
 
 export const useMapStoreProducts = (storeId: number) => {

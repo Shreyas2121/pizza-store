@@ -105,7 +105,7 @@ Audit metadata redaction recursively removes passwords/tokens, bank details, PAN
 
 ## Finance operational metrics
 
-Scrape `GET /metrics` as Prometheus text. The endpoint performs read-only aggregate queries and returns `503` if collection fails, so a failed scrape is visible rather than publishing stale database gauges. Restrict this operational endpoint at the deployment ingress because metric values contain aggregate business amounts. Labels are deliberately limited to the fixed sets below; store, order, payment, refund, employee, email, provider-reference, and request identifiers are never labels.
+Scrape `GET /metrics` as Prometheus text with `Authorization: Bearer <METRICS_BEARER_TOKEN>`. The token must be a dedicated secret of at least 32 characters and must not reuse `JWT_SECRET`. The endpoint fails closed with `503` when authentication is not configured, returns `401` for invalid credentials, and returns `503` if collection fails. Also restrict this operational endpoint at the deployment ingress because metric values contain aggregate business amounts. Labels are deliberately limited to the fixed sets below; store, order, payment, refund, employee, email, provider-reference, and request identifiers are never labels.
 
 Age buckets are `lt_1h`, `1h_24h`, `1d_7d`, and `gte_7d`. Outbox status, settlement match status, posting kind, event type, report type, scope, and outcome are closed application enums; unrecognized event types become `unknown`.
 

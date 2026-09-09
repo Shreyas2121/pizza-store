@@ -1,5 +1,7 @@
 import { useEffect } from "react";
 import { io } from "socket.io-client";
+import { useQueryClient } from "@tanstack/react-query";
+import { accessKeys } from "@/features/access";
 import { useUser } from "@/features/auth";
 import { useSocketStore, useSyncChatStatus } from "@/features/support";
 import { BASE_URL } from "@/shared/config";
@@ -13,6 +15,7 @@ export function BusinessRuntime() {
   const isLoggedIn = useUser((state) => state.isLoggedIn);
   const setSocket = useSocketStore((state) => state.setSocket);
   const closeModal = useAuthModalStore((state) => state.closeModal);
+  const queryClient = useQueryClient();
 
   useSyncChatStatus(isLoggedIn);
 
@@ -25,13 +28,23 @@ export function BusinessRuntime() {
     const socket = io(BASE_URL, { auth: { token } });
     setSocket(socket);
 
+    const refreshAccess = () => {
+      void queryClient.invalidateQueries({ queryKey: accessKeys.me() });
+    };
+    socket.on("connect", refreshAccess);
+    socket.on("disconnect", refreshAccess);
+    socket.on("connect_error", refreshAccess);
+
     return () => {
+      socket.off("connect", refreshAccess);
+      socket.off("disconnect", refreshAccess);
+      socket.off("connect_error", refreshAccess);
       socket.disconnect();
       if (useSocketStore.getState().socket === socket) {
         setSocket(null);
       }
     };
-  }, [setSocket, token]);
+  }, [queryClient, setSocket, token]);
 
   useEffect(() => () => closeModal(), [closeModal]);
 

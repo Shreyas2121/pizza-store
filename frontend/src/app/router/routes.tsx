@@ -158,8 +158,22 @@ export const AppRoutes = () => (
         }
       />
       <Route path="/admin/stores" element={<AdminStores />} />
-      <Route path="/admin/stores/:id/products" element={<AdminStoreProducts />} />
-      <Route path="/admin/stores/:id/delivery-zones" element={<AdminStoreDeliveryZones />} />
+      <Route
+        path="/admin/stores/:id/products"
+        element={
+          <StaffProtectedRoute requiredPermission="store.products.read" permissionStoreIdParam="id">
+            <AdminStoreProducts />
+          </StaffProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/stores/:id/delivery-zones"
+        element={
+          <StaffProtectedRoute requiredPermission="store.delivery_zones.read" permissionStoreIdParam="id">
+            <AdminStoreDeliveryZones />
+          </StaffProtectedRoute>
+        }
+      />
       <Route
         path="/admin/staff"
         element={

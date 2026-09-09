@@ -1,18 +1,18 @@
 import { useMemo, useState } from "react";
 import { Button, Checkbox, NumberInput, TextInput } from "@mantine/core";
 import { Search } from "lucide-react";
-import type { ProductWithCategory } from "@/features/catalog";
 import { APP_CURRENCY_SYMBOL, error, formatPaise, parseRupeesToPaise, success } from "@/shared/lib";
 import { useMapStoreProducts } from "../../api/store.queries";
+import type { StoreCatalogProduct } from "../../model/store.types";
 
-export function AddStoreProducts({ storeId, products, onSaved }: { storeId: number; products: ProductWithCategory[]; onSaved: () => void }) {
+export function AddStoreProducts({ storeId, products, onSaved }: { storeId: number; products: StoreCatalogProduct[]; onSaved: () => void }) {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<number[]>([]);
   const [prices, setPrices] = useState<Record<number, number | string>>({});
   const mapProducts = useMapStoreProducts(storeId);
   const filtered = useMemo(() => products.filter((product) => product.name.toLowerCase().includes(search.toLowerCase())), [products, search]);
 
-  const toggle = (product: ProductWithCategory) => {
+  const toggle = (product: StoreCatalogProduct) => {
     setSelected((current) => current.includes(product.id) ? current.filter((id) => id !== product.id) : [...current, product.id]);
     setPrices((current) => current[product.id] === undefined ? { ...current, [product.id]: product.pricePaise / 100 } : current);
   };

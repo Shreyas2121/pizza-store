@@ -1205,8 +1205,8 @@ Attempt actions use the stable `<operation>.failed` or `<operation>.denied` form
 
 ### Operational Metrics
 
-- `GET /metrics` — Prometheus text metrics for finance outbox, posting, journal-policy rejection, refunds, unsettled captures, settlement matching/variance, cash sessions/variance, and report duration/freshness. It returns `503` when live aggregate collection fails.
-- The endpoint has no application-level identity labels and must be restricted to the monitoring network at the deployment ingress. Metric labels use only documented fixed enums; IDs, emails, provider references, and payroll-sensitive fields are excluded. See [finance-operations-runbook.md](finance-operations-runbook.md#finance-operational-metrics) for names, units, labels, definitions, and investigation thresholds.
+- `GET /metrics` — Prometheus text metrics for finance outbox, posting, journal-policy rejection, refunds, unsettled captures, settlement matching/variance, cash sessions/variance, and report duration/freshness. Send `Authorization: Bearer <METRICS_BEARER_TOKEN>`. The endpoint returns `401` for invalid credentials, `503` when authentication is not configured, and `503` when live aggregate collection fails.
+- The endpoint has no application-level identity labels and should also be restricted to the monitoring network at the deployment ingress. Metric labels use only documented fixed enums; IDs, emails, provider references, and payroll-sensitive fields are excluded. See [finance-operations-runbook.md](finance-operations-runbook.md#finance-operational-metrics) for names, units, labels, definitions, and investigation thresholds.
 
 ---
 

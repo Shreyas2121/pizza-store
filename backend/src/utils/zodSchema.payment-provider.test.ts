@@ -40,3 +40,18 @@ describe("payment provider environment", () => {
     expect(liveKey.success).toBe(false);
   });
 });
+
+describe("operational metrics environment", () => {
+  it("requires a dedicated metrics token in production", () => {
+    expect(envSchema.safeParse({ ...base, NODE_ENV: "production" }).success).toBe(false);
+    expect(envSchema.safeParse({
+      ...base,
+      NODE_ENV: "production",
+      METRICS_BEARER_TOKEN: "metrics-only-secret-that-is-at-least-32-characters",
+    }).success).toBe(true);
+  });
+
+  it("rejects short metrics tokens", () => {
+    expect(envSchema.safeParse({ ...base, METRICS_BEARER_TOKEN: "too-short" }).success).toBe(false);
+  });
+});

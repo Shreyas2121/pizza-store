@@ -36,6 +36,12 @@ export interface StoreProduct {
   };
 }
 
+export interface StoreCatalogProduct {
+  id: number;
+  name: string;
+  pricePaise: number;
+}
+
 export interface DeliveryZone {
   id: number;
   storeId: number;

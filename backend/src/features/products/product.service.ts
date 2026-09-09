@@ -328,6 +328,17 @@ class ProductService {
     });
   }
 
+  async getStoreMappingCatalog() {
+    return await db.query.productsTable.findMany({
+      columns: {
+        id: true,
+        name: true,
+        pricePaise: true,
+      },
+      orderBy: desc(productsTable.createdAt),
+    });
+  }
+
   async getProductsByCategory(categoryId: number) {
     return await db.query.productsTable.findMany({
       where: eq(productsTable.categoryId, categoryId),

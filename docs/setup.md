@@ -39,6 +39,9 @@ DB_NAME=pizzastore
 # Auth
 JWT_SECRET=your_jwt_secret_here
 
+# Dedicated 32+ character secret for Prometheus scrapes
+METRICS_BEARER_TOKEN=replace_with_a_random_metrics_only_secret
+
 # Frontend URL (for CORS and Socket.IO)
 FE_URL=http://localhost:3150
 
@@ -69,6 +72,7 @@ All variables are validated at startup via Zod. The server will not start if any
 | `DB_NAME` | No* | PostgreSQL database name |
 | `DATABASE_URL` | No* | Full connection URL (alternative to individual DB_* vars) |
 | `JWT_SECRET` | Yes | Secret key for signing JSON Web Tokens |
+| `METRICS_BEARER_TOKEN` | Production | Dedicated 32+ character bearer token required by `GET /metrics`; do not reuse `JWT_SECRET` |
 | `FE_URL` | Yes | Frontend origin URL for CORS configuration |
 | `PAYMENT_PROVIDER_MODE` | No | `simulator` (default) or `razorpay_test`; `razorpay_live` refuses startup |
 | `RAZORPAY_KEY_ID` | No** | Public Razorpay Test Mode key ID |

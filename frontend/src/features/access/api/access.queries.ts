@@ -17,6 +17,6 @@ export const useAccessMe = () => {
       return res.data.data;
     },
     enabled: isLoggedIn && !!token,
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 60,
   });
 };

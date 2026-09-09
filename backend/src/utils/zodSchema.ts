@@ -16,6 +16,7 @@ export const envSchema = z.object({
   JWT_ISSUER: z.string().min(1).default("pizzastore-api"),
   JWT_AUDIENCE: z.string().min(1).default("pizzastore-web"),
   JWT_EXPIRES_IN: z.enum(["4h", "6h", "8h"]).default("6h"),
+  METRICS_BEARER_TOKEN: z.string().min(32).optional(),
   STAFF_INVITATION_EXPIRY_HOURS: z.coerce.number().int().min(1).max(168).default(48),
   FE_URL: z.string(),
   RAZORPAY_KEY_ID: z.string().min(1).optional(),
@@ -34,6 +35,14 @@ export const envSchema = z.object({
     .int().positive().max(50_000_000).default(500_000),
   PAYROLL_ENCRYPTION_KEY: z.string().min(32).optional(),
 }).superRefine((value, ctx) => {
+  if (value.NODE_ENV === "production" && !value.METRICS_BEARER_TOKEN) {
+    ctx.addIssue({
+      code: "custom",
+      message: "METRICS_BEARER_TOKEN is required in production",
+      path: ["METRICS_BEARER_TOKEN"],
+    });
+  }
+
   const razorpayValues = [
     value.RAZORPAY_KEY_ID,
     value.RAZORPAY_KEY_SECRET,
