@@ -1,16 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppError } from "../../utils/error";
 import {
-  customizationOptionsTable,
   orderItemCustomizationsTable,
   orderItemsTable,
   ordersTable,
-  productsTable,
 } from "../../db/schema";
 import type { TransactionType } from "../../utils/types";
 import cartService from "../cart/cart.service";
 import inventoryService from "../inventory/inventory.service";
 import pricingService from "../pricing/pricing.service";
+import { publicQuoteRepository } from "./checkout.repository";
 import checkoutService from "./checkout.service";
 
 describe("CheckoutService stock integration", () => {
@@ -589,31 +588,27 @@ describe("CheckoutService calculatePublicQuote", () => {
         couponRecord: null,
       });
 
-    // Mock db queries for products and options
-    const { db } = await import("../../db");
-    vi.spyOn(db, "select").mockImplementation((() => {
-      const selectMock: any = {
-        from: (table: any) => {
-          return {
-            where: () => {
-              if (table === productsTable) {
-                return Promise.resolve([
-                  { id: 1, name: "Margherita", pricePaise: 35_000 },
-                ]);
-              }
-              if (table === customizationOptionsTable) {
-                return Promise.resolve([
-                  { id: 101, name: "Extra Cheese", pricePaise: 5_000 },
-                ]);
-              }
-              return Promise.resolve([]);
-            },
-            limit: () => Promise.resolve([]),
-          };
-        },
-      };
-      return selectMock;
-    }) as any);
+    vi.spyOn(publicQuoteRepository, "findStoreProducts").mockResolvedValue([
+      {
+        productId: 1,
+        productName: "Margherita",
+        pricePaise: 37_000,
+        productIsAvailable: true,
+        storeProductIsAvailable: true,
+      },
+    ]);
+    vi.spyOn(
+      publicQuoteRepository,
+      "findProductCustomizationOptions"
+    ).mockResolvedValue([
+      {
+        productId: 1,
+        optionId: 101,
+        optionName: "Extra Cheese",
+        pricePaise: 5_000,
+        isAvailable: true,
+      },
+    ]);
 
     const result = await checkoutService.calculatePublicQuote({
       storeId: 1,
@@ -637,7 +632,7 @@ describe("CheckoutService calculatePublicQuote", () => {
           productId: 1,
           productName: "Margherita",
           quantity: 1,
-          baseUnitPricePaise: 35_000,
+          baseUnitPricePaise: 37_000,
           customizations: [
             {
               customizationOptionId: 101,

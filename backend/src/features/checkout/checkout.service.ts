@@ -1,11 +1,9 @@
 import { and, count, eq, inArray, sql } from "drizzle-orm";
-import { db } from "../../db";
 import {
   addressTable,
   cartTable,
   couponRedemptionsTable,
   couponsTable,
-  customizationOptionsTable,
   deliveryZonesTable,
   orderItemCustomizationsTable,
   orderItemsTable,
@@ -21,6 +19,7 @@ import pricingService, {
   type PricingItemInput,
 } from "../pricing/pricing.service";
 import { formatStoreTime, isStoreOpen } from "../stores/store-hours";
+import { publicQuoteRepository } from "./checkout.repository";
 
 type CheckoutCart = NonNullable<
   Awaited<ReturnType<typeof cartService.getCart>>
@@ -38,6 +37,7 @@ export interface CalculatePublicQuoteInput {
   }[];
   userId?: number;
 }
+
 export const toPricingItems = (cart: CheckoutCart): PricingItemInput[] => {
   try {
     return cart.items.map((item) => ({
@@ -183,30 +183,48 @@ class CheckoutService {
 
   async calculatePublicQuote(input: CalculatePublicQuoteInput) {
     let destinationState = input.destinationState?.trim() || null;
-    if (!destinationState && input.addressId) {
-      const [address] = await db
-        .select({ state: addressTable.state })
-        .from(addressTable)
-        .where(eq(addressTable.id, input.addressId))
-        .limit(1);
-      if (address) {
-        destinationState = address.state;
+    if (input.addressId) {
+      if (!input.userId) {
+        throw new AppError(
+          "Authentication is required to use a saved address",
+          401,
+          "ADDRESS_AUTHENTICATION_REQUIRED"
+        );
       }
+      const addressState = await publicQuoteRepository.findAddressState(
+        input.addressId,
+        input.userId
+      );
+      if (!addressState) {
+        throw new AppError("Delivery address not found", 404);
+      }
+      destinationState = addressState;
     }
 
     let pricingItems: PricingItemInput[];
 
     if (input.items && input.items.length > 0) {
       const productIds = [...new Set(input.items.map((item) => item.productId))];
-      const products = await db
-        .select()
-        .from(productsTable)
-        .where(inArray(productsTable.id, productIds));
-      const productMap = new Map(products.map((p) => [p.id, p]));
+      const storeProducts = await publicQuoteRepository.findStoreProducts(
+        input.storeId,
+        productIds
+      );
+      const productMap = new Map(
+        storeProducts.map((product) => [product.productId, product])
+      );
 
       for (const pid of productIds) {
-        if (!productMap.has(pid)) {
-          throw new AppError(`Product ${pid} not found`, 404);
+        const product = productMap.get(pid);
+        if (
+          !product ||
+          !product.productIsAvailable ||
+          !product.storeProductIsAvailable
+        ) {
+          throw new AppError(
+            `Product ${pid} is unavailable at the selected store`,
+            409,
+            "STORE_PRODUCT_UNAVAILABLE"
+          );
         }
       }
 
@@ -218,34 +236,47 @@ class CheckoutService {
 
       const options =
         allOptionIds.length > 0
-          ? await db
-              .select()
-              .from(customizationOptionsTable)
-              .where(inArray(customizationOptionsTable.id, allOptionIds))
+          ? await publicQuoteRepository.findProductCustomizationOptions(
+              productIds,
+              allOptionIds
+            )
           : [];
-      const optionMap = new Map(options.map((o) => [o.id, o]));
-
-      for (const oid of allOptionIds) {
-        if (!optionMap.has(oid)) {
-          throw new AppError(`Customization option ${oid} not found`, 404);
-        }
-      }
+      const optionMap = new Map(
+        options.map((option) => [
+          `${option.productId}:${option.optionId}`,
+          option,
+        ])
+      );
 
       pricingItems = input.items.map((item, index) => {
-        const product = productMap.get(item.productId)!;
+        const product = productMap.get(item.productId);
+        if (!product) {
+          throw new AppError(
+            `Product ${item.productId} is unavailable at the selected store`,
+            409,
+            "STORE_PRODUCT_UNAVAILABLE"
+          );
+        }
         const customizations = (item.customizationOptionIds ?? []).map((oid) => {
-          const option = optionMap.get(oid)!;
+          const option = optionMap.get(`${item.productId}:${oid}`);
+          if (!option || !option.isAvailable) {
+            throw new AppError(
+              `Customization option ${oid} is unavailable for product ${item.productId}`,
+              409,
+              "PRODUCT_CUSTOMIZATION_UNAVAILABLE"
+            );
+          }
           return {
-            customizationOptionId: option.id,
-            name: option.name,
+            customizationOptionId: option.optionId,
+            name: option.optionName,
             pricePaise: option.pricePaise,
           };
         });
 
         return {
           lineId: index + 1,
-          productId: product.id,
-          productName: product.name,
+          productId: product.productId,
+          productName: product.productName,
           quantity: item.quantity,
           baseUnitPricePaise: product.pricePaise,
           customizations,
