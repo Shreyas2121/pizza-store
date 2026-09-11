@@ -4,6 +4,7 @@ import { logger } from "./utils/logger";
 import { handleErrorWithAudit } from "./utils/error";
 import { mainRoutes } from "./routes";
 import { Server } from "socket.io";
+import * as msgpackParser from "socket.io-msgpack-parser";
 import http from "http";
 import { env } from "./utils/zodSchema";
 import { paymentWebhookRoutes } from "./features/payments/payment.webhook.routes";
@@ -13,7 +14,13 @@ import { requestContextMiddleware } from "./utils/request-context";
 import { financeMetricsRoutes } from "./features/observability/finance-metrics.routes";
 
 import { createSocketAuthMiddleware } from "./features/realtime/realtime-auth";
-import { setRealtimeIoGetter } from "./features/staff/staff.realtime";
+import { setRealtimeServerGetter } from "./features/realtime/realtime-server";
+import type {
+  ClientToServerEvents,
+  InterServerEvents,
+  RealtimeSocketData,
+  ServerToClientEvents,
+} from "./features/realtime/realtime.types";
 
 logger.info("🚀 [Startup] Initializing Food Delivery Backend service...");
 logger.info(
@@ -33,14 +40,20 @@ logger.info(
 
 const app = express();
 const httpServer = http.createServer(app);
-export const io = new Server(httpServer, {
+export const io = new Server<
+  ClientToServerEvents,
+  ServerToClientEvents,
+  InterServerEvents,
+  RealtimeSocketData
+>(httpServer, {
+  parser: msgpackParser,
   cors: {
     origin: env.FE_URL,
     credentials: true,
   },
 });
 
-setRealtimeIoGetter(() => io);
+setRealtimeServerGetter(() => io);
 
 io.use(createSocketAuthMiddleware());
 

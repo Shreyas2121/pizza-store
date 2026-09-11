@@ -1,8 +1,16 @@
 import { Badge, Button } from "@mantine/core";
+import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Bike, Check, ChefHat, Clock3, CreditCard, PackageCheck, ReceiptText } from "lucide-react";
 import { Link, useParams } from "react-router";
-import { useGetOrder } from "../api/order.queries";
-import { formatDateTime, formatPrice } from "@/shared/lib";
+import { orderKeys, useGetOrder } from "../api/order.queries";
+import { getOrderStatusMeta } from "../components/order-status";
+import { formatDateTime, formatPrice, success, info } from "@/shared/lib";
+import {
+  RealtimeEvents,
+  type OrderPlacedPayload,
+  type OrderStatusChangedPayload,
+  useSocketEvent,
+} from "@/shared/realtime";
 import { DetailsPageSkeleton, PageHeader } from "@/shared/ui";
 import { OrderAddress } from "../components/order-address";
 import { OrderCoupon } from "../components/order-coupon";
@@ -15,6 +23,33 @@ export const CustomerOrderDetailsPage = () => {
   const { id } = useParams();
   const orderId = Number(id);
   const { data: order, isLoading, isError } = useGetOrder(orderId);
+  const queryClient = useQueryClient();
+
+  const refreshOrder = () => {
+    if (Number.isInteger(orderId)) {
+      void queryClient.invalidateQueries({ queryKey: orderKeys.single(orderId) });
+    }
+  };
+
+  useSocketEvent(
+    RealtimeEvents.orderStatusChanged,
+    (event: OrderStatusChangedPayload) => {
+      if (event.orderId !== orderId) return;
+
+      refreshOrder();
+      info(
+        `Your order is now ${getOrderStatusMeta(event.status).label.toLowerCase()}.`,
+        "Order updated"
+      );
+    }
+  );
+
+  useSocketEvent(RealtimeEvents.orderPlaced, (event: OrderPlacedPayload) => {
+      if (event.orderId !== orderId) return;
+
+      refreshOrder();
+      success("Your payment was confirmed and the kitchen has received your order.", "Order confirmed");
+  });
 
   if (isLoading) return <DetailsPageSkeleton />;
 

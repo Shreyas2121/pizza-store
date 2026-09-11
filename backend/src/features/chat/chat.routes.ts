@@ -7,10 +7,19 @@ import { AppError, asyncHandler } from "../../utils/error";
 import type { Auth, ChatStatus } from "../../utils/types";
 import chatService from "./chat.service";
 import { io } from "../..";
-import userService from "../users/user.service";
 import { RealtimeRooms } from "../realtime/realtime-rooms";
+import { RealtimeEvents } from "../realtime/realtime.types";
 
 export const chatRoutes = Router();
+
+const toRealtimeChatSession = <T extends {
+  createdAt: Date | string;
+  updatedAt: Date | string;
+}>(session: T) => ({
+  ...session,
+  createdAt: new Date(session.createdAt).toISOString(),
+  updatedAt: new Date(session.updatedAt).toISOString(),
+});
 
 // Request Chat;
 
@@ -29,7 +38,10 @@ chatRoutes.post(
     }
 
     const chatSession = await chatService.createNewChatSession(userId, title);
-    io.to(RealtimeRooms.platformSupport()).emit("chatRequest", chatSession);
+    io.to(RealtimeRooms.platformSupport()).emit(
+      RealtimeEvents.chatRequest,
+      toRealtimeChatSession(chatSession)
+    );
 
     res.json({
       message: "Session created",
@@ -91,7 +103,10 @@ chatRoutes.patch(
     io.to([
       RealtimeRooms.user(updatedChatSession.userId),
       RealtimeRooms.platformSupport(),
-    ]).emit("chatStatusChange", JSON.stringify(updatedChatSession));
+    ]).emit(
+      RealtimeEvents.chatStatusChange,
+      toRealtimeChatSession(updatedChatSession)
+    );
 
     res.json({
       message: "Chat status updated",
@@ -159,19 +174,17 @@ chatRoutes.post(
       ...data,
       senderId: userId,
     });
-    const user = await userService.getUserById(messageData.senderId);
-
     const message = {
       id: messageData.id,
       timestamp: new Date(messageData.createdAt).toISOString(),
-      type: user?.role,
+      type: req.principal!.platformRole,
       message: messageData.message,
     };
 
     io.to([
       RealtimeRooms.user(session.userId),
       RealtimeRooms.platformSupport(),
-    ]).emit("newMessage", message);
+    ]).emit(RealtimeEvents.newMessage, message);
 
     res.json({
       data: message,

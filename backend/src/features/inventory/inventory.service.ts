@@ -918,6 +918,20 @@ class InventoryService {
           ),
         };
       });
+      const products = await tx
+        .select({ id: productsTable.id, productName: productsTable.name })
+        .from(productsTable)
+        .where(inArray(productsTable.id, productIds));
+      const productNames = new Map(
+        products.map((product) => [product.id, product.productName] as const)
+      );
+      if (productNames.size !== productIds.length) {
+        throw new AppError(
+          "One or more products no longer exist",
+          404,
+          "PRODUCT_NOT_FOUND"
+        );
+      }
       const now = new Date();
 
       for (const { mapping, change } of prepared) {
@@ -958,6 +972,7 @@ class InventoryService {
         items: prepared.map(({ mapping, change }) => ({
           storeProductId: mapping.id,
           productId: mapping.productId,
+          productName: productNames.get(mapping.productId)!,
           ...change,
           lastRestockedAt: now,
         })),

@@ -1,22 +1,32 @@
-import type { Server } from "socket.io";
 import type { StaffAccessNotifier } from "./staff.types";
-import { evictUserSockets } from "../realtime/realtime-rooms";
+import {
+  evictUserSockets,
+  RealtimeRooms,
+} from "../realtime/realtime-rooms";
+import {
+  RealtimeEvents,
+  type RealtimeServer,
+} from "../realtime/realtime.types";
+import { getRealtimeServer } from "../realtime/realtime-server";
 
 export class SocketIoStaffAccessNotifier implements StaffAccessNotifier {
-  constructor(private ioGetter: () => Server | undefined) {}
+  constructor(private ioGetter: () => RealtimeServer | undefined) {}
 
   async membershipChanged(input: { userId: number; storeId: number }): Promise<void> {
     const io = this.ioGetter();
     if (io) {
+      io.to(RealtimeRooms.user(input.userId)).emit(
+        RealtimeEvents.membershipChanged,
+        {
+          storeId: input.storeId,
+          message: "Your store access has been updated.",
+        }
+      );
       evictUserSockets(io, input.userId);
     }
   }
 }
 
-let globalIoGetter: () => Server | undefined = () => undefined;
-
-export const setRealtimeIoGetter = (getter: () => Server | undefined) => {
-  globalIoGetter = getter;
-};
-
-export const staffAccessNotifier = new SocketIoStaffAccessNotifier(() => globalIoGetter());
+export const staffAccessNotifier = new SocketIoStaffAccessNotifier(
+  getRealtimeServer
+);

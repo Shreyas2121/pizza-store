@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { Hourglass, MessageCircle, MessageCircleQuestion } from "lucide-react";
 import { showNotification } from "@mantine/notifications";
 import { useMediaQuery } from "@mantine/hooks";
@@ -8,12 +7,16 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button, Textarea } from "@mantine/core";
 import { useChatRequest } from "../api/chat.queries";
-import { ChatSession } from "../model/support.types";
 import { useUser } from "@/features/auth";
 import { useAuthModalStore } from "@/shared/model";
-import { useSocketStore } from "../model/support.store";
+import { useSupportStore } from "../model/support.store";
 import { success } from "@/shared/lib";
 import { Chat } from "./chat";
+import {
+  RealtimeEvents,
+  type ChatSessionPayload,
+  useSocketEvent,
+} from "@/shared/realtime";
 
 
 const chatRequestSchema = z.object({
@@ -29,7 +32,7 @@ type ChatRequestFormValues = z.infer<typeof chatRequestSchema>;
 export const ChatRequestForm = () => {
   const requestM = useChatRequest();
   const { closeModal } = useAuthModalStore();
-  const { setChatSession } = useSocketStore();
+  const { setChatSession } = useSupportStore();
   const {
     register,
     handleSubmit,
@@ -91,16 +94,15 @@ export const ChatRequestForm = () => {
 
 export const SupportAction = () => {
   const { openModal } = useAuthModalStore();
-  const { chatSession, socket, setChatSession } = useSocketStore();
+  const { chatSession, setChatSession } = useSupportStore();
   const { isLoggedIn } = useUser();
   const location = useLocation();
   const isMobile = useMediaQuery("(max-width: 639px)");
   const aboveCommerceBar = location.pathname === "/cart";
 
-  useEffect(() => {
-    if (!socket) return;
-    const handleStatusChange = (updatedData: string) => {
-      const updatedSession = JSON.parse(updatedData) as ChatSession;
+  useSocketEvent(
+    RealtimeEvents.chatStatusChange,
+    (updatedSession: ChatSessionPayload) => {
       if (updatedSession.status === "rejected")
         showNotification({
           message: "Your support request could not be accepted.",
@@ -111,12 +113,8 @@ export const SupportAction = () => {
           ? updatedSession.status
           : null
       );
-    };
-    socket.on("chatStatusChange", handleStatusChange);
-    return () => {
-      socket.off("chatStatusChange", handleStatusChange);
-    };
-  }, [socket, setChatSession]);
+    }
+  );
 
   if (!isLoggedIn) return null;
   const pending = chatSession === "pending";

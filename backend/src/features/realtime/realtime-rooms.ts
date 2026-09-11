@@ -1,7 +1,7 @@
-import type { Server, Socket } from "socket.io";
 import type { AuthPrincipal } from "../auth/auth.types";
 import type { MembershipAccessRecord } from "../access/access.types";
 import { roleHasPermission } from "../access/access.permissions";
+import type { RealtimeServer, RealtimeSocket } from "./realtime.types";
 
 export const RealtimeRooms = {
   user: (userId: number) => `user:${userId}`,
@@ -10,6 +10,7 @@ export const RealtimeRooms = {
   storeOperations: (storeId: number) => `store:${storeId}:operations`,
   storeOrders: (storeId: number) => `store:${storeId}:orders`,
   storeInventory: (storeId: number) => `store:${storeId}:inventory`,
+  storeFinance: (storeId: number) => `store:${storeId}:finance`,
 } as const;
 
 export function deriveRoomsForPrincipal(
@@ -42,13 +43,16 @@ export function deriveRoomsForPrincipal(
     if (["manager", "finance_manager", "inventory_staff"].includes(membership.role)) {
       rooms.add(RealtimeRooms.storeInventory(membership.storeId));
     }
+    if (roleHasPermission(membership.role, "finance.overview.read")) {
+      rooms.add(RealtimeRooms.storeFinance(membership.storeId));
+    }
   }
 
   return Array.from(rooms);
 }
 
 export function syncSocketRooms(
-  socket: Socket,
+  socket: RealtimeSocket,
   principal: AuthPrincipal,
   memberships: MembershipAccessRecord[] = []
 ): string[] {
@@ -59,7 +63,7 @@ export function syncSocketRooms(
   return targetRooms;
 }
 
-export function evictUserSockets(io: Server | undefined, userId: number): void {
+export function evictUserSockets(io: RealtimeServer | undefined, userId: number): void {
   if (!io) return;
   const userRoom = RealtimeRooms.user(userId);
   const roomSockets = io.sockets.adapter.rooms.get(userRoom);

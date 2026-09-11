@@ -198,6 +198,22 @@ class OrderService {
     actor?: AuthPrincipal | number,
     now = new Date()
   ) {
+    const transition = await this.updateOrderStatusWithTransition(
+      orderId,
+      status,
+      actor,
+      now
+    );
+
+    return transition.order;
+  }
+
+  async updateOrderStatusWithTransition(
+    orderId: number,
+    status: OrderStatus,
+    actor?: AuthPrincipal | number,
+    now = new Date()
+  ) {
     const principal: AuthPrincipal | undefined =
       typeof actor === "object"
         ? actor
@@ -227,7 +243,11 @@ class OrderService {
       }
 
       if (order.status === status) {
-        return order;
+        return {
+          order,
+          previousStatus: order.status,
+          changed: false as const,
+        };
       }
 
       assertValidOrderTransition(order.status, status);
@@ -424,7 +444,11 @@ class OrderService {
         });
       }
 
-      return updatedOrder;
+      return {
+        order: updatedOrder,
+        previousStatus: order.status,
+        changed: true as const,
+      };
     });
   }
 }

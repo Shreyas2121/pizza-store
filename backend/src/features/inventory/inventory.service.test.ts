@@ -463,6 +463,13 @@ describe("InventoryService unit tests", () => {
   });
 
   describe("bulkRestockProducts", () => {
+    const selectProducts = (products: Array<{ id: number; productName: string }>) =>
+      vi.fn(() => ({
+        from: vi.fn(() => ({
+          where: vi.fn().mockResolvedValue(products),
+        })),
+      }));
+
     it("re-authorizes inside the write transaction and attributes movement and audit actors", async () => {
       const requireStorePermission = vi.fn().mockResolvedValue({ access: "membership" });
       const write = vi.fn().mockResolvedValue(undefined);
@@ -472,6 +479,7 @@ describe("InventoryService unit tests", () => {
       );
       const inserted: Array<{ table: unknown; values: unknown }> = [];
       const mockTx = {
+        select: selectProducts([{ id: 1, productName: "Pizza" }]),
         update: vi.fn(() => ({
           set: vi.fn(() => ({ where: vi.fn().mockResolvedValue([]) })),
         })),
@@ -520,6 +528,7 @@ describe("InventoryService unit tests", () => {
         { write: vi.fn().mockRejectedValue(auditFailure) }
       );
       const mockTx = {
+        select: selectProducts([{ id: 1, productName: "Pizza" }]),
         update: vi.fn(() => ({
           set: vi.fn(() => ({ where: vi.fn().mockResolvedValue([]) })),
         })),
@@ -541,6 +550,10 @@ describe("InventoryService unit tests", () => {
       const updates: Array<Record<string, unknown>> = [];
       const insertedMovements: unknown[] = [];
       const mockTx = {
+        select: selectProducts([
+          { id: 1, productName: "Pizza" },
+          { id: 2, productName: "Pasta" },
+        ]),
         update: vi.fn(() => ({
           set: vi.fn((values: Record<string, unknown>) => {
             updates.push(values);
@@ -607,6 +620,10 @@ describe("InventoryService unit tests", () => {
         ],
       ]);
       expect(result.updatedCount).toBe(2);
+      expect(result.items).toEqual([
+        expect.objectContaining({ productId: 1, productName: "Pizza" }),
+        expect.objectContaining({ productId: 2, productName: "Pasta" }),
+      ]);
     });
 
     it("validates every mapping before performing any write", async () => {

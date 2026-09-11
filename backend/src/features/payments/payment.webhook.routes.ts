@@ -1,9 +1,12 @@
 import { Router, raw } from "express";
-import type { Server } from "socket.io";
 import { AppError, asyncHandler } from "../../utils/error";
 import { requireRouteParam } from "../../utils/request";
 import razorpayWebhookService from "./razorpay.webhook";
 import { RealtimeRooms } from "../realtime/realtime-rooms";
+import {
+  RealtimeEvents,
+  type RealtimeServer,
+} from "../realtime/realtime.types";
 
 export const paymentWebhookRoutes = Router();
 
@@ -37,23 +40,26 @@ paymentWebhookRoutes.post(
       "finalizedNow" in reconciliation &&
       reconciliation.finalizedNow &&
       "localOrderId" in reconciliation &&
-      "totalPrice" in reconciliation
+      typeof reconciliation.localOrderId === "number" &&
+      "totalPrice" in reconciliation &&
+      typeof reconciliation.totalPrice === "number"
     ) {
-      const io = req.app.get("io") as Server | undefined;
+      const io = req.app.get("io") as RealtimeServer | undefined;
       const storeId =
-        "storeId" in reconciliation
-          ? (reconciliation as any).storeId
+        "storeId" in reconciliation &&
+        typeof reconciliation.storeId === "number"
+          ? reconciliation.storeId
           : undefined;
       const userId =
-        "userId" in reconciliation
-          ? (reconciliation as any).userId
+        "userId" in reconciliation && typeof reconciliation.userId === "number"
+          ? reconciliation.userId
           : undefined;
 
       const audiences = [RealtimeRooms.platformAdmin()];
       if (storeId) audiences.push(RealtimeRooms.storeOrders(storeId));
       if (userId) audiences.push(RealtimeRooms.user(userId));
 
-      io?.to(audiences).emit("orderPlaced", {
+      io?.to(audiences).emit(RealtimeEvents.orderPlaced, {
         orderId: reconciliation.localOrderId,
         status: "pending",
         total: reconciliation.totalPrice,

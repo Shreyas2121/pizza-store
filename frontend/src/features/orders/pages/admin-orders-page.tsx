@@ -1,23 +1,43 @@
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { Button, Select } from "@mantine/core";
 import { ArrowRight, RotateCcw } from "lucide-react";
 import { adminOrderColumns } from "../components/admin/admin-order-columns";
-import { useGetAdminOrders } from "../api/order.queries";
-import { OrderStatus as OrderStatusType, orderStatus } from "../model/order.types";
+import { orderKeys, useGetAdminOrders } from "../api/order.queries";
+import {
+  OrderStatus as OrderStatusType,
+  orderStatus,
+} from "../model/order.types";
 import { formatDate, formatPrice } from "@/shared/lib";
 import { PageHeader, TableSkeleton } from "@/shared/ui";
 import { OrderStatus as StatusPill } from "../components/order-status";
 import { useStaffActiveStore } from "@/features/access";
+import {
+  RealtimeEvents,
+  type OrderStatusChangedPayload,
+  useSocketEvent,
+} from "@/shared/realtime";
 import { DataTable } from "@/shared/ui";
 
 export const AdminOrdersPage = () => {
   const [selectedStatus, setSelectedStatus] = useState<OrderStatusType>("pending");
   const { activeStoreId } = useStaffActiveStore();
+  const queryClient = useQueryClient();
   const { data: orders, isLoading, isError, isFetching } = useGetAdminOrders(
     selectedStatus,
     activeStoreId
   );
+
+  useSocketEvent(
+    RealtimeEvents.orderStatusChanged,
+    (event: OrderStatusChangedPayload) => {
+      if (activeStoreId && event.storeId !== activeStoreId) return;
+
+      void queryClient.invalidateQueries({ queryKey: orderKeys.adminAll(selectedStatus, activeStoreId) });
+    }
+  );
+
   const filter = (
     <div className="flex w-full items-end gap-2 sm:w-auto">
       <Select

@@ -26,6 +26,7 @@ import {
 import cashService, { type CashSourceWriter } from "../cash-management/cash.service";
 import financialEventService from "../finance-events/financial-event.service";
 import type { FinancialEventWriter } from "../finance-events/financial-event.types";
+import { publishRefundStatusChanged } from "../realtime/realtime-publisher";
 
 export interface ProviderRefundWebhookEntity {
   id: string;
@@ -176,14 +177,21 @@ export class RefundService {
 
   async approve(actor: AuthPrincipal, refundId: number, input: ApproveRefundInput) {
     const prepared = await this.transitionForApproval(actor, refundId, input);
-    if (prepared.attempt.provider === "cod") return prepared.refund;
-    return this.submitToProvider(actor, prepared.refund, prepared.attempt.providerPaymentId);
+    const result = prepared.attempt.provider === "cod"
+      ? prepared.refund
+      : await this.submitToProvider(
+          actor,
+          prepared.refund,
+          prepared.attempt.providerPaymentId
+        );
+    publishRefundStatusChanged(result);
+    return result;
   }
 
   async reject(actor: AuthPrincipal, refundId: number, input: RejectRefundInput) {
     const identity = await this.repository.findById(refundId);
     if (!identity) throw resourceNotFound();
-    return this.repository.transaction(async (tx) => {
+    const result = await this.repository.transaction(async (tx) => {
       await this.lockParents(tx, identity.refund.orderId, identity.refund.paymentAttemptId);
       const refund = await this.repository.lockRefund(tx, refundId);
       if (!refund) throw resourceNotFound();
@@ -205,6 +213,8 @@ export class RefundService {
       });
       return updated;
     });
+    publishRefundStatusChanged(result);
+    return result;
   }
 
   async retry(actor: AuthPrincipal, refundId: number) {
@@ -235,7 +245,13 @@ export class RefundService {
       });
       return { refund: updated, paymentId: attempt.providerPaymentId };
     });
-    return this.submitToProvider(actor, prepared.refund, prepared.paymentId);
+    const result = await this.submitToProvider(
+      actor,
+      prepared.refund,
+      prepared.paymentId
+    );
+    publishRefundStatusChanged(result);
+    return result;
   }
 
   private async transitionForApproval(actor: AuthPrincipal, refundId: number, input: ApproveRefundInput) {
@@ -514,7 +530,7 @@ export class RefundService {
       );
     }
 
-    return this.repository.transaction(async (tx) => {
+    const outcome = await this.repository.transaction(async (tx) => {
       const { order, attempt } = await this.lockParents(tx, identity.refund.orderId, identity.refund.paymentAttemptId);
       if (attempt.providerPaymentId && attempt.providerPaymentId !== entity.payment_id) {
         throw new AppError(
@@ -669,6 +685,14 @@ export class RefundService {
 
       return { refund, duplicate: true as const, inProgress: true };
     });
+    if (
+      "refund" in outcome &&
+      outcome.duplicate === false &&
+      !("ignoredStale" in outcome)
+    ) {
+      publishRefundStatusChanged(outcome.refund);
+    }
+    return outcome;
   }
 
   async reconcileStaleRefunds(

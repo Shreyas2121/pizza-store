@@ -15,6 +15,8 @@ import {
 import inventoryService from "./inventory.service";
 import { io } from "../..";
 import { RealtimeRooms } from "../realtime/realtime-rooms";
+import { RealtimeEvents } from "../realtime/realtime.types";
+import { publishInventoryChanged } from "../realtime/realtime-publisher";
 
 export const inventoryRoutes = Router();
 
@@ -56,6 +58,19 @@ inventoryRoutes.post(
       req.principal!
     );
 
+    for (const item of data.items) {
+      publishInventoryChanged({
+        storeId,
+        storeProductId: item.storeProductId,
+        productId: item.productId,
+        productName: item.productName,
+        action: "restock",
+        previousQuantity: item.previousQuantity,
+        newQuantity: item.newQuantity,
+        quantityChange: item.quantityChange,
+      });
+    }
+
     res.json({ data, message: "Products restocked successfully" });
   })
 );
@@ -68,6 +83,17 @@ inventoryRoutes.post(
     const productId = parseIntegerParam(req.params.productId, "Product ID");
     const body = restockInventorySchema.parse(req.body);
     const data = await inventoryService.restockProduct(storeId, productId, body, req.principal!);
+
+    publishInventoryChanged({
+      storeId,
+      storeProductId: data.storeProductId,
+      productId: data.productId,
+      productName: data.productName,
+      action: "restock",
+      previousQuantity: data.previousQuantity,
+      newQuantity: data.newQuantity,
+      quantityChange: data.quantityChange,
+    });
 
     res.json({ data, message: "Product restocked successfully" });
   })
@@ -82,11 +108,23 @@ inventoryRoutes.post(
     const body = adjustInventorySchema.parse(req.body);
     const data = await inventoryService.adjustProduct(storeId, productId, body, req.principal!);
 
+    publishInventoryChanged({
+      storeId,
+      storeProductId: data.storeProductId,
+      productId: data.productId,
+      productName: data.productName,
+      action: "adjust",
+      previousQuantity: data.previousQuantity,
+      newQuantity: data.newQuantity,
+      quantityChange: data.quantityChange,
+      ...(data.alert ? { severity: data.alert.severity } : {}),
+    });
+
     if (data.alert) {
       io.to([
         RealtimeRooms.storeInventory(storeId),
         RealtimeRooms.platformAdmin(),
-      ]).emit("lowStock", data.alert);
+      ]).emit(RealtimeEvents.lowStock, data.alert);
     }
 
     res.json({ data, message: "Stock adjusted successfully" });

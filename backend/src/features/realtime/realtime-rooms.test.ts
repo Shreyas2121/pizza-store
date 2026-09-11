@@ -180,7 +180,7 @@ describe("Realtime Rooms & Authorization", () => {
       expect(rooms).toEqual(["user:99"]);
     });
 
-    it("derives operations, orders, and inventory rooms for store manager", () => {
+    it("derives operations, orders, inventory, and finance rooms for store manager", () => {
       const managerMemberships = memberships.filter(
         (m) => m.userId === managerPrincipal.userId
       );
@@ -190,6 +190,7 @@ describe("Realtime Rooms & Authorization", () => {
         "store:1:operations",
         "store:1:orders",
         "store:1:inventory",
+        "store:1:finance",
       ]);
     });
 
@@ -217,7 +218,7 @@ describe("Realtime Rooms & Authorization", () => {
       ]);
     });
 
-    it("derives order and inventory lookup rooms for finance manager", () => {
+    it("derives operational lookup and finance rooms for finance manager", () => {
       const financeMemberships = memberships.filter(
         (membership) => membership.userId === financePrincipal.userId
       );
@@ -226,6 +227,7 @@ describe("Realtime Rooms & Authorization", () => {
         "store:1:operations",
         "store:1:orders",
         "store:1:inventory",
+        "store:1:finance",
       ]);
     });
 
@@ -292,7 +294,7 @@ describe("Realtime Rooms & Authorization", () => {
       );
       const rooms = syncSocketRooms(mockSocket, managerPrincipal, managerMemberships);
 
-      expect(mockSocket.join).toHaveBeenCalledTimes(4);
+      expect(mockSocket.join).toHaveBeenCalledTimes(5);
       expect(joinedRooms).toEqual(rooms);
     });
   });
@@ -462,7 +464,7 @@ describe("Realtime Rooms & Authorization", () => {
   });
 
   describe("Realtime Event to Room Mapping", () => {
-    it("maps orderPlaced to customer, store orders, and platform admin rooms", () => {
+    it("maps order events to customer, store orders, and platform admin rooms", () => {
       const order = { id: 42, storeId: 1, userId: 10, totalPrice: 500 };
       const audiences = [
         RealtimeRooms.user(order.userId),
@@ -486,6 +488,30 @@ describe("Realtime Rooms & Authorization", () => {
 
       expect(audiences).toEqual([
         "store:1:inventory",
+        "platform-admin",
+      ]);
+    });
+
+    it("maps inventory changes to store inventory and platform admin rooms", () => {
+      const audiences = [
+        RealtimeRooms.storeInventory(1),
+        RealtimeRooms.platformAdmin(),
+      ];
+
+      expect(audiences).toEqual([
+        "store:1:inventory",
+        "platform-admin",
+      ]);
+    });
+
+    it("maps finance workflow changes to the finance room and platform admin", () => {
+      const audiences = [
+        RealtimeRooms.storeFinance(1),
+        RealtimeRooms.platformAdmin(),
+      ];
+
+      expect(audiences).toEqual([
+        "store:1:finance",
         "platform-admin",
       ]);
     });

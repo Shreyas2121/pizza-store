@@ -1,6 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { API, createMutation, createQuery } from "@/shared/api";
-import { useSocketStore } from "../model/support.store";
+import { useSupportStore } from "../model/support.store";
 
 import {
   ChatSession,
@@ -25,7 +25,7 @@ export const useChatRequest = () => {
 };
 
 export const useSyncChatStatus = (enabled: boolean = true) => {
-  const { setChatSession } = useSocketStore();
+  const { setChatSession } = useSupportStore();
   return useQuery({
     queryKey: supportKeys.user(),
     queryFn: async ({ signal }) => {

@@ -43,6 +43,9 @@ importers:
       socket.io:
         specifier: ^4.8.3
         version: 4.8.3(supports-color@5.5.0)
+      socket.io-msgpack-parser:
+        specifier: 3.0.2
+        version: 3.0.2
       winston:
         specifier: ^3.19.0
         version: 3.19.0
@@ -155,6 +158,9 @@ importers:
       socket.io-client:
         specifier: ^4.8.1
         version: 4.8.3(supports-color@7.2.0)
+      socket.io-msgpack-parser:
+        specifier: 3.0.2
+        version: 3.0.2
       tailwind-merge:
         specifier: ^3.0.1
         version: 3.6.0
@@ -1509,6 +1515,9 @@ packages:
     resolution: {integrity: sha512-OkTL9umf+He2DZkUq8f8J9of7yL6RJKI24dVITBmNfZBmri9zYZQrKkuXiKhyfPSu8tUhnVBB1iKXevvnlR4Ww==}
     engines: {node: '>= 12'}
 
+  component-emitter@1.3.1:
+    resolution: {integrity: sha512-T0+barUSQRTUQASh8bx02dl+DhF54GtIDY13Y3m9oWTklKbb3Wv974meRpeZ3lp1JpLVECWWNHC4vaG2XHXouQ==}
+
   concat-map@0.0.1:
     resolution: {integrity: sha512-/Srv4dswyQNBfohGpz9o6Yb3Gz3SrUDqBH5rTuhGR7ahtlbYKnVxw2bCFMRljaA7EXHaXZ8wsHdodFvbkhKmqg==}
 
@@ -2548,6 +2557,9 @@ packages:
     resolution: {integrity: sha512-6eZs5Ls3WtCisHWp9S2GUy8dqkpGi4BVSz3GaqiE6ezub0512ESztXUwUB6C6IKbQkY2Pnb/mD4WYojCRwcwLA==}
     engines: {node: '>=0.10.0'}
 
+  notepack.io@2.2.0:
+    resolution: {integrity: sha512-9b5w3t5VSH6ZPosoYnyDONnUTF8o0UkBw7JLA6eBlYJWyGT1Q3vQa8Hmuj1/X6RYvHjjygBDgw6fJhe0JEojfw==}
+
   object-assign@4.1.1:
     resolution: {integrity: sha512-rJgTQnkUnH1sFw8yT6VSU3zD3sWmu6sZhIseY8VX+GRu3P6F7Fu+JNDoXfklElbLJSnc3FUQHVe4cU5hj+BcUg==}
     engines: {node: '>=0.10.0'}
@@ -2988,6 +3000,9 @@ packages:
   socket.io-client@4.8.3:
     resolution: {integrity: sha512-uP0bpjWrjQmUt5DTHq9RuoCBdFJF10cdX9X+a368j/Ft0wmaVgxlrjvK3kjvgCODOMMOz9lcaRzxmso0bTWZ/g==}
     engines: {node: '>=10.0.0'}
+
+  socket.io-msgpack-parser@3.0.2:
+    resolution: {integrity: sha512-1e76bJ1PCKi9H+JiYk+S29PBJvknHjQWM7Mtj0hjF2KxDA6b6rQxv3rTsnwBoz/haZOhlCDIMQvPATbqYeuMxg==}
 
   socket.io-parser@4.2.7:
     resolution: {integrity: sha512-IH/iSeO9T6gz1KkFleGDWkG9N3dl4jXVYUtMhIqH10Md0ttMer8nUNWiP1DKuNrybD2xBrixLJdCC9J6ECoYkg==}
@@ -4655,6 +4670,8 @@ snapshots:
 
   commander@8.3.0: {}
 
+  component-emitter@1.3.1: {}
+
   concat-map@0.0.1: {}
 
   concat-stream@2.0.0:
@@ -5745,6 +5762,8 @@ snapshots:
 
   normalize-path@3.0.0: {}
 
+  notepack.io@2.2.0: {}
+
   object-assign@4.1.1: {}
 
   object-hash@3.0.0: {}
@@ -6209,6 +6228,11 @@ snapshots:
       - bufferutil
       - supports-color
       - utf-8-validate
+
+  socket.io-msgpack-parser@3.0.2:
+    dependencies:
+      component-emitter: 1.3.1
+      notepack.io: 2.2.0
 
   socket.io-parser@4.2.7(supports-color@5.5.0):
     dependencies:

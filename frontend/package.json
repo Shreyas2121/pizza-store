@@ -32,6 +32,7 @@
     "react-router": "^7.1.5",
     "recharts": "^2.15.1",
     "socket.io-client": "^4.8.1",
+    "socket.io-msgpack-parser": "3.0.2",
     "tailwind-merge": "^3.0.1",
     "zod": "^4.4.3",
     "zustand": "^5.0.3"

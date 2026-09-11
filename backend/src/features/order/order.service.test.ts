@@ -387,13 +387,17 @@ describe("OrderService unit tests", () => {
         cb(mockTx as any)
       );
 
-      const result = await orderService.updateOrderStatus(
+      const result = await orderService.updateOrderStatusWithTransition(
         42,
         "preparing",
         managerActor
       );
 
-      expect(result.status).toBe("preparing");
+      expect(result).toEqual({
+        order: updatedOrder,
+        previousStatus: "pending",
+        changed: true,
+      });
       expect(writtenAudits).toHaveLength(1);
       expect(writtenAudits[0]).toMatchObject({
         storeId: 1,
@@ -608,9 +612,17 @@ describe("OrderService unit tests", () => {
         .spyOn(inventoryService, "restoreStockForOrder")
         .mockResolvedValue(undefined as any);
 
-      const result = await orderService.updateOrderStatus(42, "cancelled", adminActor);
+      const result = await orderService.updateOrderStatusWithTransition(
+        42,
+        "cancelled",
+        adminActor
+      );
 
-      expect(result).toEqual({ id: 42, storeId: 1, status: "cancelled" });
+      expect(result).toEqual({
+        order: { id: 42, storeId: 1, status: "cancelled" },
+        previousStatus: "cancelled",
+        changed: false,
+      });
       expect(restoreSpy).not.toHaveBeenCalled();
     });
 

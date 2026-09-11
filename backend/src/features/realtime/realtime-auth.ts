@@ -1,16 +1,16 @@
-import type { Socket } from "socket.io";
 import defaultAuthService, { AuthenticationService } from "../auth/auth.service";
 import { DrizzleAccessRepository } from "../access/access.service";
 import type { AccessRepository } from "../access/access.types";
 import { syncSocketRooms } from "./realtime-rooms";
 import { logger } from "../../utils/logger";
-import type { AuthPrincipal } from "../auth/auth.types";
+import type {
+  RealtimeSocket,
+  RealtimeSocketData,
+} from "./realtime.types";
 
-export interface SocketData {
-  principal: AuthPrincipal;
-}
+export type SocketData = RealtimeSocketData;
 
-export const extractBearerToken = (socket: Socket): string | undefined => {
+export const extractBearerToken = (socket: RealtimeSocket): string | undefined => {
   const authToken = socket.handshake.auth?.token;
   if (typeof authToken === "string" && authToken.trim().length > 0) {
     return authToken.trim().replace(/^Bearer\s+/i, "");
@@ -26,7 +26,7 @@ export const createSocketAuthMiddleware = (
   authService: AuthenticationService = defaultAuthService,
   accessRepository: AccessRepository = new DrizzleAccessRepository()
 ) => {
-  return async (socket: Socket, next: (err?: Error) => void) => {
+  return async (socket: RealtimeSocket, next: (err?: Error) => void) => {
     try {
       const token = extractBearerToken(socket);
       if (!token) {

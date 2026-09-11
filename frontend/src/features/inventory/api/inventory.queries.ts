@@ -3,6 +3,7 @@ import {
   useMutation,
   useQuery,
   useQueryClient,
+  type QueryClient,
 } from "@tanstack/react-query";
 import { catalogKeys } from "@/features/catalog";
 import { storeKeys } from "@/features/store";
@@ -74,11 +75,11 @@ export const useInventoryMovements = (params: InventoryMovementsParams) =>
     placeholderData: keepPreviousData,
   });
 
-const useInventoryInvalidation = (storeId: number | null) => {
-  const client = useQueryClient();
-
-  return async () => {
-    await Promise.all([
+export const invalidateInventoryQueries = (
+  client: QueryClient,
+  storeId: number | null
+) =>
+  Promise.all([
       client.invalidateQueries({ queryKey: inventoryKeys.all }),
       client.invalidateQueries({ queryKey: catalogKeys.all }),
       client.invalidateQueries({ queryKey: catalogKeys.products.admin() }),
@@ -89,7 +90,10 @@ const useInventoryInvalidation = (storeId: number | null) => {
         ? [client.invalidateQueries({ queryKey: storeKeys.products(storeId) })]
         : []),
     ]);
-  };
+
+const useInventoryInvalidation = (storeId: number | null) => {
+  const client = useQueryClient();
+  return () => invalidateInventoryQueries(client, storeId);
 };
 
 export const useRestockInventory = (storeId: number | null) => {

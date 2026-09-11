@@ -34,6 +34,7 @@ import type {
 } from "../model/finance.types";
 
 export const financeKeys = {
+  all: ["finance"] as const,
   refunds: (storeId: number | null, status?: string) => ["finance", "refunds", storeId, status] as const,
   settlements: (storeId: number | null) => ["finance", "settlements", storeId] as const,
   settlement: (id: number | null) => ["finance", "settlement", id] as const,
@@ -136,7 +137,7 @@ const useFinanceMutation = <TVariables, TData>(mutationFn: (variables: TVariable
   const client = useQueryClient();
   return useMutation({
     mutationFn,
-    onSuccess: () => client.invalidateQueries({ queryKey: ["finance"] }),
+    onSuccess: () => client.invalidateQueries({ queryKey: financeKeys.all }),
   });
 };
 

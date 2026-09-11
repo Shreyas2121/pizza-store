@@ -1,11 +1,13 @@
 import { Button } from "@mantine/core";
+import { useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Box, ReceiptText } from "lucide-react";
 import { Link, useSearchParams } from "react-router";
-import { useGetOrders } from "../api/order.queries";
+import { orderKeys, useGetOrders } from "../api/order.queries";
 import { OrderStatus as OrderStatusType } from "../model/order.types";
 import { formatDate, formatPrice } from "@/shared/lib";
 import { ListSkeleton, PageHeader, RefreshIndicator } from "@/shared/ui";
 import { OrderStatus } from "../components/order-status";
+import { RealtimeEvents, useSocketEvent } from "@/shared/realtime";
 
 
 type Filter = "all" | OrderStatusType;
@@ -23,7 +25,16 @@ export const CustomerOrdersPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const requested = searchParams.get("status") as Filter | null;
   const selected: Filter = filters.some((filter) => filter.value === requested) ? requested! : "all";
-  const { data: orders, isLoading, isError, isFetching } = useGetOrders(selected === "all" ? undefined : selected);
+  const selectedStatus = selected === "all" ? undefined : selected;
+  const { data: orders, isLoading, isError, isFetching } = useGetOrders(selectedStatus);
+  const queryClient = useQueryClient();
+
+  const refreshOrders = () => {
+    void queryClient.invalidateQueries({ queryKey: orderKeys.list(selectedStatus) });
+  };
+
+  useSocketEvent(RealtimeEvents.orderPlaced, refreshOrders);
+  useSocketEvent(RealtimeEvents.orderStatusChanged, refreshOrders);
 
   const setFilter = (filter: Filter) => {
     setSearchParams((previous) => {

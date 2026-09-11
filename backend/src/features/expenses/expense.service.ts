@@ -11,6 +11,7 @@ import type { FinancialEventWriter } from "../finance-events/financial-event.typ
 import expenseRepository, { ExpenseRepository } from "./expense.repository";
 import type { ExpenseCommandAction, ExpensesQueryInput, ExpenseWriteInput, PayExpenseInput, SourceMarginQueryInput, UpdateExpenseInput, VoidExpenseInput } from "./expense.schemas";
 import { hashExpensePayload, requireExpenseStatus, segregationViolation } from "./expense.policy";
+import { publishExpenseStatusChanged } from "../realtime/realtime-publisher";
 
 const uniqueViolation = (error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "23505";
 const idempotencyConflict = () => new AppError("Idempotency-Key was already used with different expense data.", 409, "DUPLICATE_IDEMPOTENCY_KEY");
@@ -123,15 +124,28 @@ export class ExpenseService {
     const prior = await this.repository.command(key); if (prior) return this.requireCommandMatch(actor, prior, id, action, payloadHash, permission);
     const identity = await this.repository.findExpense(id); if (!identity) throw resourceNotFound();
     try {
-      return await this.repository.transaction(async (tx) => {
+      const outcome = await this.repository.transaction(async (tx) => {
         const auth = await authorizationService.requireResourceStorePermission({ principal: actor, resourceStoreId: identity.storeId, permission, tx, lockMembership: actor.platformRole !== "admin" });
-        const raced = await this.repository.command(key, tx); if (raced) return this.requireCommandMatch(actor, raced, id, action, payloadHash, permission, tx);
+        const raced = await this.repository.command(key, tx);
+        if (raced) {
+          return {
+            detail: await this.requireCommandMatch(actor, raced, id, action, payloadHash, permission, tx),
+            transitioned: false as const,
+          };
+        }
         const expense = await this.repository.lockExpense(tx, id); if (!expense) throw resourceNotFound();
         if (expense.version !== identity.version) throw new AppError("Expense changed while this command was being prepared.", 409, "CONCURRENT_EXPENSE_MODIFICATION");
         const updated = await work(tx, expense, auth);
         await this.repository.recordCommand(tx, { expenseId: id, action, idempotencyKey: key, payloadHash, resultVersion: updated.version, actorId: actor.userId });
-        return { expense: updated, allocations: await this.repository.allocations(id, tx) };
+        return {
+          detail: { expense: updated, allocations: await this.repository.allocations(id, tx) },
+          transitioned: true as const,
+        };
       });
+      if (outcome.transitioned) {
+        publishExpenseStatusChanged(outcome.detail.expense, action);
+      }
+      return outcome.detail;
     } catch (error) {
       if (!uniqueViolation(error)) throw error;
       const raced = await this.repository.command(key); if (!raced) throw idempotencyConflict();

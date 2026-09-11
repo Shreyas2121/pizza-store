@@ -14,6 +14,7 @@ import paymentService from "./payment.service";
 import paymentSimulatorService from "./payment-simulator.service";
 import { io } from "../..";
 import { RealtimeRooms } from "../realtime/realtime-rooms";
+import { RealtimeEvents } from "../realtime/realtime.types";
 
 export const paymentRoutes = Router();
 
@@ -40,23 +41,28 @@ paymentRoutes.post(
       reconciliation &&
       reconciliation.finalizedNow &&
       "localOrderId" in reconciliation &&
-      "totalPrice" in reconciliation
+      typeof reconciliation.localOrderId === "number" &&
+      "totalPrice" in reconciliation &&
+      typeof reconciliation.totalPrice === "number"
     ) {
+      const storeId =
+        "storeId" in reconciliation &&
+        typeof reconciliation.storeId === "number"
+          ? reconciliation.storeId
+          : undefined;
       const storeAudience =
-        "storeId" in reconciliation && reconciliation.storeId
-          ? RealtimeRooms.storeOrders(reconciliation.storeId as number)
+        storeId !== undefined
+          ? RealtimeRooms.storeOrders(storeId)
           : RealtimeRooms.platformAdmin();
       io.to([
         RealtimeRooms.user(req.principal!.userId),
         storeAudience,
         RealtimeRooms.platformAdmin(),
-      ]).emit("orderPlaced", {
+      ]).emit(RealtimeEvents.orderPlaced, {
         orderId: reconciliation.localOrderId,
         status: reconciliation.orderStatus,
         total: reconciliation.totalPrice,
-        ...("storeId" in reconciliation && reconciliation.storeId
-          ? { storeId: reconciliation.storeId }
-          : {}),
+        ...(storeId !== undefined ? { storeId } : {}),
       });
     }
     res.json({ data, message: "Simulator event processed" });
@@ -79,9 +85,13 @@ paymentRoutes.post(
         result.localOrderId &&
         result.totalPrice !== undefined
       ) {
+        const storeId =
+          "storeId" in result && typeof result.storeId === "number"
+            ? result.storeId
+            : undefined;
         const storeAudience =
-          "storeId" in result && result.storeId
-            ? RealtimeRooms.storeOrders(result.storeId as number)
+          storeId !== undefined
+            ? RealtimeRooms.storeOrders(storeId)
             : RealtimeRooms.platformAdmin();
         const userAudience =
           "userId" in result && result.userId
@@ -92,13 +102,11 @@ paymentRoutes.post(
           userAudience,
           storeAudience,
           RealtimeRooms.platformAdmin(),
-        ]).emit("orderPlaced", {
+        ]).emit(RealtimeEvents.orderPlaced, {
           orderId: result.localOrderId,
           status: "pending",
           total: result.totalPrice,
-          ...("storeId" in result && result.storeId
-            ? { storeId: result.storeId }
-            : {}),
+          ...(storeId !== undefined ? { storeId } : {}),
         });
       }
     }
@@ -120,23 +128,25 @@ paymentRoutes.post(
       razorpaySignature: req.body.razorpay_signature,
     });
 
-    if (data.finalizedNow) {
+    if (data.finalizedNow && typeof data.totalPrice === "number") {
+      const storeId =
+        "storeId" in data && typeof data.storeId === "number"
+          ? data.storeId
+          : undefined;
       const storeAudience =
-        "storeId" in data && data.storeId
-          ? RealtimeRooms.storeOrders(data.storeId as number)
+        storeId !== undefined
+          ? RealtimeRooms.storeOrders(storeId)
           : RealtimeRooms.platformAdmin();
 
       io.to([
         RealtimeRooms.user(req.principal!.userId),
         storeAudience,
         RealtimeRooms.platformAdmin(),
-      ]).emit("orderPlaced", {
+      ]).emit(RealtimeEvents.orderPlaced, {
         orderId: data.localOrderId,
         status: data.orderStatus,
         total: data.totalPrice,
-        ...("storeId" in data && data.storeId
-          ? { storeId: data.storeId }
-          : {}),
+        ...(storeId !== undefined ? { storeId } : {}),
       });
     }
 
@@ -161,7 +171,7 @@ paymentRoutes.post(
         io.to([
           RealtimeRooms.storeInventory(alert.storeId),
           RealtimeRooms.platformAdmin(),
-        ]).emit("lowStock", alert);
+        ]).emit(RealtimeEvents.lowStock, alert);
       }
     }
 

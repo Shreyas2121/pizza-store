@@ -1,7 +1,8 @@
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { BarChart, LineChart } from "@mantine/charts";
 import { Button } from "@mantine/core";
 import { showNotification } from "@mantine/notifications";
+import { useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, CalendarRange, ClipboardList } from "lucide-react";
 import { Link, useNavigate } from "react-router";
 import { DashboardCard } from "../components/dashboard-card";
@@ -9,22 +10,31 @@ import { DatePicker } from "../components/date-picker";
 import { useDatePicker } from "../model/dashboard-date.store";
 
 import {
+  dashboardKeys,
   useGetDashboardCardsData,
   useGetDashboardChartsData,
 } from "../api/dashboard.queries";
-import { useGetAdminOrders } from "@/features/orders";
+import {
+  orderKeys,
+  useGetAdminOrders,
+} from "@/features/orders";
 import { OrderStatus } from "@/features/orders";
 
 import { formatDate, formatDateTime, formatPrice } from "@/shared/lib";
-import { useSocketStore } from "@/features/support";
 import { useStaffActiveStore } from "@/features/access";
 
 import { useAuthModalStore } from "@/shared/model";
 import { CardGridSkeleton, ChartSkeleton, ListSkeleton, RefreshIndicator } from "@/shared/ui";
+import {
+  RealtimeEvents,
+  type OrderPlacedPayload,
+  type OrderStatusChangedPayload,
+  useSocketEvent,
+} from "@/shared/realtime";
 
 export const AdminDashboardPage = () => {
   const navigate = useNavigate();
-  const { socket } = useSocketStore();
+  const queryClient = useQueryClient();
   const { dates, group } = useDatePicker();
   const { openModal } = useAuthModalStore();
   const { activeStoreId } = useStaffActiveStore();
@@ -33,13 +43,23 @@ export const AdminDashboardPage = () => {
   const chartsQuery = useGetDashboardChartsData(from, to, group, activeStoreId);
   const ordersQuery = useGetAdminOrders("pending", activeStoreId);
 
-  useEffect(() => {
-    if (!socket) return;
-    const handleOrderPlaced = (order: { orderId: number; total: number; storeId?: number }) => {
+  const refreshDashboardSummary = () => {
+    void queryClient.invalidateQueries({
+      queryKey: orderKeys.adminAll("pending", activeStoreId),
+    });
+    void queryClient.invalidateQueries({
+      queryKey: dashboardKeys.cards(from, to, activeStoreId),
+    });
+  };
+
+  useSocketEvent(
+    RealtimeEvents.orderPlaced,
+    (order: OrderPlacedPayload) => {
       // If scoped to a store, only notify for that store or global
       if (activeStoreId && order.storeId && order.storeId !== activeStoreId) {
         return;
       }
+      refreshDashboardSummary();
       showNotification({
         title: "New order",
         message: `Order #${order.orderId} · ${formatPrice(order.total)}`,
@@ -47,12 +67,16 @@ export const AdminDashboardPage = () => {
         autoClose: 8000,
         onClick: () => navigate(`/admin/order/${order.orderId}`),
       });
-    };
-    socket.on("orderPlaced", handleOrderPlaced);
-    return () => {
-      socket.off("orderPlaced", handleOrderPlaced);
-    };
-  }, [navigate, socket, activeStoreId]);
+    }
+  );
+
+  useSocketEvent(
+    RealtimeEvents.orderStatusChanged,
+    (event: OrderStatusChangedPayload) => {
+      if (activeStoreId && event.storeId !== activeStoreId) return;
+      refreshDashboardSummary();
+    }
+  );
 
   const formattedDates = useMemo(
     () =>

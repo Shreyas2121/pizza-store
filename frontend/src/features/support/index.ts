@@ -26,7 +26,7 @@ export {
   useUpdateSupportRequest,
 } from "./api/chat.queries";
 
-export { useSocketStore } from "./model/support.store";
+export { useSupportStore } from "./model/support.store";
 export type {
   ChatStatus,
   ChatSession,
@@ -34,4 +34,3 @@ export type {
   Message,
 } from "./model/support.types";
 export { chatStatus } from "./model/support.types";
-

@@ -7,9 +7,9 @@ import {
   useSendMessage,
 } from "../api/chat.queries";
 import { Message } from "../model/support.types";
-import { useSocketStore } from "../model/support.store";
 import { LoadingRegion } from "@/shared/ui";
 import { formatTime } from "@/shared/lib";
+import { RealtimeEvents, useSocketEvent } from "@/shared/realtime";
 
 interface Props {
   width?: string;
@@ -19,7 +19,6 @@ interface Props {
 
 export const Chat = ({ height = "620px", width = "100%", userId }: Props) => {
   const isAdminView = typeof userId === "number";
-  const { socket } = useSocketStore();
   const { data: chatSession, isLoading: loadingChat } = useGetActiveChat(userId);
   const { data: existingMessages, isLoading: loadingMessages } = useGetExistingMessages(userId);
   const sendMessageM = useSendMessage();
@@ -31,17 +30,11 @@ export const Chat = ({ height = "620px", width = "100%", userId }: Props) => {
     if (existingMessages) setMessages(existingMessages);
   }, [existingMessages]);
 
-  useEffect(() => {
-    if (!socket) return;
-    const receiveMessage = (incoming: Message) =>
+  useSocketEvent(RealtimeEvents.newMessage, (incoming: Message) => {
       setMessages((current) =>
         current.some((message) => message.id === incoming.id) ? current : [...current, incoming]
       );
-    socket.on("newMessage", receiveMessage);
-    return () => {
-      socket.off("newMessage", receiveMessage);
-    };
-  }, [socket]);
+  });
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });

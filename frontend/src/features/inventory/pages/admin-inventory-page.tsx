@@ -2,10 +2,15 @@ import { Button, Select, TextInput } from "@mantine/core";
 import { useDebouncedValue } from "@mantine/hooks";
 import { PackagePlus, RotateCcw, Search, Warehouse } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router";
 import { useAdminStores } from "@/features/store";
 import { PageHeader, TableSkeleton } from "@/shared/ui";
-import { useInventoryList } from "../api/inventory.queries";
+import { RealtimeEvents, useSocketEvent } from "@/shared/realtime";
+import {
+  invalidateInventoryQueries,
+  useInventoryList,
+} from "../api/inventory.queries";
 import { InventoryActionModal } from "../components/inventory-action-modal";
 import { BulkRestockModal } from "../components/bulk-restock-modal";
 import { InventoryTable } from "../components/inventory-table";
@@ -28,6 +33,7 @@ const statusOptions = [
 const pageSizeOptions = ["10", "20", "50"];
 
 export function AdminInventoryPage() {
+  const queryClient = useQueryClient();
   const stores = useAdminStores();
   const { activeStoreId } = useStaffActiveStore();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -64,6 +70,12 @@ export function AdminInventoryPage() {
   const [bulkOpened, setBulkOpened] = useState(false);
   const [historyTarget, setHistoryTarget] =
     useState<InventoryMutationTarget | null>(null);
+
+  useSocketEvent(RealtimeEvents.inventoryChanged, (event) => {
+    if (event.storeId === storeId) {
+      void invalidateInventoryQueries(queryClient, storeId);
+    }
+  });
 
   const inventory = useInventoryList({
     storeId,

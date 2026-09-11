@@ -14,6 +14,7 @@ import { io } from "../..";
 import { parseIntegerParam } from "../../utils/request";
 
 import { RealtimeRooms } from "../realtime/realtime-rooms";
+import { RealtimeEvents } from "../realtime/realtime.types";
 
 export const orderRoutes = Router();
 
@@ -39,7 +40,7 @@ orderRoutes.post(
       RealtimeRooms.platformAdmin(),
     ];
 
-    io.to(audiences).emit("orderPlaced", {
+    io.to(audiences).emit(RealtimeEvents.orderPlaced, {
       orderId: order.id,
       storeId: order.storeId,
       status: "pending",
@@ -51,7 +52,7 @@ orderRoutes.post(
         io.to([
           RealtimeRooms.storeInventory(alert.storeId),
           RealtimeRooms.platformAdmin(),
-        ]).emit("lowStock", alert);
+        ]).emit(RealtimeEvents.lowStock, alert);
       }
     }
 
@@ -168,7 +169,27 @@ orderRoutes.patch(
 
     const { status } = updateOrderStatusSchema.parse(req.body);
 
-    await orderService.updateOrderStatus(id, status, req.principal);
+    const transition = await orderService.updateOrderStatusWithTransition(
+      id,
+      status,
+      req.principal
+    );
+
+    if (transition.changed) {
+      const { order, previousStatus } = transition;
+
+      io.to([
+        RealtimeRooms.user(order.userId),
+        RealtimeRooms.storeOrders(order.storeId),
+        RealtimeRooms.platformAdmin(),
+      ]).emit(RealtimeEvents.orderStatusChanged, {
+        orderId: order.id,
+        storeId: order.storeId,
+        previousStatus,
+        status: order.status,
+        updatedAt: order.updatedAt.toISOString(),
+      });
+    }
 
     res.json({
       message: "Updated",

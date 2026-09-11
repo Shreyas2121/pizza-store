@@ -1,9 +1,11 @@
 import { useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Alert, Group, Select, Tabs, Text, TextInput } from "@mantine/core";
 import { Banknote, BookOpen, Calculator, ChartNoAxesCombined, FileChartColumn, FileSearch, HandCoins, Landmark, ReceiptText, RotateCcw, Tags } from "lucide-react";
 import { useSearchParams } from "react-router";
 import { getActiveMembershipRole, hasStorePermission, isPlatformAdmin, useAccessMe, useStaffActiveStore } from "@/features/access";
 import { EmptyState, PageHeader } from "@/shared/ui";
+import { RealtimeEvents, useSocketEvent } from "@/shared/realtime";
 import { IssuesPanel } from "../components/issues-panel";
 import { RefundsPanel } from "../components/refunds-panel";
 import { SettlementsPanel } from "../components/settlements-panel";
@@ -16,7 +18,7 @@ import { FinanceOverviewPanel, FinanceProfitAndLossPanel, FinanceSalesMarginsPan
 import { JournalDrillDown } from "../components/journal-drilldown";
 import { PeriodClosePanel } from "../components/period-close-panel";
 import { FinanceExportButtons } from "../components/finance-export-buttons";
-import type { FinanceExportType } from "../api/finance.queries";
+import { financeKeys, type FinanceExportType } from "../api/finance.queries";
 import type { FinanceReportGroup, JournalFilters, LedgerAccountType } from "../model/finance.types";
 
 const defaultDates = () => {
@@ -28,6 +30,7 @@ const defaultDates = () => {
 const split = (value: string | null) => value?.split(",").filter(Boolean);
 
 export const FinanceWorkspacePage = () => {
+  const queryClient = useQueryClient();
   const { activeStoreId } = useStaffActiveStore();
   const { data: access } = useAccessMe();
   const [params, setParams] = useSearchParams();
@@ -37,6 +40,17 @@ export const FinanceWorkspacePage = () => {
   const to = params.get("to") ?? defaults.to;
   const groupBy = (params.get("groupBy") ?? "month") as FinanceReportGroup;
   const consolidated = owner && params.get("scope") !== "store";
+  const refreshFinanceForStore = (storeId: number) => {
+    if (consolidated || activeStoreId === storeId) {
+      void queryClient.invalidateQueries({ queryKey: financeKeys.all });
+    }
+  };
+  useSocketEvent(RealtimeEvents.refundStatusChanged, (event) => {
+    refreshFinanceForStore(event.storeId);
+  });
+  useSocketEvent(RealtimeEvents.expenseStatusChanged, (event) => {
+    refreshFinanceForStore(event.storeId);
+  });
   const reportStoreId: number | null | undefined = owner ? (consolidated ? null : activeStoreId ?? undefined) : activeStoreId ?? undefined;
   const canOverview = hasStorePermission(access, activeStoreId, "finance.overview.read");
   const canSales = hasStorePermission(access, activeStoreId, "finance.sales.read");

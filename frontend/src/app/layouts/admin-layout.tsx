@@ -11,8 +11,12 @@ import {
   useSyncStaffStore,
 } from "@/features/access";
 import { useAdminStores } from "@/features/store";
-import { useSocketStore } from "@/features/support";
 import { RouteSkeleton } from "@/shared/ui";
+import {
+  RealtimeEvents,
+  type LowStockPayload,
+  useSocketEvent,
+} from "@/shared/realtime";
 
 const pageNames: Record<string, string> = {
   "/admin": "Dashboard",
@@ -33,7 +37,6 @@ const pageNames: Record<string, string> = {
 export const AdminLayout = () => {
   const { user, isLoggedIn, logout } = useUser();
   const { access, accessLoading, activeStoreId, setActiveStoreId } = useSyncStaffStore();
-  const { socket } = useSocketStore();
   const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -74,10 +77,7 @@ export const AdminLayout = () => {
 
   useEffect(() => setMobileOpened(false), [location.pathname]);
 
-  useEffect(() => {
-    if (!socket) return;
-
-    const handleChatRequest = () => {
+  useSocketEvent(RealtimeEvents.chatRequest, () => {
       if (isPlatformAdmin(access)) {
         showNotification({
           title: "New support request",
@@ -87,17 +87,9 @@ export const AdminLayout = () => {
           onClick: () => navigate("/admin/support"),
         });
       }
-    };
+  });
 
-    const handleLowStock = (alert: {
-      storeId: number;
-      storeName?: string;
-      productId: number;
-      productName: string;
-      currentQuantity: number;
-      threshold: number;
-      severity: "low_stock" | "out_of_stock";
-    }) => {
+  useSocketEvent(RealtimeEvents.lowStock, (alert: LowStockPayload) => {
       const isOutOfStock =
         alert.severity === "out_of_stock" || alert.currentQuantity === 0;
       showNotification({
@@ -113,15 +105,7 @@ export const AdminLayout = () => {
         autoClose: 8000,
         onClick: () => navigate(`/admin/inventory?status=${alert.severity}`),
       });
-    };
-
-    socket.on("chatRequest", handleChatRequest);
-    socket.on("lowStock", handleLowStock);
-    return () => {
-      socket.off("chatRequest", handleChatRequest);
-      socket.off("lowStock", handleLowStock);
-    };
-  }, [socket, navigate, access]);
+  });
 
   if (!isLoggedIn || !user) return <Navigate to="/" replace />;
   if (accessLoading) return <RouteSkeleton admin />;
