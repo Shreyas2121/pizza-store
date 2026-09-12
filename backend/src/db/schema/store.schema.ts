@@ -52,6 +52,7 @@ export const storeProductsTable = pgTable(
       .references(() => productsTable.id)
       .notNull(),
     pricePaise: integer("price_paise").notNull(),
+    compareAtPricePaise: integer("compare_at_price_paise"),
     isAvailable: boolean("is_available").notNull().default(true),
     onHandQuantity: integer("on_hand_quantity"),
     lowStockThreshold: integer("low_stock_threshold").notNull().default(10),
@@ -76,6 +77,10 @@ export const storeProductsTable = pgTable(
     check(
       "store_products_price_paise_nonnegative",
       sql`${table.pricePaise} >= 0`
+    ),
+    check(
+      "store_products_compare_at_price_valid",
+      sql`${table.compareAtPricePaise} is null or ${table.compareAtPricePaise} > ${table.pricePaise}`
     ),
   ]
 );

@@ -26,6 +26,10 @@ export const ordersTable = pgTable(
     userId: integer("user_id").references(() => usersTable.id).notNull(),
     orderDate: timestamp("order_date", { withTimezone: true }).defaultNow(),
     couponId: integer("coupon_id").references(() => couponsTable.id),
+    discountMode: text("discount_mode")
+      .$type<"none" | "automatic_deals" | "coupon">()
+      .default("none")
+      .notNull(),
     itemsSubtotalPaise: integer("items_subtotal_paise").notNull(),
     discountPaise: integer("discount_paise").notNull(),
     deliveryFeePaise: integer("delivery_fee_paise").notNull(),
@@ -132,6 +136,10 @@ export const ordersTable = pgTable(
       "orders_status_valid",
       sql`${table.status} in ('awaiting_payment', 'pending', 'preparing', 'out_for_delivery', 'delivered', 'cancelled')`
     ),
+    check(
+      "orders_discount_mode_valid",
+      sql`${table.discountMode} in ('none', 'automatic_deals', 'coupon')`
+    ),
   ]
 );
 
@@ -143,7 +151,13 @@ export const orderItemsTable = pgTable(
     productId: integer("product_id").references(() => productsTable.id).notNull(),
     quantity: integer().default(1).notNull(),
     productName: text("product_name").notNull(),
+    productType: text("product_type")
+      .$type<"single" | "bundle">()
+      .default("single")
+      .notNull(),
     unitPricePaise: integer("unit_price_paise").notNull(),
+    compareAtUnitPricePaise: integer("compare_at_unit_price_paise"),
+    bundleMarkdownPaise: integer("bundle_markdown_paise").default(0).notNull(),
     lineSubtotalPaise: integer("line_subtotal_paise").notNull(),
     discountAllocationPaise: integer("discount_allocation_paise").notNull(),
     taxRuleId: integer("tax_rule_id").references(() => taxRulesTable.id).notNull(),
@@ -169,11 +183,28 @@ export const orderItemsTable = pgTable(
     check(
       "order_items_price_amounts_nonnegative",
       sql`${table.unitPricePaise} >= 0
+        and ${table.bundleMarkdownPaise} >= 0
         and ${table.lineSubtotalPaise} >= 0
         and ${table.discountAllocationPaise} >= 0
         and ${table.taxableAmountPaise} >= 0
         and ${table.taxPaise} >= 0
         and ${table.lineTotalPaise} >= 0`
+    ),
+    check(
+      "order_items_product_type_valid",
+      sql`${table.productType} in ('single', 'bundle')`
+    ),
+    check(
+      "order_items_bundle_snapshot_valid",
+      sql`(${table.productType} = 'single'
+          and ${table.compareAtUnitPricePaise} is null
+          and ${table.bundleMarkdownPaise} = 0)
+        or (${table.productType} = 'bundle'
+          and ${table.compareAtUnitPricePaise} is not null
+          and ${table.compareAtUnitPricePaise} > ${table.unitPricePaise}
+          and ${table.bundleMarkdownPaise}::bigint =
+            (${table.compareAtUnitPricePaise}::bigint - ${table.unitPricePaise}::bigint)
+              * ${table.quantity}::bigint)`
     ),
     check(
       "order_items_tax_rate_valid",
@@ -237,6 +268,38 @@ export const orderItemCustomizationsTable = pgTable(
     check(
       "order_item_customizations_price_nonnegative",
       sql`${table.pricePaise} >= 0`
+    ),
+  ]
+);
+
+export const orderItemBundleComponentsTable = pgTable(
+  "order_item_bundle_components",
+  {
+    id,
+    orderItemId: integer("order_item_id")
+      .references(() => orderItemsTable.id, { onDelete: "cascade" })
+      .notNull(),
+    componentProductId: integer("component_product_id")
+      .references(() => productsTable.id)
+      .notNull(),
+    componentName: text("component_name").notNull(),
+    quantityPerBundle: integer("quantity_per_bundle").notNull(),
+    totalQuantity: integer("total_quantity").notNull(),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    unique("order_item_bundle_components_item_product_unique").on(
+      table.orderItemId,
+      table.componentProductId
+    ),
+    check(
+      "order_item_bundle_components_name_present",
+      sql`nullif(btrim(${table.componentName}), '') is not null`
+    ),
+    check(
+      "order_item_bundle_components_quantities_positive",
+      sql`${table.quantityPerBundle} > 0 and ${table.totalQuantity} > 0`
     ),
   ]
 );

@@ -34,6 +34,10 @@ export const productsTable = pgTable("products", {
   hasCustomization: boolean("has_customization").default(false).notNull(),
   pricePaise: integer("price_paise").notNull(),
   image: text().notNull(),
+  productType: text("product_type")
+    .$type<"single" | "bundle">()
+    .default("single")
+    .notNull(),
   isAvailable: boolean("is_available").notNull().default(true),
   categoryId: integer("category_id")
     .references(() => categoriesTable.id)
@@ -42,4 +46,8 @@ export const productsTable = pgTable("products", {
   updatedAt,
 }, (table) => [
   check("products_price_paise_nonnegative", sql`${table.pricePaise} >= 0`),
+  check(
+    "products_product_type_valid",
+    sql`${table.productType} in ('single', 'bundle')`
+  ),
 ]);

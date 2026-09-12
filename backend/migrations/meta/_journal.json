@@ -204,6 +204,13 @@
       "when": 1788784374276,
       "tag": "0028_tidy_power_pack",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1789197251295,
+      "tag": "0029_promotion_application_bundle_foundation",
+      "breakpoints": true
     }
   ]
 }

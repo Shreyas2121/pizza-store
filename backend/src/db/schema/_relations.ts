@@ -22,6 +22,12 @@ import {
 } from "./cart.schema";
 import { couponsTable } from "./coupon.schema";
 import { couponRedemptionsTable } from "./coupon-redemption.schema";
+import { promotionsTable } from "./promotion.schema";
+import { promotionRulesTable } from "./promotion-rule.schema";
+import { storePromotionSettingsTable } from "./store-promotion-setting.schema";
+import { promotionApplicationsTable } from "./promotion-application.schema";
+import { promotionDiscountAllocationsTable } from "./promotion-discount-allocation.schema";
+import { bundleComponentsTable } from "./bundle-component.schema";
 import { paymentsTable } from "./payment.schema";
 import { paymentAttemptsTable } from "./payment-attempt.schema";
 import { refundAllocationsTable, refundsTable } from "./refund.schema";
@@ -34,6 +40,7 @@ import {
   ordersTable,
   orderItemsTable,
   orderItemCustomizationsTable,
+  orderItemBundleComponentsTable,
 } from "./order.schema";
 import {
   inventoryMovementsTable,
@@ -72,6 +79,8 @@ export const usersRelations = relations(usersTable, ({ many, one }) => ({
   items: many(cartItemsTable),
   orders: many(ordersTable),
   couponRedemptions: many(couponRedemptionsTable),
+  promotionApplications: many(promotionApplicationsTable),
+  updatedStorePromotionSettings: many(storePromotionSettingsTable),
   inventoryMovements: many(inventoryMovementsTable),
   storeMemberships: many(storeMembershipsTable, {
     relationName: "storeMembershipUser",
@@ -109,6 +118,7 @@ export const categoriesRelations = relations(
   categoriesTable,
   ({ many }) => ({
     products: many(productsTable),
+    promotionRules: many(promotionRulesTable),
   })
 );
 
@@ -122,6 +132,14 @@ export const productsRelations = relations(productsTable, ({ many, one }) => ({
   cartItems: many(cartItemsTable),
   orderItems: many(orderItemsTable),
   stores: many(storeProductsTable),
+  promotionRules: many(promotionRulesTable),
+  bundleComponents: many(bundleComponentsTable, {
+    relationName: "bundleComponentProduct",
+  }),
+  bundleDefinitions: many(bundleComponentsTable, {
+    relationName: "bundleParentProduct",
+  }),
+  orderItemBundleComponents: many(orderItemBundleComponentsTable),
 }));
 
 // ──────────────────────────────────────────────
@@ -143,6 +161,8 @@ export const storesRelations = relations(storesTable, ({ many }) => ({
   cashSessions: many(cashSessionsTable),
   vendors: many(vendorsTable),
   expenseCategories: many(expenseCategoriesTable),
+  promotionSettings: many(storePromotionSettingsTable),
+  promotionApplications: many(promotionApplicationsTable),
 }));
 
 export const vendorsRelations = relations(vendorsTable, ({ one }) => ({
@@ -353,6 +373,103 @@ export const couponRedemptionsRelations = relations(
   })
 );
 
+// Promotion and bundle relations
+
+export const promotionsRelations = relations(promotionsTable, ({ many }) => ({
+  rules: many(promotionRulesTable),
+  storeSettings: many(storePromotionSettingsTable),
+  applications: many(promotionApplicationsTable),
+}));
+
+export const promotionRulesRelations = relations(
+  promotionRulesTable,
+  ({ one }) => ({
+    promotion: one(promotionsTable, {
+      fields: [promotionRulesTable.promotionId],
+      references: [promotionsTable.id],
+    }),
+    product: one(productsTable, {
+      fields: [promotionRulesTable.productId],
+      references: [productsTable.id],
+    }),
+    category: one(categoriesTable, {
+      fields: [promotionRulesTable.categoryId],
+      references: [categoriesTable.id],
+    }),
+  })
+);
+
+export const storePromotionSettingsRelations = relations(
+  storePromotionSettingsTable,
+  ({ one }) => ({
+    promotion: one(promotionsTable, {
+      fields: [storePromotionSettingsTable.promotionId],
+      references: [promotionsTable.id],
+    }),
+    store: one(storesTable, {
+      fields: [storePromotionSettingsTable.storeId],
+      references: [storesTable.id],
+    }),
+    updatedByUser: one(usersTable, {
+      fields: [storePromotionSettingsTable.updatedByUserId],
+      references: [usersTable.id],
+    }),
+  })
+);
+
+export const promotionApplicationsRelations = relations(
+  promotionApplicationsTable,
+  ({ many, one }) => ({
+    promotion: one(promotionsTable, {
+      fields: [promotionApplicationsTable.promotionId],
+      references: [promotionsTable.id],
+    }),
+    order: one(ordersTable, {
+      fields: [promotionApplicationsTable.orderId],
+      references: [ordersTable.id],
+    }),
+    user: one(usersTable, {
+      fields: [promotionApplicationsTable.userId],
+      references: [usersTable.id],
+    }),
+    store: one(storesTable, {
+      fields: [promotionApplicationsTable.storeId],
+      references: [storesTable.id],
+    }),
+    allocations: many(promotionDiscountAllocationsTable),
+  })
+);
+
+export const promotionDiscountAllocationsRelations = relations(
+  promotionDiscountAllocationsTable,
+  ({ one }) => ({
+    application: one(promotionApplicationsTable, {
+      fields: [promotionDiscountAllocationsTable.promotionApplicationId],
+      references: [promotionApplicationsTable.id],
+    }),
+    orderItem: one(orderItemsTable, {
+      fields: [promotionDiscountAllocationsTable.orderItemId],
+      references: [orderItemsTable.id],
+    }),
+  })
+);
+
+export const bundleComponentsRelations = relations(
+  bundleComponentsTable,
+  ({ one }) => ({
+    bundleProduct: one(productsTable, {
+      fields: [bundleComponentsTable.bundleProductId],
+      references: [productsTable.id],
+      relationName: "bundleParentProduct",
+    }),
+    componentProduct: one(productsTable, {
+      fields: [bundleComponentsTable.componentProductId],
+      references: [productsTable.id],
+      relationName: "bundleComponentProduct",
+    }),
+  })
+);
+
 // ──────────────────────────────────────────────
 // Payment relations
 // ──────────────────────────────────────────────
@@ -538,6 +655,7 @@ export const orderRelations = relations(ordersTable, ({ many, one }) => ({
     fields: [ordersTable.id],
     references: [couponRedemptionsTable.orderId],
   }),
+  promotionApplications: many(promotionApplicationsTable),
   deliveryPricingRule: one(deliveryPricingRulesTable, {
     fields: [ordersTable.deliveryPricingRuleId],
     references: [deliveryPricingRulesTable.id],
@@ -573,6 +691,8 @@ export const orderItemsTableRelations = relations(
     }),
     orderItemCustomizations: many(orderItemCustomizationsTable),
     refundAllocations: many(refundAllocationsTable),
+    promotionDiscountAllocations: many(promotionDiscountAllocationsTable),
+    bundleComponents: many(orderItemBundleComponentsTable),
   })
 );
 
@@ -601,6 +721,20 @@ export const orderItemCustomizationsRelations = relations(
     customizationOption: one(customizationOptionsTable, {
       fields: [orderItemCustomizationsTable.customizationOptionId],
       references: [customizationOptionsTable.id],
+    }),
+  })
+);
+
+export const orderItemBundleComponentsRelations = relations(
+  orderItemBundleComponentsTable,
+  ({ one }) => ({
+    orderItem: one(orderItemsTable, {
+      fields: [orderItemBundleComponentsTable.orderItemId],
+      references: [orderItemsTable.id],
+    }),
+    componentProduct: one(productsTable, {
+      fields: [orderItemBundleComponentsTable.componentProductId],
+      references: [productsTable.id],
     }),
   })
 );
