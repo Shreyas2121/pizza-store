@@ -140,7 +140,7 @@ All pricing, discount allocation, tax extraction, and delivery fee calculation i
 
 ### 3.3 Parity rule
 
-- **Coupon preview (`POST /api/v1/coupons/validate`)**: Calls `pricing.service.ts#buildQuote` internally and returns the verified discount in paise and formatted presentation INR.
+- **Coupon preview (`POST /api/v1/coupon/validate`)**: Temporary authenticated cutover route that calls `pricing.service.ts#buildQuote` internally and returns the verified discount in paise and formatted presentation INR. The promotions overhaul replaces it with `POST /api/v1/promotions/validate`.
 - **Final checkout (`POST /api/v1/checkout`)**: Verifies the submitted quote or recalculates via `pricing.service.ts` in the database transaction, writes immutable paise snapshots, and consumes inventory reservations atomically.
 - The frontend renders values directly from the server quote response; browser JavaScript never computes totals, taxes, or discounts.
 

@@ -63,7 +63,8 @@ verified.
 | [database-schema.md](docs/database-schema.md) | All tables, columns, relations, constraints, and Drizzle schema conventions |
 | [api-reference.md](docs/api-reference.md) | Complete REST API endpoint reference with request/response shapes |
 | [setup.md](docs/setup.md) | Local development environment setup, database provisioning, and seeding |
-| [Architecture decision records](docs/adr/README.md) | Accepted financial semantics for money, recognition, tax, and business dates |
+| [Architecture decision records](docs/adr/README.md) | Accepted product, financial, lifecycle, and operational semantics |
+| [Promotions and offers API contract](docs/promotions-contract.md) | Frozen offer/coupon resolution, DTOs, error codes, permissions, bundles, media, and accounting behavior |
 | [Finance lifecycle and event contracts](docs/finance-lifecycle-contracts.md) | Planned state machines, event payloads, reversals, and database lock order |
 | [Finance API compatibility and rollout map](docs/finance-api-compatibility-rollout.md) | Endpoint contracts, server quote consolidation, error codes, and permission matrix |
 | [Deterministic two-store financial fixtures](docs/two-store-financial-fixtures.md) | Reference scenario, P&L benchmarks, settlement matching, and expected outputs |

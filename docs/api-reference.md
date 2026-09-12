@@ -729,19 +729,15 @@ summary so one provider failure does not prevent recovery of the rest.
 
 ## Coupons
 
-### `POST /coupon` 🔒🛡️
+The legacy create/list/detail/code/update/delete coupon endpoints were retired in
+C00 and return `404`; they have no compatibility contract. During the staged
+backend cutover, only the authenticated validation endpoint below remains. C10
+removes it after consumers move to `/promotions/validate`.
 
-Create a coupon.
+The final promotions endpoint and DTO contract is frozen in
+[Promotions and offers API contract](promotions-contract.md).
 
-### `GET /coupon` 🔒🛡️
-
-List all coupons.
-
-### `PUT /coupon/:id` 🔒🛡️
-
-Update a coupon.
-
-### `POST /coupon/validate`
+### `POST /coupon/validate` 🔒
 
 Preview a coupon against the authenticated user's current server-calculated
 cart subtotal. Checkout always locks and revalidates the coupon before use.
@@ -761,9 +757,9 @@ cart subtotal. Checkout always locks and revalidates the coupon before use.
     "code": "SAVE20",
     "discountType": "percentage",
     "discountValue": 20,
-    "quoteVersion": "2026-08-31-01",
+    "quoteVersion": "2026-09-01-02",
     "currency": "INR",
-    "pricingPolicyVersion": 1,
+    "pricingPolicyVersion": 3,
     "itemsSubtotalPaise": 50000,
     "discountPaise": 10000,
     "discountAmount": 100,
@@ -772,9 +768,10 @@ cart subtotal. Checkout always locks and revalidates the coupon before use.
 }
 ```
 
-Existing coupon fields remain unchanged. The additive quote fields come from the
-same integer-paise policy used by final checkout; `discountAmount` is the legacy
-rupee presentation value.
+This temporary response is internal cutover scaffolding, not a target
+compatibility shape. The additive quote fields come from the same integer-paise
+policy used by final checkout; `discountAmount` is the temporary rupee
+presentation value.
 
 Coupon redemption is internal to the order transaction. The former public
 `POST /coupon/redeem` endpoint has been removed to prevent replay and
@@ -1099,7 +1096,7 @@ Financial endpoints are mounted under `/api/v1/finance/*` and `/api/v1/checkout/
 
 ### Pricing & Server Quote
 - `POST /checkout/quote` — Authoritative paise pricing, tax extraction, and discount calculation.
-- `POST /coupons/validate` 🔒 — Consolidated coupon preview calling identical paise quote policy.
+- `POST /coupon/validate` 🔒 — Temporary authenticated coupon preview calling the identical paise quote policy; replaced by `/promotions/validate` during the promotion cutover.
 
 ### Reports & P&L
 - `GET /finance/overview` 🔒 — Recognized revenue, collections, COGS, gross margin, operating results, and drill-downs.
