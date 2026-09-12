@@ -73,6 +73,15 @@ export interface PricingItemInput {
   quantity: number;
   baseUnitPricePaise: number;
   customizations: PricingCustomizationInput[];
+  productType?: "single" | "bundle";
+  compareAtUnitPricePaise?: number | null;
+  bundleComponents?: Array<{
+    productId: number;
+    name: string;
+    quantityPerBundle: number;
+    totalQuantity: number;
+    isAvailable: boolean;
+  }>;
 }
 
 export interface PricingQuoteItem {
@@ -91,6 +100,16 @@ export interface PricingQuoteItem {
   hsnSacCode: string;
   lineTotalPaise: number;
   customizations: PricingCustomizationInput[];
+  productType: "single" | "bundle";
+  compareAtUnitPricePaise: number | null;
+  bundleMarkdownPaise: number;
+  bundleComponents: Array<{
+    productId: number;
+    name: string;
+    quantityPerBundle: number;
+    totalQuantity: number;
+    isAvailable: boolean;
+  }>;
 }
 
 export interface PricingQuote {
@@ -292,6 +311,24 @@ export class PricingService {
       );
     }
     const pricedItems = this.priceItems(input.items);
+    const bundleLineIds = pricedItems
+      .filter((item) => item.productType === "bundle")
+      .map((item) => item.lineId)
+      .sort((a, b) => a - b);
+    if (input.couponCode && bundleLineIds.length > 0) {
+      throw new AppError(
+        "Coupons cannot be combined with deal bundles",
+        409,
+        "COUPON_NOT_COMBINABLE_WITH_OFFERS",
+        {
+          couponEligibility: {
+            eligible: false,
+            reasonCode: "DEAL_BUNDLE_PRESENT",
+            conflictingLineIds: bundleLineIds,
+          },
+        }
+      );
+    }
     let itemsSubtotalPaise: number;
     try {
       itemsSubtotalPaise = addPaise(
@@ -620,6 +657,24 @@ export class PricingService {
         if (item.quantity <= 0) {
           throw new RangeError("Quantity must be positive");
         }
+        const productType = item.productType ?? "single";
+        const compareAtUnitPricePaise = item.compareAtUnitPricePaise ?? null;
+        if (productType === "bundle") {
+          if (
+            item.customizations.length > 0 ||
+            compareAtUnitPricePaise === null ||
+            compareAtUnitPricePaise <= unitPricePaise ||
+            !item.bundleComponents?.length ||
+            item.bundleComponents.some((component) => !component.isAvailable)
+          ) {
+            throw new RangeError("Bundle pricing is invalid");
+          }
+        } else if (compareAtUnitPricePaise !== null || item.bundleComponents?.length) {
+          throw new RangeError("Single product cannot contain bundle metadata");
+        }
+        const bundleMarkdownPaise = productType === "bundle"
+          ? multiplyPaiseByQuantity(compareAtUnitPricePaise! - unitPricePaise, item.quantity)
+          : 0;
         return {
           lineId: item.lineId,
           productId: item.productId,
@@ -630,6 +685,10 @@ export class PricingService {
           customizations: item.customizations.map((customization) => ({
             ...customization,
           })),
+          productType,
+          compareAtUnitPricePaise,
+          bundleMarkdownPaise,
+          bundleComponents: (item.bundleComponents ?? []).map((component) => ({ ...component })),
         };
       } catch (cause) {
         if (cause instanceof RangeError || cause instanceof TypeError) {

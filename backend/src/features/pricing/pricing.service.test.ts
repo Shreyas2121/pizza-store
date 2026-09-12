@@ -140,6 +140,60 @@ const createHarness = (
 };
 
 describe("PricingService", () => {
+  it("prices a bundle only from its selling price and reports markdown separately", async () => {
+    const { service } = createHarness(null);
+    const result = await service.buildQuote({
+      storeId: 1,
+      now,
+      items: [{
+        lineId: 8,
+        productId: 30,
+        productName: "Pizza + Drink",
+        productType: "bundle",
+        quantity: 2,
+        baseUnitPricePaise: 30_000,
+        compareAtUnitPricePaise: 36_000,
+        customizations: [],
+        bundleComponents: [
+          { productId: 11, name: "Pizza", quantityPerBundle: 1, totalQuantity: 2, isAvailable: true },
+          { productId: 20, name: "Cola", quantityPerBundle: 1, totalQuantity: 2, isAvailable: true },
+        ],
+      }],
+    });
+    expect(result.quote.itemsSubtotalPaise).toBe(60_000);
+    expect(result.quote.discountPaise).toBe(0);
+    expect(result.quote.items[0]).toMatchObject({
+      unitPricePaise: 30_000,
+      lineSubtotalPaise: 60_000,
+      bundleMarkdownPaise: 12_000,
+      lineTotalPaise: 60_000,
+    });
+  });
+
+  it("rejects coupons for a deal bundle without querying coupon state", async () => {
+    const { service, repository } = createHarness();
+    await expect(service.buildQuote({
+      storeId: 1,
+      couponCode: "SAVE10",
+      now,
+      items: [{
+        lineId: 8,
+        productId: 30,
+        productName: "Combo",
+        productType: "bundle",
+        quantity: 1,
+        baseUnitPricePaise: 30_000,
+        compareAtUnitPricePaise: 36_000,
+        customizations: [],
+        bundleComponents: [{ productId: 11, name: "Pizza", quantityPerBundle: 1, totalQuantity: 1, isAvailable: true }],
+      }],
+    })).rejects.toThrowError(expect.objectContaining({
+      code: "COUPON_NOT_COMBINABLE_WITH_OFFERS",
+      data: { couponEligibility: { eligible: false, reasonCode: "DEAL_BUNDLE_PRESENT", conflictingLineIds: [8] } },
+    }));
+    expect(repository.findCoupon).not.toHaveBeenCalled();
+  });
+
   it("builds a versioned paise quote and deterministically allocates discount", async () => {
     const { service } = createHarness();
 

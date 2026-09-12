@@ -13,6 +13,7 @@ import {
   deriveStockStatus,
   getAvailableQuantity,
 } from "../inventory/inventory.logic";
+import bundleService from "../bundles/bundle.service";
 
 class ProductService {
   async createProduct(product: typeof productsTable.$inferInsert) {
@@ -101,6 +102,7 @@ class ProductService {
         .select({
           ...getTableColumns(productsTable),
           pricePaise: storeProductsTable.pricePaise,
+          compareAtPricePaise: storeProductsTable.compareAtPricePaise,
           onHandQuantity: storeProductsTable.onHandQuantity,
           lowStockThreshold: storeProductsTable.lowStockThreshold,
           reservedQuantity:
@@ -137,7 +139,7 @@ class ProductService {
         .limit(limit)
         .orderBy(order);
 
-      return rows.map((row) => {
+      const products = rows.map((row) => {
         const isTracked = row.onHandQuantity !== null;
         const availableQuantity = isTracked
           ? getAvailableQuantity(row.onHandQuantity, row.reservedQuantity)
@@ -162,6 +164,7 @@ class ProductService {
           stockCount,
         };
       });
+      return bundleService.decorateCatalogProducts(products, storeId);
     }
 
     const rows = await db
@@ -248,6 +251,7 @@ class ProductService {
         .select({
           ...getTableColumns(productsTable),
           pricePaise: storeProductsTable.pricePaise,
+          compareAtPricePaise: storeProductsTable.compareAtPricePaise,
           onHandQuantity: storeProductsTable.onHandQuantity,
           lowStockThreshold: storeProductsTable.lowStockThreshold,
           reservedQuantity:
@@ -275,7 +279,7 @@ class ProductService {
         .limit(limit)
         .orderBy(order);
 
-      return rows.map((row) => {
+      const products = rows.map((row) => {
         const isTracked = row.onHandQuantity !== null;
         const availableQuantity = isTracked
           ? getAvailableQuantity(row.onHandQuantity, row.reservedQuantity)
@@ -300,6 +304,7 @@ class ProductService {
           stockCount,
         };
       });
+      return bundleService.decorateCatalogProducts(products, storeId);
     }
 
     const rows = await db.query.productsTable.findMany({

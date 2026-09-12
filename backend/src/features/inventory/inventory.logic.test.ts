@@ -108,6 +108,24 @@ describe("admin stock changes", () => {
 });
 
 describe("validateStockDemand", () => {
+  it("rejects a disabled component store mapping", () => {
+    expect(() => validateStockDemand({
+      demandByProduct: new Map([[20, 2]]),
+      storeProducts: [{
+        id: 102,
+        productId: 20,
+        onHandQuantity: 10,
+        lowStockThreshold: 2,
+        isAvailable: false,
+      }],
+      reservedQuantities: new Map(),
+      productNameMap: new Map([[20, "Cola"]]),
+    })).toThrowError(expect.objectContaining({
+      code: "BUNDLE_COMPONENT_UNAVAILABLE",
+      status: 409,
+    }));
+  });
+
   it("validates sufficient stock across mixed tracked and untracked products", () => {
     const demand = new Map<number, number>([
       [1, 2], // tracked, onHand 10, reserved 3 -> available 7 >= 2

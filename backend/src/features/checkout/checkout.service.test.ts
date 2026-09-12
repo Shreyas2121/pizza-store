@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppError } from "../../utils/error";
 import {
   orderItemCustomizationsTable,
+  orderItemBundleComponentsTable,
   orderItemsTable,
   ordersTable,
 } from "../../db/schema";
@@ -438,6 +439,59 @@ describe("CheckoutService exact order snapshots", () => {
         customizationName: "Extra cheese",
         pricePaise: 5_000,
       }),
+    ]);
+  });
+
+  it("persists immutable bundle price, markdown, and multiplied component snapshots", async () => {
+    const { tx, writes } = createInsertHarness();
+    const quote = createQuote({
+      itemsSubtotalPaise: 60_000,
+      discountPaise: 0,
+      grandTotalPaise: 64_000,
+      items: [{
+        lineId: 202,
+        productId: 30,
+        productName: "Pizza + Drink",
+        productType: "bundle",
+        quantity: 2,
+        unitPricePaise: 30_000,
+        compareAtUnitPricePaise: 36_000,
+        bundleMarkdownPaise: 12_000,
+        lineSubtotalPaise: 60_000,
+        discountAllocationPaise: 0,
+        taxRuleId: 21,
+        taxRuleVersion: 2,
+        taxRateBps: 500,
+        taxableAmountPaise: 57_143,
+        taxPaise: 2_857,
+        lineTotalPaise: 60_000,
+        hsnSacCode: "21069099-DEMO",
+        customizations: [],
+        bundleComponents: [
+          { productId: 11, name: "Pizza", quantityPerBundle: 1, totalQuantity: 2, isAvailable: true },
+          { productId: 20, name: "Cola", quantityPerBundle: 2, totalQuantity: 4, isAvailable: true },
+        ],
+      }],
+      coupon: null,
+    });
+
+    await checkoutService.createOrderSnapshot(
+      quote as any,
+      { userId: 10, addressId: 3, paymentId: 5, paymentType: "cash", status: "pending" },
+      tx
+    );
+
+    expect(writes.get(ordersTable)).toMatchObject({ discountPaise: 0 });
+    expect(writes.get(orderItemsTable)).toMatchObject({
+      productType: "bundle",
+      unitPricePaise: 30_000,
+      compareAtUnitPricePaise: 36_000,
+      bundleMarkdownPaise: 12_000,
+      discountAllocationPaise: 0,
+    });
+    expect(writes.get(orderItemBundleComponentsTable)).toEqual([
+      { orderItemId: 900, componentProductId: 11, componentName: "Pizza", quantityPerBundle: 1, totalQuantity: 2 },
+      { orderItemId: 900, componentProductId: 20, componentName: "Cola", quantityPerBundle: 2, totalQuantity: 4 },
     ]);
   });
 

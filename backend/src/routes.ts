@@ -29,6 +29,7 @@ import { expenseRoutes } from "./features/expenses/expense.routes";
 import { ledgerRoutes } from "./features/ledger/ledger.routes";
 import { financeReportRoutes } from "./features/finance-reports/finance-report.routes";
 import { payrollRoutes } from "./features/payroll/payroll.routes";
+import { bundleRoutes } from "./features/bundles/bundle.routes";
 
 export const mainRoutes = Router();
 
@@ -36,6 +37,7 @@ mainRoutes.use("/user", userRoutes);
 mainRoutes.use("/access", accessRoutes);
 mainRoutes.use("/category", categoryRoutes);
 mainRoutes.use("/product", productRoutes);
+mainRoutes.use("/bundles", bundleRoutes);
 mainRoutes.use("/customize", customizationRoutes);
 mainRoutes.use("/menu", menuRoutes);
 mainRoutes.use("/cart", authenticateUser, cartRoutes);

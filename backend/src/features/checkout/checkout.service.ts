@@ -6,6 +6,7 @@ import {
   couponsTable,
   deliveryZonesTable,
   orderItemCustomizationsTable,
+  orderItemBundleComponentsTable,
   orderItemsTable,
   ordersTable,
   productsTable,
@@ -40,7 +41,12 @@ export interface CalculatePublicQuoteInput {
 
 export const toPricingItems = (cart: CheckoutCart): PricingItemInput[] => {
   try {
-    return cart.items.map((item) => ({
+    return cart.items.map((item) => {
+      const bundleItem = item as typeof item & {
+        compareAtUnitPricePaise?: number;
+        bundleComponents?: PricingItemInput["bundleComponents"];
+      };
+      return ({
       lineId: item.id,
       productId: item.productId,
       productName: item.product.name,
@@ -51,7 +57,13 @@ export const toPricingItems = (cart: CheckoutCart): PricingItemInput[] => {
         name: customization.customizationOption.name,
         pricePaise: customization.pricePaise,
       })),
-    }));
+      ...(item.product.productType === "bundle" ? {
+        productType: "bundle" as const,
+        compareAtUnitPricePaise: bundleItem.compareAtUnitPricePaise,
+        bundleComponents: bundleItem.bundleComponents,
+      } : {}),
+      });
+    });
   } catch (error) {
     if (error instanceof RangeError) {
       throw new AppError("Cart contains invalid pricing", 409);
@@ -354,7 +366,10 @@ class CheckoutService {
           productId: item.productId,
           quantity: item.quantity,
           productName: item.productName,
+          productType: item.productType ?? "single",
           unitPricePaise: item.unitPricePaise,
+          compareAtUnitPricePaise: item.compareAtUnitPricePaise ?? null,
+          bundleMarkdownPaise: item.bundleMarkdownPaise ?? 0,
           lineSubtotalPaise: item.lineSubtotalPaise,
           discountAllocationPaise: item.discountAllocationPaise,
           taxRuleId: item.taxRuleId,
@@ -374,6 +389,17 @@ class CheckoutService {
             orderItemId: orderItem.id,
             customizationName: customization.name,
             pricePaise: customization.pricePaise,
+          }))
+        );
+      }
+      if ((item.bundleComponents ?? []).length > 0) {
+        await tx.insert(orderItemBundleComponentsTable).values(
+          item.bundleComponents.map((component) => ({
+            orderItemId: orderItem.id,
+            componentProductId: component.productId,
+            componentName: component.name,
+            quantityPerBundle: component.quantityPerBundle,
+            totalQuantity: component.totalQuantity,
           }))
         );
       }

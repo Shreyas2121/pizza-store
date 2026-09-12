@@ -1,4 +1,4 @@
-import { and, count, eq, gt, inArray, sql } from "drizzle-orm";
+import { and, count, eq, gt, sql } from "drizzle-orm";
 import { db } from "../../db";
 import {
   cartItemCustomizationsTable,
@@ -13,6 +13,7 @@ import { AppError } from "../../utils/error";
 import { TransactionType } from "../../utils/types";
 import customizeService from "../customization/customize.service";
 import { getAvailableQuantity } from "../inventory/inventory.logic";
+import bundleService from "../bundles/bundle.service";
 
 class CartService {
   /**
@@ -39,6 +40,9 @@ class CartService {
 
       if (storeProduct.hasCustomization && cIds.length === 0) {
         throw new AppError("Customization options are required");
+      }
+      if (storeProduct.productType === "bundle" && cIds.length > 0) {
+        throw new AppError("Bundles cannot be customized", 409, "BUNDLE_DEFINITION_INVALID");
       }
 
       let cartId: number;
@@ -205,6 +209,7 @@ class CartService {
         productName: productsTable.name,
         productIsAvailable: productsTable.isAvailable,
         hasCustomization: productsTable.hasCustomization,
+        productType: productsTable.productType,
         storeIsActive: storesTable.isActive,
       })
       .from(storeProductsTable)
@@ -233,6 +238,19 @@ class CartService {
     }
     if (!storeProduct.productIsAvailable || !storeProduct.isAvailable) {
       throw new AppError("Product is not available at this store", 409);
+    }
+
+    if (storeProduct.productType === "bundle") {
+      if (storeProduct.hasCustomization) {
+        throw new AppError("Bundles cannot have customizations", 409, "BUNDLE_DEFINITION_INVALID");
+      }
+      const bundle = await bundleService.getPublicBundle(productId, storeId, tx);
+      if (!bundle.isAvailable) {
+        throw new AppError("One or more bundle components are unavailable", 409, "BUNDLE_COMPONENT_UNAVAILABLE", {
+          bundleProductId: productId,
+          unavailableComponentIds: bundle.unavailableComponentIds,
+        });
+      }
     }
 
     const isTracked = storeProduct.onHandQuantity !== null;
@@ -372,7 +390,7 @@ class CartService {
 
   async getCart(userId: number, tx?: TransactionType) {
     const dbT = tx ?? db;
-    return await dbT.query.cartTable.findFirst({
+    const cart = await dbT.query.cartTable.findFirst({
       where: eq(cartTable.userId, userId),
       with: {
         store: true,
@@ -388,6 +406,7 @@ class CartService {
         },
       },
     });
+    return cart ? bundleService.decorateCart(cart, tx) : cart;
   }
 
   async clearCart(userId: number, tx?: TransactionType) {
@@ -517,6 +536,14 @@ class CartService {
     const cart = await this.getExistingCart(userId);
     const cartItem = await this.getCartItemById(cartItemId);
     if (!cart || cartItem.cartId !== cart.id) throw new AppError("Cart item not found", 404);
+
+    const product = await db.query.productsTable.findFirst({
+      where: eq(productsTable.id, cartItem.productId),
+      columns: { productType: true },
+    });
+    if (product?.productType === "bundle" && cIds.length > 0) {
+      throw new AppError("Bundles cannot be customized", 409, "BUNDLE_DEFINITION_INVALID");
+    }
 
     const uniqueIds = [...new Set(cIds)];
     const options = await Promise.all(uniqueIds.map((id) => customizeService.getCustomizationOptionById(id)));

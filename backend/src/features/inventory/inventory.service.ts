@@ -41,9 +41,10 @@ import {
   calculateRestock,
   type LowStockAlert,
   type StockAllocationItem,
-  type StockDemandItem,
   validateStockDemand,
 } from "./inventory.logic";
+import { expandBundleDemand } from "../bundles/bundle.logic";
+import { loadBundleDefinitions } from "../bundles/bundle.repository";
 
 type InventoryListStatus = "all" | "low_stock" | "out_of_stock";
 
@@ -143,12 +144,32 @@ class InventoryService {
     items: Array<{
       productId: number;
       quantity: number;
-      product?: { name: string };
+      product?: { name: string; productType?: "single" | "bundle" };
       productName?: string;
+      productType?: "single" | "bundle";
     }>,
     tx: TransactionType
   ): Promise<StockAllocationItem[]> {
-    const demandByProduct = aggregateCartDemand(items);
+    const definitions = await loadBundleDefinitions(
+      items.map((item) => item.productId),
+      storeId,
+      tx
+    );
+    const missingBundleDefinitionIds = items
+      .filter((item) => (item.product?.productType ?? item.productType) === "bundle")
+      .map((item) => item.productId)
+      .filter((productId) => !definitions.has(productId));
+    if (missingBundleDefinitionIds.length > 0) {
+      throw new AppError(
+        "One or more bundles have no component definition",
+        409,
+        "BUNDLE_DEFINITION_INVALID",
+        { productIds: [...new Set(missingBundleDefinitionIds)].sort((a, b) => a - b) }
+      );
+    }
+    const demandByProduct = definitions.size > 0
+      ? expandBundleDemand(items, definitions)
+      : aggregateCartDemand(items);
     const productIds = [...demandByProduct.keys()];
     const lockedStoreProducts = await this.lockStoreProducts(
       storeId,
@@ -166,6 +187,11 @@ class InventoryService {
       const name = item.product?.name ?? item.productName;
       if (name) {
         productNameMap.set(item.productId, name);
+      }
+    }
+    for (const definition of definitions.values()) {
+      for (const component of definition.components) {
+        productNameMap.set(component.productId, component.name);
       }
     }
 

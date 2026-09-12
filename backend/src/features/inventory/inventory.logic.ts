@@ -175,6 +175,7 @@ export const validateStockDemand = (params: {
     productId: number;
     onHandQuantity: number | null;
     lowStockThreshold: number;
+    isAvailable?: boolean;
   }>;
   reservedQuantities: Map<number, number>;
   productNameMap: Map<number, string>;
@@ -193,6 +194,14 @@ export const validateStockDemand = (params: {
         `Store product mapping not found for ${productName}`,
         404,
         "STORE_PRODUCT_NOT_FOUND",
+        { productId }
+      );
+    }
+    if (storeProductMap.get(productId)?.isAvailable === false) {
+      throw new AppError(
+        `Product is unavailable at this store`,
+        409,
+        "BUNDLE_COMPONENT_UNAVAILABLE",
         { productId }
       );
     }
