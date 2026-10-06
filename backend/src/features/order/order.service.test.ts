@@ -9,6 +9,7 @@ import cartService from "../cart/cart.service";
 import checkoutService from "../checkout/checkout.service";
 import inventoryService from "../inventory/inventory.service";
 import paymentService from "../payments/payment.service";
+import paymentRepository from "../payments/payment.repository";
 import { OrderService } from "./order.service";
 import type { CostSnapshotWriter } from "../costs/cost.service";
 import type { FinancialEventWriter } from "../finance-events/financial-event.types";
@@ -176,6 +177,7 @@ describe("OrderService unit tests", () => {
       );
       vi.spyOn(checkoutService, "buildQuote").mockResolvedValue(mockQuote as any);
       vi.spyOn(paymentService, "createPayment").mockResolvedValue({ id: 100 } as any);
+      const attemptSpy = vi.spyOn(paymentRepository, "createPaymentAttempt").mockResolvedValue(undefined);
       vi.spyOn(checkoutService, "createOrderSnapshot").mockResolvedValue({
         id: 42,
         storeId: 1,
@@ -216,6 +218,7 @@ describe("OrderService unit tests", () => {
         expect.anything()
       );
       expect(cartService.clearCart).toHaveBeenCalledWith(7, expect.anything());
+      expect(attemptSpy).toHaveBeenCalledWith(expect.objectContaining({ orderId: 42, provider: "cod", amountPaise: 50_000 }), expect.anything());
     });
   });
 

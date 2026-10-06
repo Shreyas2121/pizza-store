@@ -27,6 +27,9 @@ describe("PaymentService inventory reservation lifecycle", () => {
 
   describe("initiation (findOrCreateLocalAttempt)", () => {
     it("reserves stock for tracked products without decrementing on-hand quantity", async () => {
+      vi.spyOn(paymentRepository, "getAttemptByClientRequestId").mockResolvedValue(undefined);
+      const attemptSpy = vi.spyOn(paymentRepository, "createPaymentAttempt").mockResolvedValue(undefined);
+      vi.spyOn(db, "transaction").mockImplementation(async (callback) => callback({} as TransactionType));
       const mockQuote = {
         cart: { storeId: 1, store: { name: "Main Store" }, items: [] },
         totalPaise: 50000,
@@ -85,6 +88,7 @@ describe("PaymentService inventory reservation lifecycle", () => {
 
       expect(attempt.localOrderId).toBe(42);
       expect(attempt.localPaymentId).toBe(101);
+      expect(attemptSpy).toHaveBeenCalledWith(expect.objectContaining({ orderId: 42, provider: "razorpay", amountPaise: 50_000 }), expect.anything());
       expect(reserveSpy).toHaveBeenCalledWith(
         {
           orderId: 42,

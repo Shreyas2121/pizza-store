@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import paymentRepository from "./payment.repository";
 import type { PaymentAttempt } from "../../db/schema/payment-attempt.schema";
+import type { TransactionType } from "../../utils/types";
+import { db } from "../../db";
 
 describe("PaymentRepository — Payment Attempts", () => {
   const sampleAttemptRecord: PaymentAttempt = {
@@ -127,6 +129,22 @@ describe("PaymentRepository — Payment Attempts", () => {
   });
 
   describe("Database queries with mock transaction executor", () => {
+    it("propagates foreign-key failures instead of fabricating a persisted attempt", async () => {
+      const failure = Object.assign(new Error("missing order"), { code: "23503" });
+      const tx = { insert: vi.fn(() => ({ values: vi.fn(() => ({ returning: vi.fn().mockRejectedValue(failure) })) })) };
+      await expect(paymentRepository.createPaymentAttempt({ orderId: 100, storeId: 1, provider: "cod", amountPaise: 100 }, tx as unknown as TransactionType)).rejects.toBe(failure);
+    });
+
+    it("never falls back to the database outside a supplied transaction", async () => {
+      const insert = vi.spyOn(db, "insert");
+      const update = vi.spyOn(db, "update");
+      try {
+        await expect(paymentRepository.createPaymentAttempt({ orderId: 100, storeId: 1, provider: "cod", amountPaise: 100 }, {} as TransactionType)).rejects.toThrow();
+        await expect(paymentRepository.updatePaymentAttempt({ status: "captured" }, 42, {} as TransactionType)).rejects.toThrow();
+        expect(insert).not.toHaveBeenCalled();
+        expect(update).not.toHaveBeenCalled();
+      } finally { insert.mockRestore(); update.mockRestore(); }
+    });
     it("createPaymentAttempt calls executor.insert.values.returning", async () => {
       const mockReturning = vi.fn().mockResolvedValue([sampleAttemptRecord]);
       const mockValues = vi.fn().mockReturnValue({ returning: mockReturning });

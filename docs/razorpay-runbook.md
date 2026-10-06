@@ -17,6 +17,12 @@ cancellation matrix, and known limitations.
 
 ## Release controls
 
+Payment-attempt persistence uses the caller's transaction and propagates database
+constraint failures. It never substitutes a fabricated attempt or writes through
+the global database when a supplied transaction is invalid. Unit orchestration
+tests stub payment repository boundaries explicitly; they do not contact the
+configured database.
+
 Razorpay requires `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, and
 `RAZORPAY_WEBHOOK_SECRET`. New and retried online checkouts are additionally
 controlled by the backend-only `RAZORPAY_ENABLED` flag.
