@@ -126,11 +126,23 @@ export class BundleService {
 
   async replaceDefinition(bundleProductId: number, input: BundleDefinitionWrite) {
     return db.transaction(async (tx) => {
+      const storeIds = input.storePrices.map((price) => price.storeId);
+      const stores = await tx
+        .select({ id: storesTable.id })
+        .from(storesTable)
+        .where(inArray(storesTable.id, storeIds))
+        .orderBy(asc(storesTable.id))
+        .for("update");
+      if (stores.length !== storeIds.length) {
+        throw new AppError("One or more stores do not exist", 404, "STORE_NOT_FOUND");
+      }
+
       const productIds = [bundleProductId, ...input.components.map((item) => item.productId)];
       const products = await tx
         .select({ id: productsTable.id, productType: productsTable.productType })
         .from(productsTable)
         .where(inArray(productsTable.id, productIds))
+        .orderBy(asc(productsTable.id))
         .for("update");
       const productsById = new Map(products.map((product) => [product.id, product] as const));
       const bundle = productsById.get(bundleProductId);
@@ -145,15 +157,6 @@ export class BundleService {
           productType: productsById.get(component.productId)!.productType,
         })),
       });
-
-      const storeIds = input.storePrices.map((price) => price.storeId);
-      const stores = await tx
-        .select({ id: storesTable.id })
-        .from(storesTable)
-        .where(inArray(storesTable.id, storeIds));
-      if (stores.length !== storeIds.length) {
-        throw new AppError("One or more stores do not exist", 404, "STORE_NOT_FOUND");
-      }
 
       await tx.delete(bundleComponentsTable).where(eq(bundleComponentsTable.bundleProductId, bundleProductId));
       await tx.insert(bundleComponentsTable).values(

@@ -1,12 +1,14 @@
 # Promotion governance and media operations
 
-C05 provides backend administration and discovery; C06 provides pricing and owned-cart coupon validation against the new engine. Checkout/application persistence, payment recovery, finance integration, and frontend controls follow in their assigned commits.
+C05 provides backend administration and discovery; C06 provides pricing and owned-cart coupon validation; C07 persists immutable COD promotion and bundle snapshots. Payment recovery, finance integration, remaining order DTO cleanup, and frontend controls follow in their assigned commits.
 
 Only platform admins with `platform.promotions.manage` create, replace, deactivate, upload or remove media, or read analytics. `PUT /promotions/:id` is a full replacement with `expectedDefinitionVersion`. Deactivation preserves rules, media, historical applications and store choices. Exhaustion is derived from reserved plus consumed applications and never flips the administrative active switch.
 
 Only an active same-store manager with `store.promotions.toggle` reads the manager list or writes participation. Platform admin overrides are deliberately denied for these manager endpoints. Absence of a setting means enabled. Disabling requires a trimmed reason; re-enabling restores participation without editing the definition. Global deactivation wins over explicit settings.
 
-The manager mutation rechecks and locks membership within its transaction, then locks store, promotion and existing setting in that order. The store lock covers default-enabled absence. Future C07 checkout must follow ADR-006's compatible relative order. Unit tests check orchestration; PostgreSQL races are not claimed verified.
+The manager mutation rechecks and locks membership within its transaction, then locks store, promotion and existing setting in that order. The store lock covers default-enabled absence. COD checkout follows ADR-006's compatible relative order, including user eligibility serialization and sorted catalogue locks. Unit tests check orchestration; PostgreSQL races are not claimed verified.
+
+COD applications consume exact item and delivery savings in the transaction that writes the order, payment/attempt, stock movement and cart deletion. Reserved and consumed applications occupy global/per-user limits and exact global budget; released applications occupy neither. There are no mutable usage counters. Collection record/consume/release/restore operations verify snapshots and are idempotent. Restore checks capacity for the full released collection before updating, preserves captured amounts/versions after edits or opt-out, and never reprices. Consumed COD applications remain consumed on cancellation. Online collections become active only after C08 completes all payment recovery paths.
 
 Success audits are committed with mutations and include actor, promotion version, before/after state, store and reason where applicable. Failure auditors run before authentication/authorization and persist safe operation/resource IDs and a stable reason code. They do not copy coupon codes or upload bytes into attempts. Every request retains the existing correlation-ID behavior.
 

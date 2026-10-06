@@ -48,7 +48,7 @@ describe("promotion pricing query boundaries", () => {
     const h = loadHarness();
     const result = await h.source.load(1, 7, null, now, { executor: h.tx, lockPromotions: true });
     expect(h.events.slice(0, 2)).toMatchObject([{ table: storesTable, lock: "update" }, { table: promotionsTable, lock: "update" }]);
-    expect(h.related.related).toHaveBeenCalledExactlyOnceWith([10], 1, h.tx);
+    expect(h.related.related).toHaveBeenCalledExactlyOnceWith([10], 1, h.tx, true);
     expect(result.usageByPromotionId[10]).toEqual({ storeEnabled: true, globalRedemptionsUsed: 3, userRedemptionsUsed: 2, budgetUsedPaise: 12000 });
     expect(result.qualifyingOrderCount).toBe(1);
     expect(h.events.find(event => event.table === ordersTable)?.params).toEqual([7, "awaiting_payment", "pending", "preparing", "out_for_delivery", "delivered"]);

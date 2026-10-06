@@ -10,11 +10,14 @@ import {
   storeProductsTable,
 } from "../../db/schema";
 
+import type { DatabaseType, TransactionType } from "../../utils/types";
+type Executor = DatabaseType | TransactionType;
+
 export const publicQuoteRepository = {
-  async findOwnedCart(userId: number) {
+  async findOwnedCart(userId: number, executor: Executor = db) {
     // Read identities only. Stored cart prices and bundle decoration must not
     // determine a new preview's current catalogue price or availability.
-    const cart = await db.query.cartTable.findFirst({
+    const cart = await executor.query.cartTable.findFirst({
       where: eq(cartTable.userId, userId),
       columns: { storeId: true },
       with: {
@@ -40,11 +43,19 @@ export const publicQuoteRepository = {
         }
       : undefined;
   },
-  async findBundleDefinitions(storeId: number, productIds: number[]) {
-    return loadBundleDefinitions(productIds, storeId);
+  async findBundleDefinitions(
+    storeId: number,
+    productIds: number[],
+    executor: Executor = db,
+  ) {
+    return loadBundleDefinitions(productIds, storeId, executor);
   },
-  async findAddressState(addressId: number, userId: number) {
-    const [address] = await db
+  async findAddressState(
+    addressId: number,
+    userId: number,
+    executor: Executor = db,
+  ) {
+    const [address] = await executor
       .select({ state: addressTable.state })
       .from(addressTable)
       .where(
@@ -54,8 +65,12 @@ export const publicQuoteRepository = {
     return address?.state;
   },
 
-  async findStoreProducts(storeId: number, productIds: number[]) {
-    return db
+  async findStoreProducts(
+    storeId: number,
+    productIds: number[],
+    executor: Executor = db,
+  ) {
+    return executor
       .select({
         productId: productsTable.id,
         productName: productsTable.name,
@@ -82,8 +97,9 @@ export const publicQuoteRepository = {
   async findProductCustomizationOptions(
     productIds: number[],
     optionIds: number[],
+    executor: Executor = db,
   ) {
-    return db
+    return executor
       .select({
         productId: productCustomizationGroupMappingTable.productId,
         optionId: customizationOptionsTable.id,

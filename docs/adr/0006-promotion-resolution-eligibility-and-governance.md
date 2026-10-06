@@ -51,6 +51,12 @@ PizzaStore is replacing the legacy coupon-only model with automatic offers and m
 8. Definition changes affect new quotes/orders only. Every material definition or media edit increments `definitionVersion`; immutable order applications retain the version and values they captured.
 9. Exhaustion is derived from reserved-plus-consumed application rows. It blocks new applications but does not silently change the administrative `isActive` flag; a released reservation can therefore restore capacity without an admin reactivation.
 
+#### C07 catalogue lock refinement
+
+Within the catalogue stage, checkout locks all parent/component product rows by ascending product ID with `FOR NO KEY UPDATE`, then the complete required store-product set by ascending store-product ID. Referenced customization options use the same non-key lock in ascending ID, followed by product/group mappings in product/group order. Non-key locks stabilize prices, names, availability and bundle definitions without blocking foreign-key key-share reads from promotion-rule writers already holding promotion locks. Bundle writers lock affected stores ascending before products ascending and store-product writes. Checkout reads component identities before product locks and verifies them after acquisition; a changed component set fails with `CHECKOUT_CATALOGUE_CHANGED` instead of acquiring additional lower-ID locks.
+
+Cart mutations lock their parent cart before reading quantities or modifying children. Cancellation locks the order, then its user/store before restoring inventory and handling applications. Re-acquiring an already-held user/store/product/promotion lock in a caller transaction adds no new lock dependency. PostgreSQL race/deadlock integration evidence remains required; query-construction tests do not prove these properties.
+
 ## Alternatives considered
 
 ### Let the customer choose between an offer and a coupon

@@ -86,7 +86,7 @@ export class PromotionPricingRepository {
       ? await query.for("update")
       : await query;
     const ids = rows.map((row) => row.id);
-    const related = await this.repository.related(ids, storeId, executor);
+    const related = await this.repository.related(ids, storeId, executor, options.lockPromotions ?? false);
     const userUsage =
       userId === null || ids.length === 0
         ? []

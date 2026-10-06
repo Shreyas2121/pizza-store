@@ -128,14 +128,7 @@ export const createAddressSchema = z.object({
 export const createOrderSchema = z.object({
   addressId: z.number().int().positive("Valid address ID is required"),
   paymentType: z.literal("cash").default("cash"),
-  couponCode: z
-    .string()
-    .trim()
-    .min(1, "Coupon code cannot be empty")
-    .max(100, "Coupon code is too long")
-    .transform((code) => code.toUpperCase())
-    .nullable()
-    .optional(),
+  couponCode: promotionCodeSchema.nullable().optional(),
 }).strict();
 
 export const initiateRazorpayOrderSchema = z

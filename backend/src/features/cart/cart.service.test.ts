@@ -1,10 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { db } from "../../db";
+import type { TransactionType } from "../../utils/types";
 import cartService from "./cart.service";
 
 describe("CartService stock validation", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    vi.spyOn(cartService, "lockCart").mockResolvedValue(undefined);
+    // Stock-only adapters use the select stub below; no real transaction opens.
+    vi.spyOn(db, "transaction").mockImplementation(async operation => operation({ select: db.select } as unknown as TransactionType));
   });
 
   describe("addToCart stock limits", () => {

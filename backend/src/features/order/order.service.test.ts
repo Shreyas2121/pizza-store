@@ -6,7 +6,7 @@ import { AuthorizationService } from "../access/access.service";
 import type { AccessRepository, MembershipAccessRecord } from "../access/access.types";
 import type { AuditWriter, WriteAuditInput } from "../audit/audit.types";
 import cartService from "../cart/cart.service";
-import checkoutService from "../checkout/checkout.service";
+import { codCheckoutService } from "../checkout";
 import inventoryService from "../inventory/inventory.service";
 import paymentService from "../payments/payment.service";
 import paymentRepository from "../payments/payment.repository";
@@ -175,10 +175,10 @@ describe("OrderService unit tests", () => {
       vi.spyOn(db, "transaction").mockImplementation(async (cb: any) =>
         cb({} as any)
       );
-      vi.spyOn(checkoutService, "buildQuote").mockResolvedValue(mockQuote as any);
+      vi.spyOn(codCheckoutService, "buildQuote").mockResolvedValue(mockQuote as any);
       vi.spyOn(paymentService, "createPayment").mockResolvedValue({ id: 100 } as any);
       const attemptSpy = vi.spyOn(paymentRepository, "createPaymentAttempt").mockResolvedValue(undefined);
-      vi.spyOn(checkoutService, "createOrderSnapshot").mockResolvedValue({
+      vi.spyOn(codCheckoutService, "createOrderSnapshot").mockResolvedValue({
         id: 42,
         storeId: 1,
         grandTotalPaise: 50_000,

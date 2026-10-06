@@ -2,7 +2,7 @@
 
 Status: execution guide
 
-Implementation progress (2026-10-06): C00-C06 implemented on `feature/promotions-overhaul`. Next: C07, checkout snapshots and COD promotion lifecycle. See the [C06 handoff](./docs/promotions-c06-handoff.md) for completed work, verification, and deferred database checks.
+Implementation progress (2026-10-06): C00-C07 implemented on `feature/promotions-overhaul`. Next in the integration-wave sequence: C11, frontend promotion administration, then C12 discovery, then C08 payment lifecycle. See the [C07 handoff](./docs/promotions-c07-handoff.md) for completed work, verification, and deferred database checks.
 
 Authoritative product plan: [`implementation_plan.md`](./implementation_plan.md)
 

@@ -16,6 +16,15 @@ import { getAvailableQuantity } from "../inventory/inventory.logic";
 import bundleService from "../bundles/bundle.service";
 
 class CartService {
+  async lockCart(userId: number, tx: TransactionType) {
+    await tx
+      .select({ id: cartTable.id })
+      .from(cartTable)
+      .where(eq(cartTable.userId, userId))
+      .for("update")
+      .limit(1);
+  }
+
   /**
    * Adds a product to the cart. If the user already has a cart, update it.
    * If the product exists in the cart, increase its quantity; otherwise, add a new entry.
@@ -32,6 +41,7 @@ class CartService {
     cIds: number[];
   }) {
     return await db.transaction(async (tx) => {
+      await this.lockCart(userId, tx);
       const storeProduct = await this.getAvailableStoreProduct(
         storeId,
         productId,
@@ -417,8 +427,8 @@ class CartService {
     await dbT.delete(cartTable).where(eq(cartTable.id, cart.id));
   }
 
-  async getCartItemById(id: number) {
-    const cartItem = await db.query.cartItemsTable.findFirst({
+  async getCartItemById(id: number, tx?: TransactionType) {
+    const cartItem = await (tx ?? db).query.cartItemsTable.findFirst({
       with: {
         customizations: true,
       },
@@ -429,9 +439,9 @@ class CartService {
     return cartItem;
   }
 
-  async assertCartItemOwner(cartItemId: number, userId: number) {
-    const cart = await this.getExistingCart(userId);
-    const item = await this.getCartItemById(cartItemId);
+  async assertCartItemOwner(cartItemId: number, userId: number, tx?: TransactionType) {
+    const cart = await this.getExistingCart(userId, tx);
+    const item = await this.getCartItemById(cartItemId, tx);
     if (!cart || item.cartId !== cart.id) throw new AppError("Cart item not found", 404);
     return item;
   }
@@ -447,69 +457,71 @@ class CartService {
     type: "+" | "-";
     userId: number;
   }) {
-    const cartItem = await this.assertCartItemOwner(cartItemId, userId);
+    return db.transaction(async (tx) => {
+      await this.lockCart(userId, tx);
+      const cartItem = await this.assertCartItemOwner(cartItemId, userId, tx);
 
-    if (cartItem.productId !== productId) {
-      throw new AppError("Cart item does not match product", 400);
-    }
-
-    if (type === "+") {
-      const cart = await this.getExistingCart(userId);
-      if (!cart?.storeId) {
-        throw new AppError("Cart is not assigned to a store", 409);
+      if (cartItem.productId !== productId) {
+        throw new AppError("Cart item does not match product", 400);
       }
-      const storeProduct = await this.getAvailableStoreProduct(
-        cart.storeId,
-        productId
-      );
 
-      const cartItems = await db
-        .select({ quantity: cartItemsTable.quantity })
-        .from(cartItemsTable)
-        .where(
-          and(
-            eq(cartItemsTable.cartId, cart.id),
-            eq(cartItemsTable.productId, productId)
-          )
+      if (type === "+") {
+        const cart = await this.getExistingCart(userId, tx);
+        if (!cart?.storeId) {
+          throw new AppError("Cart is not assigned to a store", 409);
+        }
+        const storeProduct = await this.getAvailableStoreProduct(
+          cart.storeId,
+          productId,
+          tx
         );
-      const existingQuantityInCart = cartItems.reduce(
-        (sum, item) => sum + (item.quantity ?? 0),
-        0
-      );
 
-      const requestedTotalQuantity = existingQuantityInCart + 1;
-      if (
-        storeProduct.isTracked &&
-        storeProduct.availableQuantity !== null &&
-        requestedTotalQuantity > storeProduct.availableQuantity
-      ) {
-        throw new AppError(
-          "Insufficient stock for one or more items",
-          409,
-          "INSUFFICIENT_STOCK",
-          {
-            items: [
-              {
-                productId,
-                productName: storeProduct.productName,
-                requestedQuantity: requestedTotalQuantity,
-                availableQuantity: storeProduct.availableQuantity,
-              },
-            ],
-          }
+        const cartItems = await tx
+          .select({ quantity: cartItemsTable.quantity })
+          .from(cartItemsTable)
+          .where(
+            and(
+              eq(cartItemsTable.cartId, cart.id),
+              eq(cartItemsTable.productId, productId)
+            )
+          );
+        const existingQuantityInCart = cartItems.reduce(
+          (sum, item) => sum + (item.quantity ?? 0),
+          0
         );
+
+        const requestedTotalQuantity = existingQuantityInCart + 1;
+        if (
+          storeProduct.isTracked &&
+          storeProduct.availableQuantity !== null &&
+          requestedTotalQuantity > storeProduct.availableQuantity
+        ) {
+          throw new AppError(
+            "Insufficient stock for one or more items",
+            409,
+            "INSUFFICIENT_STOCK",
+            {
+              items: [
+                {
+                  productId,
+                  productName: storeProduct.productName,
+                  requestedQuantity: requestedTotalQuantity,
+                  availableQuantity: storeProduct.availableQuantity,
+                },
+              ],
+            }
+          );
+        }
       }
-    }
 
-    if (type === "-" && cartItem.quantity! <= 1) {
-      return await this.deleteCartItem(cartItemId);
-    }
+      if (type === "-" && cartItem.quantity! <= 1) {
+        return await this.deleteCartItem(cartItemId, tx);
+      }
 
-    let updatedPrice =
-      cartItem.customizations.reduce((prev, curr) => prev + curr.pricePaise, 0) +
-      cartItem.pricePaise;
+      let updatedPrice =
+        cartItem.customizations.reduce((prev, curr) => prev + curr.pricePaise, 0) +
+        cartItem.pricePaise;
 
-    return await db.transaction(async (tx) => {
       const currentQuantity = cartItem.quantity!;
       const newQuantity =
         type === "+" ? currentQuantity + 1 : Math.max(currentQuantity - 1, 0);
@@ -533,27 +545,28 @@ class CartService {
   }
 
   async updateCartItemCustomizations(cartItemId: number, userId: number, cIds: number[]) {
-    const cart = await this.getExistingCart(userId);
-    const cartItem = await this.getCartItemById(cartItemId);
-    if (!cart || cartItem.cartId !== cart.id) throw new AppError("Cart item not found", 404);
+    return db.transaction(async (tx) => {
+      await this.lockCart(userId, tx);
+      const cart = await this.getExistingCart(userId, tx);
+      const cartItem = await this.getCartItemById(cartItemId, tx);
+      if (!cart || cartItem.cartId !== cart.id) throw new AppError("Cart item not found", 404);
 
-    const product = await db.query.productsTable.findFirst({
-      where: eq(productsTable.id, cartItem.productId),
-      columns: { productType: true },
-    });
-    if (product?.productType === "bundle" && cIds.length > 0) {
-      throw new AppError("Bundles cannot be customized", 409, "BUNDLE_DEFINITION_INVALID");
-    }
+      const product = await tx.query.productsTable.findFirst({
+        where: eq(productsTable.id, cartItem.productId),
+        columns: { productType: true },
+      });
+      if (product?.productType === "bundle" && cIds.length > 0) {
+        throw new AppError("Bundles cannot be customized", 409, "BUNDLE_DEFINITION_INVALID");
+      }
 
-    const uniqueIds = [...new Set(cIds)];
-    const options = await Promise.all(uniqueIds.map((id) => customizeService.getCustomizationOptionById(id)));
-    if (options.some((option) => !option || !option.isAvailable)) throw new AppError("One or more customization options are unavailable", 400);
+      const uniqueIds = [...new Set(cIds)];
+      const options = await Promise.all(uniqueIds.map((id) => customizeService.getCustomizationOptionById(id)));
+      if (options.some((option) => !option || !option.isAvailable)) throw new AppError("One or more customization options are unavailable", 400);
 
-    const oldExtras = cartItem.customizations.reduce((sum, option) => sum + option.pricePaise, 0);
-    const newExtras = options.reduce((sum, option) => sum + (option?.pricePaise ?? 0), 0);
-    const priceDifference = (newExtras - oldExtras) * cartItem.quantity;
+      const oldExtras = cartItem.customizations.reduce((sum, option) => sum + option.pricePaise, 0);
+      const newExtras = options.reduce((sum, option) => sum + (option?.pricePaise ?? 0), 0);
+      const priceDifference = (newExtras - oldExtras) * cartItem.quantity;
 
-    await db.transaction(async (tx) => {
       await tx.delete(cartItemCustomizationsTable).where(eq(cartItemCustomizationsTable.cartItemId, cartItemId));
       if (options.length > 0) {
         await tx.insert(cartItemCustomizationsTable).values(options.map((option) => ({ cartItemId, customizationOptionId: option!.id, pricePaise: option!.pricePaise })));
@@ -562,24 +575,32 @@ class CartService {
     });
   }
 
-  async deleteCartItem(itemId: number) {
-    return await db.transaction(async (tx) => {
-      const cartItem = await this.getCartItemById(itemId);
+  async deleteCartItem(itemId: number, tx?: TransactionType) {
+    const remove = async (executor: TransactionType) => {
+      const identity = await this.getCartItemById(itemId, executor);
+      await executor
+        .select({ id: cartTable.id })
+        .from(cartTable)
+        .where(eq(cartTable.id, identity.cartId))
+        .for("update")
+        .limit(1);
+      const cartItem = await this.getCartItemById(itemId, executor);
 
       const updatedPrice =
         (cartItem.pricePaise +
           cartItem.customizations.reduce((prev, curr) => prev + curr.pricePaise, 0)) *
         cartItem.quantity;
 
-      await tx.delete(cartItemsTable).where(eq(cartItemsTable.id, itemId));
+      await executor.delete(cartItemsTable).where(eq(cartItemsTable.id, itemId));
 
-      await tx
+      await executor
         .update(cartTable)
         .set({
           totalPaise: sql`${cartTable.totalPaise} - ${updatedPrice}`,
         })
         .where(eq(cartTable.id, cartItem.cartId));
-    });
+    };
+    return tx ? remove(tx) : db.transaction(remove);
   }
 }
 

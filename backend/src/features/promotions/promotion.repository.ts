@@ -123,7 +123,12 @@ export class PromotionRepository {
         asc(promotionRulesTable.id),
       );
   }
-  async related(ids: number[], storeId?: number, executor: Executor = db) {
+  async related(
+    ids: number[],
+    storeId?: number,
+    executor: Executor = db,
+    lockSettings = false,
+  ) {
     if (ids.length === 0)
       return {
         rules: [],
@@ -131,10 +136,10 @@ export class PromotionRepository {
         usage: new Map<number, PromotionUsage>(),
       };
     const rules = await this.rules(ids, executor);
-    const settings =
+    const settingsQuery =
       storeId === undefined
-        ? []
-        : await executor
+        ? undefined
+        : executor
             .select()
             .from(storePromotionSettingsTable)
             .where(
@@ -142,7 +147,11 @@ export class PromotionRepository {
                 eq(storePromotionSettingsTable.storeId, storeId),
                 inArray(storePromotionSettingsTable.promotionId, ids),
               ),
-            );
+            )
+            .orderBy(asc(storePromotionSettingsTable.promotionId));
+    const settings = settingsQuery
+      ? await (lockSettings ? settingsQuery.for("update") : settingsQuery)
+      : [];
     const usageRows = await executor
       .select({
         promotionId: promotionApplicationsTable.promotionId,
