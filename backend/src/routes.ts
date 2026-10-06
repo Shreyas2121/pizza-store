@@ -30,6 +30,7 @@ import { ledgerRoutes } from "./features/ledger/ledger.routes";
 import { financeReportRoutes } from "./features/finance-reports/finance-report.routes";
 import { payrollRoutes } from "./features/payroll/payroll.routes";
 import { bundleRoutes } from "./features/bundles/bundle.routes";
+import { promotionRoutes, storePromotionRoutes } from "./features/promotions/promotion.routes";
 
 export const mainRoutes = Router();
 
@@ -38,6 +39,7 @@ mainRoutes.use("/access", accessRoutes);
 mainRoutes.use("/category", categoryRoutes);
 mainRoutes.use("/product", productRoutes);
 mainRoutes.use("/bundles", bundleRoutes);
+mainRoutes.use("/promotions", promotionRoutes);
 mainRoutes.use("/customize", customizationRoutes);
 mainRoutes.use("/menu", menuRoutes);
 mainRoutes.use("/cart", authenticateUser, cartRoutes);
@@ -58,6 +60,7 @@ mainRoutes.use("/dashboard", dashRoutes);
 mainRoutes.use("/chat", chatRoutes);
 mainRoutes.use("/stores", staffRoutes);
 mainRoutes.use("/stores", storeAuditRoutes);
+mainRoutes.use("/stores", storePromotionRoutes);
 mainRoutes.use("/stores", storeRoutes);
 mainRoutes.use("/store", storeRoutes);
 mainRoutes.use("/inventory", inventoryRoutes);

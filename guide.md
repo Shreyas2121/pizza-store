@@ -2,6 +2,8 @@
 
 Status: execution guide
 
+Implementation progress (2026-10-06): C00-C05 implemented on `feature/promotions-overhaul`. Next: C06, authoritative pricing integration. See the [C05 handoff](./docs/promotions-c05-handoff.md) for completed work, verification, and deferred database checks.
+
 Authoritative product plan: [`implementation_plan.md`](./implementation_plan.md)
 
 Target repository: PizzaStore monorepo (`backend`, `frontend`)

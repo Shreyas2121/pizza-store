@@ -3,12 +3,15 @@ import { MAX_POSTGRES_INT, MONEY_CAPS } from "../../utils/money";
 import {
   BASIS_POINTS_SCALE,
   PROMOTION_CODE_MAX_LENGTH,
+  PROMOTION_ANALYTICS_FIRST_DATE,
+  PROMOTION_ANALYTICS_LAST_DATE,
   PROMOTION_DESCRIPTION_MAX_LENGTH,
   PROMOTION_DERIVED_STATUSES,
   PROMOTION_IMAGE_ALT_MAX_LENGTH,
   PROMOTION_KINDS,
   PROMOTION_LIST_DEFAULT_PAGE_SIZE,
   PROMOTION_LIST_MAX_PAGE_SIZE,
+  PROMOTION_LIST_MAX_PAGE,
   PROMOTION_MAX_EXPANDED_UNITS,
   PROMOTION_MEDIA_VARIANTS,
   PROMOTION_NAME_MAX_LENGTH,
@@ -17,7 +20,7 @@ import {
   WEEKDAYS,
 } from "./promotion.constants";
 
-const positiveIdSchema = z.number().int().positive();
+const positiveIdSchema = z.number().int().positive().max(MAX_POSTGRES_INT);
 const positivePaiseSchema = z.number().int().positive().max(MAX_POSTGRES_INT);
 const nonNegativeOrderPaiseSchema = z
   .number()
@@ -29,7 +32,12 @@ const positiveDiscountPaiseSchema = z
   .int()
   .positive()
   .max(MONEY_CAPS.DISCOUNT);
-const nullablePositiveIntegerSchema = z.number().int().positive().nullable();
+const nullablePositiveIntegerSchema = z
+  .number()
+  .int()
+  .positive()
+  .max(MAX_POSTGRES_INT)
+  .nullable();
 const localTimeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
 const weekdaySchema = z.union(WEEKDAYS.map((day) => z.literal(day)));
 
@@ -37,7 +45,10 @@ const uniquePositiveIdsSchema = z
   .array(positiveIdSchema)
   .superRefine((values, context) => {
     if (new Set(values).size !== values.length) {
-      context.addIssue({ code: "custom", message: "Target IDs must be unique" });
+      context.addIssue({
+        code: "custom",
+        message: "Target IDs must be unique",
+      });
     }
   });
 
@@ -81,8 +92,8 @@ const categoryIncludeRuleSchema = z
 export const buyXGetYRuleSchema = z
   .object({
     type: z.literal("buy_x_get_y"),
-    buyQuantity: z.number().int().positive(),
-    getQuantity: z.number().int().positive(),
+    buyQuantity: z.number().int().positive().max(PROMOTION_MAX_EXPANDED_UNITS),
+    getQuantity: z.number().int().positive().max(PROMOTION_MAX_EXPANDED_UNITS),
     buyProductIds: uniquePositiveIdsSchema,
     buyCategoryIds: uniquePositiveIdsSchema,
     getProductIds: uniquePositiveIdsSchema,
@@ -128,11 +139,7 @@ const definitionWriteObject = z
   .object({
     kind: z.enum(PROMOTION_KINDS),
     name: z.string().trim().min(1).max(PROMOTION_NAME_MAX_LENGTH),
-    description: z
-      .string()
-      .trim()
-      .min(1)
-      .max(PROMOTION_DESCRIPTION_MAX_LENGTH),
+    description: z.string().trim().min(1).max(PROMOTION_DESCRIPTION_MAX_LENGTH),
     code: z
       .string()
       .trim()
@@ -185,7 +192,7 @@ const definitionWriteObject = z
       .strict(),
     display: z
       .object({
-        priority: z.number().int().min(0),
+        priority: z.number().int().min(0).max(MAX_POSTGRES_INT),
         showOnHomepage: z.boolean(),
       })
       .strict(),
@@ -198,7 +205,7 @@ type DefinitionWriteValue = z.infer<typeof definitionWriteObject>;
 
 const validateDefinition = (
   value: DefinitionWriteValue,
-  context: z.RefinementCtx
+  context: z.RefinementCtx,
 ) => {
   if (value.kind === "coupon" && value.code === null) {
     context.addIssue({
@@ -275,10 +282,10 @@ const validateDefinition = (
   }
 
   const productRules = value.rules.filter(
-    (rule) => rule.type === "product_include"
+    (rule) => rule.type === "product_include",
   );
   const categoryRules = value.rules.filter(
-    (rule) => rule.type === "category_include"
+    (rule) => rule.type === "category_include",
   );
   const bxgyRules = value.rules.filter((rule) => rule.type === "buy_x_get_y");
   const tierRules = value.rules.filter((rule) => rule.type === "tier");
@@ -310,7 +317,8 @@ const validateDefinition = (
 
   const targetKeys = value.rules.flatMap((rule) => {
     if (rule.type === "product_include") return [`product:${rule.productId}`];
-    if (rule.type === "category_include") return [`category:${rule.categoryId}`];
+    if (rule.type === "category_include")
+      return [`category:${rule.categoryId}`];
     return [];
   });
   if (new Set(targetKeys).size !== targetKeys.length) {
@@ -343,7 +351,13 @@ export const promotionDefinitionWriteSchema =
   definitionWriteObject.superRefine(validateDefinition);
 
 export const promotionUpdateRequestSchema = definitionWriteObject
-  .extend({ expectedDefinitionVersion: z.number().int().positive() })
+  .extend({
+    expectedDefinitionVersion: z
+      .number()
+      .int()
+      .positive()
+      .max(MAX_POSTGRES_INT),
+  })
   .superRefine(validateDefinition);
 
 export const storePromotionSettingWriteSchema = z
@@ -371,8 +385,18 @@ export const promotionListQuerySchema = z
   .object({
     kind: z.enum(PROMOTION_KINDS).optional(),
     status: z.enum(PROMOTION_DERIVED_STATUSES).optional(),
-    storeId: z.coerce.number().int().positive().optional(),
-    page: z.coerce.number().int().positive().default(1),
+    storeId: z.coerce
+      .number()
+      .int()
+      .positive()
+      .max(MAX_POSTGRES_INT)
+      .optional(),
+    page: z.coerce
+      .number()
+      .int()
+      .positive()
+      .max(PROMOTION_LIST_MAX_PAGE)
+      .default(1),
     pageSize: z.coerce
       .number()
       .int()
@@ -389,6 +413,33 @@ export const promotionMediaMetadataSchema = z
   })
   .strict();
 
+export const promotionDiscoveryQuerySchema = z
+  .object({ storeId: z.coerce.number().int().positive().max(MAX_POSTGRES_INT) })
+  .strict();
+export const promotionAnalyticsQuerySchema = z
+  .object({
+    fromBusinessDate: z.iso.date().default(PROMOTION_ANALYTICS_FIRST_DATE),
+    toBusinessDate: z.iso.date().default(PROMOTION_ANALYTICS_LAST_DATE),
+    storeId: z.coerce
+      .number()
+      .int()
+      .positive()
+      .max(MAX_POSTGRES_INT)
+      .optional(),
+  })
+  .strict()
+  .refine((value) => value.fromBusinessDate <= value.toBusinessDate, {
+    path: ["toBusinessDate"],
+    message: "End date must be on or after start date",
+  });
+export const promotionMediaRemovalSchema = z
+  .object({ variant: z.enum(PROMOTION_MEDIA_VARIANTS) })
+  .strict();
+export type PromotionListQuery = z.infer<typeof promotionListQuerySchema>;
+export type PromotionAnalyticsQuery = z.infer<
+  typeof promotionAnalyticsQuerySchema
+>;
+
 export const promotionItemInputSchema = z
   .object({
     lineId: positiveIdSchema,
@@ -396,11 +447,7 @@ export const promotionItemInputSchema = z
     categoryId: positiveIdSchema,
     productType: z.enum(["single", "bundle"]),
     quantity: z.number().int().positive().max(PROMOTION_MAX_EXPANDED_UNITS),
-    baseUnitPricePaise: z
-      .number()
-      .int()
-      .min(0)
-      .max(MONEY_CAPS.ITEM_PRICE),
+    baseUnitPricePaise: z.number().int().min(0).max(MONEY_CAPS.ITEM_PRICE),
     customizationUnitPricePaise: z
       .number()
       .int()

@@ -1207,6 +1207,18 @@ Attempt actions use the stable `<operation>.failed` or `<operation>.denied` form
 
 ---
 
+## Promotion governance (C05)
+
+The promotion backend exposes platform administration, store-manager participation, analytics, media, and public discovery through the [frozen promotion contract](promotions-contract.md#7-endpoint-contract).
+
+- Platform: `POST/GET /promotions`, `GET/PUT/DELETE /promotions/:id`, `POST/DELETE /promotions/:id/images`, and `GET /promotions/:id/analytics`; requires `platform.promotions.manage`.
+- Same-store manager: `GET /stores/:storeId/promotions` and `PUT /stores/:storeId/promotions/:promotionId/setting`; requires `store.promotions.toggle`. Platform admins do not override manager choices.
+- Public: `GET /promotions/offers?storeId=...` and `GET /promotions/featured?storeId=...`; offer DTOs exclude coupons, codes, budgets and internal usage.
+
+Definition writes are strict and version-checked. Store disable requests require a reason. Media uses one decoded JPEG/PNG/WebP file, a desktop/mobile variant and useful alt text. See [promotion operations](promotions-operations.md) for storage, replacement, cleanup and analytics semantics.
+
+Promotion-aware quote/coupon validation is scheduled for C06/C07. The temporary authenticated `/coupon/validate` remains the current checkout consumer until cutover.
+
 ## Authentication legend
 
 | Symbol | Meaning |

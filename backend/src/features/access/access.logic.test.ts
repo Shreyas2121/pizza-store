@@ -29,6 +29,7 @@ const expectedPermissions: Record<StoreRole, readonly Permission[]> = {
     "store.staff.read",
     "store.staff.manage",
     "store.audit.read",
+    "store.promotions.toggle",
     "finance.overview.read",
     "finance.sales.read",
     "finance.expenses.read",

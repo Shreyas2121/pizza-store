@@ -27,6 +27,7 @@ Named contract limits are frozen for matching backend and frontend validation:
 | `STORE_PROMOTION_REASON_MAX_LENGTH` | 500 characters |
 | `PROMOTION_LIST_DEFAULT_PAGE_SIZE` | 25 |
 | `PROMOTION_LIST_MAX_PAGE_SIZE` | 100 |
+| `PROMOTION_LIST_MAX_PAGE` | 21,474,836 (bounds SQL offsets within PostgreSQL integer limits) |
 | `PROMOTION_IMAGE_MAX_BYTES` | 5,242,880 bytes (5 MiB) |
 | `PROMOTION_DESKTOP_MIN_WIDTH` / `MIN_HEIGHT` | 1,200 / 400 pixels |
 | `PROMOTION_MOBILE_MIN_WIDTH` / `MIN_HEIGHT` | 600 / 600 pixels |
@@ -491,9 +492,14 @@ All paths below are relative to `/api/v1`.
 | `PUT /promotions/:id` | full definition plus `expectedDefinitionVersion` | `PromotionAdminDto` | `platform.promotions.manage` |
 | `DELETE /promotions/:id` | none | deactivated `PromotionAdminDto` | `platform.promotions.manage` |
 | `POST /promotions/:id/images` | multipart media request | `PromotionMediaUploadResponseDto` | `platform.promotions.manage` |
+| `DELETE /promotions/:id/images` | `{ "variant": "desktop" \| "mobile" }` | `PromotionAdminDto` | `platform.promotions.manage` |
 | `GET /promotions/:id/analytics` | optional date/store filters | `PromotionAnalyticsDto` | `platform.promotions.manage` |
 
 `DELETE` is a soft deactivation and never removes a referenced definition. Reactivation is a full `PUT` with `isActive: true`. Material `PUT`, activation/deactivation, budget, rule, placement, and media changes increment `definitionVersion`. A stale `expectedDefinitionVersion` fails with `PROMOTION_VERSION_CONFLICT`.
+
+Deleting desktop media also clears homepage placement. Alt text remains while either media variant is present. Media removal is idempotent. Creating a featured offer requires three steps: create with placement disabled, upload desktop media with alt text, then enable placement with a version-checked `PUT`.
+
+When an admin list supplies `storeId`, each admin item additionally includes `storeParticipation: { storeId, enabled, effectiveEnabled }`. The global definition remains unchanged. Manager lists use the frozen `EffectiveStorePromotionDto` instead.
 
 ```ts
 interface PromotionDefinitionWriteDto {
@@ -547,6 +553,8 @@ interface PromotionAnalyticsDto {
 
 `netRevenueReductionPaise` is the positive tax-exclusive item contra-revenue magnitude attributable to consumed applications. It excludes delivery savings and bundle markdown. Reserved applications are reported separately and are not revenue.
 
+Analytics query fields are `fromBusinessDate`, `toBusinessDate`, and optional `storeId`. Dates are inclusive and use the order's immutable `pricingBusinessDate`. Omitted dates cover `0001-01-01` through `9999-12-31`. Application counts reflect current lifecycle status; unique users, savings and influenced payable order value include consumed applications only. Global unique users are counted directly, not added across stores. Tax-exclusive line reductions are proportionally attributed across all applications on the line with largest remainders and application-ID tie-breaking before filtering to this promotion. This is application attribution, not a delivered-ledger recognition report; C09 integrates financial reporting.
+
 Admin list filters are `kind`, derived `status`, optional `storeId`, `page`, and `pageSize`. Defaults and maxima are named constants. Response pagination is:
 
 ```json
@@ -580,6 +588,8 @@ The setting write is strict. `reason` is trimmed, length-bounded, optional when 
 | `POST /checkout/quote` | optional `couponCode`, authoritative quote context | `PricingQuoteDto` | public with items/state or authenticated cart/address |
 
 Discovery lists describe currently active, effectively enabled offers for the selected store but do not promise cart/user eligibility. The quote is authoritative. `/promotions/validate` loads the authenticated user's active cart and store; it does not accept item prices, an offer ID, a promotion ID, or a store override.
+
+C05 discovery returns at most `PROMOTION_LIST_MAX_PAGE_SIZE` offers or `HOMEPAGE_FEATURED_OFFER_LIMIT` featured offers. It uses global active dates and occupied capacity/budget, selected-store participation, and stable priority/ID ordering. Store-local day/time and cart/user conditions are advertised in `eligibilitySummary`; discovery does not evaluate a submitted cart. Coupon validation and promotion-aware pricing are integrated in C06/C07.
 
 Pricing policy v4 does not apply the legacy delivery-rule free-delivery threshold to new quotes. A positive standard fee becomes zero only through an applied `free_delivery` offer, so `deliveryDiscountPaise` always reconciles to a promotion allocation and budget. A zero standard fee produces no saving and therefore no promotion application.
 

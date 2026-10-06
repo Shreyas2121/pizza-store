@@ -83,6 +83,13 @@ export type PayrollAuditAction =
   | "payroll.pay_run_voided";
 
 export const HIGH_RISK_AUDIT_OPERATIONS = [
+  "promotion.create",
+  "promotion.update",
+  "promotion.deactivate",
+  "promotion.reactivate",
+  "promotion.media_upload",
+  "promotion.media_remove",
+  "promotion.store_setting_update",
   "refund.reconcile",
   "refund.request",
   "refund.approve",
@@ -108,9 +115,12 @@ export const HIGH_RISK_AUDIT_OPERATIONS = [
 export type HighRiskAuditOperation = (typeof HIGH_RISK_AUDIT_OPERATIONS)[number];
 export type HighRiskAttemptAuditAction = `${HighRiskAuditOperation}.${"denied" | "failed"}`;
 
-export type AuditAction = StaffAuditAction | StoreAuditAction | OrderAuditAction | InventoryAuditAction | RefundAuditAction | SettlementAuditAction | CostAuditAction | CashAuditAction | VendorAuditAction | ExpenseAuditAction | LedgerAuditAction | PayrollAuditAction | SystemAuditAction | HighRiskAttemptAuditAction;
+export type PromotionAuditAction = "promotion.created" | "promotion.updated" | "promotion.deactivated" | "promotion.reactivated" | "promotion.media_uploaded" | "promotion.media_removed" | "store_promotion_setting.updated";
+export type AuditAction = StaffAuditAction | StoreAuditAction | OrderAuditAction | InventoryAuditAction | RefundAuditAction | SettlementAuditAction | CostAuditAction | CashAuditAction | VendorAuditAction | ExpenseAuditAction | LedgerAuditAction | PayrollAuditAction | SystemAuditAction | HighRiskAttemptAuditAction | PromotionAuditAction;
 
 export type AuditResourceType =
+  | "promotion"
+  | "store_promotion_setting"
   | "store_membership"
   | "store_staff_invitation"
   | "store"

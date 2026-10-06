@@ -9,6 +9,7 @@ export const PROMOTION_IMAGE_ALT_MAX_LENGTH = 200;
 export const STORE_PROMOTION_REASON_MAX_LENGTH = 500;
 export const PROMOTION_LIST_DEFAULT_PAGE_SIZE = 25;
 export const PROMOTION_LIST_MAX_PAGE_SIZE = 100;
+export const PROMOTION_LIST_MAX_PAGE = 21_474_836;
 export const PROMOTION_IMAGE_MAX_BYTES = 5_242_880;
 export const PROMOTION_DESKTOP_MIN_WIDTH = 1_200;
 export const PROMOTION_DESKTOP_MIN_HEIGHT = 400;
@@ -19,6 +20,37 @@ export const PROMOTION_IMAGE_MAX_HEIGHT = 2_160;
 export const HOMEPAGE_FEATURED_OFFER_LIMIT = 8;
 export const HOMEPAGE_SLIDE_INTERVAL_MS = 6_000;
 export const PROMOTION_MEDIA_ORPHAN_MIN_AGE_MS = 86_400_000;
+export const PROMOTION_MEDIA_DIRECTORY = "uploads/promotions";
+export const PROMOTION_MEDIA_URL_PREFIX = "/uploads/promotions/";
+export const PROMOTION_MEDIA_LIFECYCLE_LOCK_NAME = "promotion-media-lifecycle";
+export const PROMOTION_MEDIA_FORMATS = {
+  jpeg: {
+    mime: "image/jpeg",
+    extensions: [".jpg", ".jpeg"],
+    extension: ".jpg",
+  },
+  png: { mime: "image/png", extensions: [".png"], extension: ".png" },
+  webp: { mime: "image/webp", extensions: [".webp"], extension: ".webp" },
+} as const;
+export const PROMOTION_ANALYTICS_FIRST_DATE = "0001-01-01";
+export const PROMOTION_ANALYTICS_LAST_DATE = "9999-12-31";
+export const PROMOTION_AUDIT_ACTIONS = {
+  CREATE: "promotion.created",
+  UPDATE: "promotion.updated",
+  DEACTIVATE: "promotion.deactivated",
+  REACTIVATE: "promotion.reactivated",
+  MEDIA_UPLOAD: "promotion.media_uploaded",
+  MEDIA_REMOVE: "promotion.media_removed",
+  STORE_SETTING: "store_promotion_setting.updated",
+} as const;
+export const PROMOTION_AUDIT_OPERATIONS = {
+  CREATE: "promotion.create",
+  UPDATE: "promotion.update",
+  DEACTIVATE: "promotion.deactivate",
+  MEDIA_UPLOAD: "promotion.media_upload",
+  MEDIA_REMOVE: "promotion.media_remove",
+  STORE_SETTING: "promotion.store_setting_update",
+} as const;
 
 export const WEEKDAYS = [0, 1, 2, 3, 4, 5, 6] as const;
 export const WEEKDAY_BY_SHORT_NAME = {
@@ -51,11 +83,7 @@ export const PROMOTION_RULE_TYPES = [
   "buy_x_get_y",
   "tier",
 ] as const;
-export const DISCOUNT_MODES = [
-  "none",
-  "automatic_deals",
-  "coupon",
-] as const;
+export const DISCOUNT_MODES = ["none", "automatic_deals", "coupon"] as const;
 export const PROMOTION_APPLICATION_STATUSES = [
   "reserved",
   "consumed",
