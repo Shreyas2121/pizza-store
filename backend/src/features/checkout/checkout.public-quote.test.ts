@@ -2,20 +2,32 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import pricingService, { type PricingQuote } from "../pricing/pricing.service";
 import { publicQuoteRepository } from "./checkout.repository";
 import checkoutService from "./checkout.service";
+import { checkoutQuoteSchema } from "../../utils/zodSchema";
 
 const validQuote: PricingQuote = {
-  quoteVersion: "2026-09-01-02",
+  quoteVersion: "2026-09-12-03",
   currency: "INR",
-  pricingPolicyVersion: 3,
+  pricingPolicyVersion: 4,
   itemsSubtotalPaise: 42_000,
-  discountPaise: 0,
-  deliveryFeePaise: 4_000,
+  discountMode: "none",
+  itemDiscountPaise: 0,
+  standardDeliveryFeePaise: 4_000,
+  deliveryDiscountPaise: 0,
+  promotionSavingsPaise: 0,
+  bundleMarkdownPaise: 0,
+  totalDisplayedSavingsPaise: 0,
+  promotions: [],
+  couponEligibility: {
+    eligible: true,
+    reasonCode: null,
+    conflictingLineIds: [],
+  },
+  chargedDeliveryFeePaise: 4_000,
   roundingAdjustmentPaise: 0,
   grandTotalPaise: 46_000,
   taxableAmountPaise: 42_966,
   taxPaise: 3_034,
   items: [],
-  coupon: null,
   deliveryPricing: {
     ruleId: 11,
     ruleVersion: 1,
@@ -23,8 +35,7 @@ const validQuote: PricingQuote = {
     businessDate: "2026-09-11",
     timezone: "Asia/Kolkata",
     standardFeePaise: 4_000,
-    freeDeliveryThresholdPaise: null,
-    freeDeliveryApplied: false,
+    chargedFeePaise: 4_000,
   },
   tax: {
     calculationPolicyVersion: 1,
@@ -53,6 +64,9 @@ const availableStoreProduct = {
   productId: 1,
   productName: "Margherita",
   pricePaise: 42_000,
+  categoryId: 5,
+  productType: "single" as const,
+  compareAtUnitPricePaise: null,
   productIsAvailable: true,
   storeProductIsAvailable: true,
 };
@@ -60,6 +74,150 @@ const availableStoreProduct = {
 describe("CheckoutService public quote authorization and catalogue validation", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it("rejects store overrides for an owned cart before reading prices", async () => {
+    vi.spyOn(publicQuoteRepository, "findOwnedCart").mockResolvedValue({
+      storeId: 2,
+      items: [{ id: 1, productId: 1, quantity: 1, customizationOptionIds: [] }],
+    });
+    const products = vi.spyOn(publicQuoteRepository, "findStoreProducts");
+    await expect(
+      checkoutService.calculatePublicQuote({ userId: 7, storeId: 1 }),
+    ).rejects.toMatchObject({ code: "CART_STORE_MISMATCH" });
+    expect(products).not.toHaveBeenCalled();
+  });
+  it("rejects caller prices, categories, offer IDs and malformed normalized codes", () => {
+    for (const field of [
+      "pricePaise",
+      "categoryId",
+      "discountPaise",
+      "offerId",
+    ]) {
+      expect(
+        checkoutQuoteSchema.safeParse({
+          storeId: 1,
+          items: [{ productId: 1, quantity: 1, [field]: 7 }],
+        }).success,
+      ).toBe(false);
+    }
+    expect(
+      checkoutQuoteSchema.safeParse({ storeId: 1, offerId: 1 }).success,
+    ).toBe(false);
+    expect(
+      checkoutQuoteSchema.safeParse({ storeId: 1, couponCode: "ß".repeat(64) })
+        .success,
+    ).toBe(false);
+    expect(
+      checkoutQuoteSchema.safeParse({ storeId: 1, items: [] }).success,
+    ).toBe(false);
+  });
+  it("loads bundle selling price, compare-at and components in one batch", async () => {
+    vi.spyOn(publicQuoteRepository, "findStoreProducts").mockResolvedValue([
+      {
+        ...availableStoreProduct,
+        productType: "bundle",
+        compareAtUnitPricePaise: 50_000,
+      },
+    ]);
+    const definitions = vi
+      .spyOn(publicQuoteRepository, "findBundleDefinitions")
+      .mockResolvedValue(
+        new Map([
+          [
+            1,
+            {
+              bundleProductId: 1,
+              bundleName: "Combo",
+              components: [
+                {
+                  productId: 20,
+                  name: "Drink",
+                  quantityPerBundle: 2,
+                  isAvailable: true,
+                },
+              ],
+            },
+          ],
+        ]),
+      );
+    const pricing = vi
+      .spyOn(pricingService, "buildQuote")
+      .mockResolvedValue({ quote: validQuote });
+    await checkoutService.calculatePublicQuote({
+      storeId: 1,
+      items: [{ productId: 1, quantity: 3 }],
+    });
+    expect(definitions).toHaveBeenCalledWith(1, [1]);
+    expect(pricing).toHaveBeenCalledWith(
+      expect.objectContaining({
+        items: [
+          expect.objectContaining({
+            productType: "bundle",
+            baseUnitPricePaise: 42_000,
+            compareAtUnitPricePaise: 50_000,
+            bundleComponents: [
+              {
+                productId: 20,
+                name: "Drink",
+                quantityPerBundle: 2,
+                totalQuantity: 6,
+                isAvailable: true,
+              },
+            ],
+          }),
+        ],
+      }),
+    );
+  });
+  it("rejects bundles with unavailable components", async () => {
+    vi.spyOn(publicQuoteRepository, "findStoreProducts").mockResolvedValue([
+      {
+        ...availableStoreProduct,
+        productType: "bundle",
+        compareAtUnitPricePaise: 50_000,
+      },
+    ]);
+    vi.spyOn(publicQuoteRepository, "findBundleDefinitions").mockResolvedValue(
+      new Map([
+        [
+          1,
+          {
+            bundleProductId: 1,
+            bundleName: "Combo",
+            components: [
+              {
+                productId: 20,
+                name: "Drink",
+                quantityPerBundle: 1,
+                isAvailable: false,
+              },
+            ],
+          },
+        ],
+      ]),
+    );
+    await expect(
+      checkoutService.calculatePublicQuote({
+        storeId: 1,
+        items: [{ productId: 1, quantity: 1 }],
+      }),
+    ).rejects.toMatchObject({ code: "BUNDLE_DEFINITION_INVALID" });
+  });
+  it("rejects repeated customization IDs rather than charging them twice", async () => {
+    vi.spyOn(publicQuoteRepository, "findStoreProducts").mockResolvedValue([
+      availableStoreProduct,
+    ]);
+    vi.spyOn(
+      publicQuoteRepository,
+      "findProductCustomizationOptions",
+    ).mockResolvedValue([]);
+    await expect(
+      checkoutService.calculatePublicQuote({
+        storeId: 1,
+        items: [{ productId: 1, quantity: 1, customizationOptionIds: [7, 7] }],
+      }),
+    ).rejects.toMatchObject({ code: "PRODUCT_CUSTOMIZATION_UNAVAILABLE" });
   });
 
   it("rejects an address ID when the quote is anonymous", async () => {
@@ -70,7 +228,7 @@ describe("CheckoutService public quote authorization and catalogue validation", 
         storeId: 1,
         addressId: 12,
         items: [{ productId: 1, quantity: 1 }],
-      })
+      }),
     ).rejects.toMatchObject({
       status: 401,
       code: "ADDRESS_AUTHENTICATION_REQUIRED",
@@ -80,7 +238,7 @@ describe("CheckoutService public quote authorization and catalogue validation", 
 
   it("does not resolve an address that is outside the authenticated user scope", async () => {
     vi.spyOn(publicQuoteRepository, "findAddressState").mockResolvedValue(
-      undefined
+      undefined,
     );
 
     await expect(
@@ -89,7 +247,7 @@ describe("CheckoutService public quote authorization and catalogue validation", 
         userId: 7,
         addressId: 12,
         items: [{ productId: 1, quantity: 1 }],
-      })
+      }),
     ).rejects.toMatchObject({
       status: 404,
       message: "Delivery address not found",
@@ -105,7 +263,7 @@ describe("CheckoutService public quote authorization and catalogue validation", 
         storeId: 1,
         destinationState: "Karnataka",
         items: [{ productId: 1, quantity: 1 }],
-      })
+      }),
     ).rejects.toMatchObject({
       status: 409,
       code: "STORE_PRODUCT_UNAVAILABLE",
@@ -115,22 +273,25 @@ describe("CheckoutService public quote authorization and catalogue validation", 
   it.each([
     { productIsAvailable: false, storeProductIsAvailable: true },
     { productIsAvailable: true, storeProductIsAvailable: false },
-  ])("rejects an unavailable catalogue or store product", async (availability) => {
-    vi.spyOn(publicQuoteRepository, "findStoreProducts").mockResolvedValue([
-      { ...availableStoreProduct, ...availability },
-    ]);
+  ])(
+    "rejects an unavailable catalogue or store product",
+    async (availability) => {
+      vi.spyOn(publicQuoteRepository, "findStoreProducts").mockResolvedValue([
+        { ...availableStoreProduct, ...availability },
+      ]);
 
-    await expect(
-      checkoutService.calculatePublicQuote({
-        storeId: 1,
-        destinationState: "Karnataka",
-        items: [{ productId: 1, quantity: 1 }],
-      })
-    ).rejects.toMatchObject({
-      status: 409,
-      code: "STORE_PRODUCT_UNAVAILABLE",
-    });
-  });
+      await expect(
+        checkoutService.calculatePublicQuote({
+          storeId: 1,
+          destinationState: "Karnataka",
+          items: [{ productId: 1, quantity: 1 }],
+        }),
+      ).rejects.toMatchObject({
+        status: 409,
+        code: "STORE_PRODUCT_UNAVAILABLE",
+      });
+    },
+  );
 
   it("rejects a customization option that is not mapped to the product", async () => {
     vi.spyOn(publicQuoteRepository, "findStoreProducts").mockResolvedValue([
@@ -138,7 +299,7 @@ describe("CheckoutService public quote authorization and catalogue validation", 
     ]);
     vi.spyOn(
       publicQuoteRepository,
-      "findProductCustomizationOptions"
+      "findProductCustomizationOptions",
     ).mockResolvedValue([]);
 
     await expect(
@@ -152,7 +313,7 @@ describe("CheckoutService public quote authorization and catalogue validation", 
             customizationOptionIds: [101],
           },
         ],
-      })
+      }),
     ).rejects.toMatchObject({
       status: 409,
       code: "PRODUCT_CUSTOMIZATION_UNAVAILABLE",
@@ -165,7 +326,7 @@ describe("CheckoutService public quote authorization and catalogue validation", 
     ]);
     vi.spyOn(
       publicQuoteRepository,
-      "findProductCustomizationOptions"
+      "findProductCustomizationOptions",
     ).mockResolvedValue([
       {
         productId: 1,
@@ -187,7 +348,7 @@ describe("CheckoutService public quote authorization and catalogue validation", 
             customizationOptionIds: [101],
           },
         ],
-      })
+      }),
     ).rejects.toMatchObject({
       status: 409,
       code: "PRODUCT_CUSTOMIZATION_UNAVAILABLE",
@@ -200,7 +361,7 @@ describe("CheckoutService public quote authorization and catalogue validation", 
     ]);
     const buildQuoteSpy = vi
       .spyOn(pricingService, "buildQuote")
-      .mockResolvedValue({ quote: validQuote, couponRecord: null });
+      .mockResolvedValue({ quote: validQuote });
 
     const result = await checkoutService.calculatePublicQuote({
       storeId: 1,
@@ -211,11 +372,16 @@ describe("CheckoutService public quote authorization and catalogue validation", 
     expect(result).toEqual(validQuote);
     expect(buildQuoteSpy).toHaveBeenCalledWith({
       storeId: 1,
+      userId: undefined,
       items: [
         {
           lineId: 1,
           productId: 1,
           productName: "Margherita",
+          categoryId: 5,
+          productType: "single",
+          compareAtUnitPricePaise: null,
+          bundleComponents: [],
           quantity: 1,
           baseUnitPricePaise: 42_000,
           customizations: [],

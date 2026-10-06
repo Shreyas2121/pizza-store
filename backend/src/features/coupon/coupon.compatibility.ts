@@ -1,6 +1,6 @@
 import type { couponsTable } from "../../db/schema";
 import { paiseToRupees } from "../../utils/money";
-import type { PricingQuote } from "../pricing/pricing.service";
+import type { PricingQuote } from "../pricing/legacy-pricing.service";
 
 type CouponRecord = typeof couponsTable.$inferSelect;
 

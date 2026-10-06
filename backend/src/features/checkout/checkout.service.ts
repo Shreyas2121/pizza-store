@@ -13,12 +13,19 @@ import {
   storeProductsTable,
 } from "../../db/schema";
 import { AppError } from "../../utils/error";
-import type { CouponRedemptionStatus, TransactionType } from "../../utils/types";
+import { multiplyPaiseByQuantity } from "../../utils/money";
+import type {
+  CouponRedemptionStatus,
+  TransactionType,
+} from "../../utils/types";
 import cartService from "../cart/cart.service";
 import inventoryService from "../inventory/inventory.service";
 import pricingService, {
   type PricingItemInput,
-} from "../pricing/pricing.service";
+} from "../pricing/legacy-pricing.service";
+import promotionPricingService, {
+  type PricingItemInput as PromotionPricingItemInput,
+} from "../pricing";
 import { formatStoreTime, isStoreOpen } from "../stores/store-hours";
 import { publicQuoteRepository } from "./checkout.repository";
 
@@ -46,23 +53,25 @@ export const toPricingItems = (cart: CheckoutCart): PricingItemInput[] => {
         compareAtUnitPricePaise?: number;
         bundleComponents?: PricingItemInput["bundleComponents"];
       };
-      return ({
-      lineId: item.id,
-      productId: item.productId,
-      productName: item.product.name,
-      quantity: item.quantity,
-      baseUnitPricePaise: item.pricePaise,
-      customizations: item.customizations.map((customization) => ({
-        customizationOptionId: customization.customizationOptionId,
-        name: customization.customizationOption.name,
-        pricePaise: customization.pricePaise,
-      })),
-      ...(item.product.productType === "bundle" ? {
-        productType: "bundle" as const,
-        compareAtUnitPricePaise: bundleItem.compareAtUnitPricePaise,
-        bundleComponents: bundleItem.bundleComponents,
-      } : {}),
-      });
+      return {
+        lineId: item.id,
+        productId: item.productId,
+        productName: item.product.name,
+        quantity: item.quantity,
+        baseUnitPricePaise: item.pricePaise,
+        customizations: item.customizations.map((customization) => ({
+          customizationOptionId: customization.customizationOptionId,
+          name: customization.customizationOption.name,
+          pricePaise: customization.pricePaise,
+        })),
+        ...(item.product.productType === "bundle"
+          ? {
+              productType: "bundle" as const,
+              compareAtUnitPricePaise: bundleItem.compareAtUnitPricePaise,
+              bundleComponents: bundleItem.bundleComponents,
+            }
+          : {}),
+      };
     });
   } catch (error) {
     if (error instanceof RangeError) {
@@ -87,9 +96,19 @@ interface CreateOrderSnapshotInput {
 }
 
 class CheckoutService {
+  async previewPromotionCoupon(userId: number, couponCode: string) {
+    const cart = await publicQuoteRepository.findOwnedCart(userId);
+    if (!cart?.storeId || cart.items.length === 0)
+      throw new AppError("Cart is empty", 400, "CART_EMPTY");
+    return this.calculatePublicQuote({
+      userId,
+      storeId: cart.storeId,
+      couponCode,
+    });
+  }
   async buildQuote(
     { userId, addressId, couponCode }: BuildCheckoutQuoteInput,
-    tx: TransactionType
+    tx: TransactionType,
   ) {
     // Every cart mutation also updates/deletes the cart row. Locking it keeps
     // the quote and item snapshots stable until the checkout transaction ends.
@@ -109,7 +128,10 @@ class CheckoutService {
       throw new AppError("Cart is empty", 400);
     }
     if (cart.id !== lockedCart.id) {
-      throw new AppError("Cart state is inconsistent. Please refresh and try again", 409);
+      throw new AppError(
+        "Cart state is inconsistent. Please refresh and try again",
+        409,
+      );
     }
     if (!cart.storeId || !cart.store) {
       throw new AppError("Cart is not assigned to a store", 409);
@@ -120,14 +142,16 @@ class CheckoutService {
     if (!isStoreOpen(cart.store.opensAt, cart.store.closesAt)) {
       throw new AppError(
         `Store is currently closed. Opens at ${formatStoreTime(cart.store.opensAt)} IST`,
-        409
+        409,
       );
     }
 
     const [address] = await tx
       .select()
       .from(addressTable)
-      .where(and(eq(addressTable.id, addressId), eq(addressTable.userId, userId)))
+      .where(
+        and(eq(addressTable.id, addressId), eq(addressTable.userId, userId)),
+      )
       .limit(1);
 
     if (!address) {
@@ -140,15 +164,15 @@ class CheckoutService {
       .where(
         and(
           eq(deliveryZonesTable.storeId, cart.storeId),
-          eq(deliveryZonesTable.pincode, address.pincode)
-        )
+          eq(deliveryZonesTable.pincode, address.pincode),
+        ),
       )
       .limit(1);
 
     if (!deliveryZone) {
       throw new AppError(
         "Delivery address is outside this store's delivery area",
-        409
+        409,
       );
     }
 
@@ -156,7 +180,7 @@ class CheckoutService {
     const stockAllocations = await inventoryService.validateAndLockStock(
       cart.storeId,
       cart.items,
-      tx
+      tx,
     );
 
     const { quote: pricingQuote, couponRecord: coupon } =
@@ -167,7 +191,7 @@ class CheckoutService {
           couponCode,
           destinationState: address.state,
         },
-        { executor: tx, lockCoupon: true }
+        { executor: tx, lockCoupon: true },
       );
     return {
       cart,
@@ -200,12 +224,12 @@ class CheckoutService {
         throw new AppError(
           "Authentication is required to use a saved address",
           401,
-          "ADDRESS_AUTHENTICATION_REQUIRED"
+          "ADDRESS_AUTHENTICATION_REQUIRED",
         );
       }
       const addressState = await publicQuoteRepository.findAddressState(
         input.addressId,
-        input.userId
+        input.userId,
       );
       if (!addressState) {
         throw new AppError("Delivery address not found", 404);
@@ -213,99 +237,146 @@ class CheckoutService {
       destinationState = addressState;
     }
 
-    let pricingItems: PricingItemInput[];
-
-    if (input.items && input.items.length > 0) {
-      const productIds = [...new Set(input.items.map((item) => item.productId))];
-      const storeProducts = await publicQuoteRepository.findStoreProducts(
-        input.storeId,
-        productIds
+    let requestedItems: Array<{
+      lineId: number;
+      productId: number;
+      quantity: number;
+      customizationOptionIds?: number[];
+    }>;
+    if (input.items !== undefined) {
+      requestedItems = input.items.map((item, index) => ({
+        ...item,
+        lineId: index + 1,
+      }));
+    } else if (input.userId) {
+      const cart = await publicQuoteRepository.findOwnedCart(input.userId);
+      if (!cart || cart.items.length === 0)
+        throw new AppError("Cart is empty", 400, "CART_EMPTY");
+      if (cart.storeId !== input.storeId)
+        throw new AppError(
+          "Cart belongs to a different store",
+          409,
+          "CART_STORE_MISMATCH",
+        );
+      requestedItems = cart.items.map((item) => ({
+        lineId: item.id,
+        productId: item.productId,
+        quantity: item.quantity,
+        customizationOptionIds: item.customizationOptionIds,
+      }));
+    } else
+      throw new AppError(
+        "Quote requires items or an active cart",
+        400,
+        "CART_EMPTY",
       );
-      const productMap = new Map(
-        storeProducts.map((product) => [product.productId, product])
-      );
-
-      for (const pid of productIds) {
-        const product = productMap.get(pid);
+    if (requestedItems.length === 0)
+      throw new AppError("Cart is empty", 400, "CART_EMPTY");
+    const productIds = [
+      ...new Set(requestedItems.map((item) => item.productId)),
+    ];
+    const storeProducts = await publicQuoteRepository.findStoreProducts(
+      input.storeId,
+      productIds,
+    );
+    const productMap = new Map(
+      storeProducts.map((product) => [product.productId, product]),
+    );
+    const allOptionIds = [
+      ...new Set(
+        requestedItems.flatMap((item) => item.customizationOptionIds ?? []),
+      ),
+    ];
+    const options = allOptionIds.length
+      ? await publicQuoteRepository.findProductCustomizationOptions(
+          productIds,
+          allOptionIds,
+        )
+      : [];
+    const optionMap = new Map(
+      options.map((option) => [
+        String(option.productId) + ":" + option.optionId,
+        option,
+      ]),
+    );
+    const bundleIds = storeProducts
+      .filter((product) => product.productType === "bundle")
+      .map((product) => product.productId);
+    const bundles = await publicQuoteRepository.findBundleDefinitions(
+      input.storeId,
+      bundleIds,
+    );
+    const pricingItems: PromotionPricingItemInput[] = requestedItems.map(
+      (item) => {
+        const product = productMap.get(item.productId);
         if (
           !product ||
           !product.productIsAvailable ||
           !product.storeProductIsAvailable
-        ) {
+        )
           throw new AppError(
-            `Product ${pid} is unavailable at the selected store`,
+            "Product is unavailable at the selected store",
             409,
-            "STORE_PRODUCT_UNAVAILABLE"
+            "STORE_PRODUCT_UNAVAILABLE",
           );
-        }
-      }
-
-      const allOptionIds = [
-        ...new Set(
-          input.items.flatMap((item) => item.customizationOptionIds ?? [])
-        ),
-      ];
-
-      const options =
-        allOptionIds.length > 0
-          ? await publicQuoteRepository.findProductCustomizationOptions(
-              productIds,
-              allOptionIds
-            )
-          : [];
-      const optionMap = new Map(
-        options.map((option) => [
-          `${option.productId}:${option.optionId}`,
-          option,
-        ])
-      );
-
-      pricingItems = input.items.map((item, index) => {
-        const product = productMap.get(item.productId);
-        if (!product) {
+        const optionIds = item.customizationOptionIds ?? [];
+        if (new Set(optionIds).size !== optionIds.length)
           throw new AppError(
-            `Product ${item.productId} is unavailable at the selected store`,
+            "Duplicate customization options",
             409,
-            "STORE_PRODUCT_UNAVAILABLE"
+            "PRODUCT_CUSTOMIZATION_UNAVAILABLE",
           );
-        }
-        const customizations = (item.customizationOptionIds ?? []).map((oid) => {
-          const option = optionMap.get(`${item.productId}:${oid}`);
-          if (!option || !option.isAvailable) {
+        const customizations = optionIds.map((optionId) => {
+          const option = optionMap.get(String(item.productId) + ":" + optionId);
+          if (!option || !option.isAvailable)
             throw new AppError(
-              `Customization option ${oid} is unavailable for product ${item.productId}`,
+              "Customization is unavailable for this product",
               409,
-              "PRODUCT_CUSTOMIZATION_UNAVAILABLE"
+              "PRODUCT_CUSTOMIZATION_UNAVAILABLE",
             );
-          }
           return {
             customizationOptionId: option.optionId,
             name: option.optionName,
             pricePaise: option.pricePaise,
           };
         });
-
+        const definition = bundles.get(product.productId);
+        if (
+          product.productType === "bundle" &&
+          (!definition ||
+            customizations.length ||
+            !definition.components.length ||
+            definition.components.some((component) => !component.isAvailable))
+        )
+          throw new AppError(
+            "Bundle is unavailable or cannot be customized",
+            409,
+            "BUNDLE_DEFINITION_INVALID",
+          );
         return {
-          lineId: index + 1,
+          lineId: item.lineId,
           productId: product.productId,
+          categoryId: product.categoryId,
           productName: product.productName,
           quantity: item.quantity,
           baseUnitPricePaise: product.pricePaise,
           customizations,
+          productType: product.productType,
+          compareAtUnitPricePaise: product.compareAtUnitPricePaise,
+          bundleComponents:
+            definition?.components.map((component) => ({
+              ...component,
+              totalQuantity: multiplyPaiseByQuantity(
+                component.quantityPerBundle,
+                item.quantity,
+              ),
+            })) ?? [],
         };
-      });
-    } else if (input.userId) {
-      const cart = await cartService.getCart(input.userId);
-      if (!cart || cart.items.length === 0) {
-        throw new AppError("Cart is empty", 400);
-      }
-      pricingItems = toPricingItems(cart);
-    } else {
-      throw new AppError("Quote requires items or an active cart", 400);
-    }
-
-    const { quote } = await pricingService.buildQuote({
+      },
+    );
+    const { quote } = await promotionPricingService.buildQuote({
       storeId: input.storeId,
+      userId: input.userId,
       items: pricingItems,
       couponCode: input.couponCode,
       destinationState,
@@ -317,7 +388,7 @@ class CheckoutService {
   async createOrderSnapshot(
     quote: Awaited<ReturnType<CheckoutService["buildQuote"]>>,
     data: CreateOrderSnapshotInput,
-    tx: TransactionType
+    tx: TransactionType,
   ) {
     const pricingQuote = quote.pricingQuote;
     const [order] = await tx
@@ -389,7 +460,7 @@ class CheckoutService {
             orderItemId: orderItem.id,
             customizationName: customization.name,
             pricePaise: customization.pricePaise,
-          }))
+          })),
         );
       }
       if ((item.bundleComponents ?? []).length > 0) {
@@ -400,7 +471,7 @@ class CheckoutService {
             componentName: component.name,
             quantityPerBundle: component.quantityPerBundle,
             totalQuantity: component.totalQuantity,
-          }))
+          })),
         );
       }
     }
@@ -415,7 +486,7 @@ class CheckoutService {
       userId: number;
       status: Extract<CouponRedemptionStatus, "reserved" | "consumed">;
     },
-    tx: TransactionType
+    tx: TransactionType,
   ) {
     const now = new Date();
     await tx.insert(couponRedemptionsTable).values({
@@ -443,14 +514,14 @@ class CheckoutService {
       .where(
         and(
           eq(couponRedemptionsTable.orderId, orderId),
-          eq(couponRedemptionsTable.status, "reserved")
-        )
+          eq(couponRedemptionsTable.status, "reserved"),
+        ),
       );
   }
 
   async consumeCouponReservation(
     data: { couponId: number; orderId: number; userId: number },
-    tx: TransactionType
+    tx: TransactionType,
   ) {
     const [redemption] = await tx
       .select()
@@ -460,10 +531,7 @@ class CheckoutService {
       .limit(1);
 
     if (!redemption) {
-      await this.recordCouponUse(
-        { ...data, status: "consumed" },
-        tx
-      );
+      await this.recordCouponUse({ ...data, status: "consumed" }, tx);
       return true;
     }
     if (
@@ -488,7 +556,7 @@ class CheckoutService {
   async restoreCouponReservation(
     data: { couponId: number; orderId: number },
     tx: TransactionType,
-    enforceCapacity = true
+    enforceCapacity = true,
   ) {
     const [redemption] = await tx
       .select()
@@ -496,8 +564,8 @@ class CheckoutService {
       .where(
         and(
           eq(couponRedemptionsTable.orderId, data.orderId),
-          eq(couponRedemptionsTable.couponId, data.couponId)
-        )
+          eq(couponRedemptionsTable.couponId, data.couponId),
+        ),
       )
       .for("update")
       .limit(1);
@@ -540,8 +608,8 @@ class CheckoutService {
       .where(
         and(
           eq(couponRedemptionsTable.couponId, coupon.id),
-          inArray(couponRedemptionsTable.status, ["reserved", "consumed"])
-        )
+          inArray(couponRedemptionsTable.status, ["reserved", "consumed"]),
+        ),
       );
     const activeUsage = Math.max(coupon.redemptionCount, Number(usage.active));
     if (
@@ -558,12 +626,15 @@ class CheckoutService {
       .where(
         and(
           eq(couponRedemptionsTable.orderId, data.orderId),
-          eq(couponRedemptionsTable.status, "released")
-        )
+          eq(couponRedemptionsTable.status, "released"),
+        ),
       );
   }
 
-  private async assertProductsAvailable(cart: CheckoutCart, tx: TransactionType) {
+  private async assertProductsAvailable(
+    cart: CheckoutCart,
+    tx: TransactionType,
+  ) {
     const productIds = [...new Set(cart.items.map((item) => item.productId))];
     const storeProducts = await tx
       .select({
@@ -574,33 +645,35 @@ class CheckoutService {
       .from(storeProductsTable)
       .innerJoin(
         productsTable,
-        eq(storeProductsTable.productId, productsTable.id)
+        eq(storeProductsTable.productId, productsTable.id),
       )
       .where(
         and(
           eq(storeProductsTable.storeId, cart.storeId!),
-          inArray(storeProductsTable.productId, productIds)
-        )
+          inArray(storeProductsTable.productId, productIds),
+        ),
       );
 
     const availableProductIds = new Set(
       storeProducts
         .filter((mapping) => mapping.isAvailable && mapping.productIsAvailable)
-        .map((mapping) => mapping.productId)
+        .map((mapping) => mapping.productId),
     );
     const unavailableItems = [
       ...new Set(
         cart.items
           .filter((item) => !availableProductIds.has(item.productId))
-          .map((item) => item.product.name)
+          .map((item) => item.product.name),
       ),
     ];
 
     if (unavailableItems.length > 0) {
-      throw new AppError(`Unavailable items: ${unavailableItems.join(", ")}`, 409);
+      throw new AppError(
+        `Unavailable items: ${unavailableItems.join(", ")}`,
+        409,
+      );
     }
   }
-
 }
 
 export default new CheckoutService();

@@ -2,6 +2,8 @@ import { Router, type Request, type RequestHandler } from "express";
 import multer from "multer";
 import { z } from "zod";
 import { authenticateUser } from "../../middleware/authenticateUser";
+import { checkoutService } from "../checkout";
+import { limitCouponValidation } from "./promotion-validation-limit";
 import { fromParam, requireStorePermission } from "../access/access.middleware";
 import { auditHighRiskOperation } from "../audit/high-risk-audit.middleware";
 import { AppError, asyncHandler } from "../../utils/error";
@@ -15,6 +17,7 @@ import {
 import {
   promotionDiscoveryQuerySchema,
   promotionMediaRemovalSchema,
+  promotionValidationSchema,
 } from "./promotion.schemas";
 import defaultService, { PromotionService } from "./promotion.service";
 import { parsePromotionRequest } from "./promotion.validation";
@@ -89,9 +92,23 @@ const parseUpload: RequestHandler = (req, res, next) => {
 
 export const createPromotionRoutes = (
   service: PromotionService = defaultService,
+  validateCoupon = (userId: number, code: string) =>
+    checkoutService.previewPromotionCoupon(userId, code),
 ) => {
   const promotions = Router();
   const stores = Router();
+  promotions.post(
+    "/validate",
+    ...authentication,
+    limitCouponValidation,
+    asyncHandler(async (req, res) => {
+      const input = parsePromotionRequest(promotionValidationSchema, req.body);
+      res.setHeader("Cache-Control", "no-store");
+      res.json({
+        data: await validateCoupon(actor(req).userId, input.couponCode),
+      });
+    }),
+  );
   const admin: RequestHandler = asyncHandler((req, _res, next) => {
     service.requireAdmin(actor(req));
     next();

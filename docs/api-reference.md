@@ -1095,8 +1095,9 @@ Send a message in a chat session.
 Financial endpoints are mounted under `/api/v1/finance/*` and `/api/v1/checkout/quote`. Detailed request/response schemas, rollout transitions, error codes, and permission matrices are documented in [Finance API compatibility and rollout map](finance-api-compatibility-rollout.md).
 
 ### Pricing & Server Quote
-- `POST /checkout/quote` — Authoritative paise pricing, tax extraction, and discount calculation.
-- `POST /coupon/validate` 🔒 — Temporary authenticated coupon preview calling the identical paise quote policy; replaced by `/promotions/validate` during the promotion cutover.
+- `POST /checkout/quote` — Promotion-aware pricing policy v4 and quote version `2026-09-12-03`. Current store prices, categories, customizations and bundle components come from the server. Returns the [frozen quote contract](promotions-contract.md#43-authoritative-pricing-quote), with automatic offers, optional manual coupon, separate item/delivery savings, display-only bundle markdown and inclusive tax after line discounts.
+- `POST /promotions/validate` 🔒 — Body `{ "couponCode": "SAVE" }`; resolves the authenticated user's active cart and returns the same v4 quote. Store overrides, prices and offer IDs are rejected. Validation and coupon-bearing quote requests share a process-local 30-attempt/minute quota per authenticated user or anonymous IP; excess requests return `429`, `PROMOTION_VALIDATION_RATE_LIMITED`, and `Retry-After`. Both endpoints return `Cache-Control: no-store`.
+- `POST /coupon/validate` 🔒 — Temporary legacy preview for order/payment consumers awaiting C07/C08 cutover. It remains on pricing policy v3 and is removed with its remaining consumers in C10. It is not an adapter to v4.
 
 ### Reports & P&L
 - `GET /finance/overview` 🔒 — Recognized revenue, collections, COGS, gross margin, operating results, and drill-downs.
@@ -1217,7 +1218,7 @@ The promotion backend exposes platform administration, store-manager participati
 
 Definition writes are strict and version-checked. Store disable requests require a reason. Media uses one decoded JPEG/PNG/WebP file, a desktop/mobile variant and useful alt text. See [promotion operations](promotions-operations.md) for storage, replacement, cleanup and analytics semantics.
 
-Promotion-aware quote/coupon validation is scheduled for C06/C07. The temporary authenticated `/coupon/validate` remains the current checkout consumer until cutover.
+Promotion-aware public quote and owned-cart coupon validation are implemented in C06. Transactional order/application persistence follows in C07, payment cutover in C08, and frontend consumption in C13. These slices are released together.
 
 ## Authentication legend
 

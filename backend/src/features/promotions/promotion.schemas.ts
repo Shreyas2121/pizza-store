@@ -21,6 +21,12 @@ import {
 } from "./promotion.constants";
 
 const positiveIdSchema = z.number().int().positive().max(MAX_POSTGRES_INT);
+export const promotionCodeSchema = z.string().trim().min(1)
+  .transform((code) => code.toUpperCase())
+  .pipe(z.string().max(PROMOTION_CODE_MAX_LENGTH));
+export const promotionValidationSchema = z.object({
+  couponCode: promotionCodeSchema,
+}).strict();
 const positivePaiseSchema = z.number().int().positive().max(MAX_POSTGRES_INT);
 const nonNegativeOrderPaiseSchema = z
   .number()

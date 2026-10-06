@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { promotionCodeSchema, PROMOTION_MAX_EXPANDED_UNITS } from "../features/promotions";
 import dotenv from "dotenv";
 dotenv.config({ quiet: true });
 
@@ -198,9 +199,10 @@ export const validateCouponSchema = z
 export const checkoutQuoteItemSchema = z
   .object({
     productId: z.number().int().positive("Product ID must be a positive integer"),
-    quantity: z.number().int().positive("Quantity must be a positive integer"),
+    quantity: z.number().int().positive("Quantity must be a positive integer").max(PROMOTION_MAX_EXPANDED_UNITS),
     customizationOptionIds: z
       .array(z.number().int().positive("Customization option ID must be positive"))
+      .max(PROMOTION_MAX_EXPANDED_UNITS)
       .optional()
       .default([]),
   })
@@ -209,17 +211,12 @@ export const checkoutQuoteItemSchema = z
 export const checkoutQuoteSchema = z
   .object({
     storeId: z.number().int().positive("Store ID must be a positive integer"),
-    couponCode: z
-      .string()
-      .trim()
-      .min(1, "Coupon code cannot be empty")
-      .max(100, "Coupon code is too long")
-      .transform((code) => code.toUpperCase())
+    couponCode: promotionCodeSchema
       .nullable()
       .optional(),
     destinationState: z.string().trim().min(1).max(100).nullable().optional(),
     addressId: z.number().int().positive("Address ID must be a positive integer").nullable().optional(),
-    items: z.array(checkoutQuoteItemSchema).optional(),
+    items: z.array(checkoutQuoteItemSchema).min(1).max(PROMOTION_MAX_EXPANDED_UNITS).optional(),
   })
   .strict();
 

@@ -9,7 +9,10 @@ import {
 import type { TransactionType } from "../../utils/types";
 import cartService from "../cart/cart.service";
 import inventoryService from "../inventory/inventory.service";
-import pricingService from "../pricing/pricing.service";
+import pricingService from "../pricing/legacy-pricing.service";
+import promotionPricingService, {
+  type PricingQuote,
+} from "../pricing/pricing.service";
 import { publicQuoteRepository } from "./checkout.repository";
 import checkoutService from "./checkout.service";
 
@@ -59,7 +62,7 @@ describe("CheckoutService stock integration", () => {
     ];
 
     vi.spyOn(inventoryService, "validateAndLockStock").mockResolvedValue(
-      mockAllocations
+      mockAllocations,
     );
     vi.spyOn(pricingService, "buildQuote").mockResolvedValue({
       quote: {
@@ -122,9 +125,11 @@ describe("CheckoutService stock integration", () => {
             ]),
           })),
           innerJoin: vi.fn(() => ({
-            where: vi.fn().mockResolvedValue([
-              { productId: 1, isAvailable: true, productIsAvailable: true },
-            ]),
+            where: vi
+              .fn()
+              .mockResolvedValue([
+                { productId: 1, isAvailable: true, productIsAvailable: true },
+              ]),
           })),
         })),
       })),
@@ -132,7 +137,7 @@ describe("CheckoutService stock integration", () => {
 
     const quote = await checkoutService.buildQuote(
       { userId: 10, addressId: 1 },
-      mockTx
+      mockTx,
     );
 
     expect(quote.stockAllocations).toEqual(mockAllocations);
@@ -148,7 +153,7 @@ describe("CheckoutService stock integration", () => {
     expect(inventoryService.validateAndLockStock).toHaveBeenCalledWith(
       1,
       mockCart.items,
-      mockTx
+      mockTx,
     );
   });
 
@@ -192,8 +197,8 @@ describe("CheckoutService stock integration", () => {
               availableQuantity: 2,
             },
           ],
-        }
-      )
+        },
+      ),
     );
 
     const mockTx = {
@@ -203,26 +208,26 @@ describe("CheckoutService stock integration", () => {
             for: vi.fn(() => ({
               limit: vi.fn().mockResolvedValue([{ id: 1 }]),
             })),
-            limit: vi.fn().mockResolvedValue([
-              { id: 1, pincode: "400001" },
-            ]),
+            limit: vi.fn().mockResolvedValue([{ id: 1, pincode: "400001" }]),
           })),
           innerJoin: vi.fn(() => ({
-            where: vi.fn().mockResolvedValue([
-              { productId: 1, isAvailable: true, productIsAvailable: true },
-            ]),
+            where: vi
+              .fn()
+              .mockResolvedValue([
+                { productId: 1, isAvailable: true, productIsAvailable: true },
+              ]),
           })),
         })),
       })),
     } as unknown as TransactionType;
 
     await expect(
-      checkoutService.buildQuote({ userId: 10, addressId: 1 }, mockTx)
+      checkoutService.buildQuote({ userId: 10, addressId: 1 }, mockTx),
     ).rejects.toThrowError(
       expect.objectContaining({
         code: "INSUFFICIENT_STOCK",
         status: 409,
-      })
+      }),
     );
   });
 
@@ -263,7 +268,7 @@ describe("CheckoutService stock integration", () => {
       .mockResolvedValue(pricingResult as any);
 
     await expect(checkoutService.previewCoupon(10, "save10")).resolves.toBe(
-      pricingResult
+      pricingResult,
     );
     expect(buildQuote).toHaveBeenCalledWith({
       storeId: 1,
@@ -291,11 +296,13 @@ describe("CheckoutService exact order snapshots", () => {
         values: vi.fn((values: unknown) => {
           writes.set(table, values);
           return {
-            returning: vi.fn().mockResolvedValue(
-              table === ordersTable
-                ? [{ id: 42, storeId: 1, userId: 10, ...(values as object) }]
-                : [{ id: orderItemId++, ...(values as object) }]
-            ),
+            returning: vi
+              .fn()
+              .mockResolvedValue(
+                table === ordersTable
+                  ? [{ id: 42, storeId: 1, userId: 10, ...(values as object) }]
+                  : [{ id: orderItemId++, ...(values as object) }],
+              ),
           };
         }),
       })),
@@ -390,7 +397,7 @@ describe("CheckoutService exact order snapshots", () => {
         paymentType: "cash",
         status: "pending",
       },
-      tx
+      tx,
     );
 
     expect(writes.get(ordersTable)).toMatchObject({
@@ -448,37 +455,57 @@ describe("CheckoutService exact order snapshots", () => {
       itemsSubtotalPaise: 60_000,
       discountPaise: 0,
       grandTotalPaise: 64_000,
-      items: [{
-        lineId: 202,
-        productId: 30,
-        productName: "Pizza + Drink",
-        productType: "bundle",
-        quantity: 2,
-        unitPricePaise: 30_000,
-        compareAtUnitPricePaise: 36_000,
-        bundleMarkdownPaise: 12_000,
-        lineSubtotalPaise: 60_000,
-        discountAllocationPaise: 0,
-        taxRuleId: 21,
-        taxRuleVersion: 2,
-        taxRateBps: 500,
-        taxableAmountPaise: 57_143,
-        taxPaise: 2_857,
-        lineTotalPaise: 60_000,
-        hsnSacCode: "21069099-DEMO",
-        customizations: [],
-        bundleComponents: [
-          { productId: 11, name: "Pizza", quantityPerBundle: 1, totalQuantity: 2, isAvailable: true },
-          { productId: 20, name: "Cola", quantityPerBundle: 2, totalQuantity: 4, isAvailable: true },
-        ],
-      }],
+      items: [
+        {
+          lineId: 202,
+          productId: 30,
+          productName: "Pizza + Drink",
+          productType: "bundle",
+          quantity: 2,
+          unitPricePaise: 30_000,
+          compareAtUnitPricePaise: 36_000,
+          bundleMarkdownPaise: 12_000,
+          lineSubtotalPaise: 60_000,
+          discountAllocationPaise: 0,
+          taxRuleId: 21,
+          taxRuleVersion: 2,
+          taxRateBps: 500,
+          taxableAmountPaise: 57_143,
+          taxPaise: 2_857,
+          lineTotalPaise: 60_000,
+          hsnSacCode: "21069099-DEMO",
+          customizations: [],
+          bundleComponents: [
+            {
+              productId: 11,
+              name: "Pizza",
+              quantityPerBundle: 1,
+              totalQuantity: 2,
+              isAvailable: true,
+            },
+            {
+              productId: 20,
+              name: "Cola",
+              quantityPerBundle: 2,
+              totalQuantity: 4,
+              isAvailable: true,
+            },
+          ],
+        },
+      ],
       coupon: null,
     });
 
     await checkoutService.createOrderSnapshot(
       quote as any,
-      { userId: 10, addressId: 3, paymentId: 5, paymentType: "cash", status: "pending" },
-      tx
+      {
+        userId: 10,
+        addressId: 3,
+        paymentId: 5,
+        paymentType: "cash",
+        status: "pending",
+      },
+      tx,
     );
 
     expect(writes.get(ordersTable)).toMatchObject({ discountPaise: 0 });
@@ -490,8 +517,20 @@ describe("CheckoutService exact order snapshots", () => {
       discountAllocationPaise: 0,
     });
     expect(writes.get(orderItemBundleComponentsTable)).toEqual([
-      { orderItemId: 900, componentProductId: 11, componentName: "Pizza", quantityPerBundle: 1, totalQuantity: 2 },
-      { orderItemId: 900, componentProductId: 20, componentName: "Cola", quantityPerBundle: 2, totalQuantity: 4 },
+      {
+        orderItemId: 900,
+        componentProductId: 11,
+        componentName: "Pizza",
+        quantityPerBundle: 1,
+        totalQuantity: 2,
+      },
+      {
+        orderItemId: 900,
+        componentProductId: 20,
+        componentName: "Cola",
+        quantityPerBundle: 2,
+        totalQuantity: 4,
+      },
     ]);
   });
 
@@ -560,7 +599,7 @@ describe("CheckoutService exact order snapshots", () => {
         paymentType: "cash",
         status: "pending",
       },
-      tx
+      tx,
     );
 
     expect(writes.get(ordersTable)).toMatchObject({
@@ -578,67 +617,74 @@ describe("CheckoutService exact order snapshots", () => {
   });
 });
 
+const newQuoteFixture: PricingQuote = {
+  quoteVersion: "2026-09-12-03",
+  currency: "INR",
+  pricingPolicyVersion: 4,
+  itemsSubtotalPaise: 42_000,
+  discountMode: "none",
+  itemDiscountPaise: 0,
+  standardDeliveryFeePaise: 4_000,
+  deliveryDiscountPaise: 0,
+  promotionSavingsPaise: 0,
+  bundleMarkdownPaise: 0,
+  totalDisplayedSavingsPaise: 0,
+  promotions: [],
+  couponEligibility: {
+    eligible: true,
+    reasonCode: null,
+    conflictingLineIds: [],
+  },
+  chargedDeliveryFeePaise: 4_000,
+  roundingAdjustmentPaise: 0,
+  grandTotalPaise: 46_000,
+  taxableAmountPaise: 42_966,
+  taxPaise: 3_034,
+  items: [],
+  deliveryPricing: {
+    ruleId: 11,
+    ruleVersion: 1,
+    storeId: 1,
+    businessDate: "2026-09-11",
+    timezone: "Asia/Kolkata",
+    standardFeePaise: 4_000,
+    chargedFeePaise: 4_000,
+  },
+  tax: {
+    calculationPolicyVersion: 1,
+    isDemo: true,
+    disclaimer: "Portfolio demo — not a statutory tax invoice",
+    placeOfSupplyState: "Karnataka",
+    placeOfSupplySource: "delivery_address",
+    itemRule: {
+      ruleId: 21,
+      ruleVersion: 2,
+      rateBps: 500,
+      hsnSacCode: "21069099-DEMO",
+    },
+    deliveryRule: {
+      ruleId: 22,
+      ruleVersion: 2,
+      rateBps: 1800,
+      hsnSacCode: "996813-DEMO",
+      taxableAmountPaise: 3_390,
+      taxPaise: 610,
+    },
+  },
+};
+
 describe("CheckoutService calculatePublicQuote", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
   });
 
   it("calculates authoritative quote from provided items and customization options", async () => {
-    const mockQuote = {
-      quoteVersion: "2026-09-01-02",
-      currency: "INR",
-      pricingPolicyVersion: 3,
-      itemsSubtotalPaise: 45_000,
-      discountPaise: 5_000,
-      deliveryFeePaise: 4_000,
-      roundingAdjustmentPaise: 0,
-      grandTotalPaise: 44_000,
-      taxableAmountPaise: 41_905,
-      taxPaise: 2_095,
-      items: [],
-      coupon: {
-        id: 1,
-        code: "SAVE50",
-        discountPaise: 5_000,
-        applied: true,
-      },
-      deliveryPricing: {
-        ruleId: 11,
-        ruleVersion: 1,
-        storeId: 1,
-        businessDate: "2026-09-01",
-        timezone: "Asia/Kolkata",
-        standardFeePaise: 4_000,
-        freeDeliveryThresholdPaise: 50_000,
-        freeDeliveryApplied: false,
-      },
-      tax: {
-        calculationPolicyVersion: 1,
-        isDemo: true,
-        disclaimer: "Portfolio demo — not a statutory tax invoice",
-        placeOfSupplyState: "Karnataka",
-        placeOfSupplySource: "delivery_address",
-        itemRule: {
-          ruleId: 21,
-          ruleVersion: 2,
-          rateBps: 500,
-          hsnSacCode: "21069099-DEMO",
-        },
-        deliveryRule: {
-          ruleId: 22,
-          ruleVersion: 2,
-          rateBps: 1800,
-          hsnSacCode: "996813-DEMO",
-          taxableAmountPaise: 3_390,
-          taxPaise: 610,
-        },
-      },
-    };
+    const mockQuote = newQuoteFixture;
 
     const buildQuoteSpy = vi
-      .spyOn(pricingService, "buildQuote")
+      .spyOn(promotionPricingService, "buildQuote")
       .mockResolvedValue({
-        quote: mockQuote as any,
+        quote: mockQuote,
         couponRecord: null,
       });
 
@@ -647,13 +693,16 @@ describe("CheckoutService calculatePublicQuote", () => {
         productId: 1,
         productName: "Margherita",
         pricePaise: 37_000,
+        categoryId: 5,
+        productType: "single",
+        compareAtUnitPricePaise: null,
         productIsAvailable: true,
         storeProductIsAvailable: true,
       },
     ]);
     vi.spyOn(
       publicQuoteRepository,
-      "findProductCustomizationOptions"
+      "findProductCustomizationOptions",
     ).mockResolvedValue([
       {
         productId: 1,
@@ -685,6 +734,10 @@ describe("CheckoutService calculatePublicQuote", () => {
           lineId: 1,
           productId: 1,
           productName: "Margherita",
+          categoryId: 5,
+          productType: "single",
+          compareAtUnitPricePaise: null,
+          bundleComponents: [],
           quantity: 1,
           baseUnitPricePaise: 37_000,
           customizations: [
@@ -702,27 +755,28 @@ describe("CheckoutService calculatePublicQuote", () => {
   });
 
   it("calculates authoritative quote from user cart when items are omitted", async () => {
-    const mockCart = {
-      id: 1,
-      userId: 10,
+    vi.spyOn(publicQuoteRepository, "findOwnedCart").mockResolvedValue({
       storeId: 2,
       items: [
-        {
-          id: 101,
-          productId: 1,
-          quantity: 2,
-          pricePaise: 20_000,
-          product: { name: "Margherita" },
-          customizations: [],
-        },
+        { id: 101, productId: 1, quantity: 2, customizationOptionIds: [] },
       ],
-    };
-
-    vi.spyOn(cartService, "getCart").mockResolvedValue(mockCart as any);
+    });
+    vi.spyOn(publicQuoteRepository, "findStoreProducts").mockResolvedValue([
+      {
+        productId: 1,
+        productName: "Margherita",
+        categoryId: 5,
+        pricePaise: 25_000,
+        productType: "single",
+        compareAtUnitPricePaise: null,
+        productIsAvailable: true,
+        storeProductIsAvailable: true,
+      },
+    ]);
     const buildQuoteSpy = vi
-      .spyOn(pricingService, "buildQuote")
+      .spyOn(promotionPricingService, "buildQuote")
       .mockResolvedValue({
-        quote: { grandTotalPaise: 44_000 } as any,
+        quote: newQuoteFixture,
         couponRecord: null,
       });
 
@@ -731,16 +785,21 @@ describe("CheckoutService calculatePublicQuote", () => {
       userId: 10,
     });
 
-    expect(result.grandTotalPaise).toBe(44_000);
+    expect(result.grandTotalPaise).toBe(newQuoteFixture.grandTotalPaise);
     expect(buildQuoteSpy).toHaveBeenCalledWith({
       storeId: 2,
+      userId: 10,
       items: [
         {
           lineId: 101,
           productId: 1,
           productName: "Margherita",
+          categoryId: 5,
+          productType: "single",
+          compareAtUnitPricePaise: null,
+          bundleComponents: [],
           quantity: 2,
-          baseUnitPricePaise: 20_000,
+          baseUnitPricePaise: 25_000,
           customizations: [],
         },
       ],
@@ -750,13 +809,15 @@ describe("CheckoutService calculatePublicQuote", () => {
   });
 
   it("throws 400 when items are omitted and user has no active cart", async () => {
-    vi.spyOn(cartService, "getCart").mockResolvedValue(null);
+    vi.spyOn(publicQuoteRepository, "findOwnedCart").mockResolvedValue(
+      undefined,
+    );
 
     await expect(
       checkoutService.calculatePublicQuote({
         storeId: 1,
         userId: 10,
-      })
+      }),
     ).rejects.toMatchObject({
       message: "Cart is empty",
       status: 400,

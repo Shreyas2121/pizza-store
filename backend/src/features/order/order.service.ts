@@ -24,7 +24,7 @@ import financialEventService from "../finance-events/financial-event.service";
 import type { FinancialEventWriter } from "../finance-events/financial-event.types";
 import cashService, { type CashSourceWriter } from "../cash-management/cash.service";
 import { businessDateFor } from "../../utils/business-date";
-import { buildRecognitionPricingSnapshot } from "../pricing/pricing.service";
+import { buildRecognitionPricingSnapshot } from "../pricing";
 
 interface CreateCodOrderData {
   userId: number;

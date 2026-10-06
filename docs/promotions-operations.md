@@ -1,6 +1,6 @@
 # Promotion governance and media operations
 
-C05 provides the backend administration and discovery surface. Pricing, coupon validation against the new engine, checkout/application persistence, payment recovery, finance integration, and frontend controls follow in their assigned commits.
+C05 provides backend administration and discovery; C06 provides pricing and owned-cart coupon validation against the new engine. Checkout/application persistence, payment recovery, finance integration, and frontend controls follow in their assigned commits.
 
 Only platform admins with `platform.promotions.manage` create, replace, deactivate, upload or remove media, or read analytics. `PUT /promotions/:id` is a full replacement with `expectedDefinitionVersion`. Deactivation preserves rules, media, historical applications and store choices. Exhaustion is derived from reserved plus consumed applications and never flips the administrative active switch.
 

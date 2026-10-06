@@ -1,469 +1,527 @@
-import { describe, expect, it, vi } from "vitest";
-import type { TransactionType } from "../../utils/types";
+﻿import { describe, expect, it, vi } from "vitest";
+import { DEMO_TAX_DISCLAIMER } from "../../db/schema";
 import {
-  PRICING_POLICY_VERSION,
-  buildRecognitionPricingSnapshot,
   PricingService,
   QUOTE_VERSION,
-  type BuildPricingQuoteOptions,
+  PRICING_POLICY_VERSION,
   type PricingItemInput,
   type PricingRepository,
+  type PromotionPricingSource,
 } from "./pricing.service";
+import type { PromotionRecord, PromotionUsageContext } from "../promotions";
+import type { TransactionType } from "../../utils/types";
 
-describe("recognition pricing snapshot", () => {
-  it("derives tax-exclusive discount components from immutable priced lines", () => {
-    expect(buildRecognitionPricingSnapshot({
-      lines: [{ lineSubtotalPaise: 10_500, taxableAmountPaise: 9_000, taxPaise: 450, taxRateBps: 500 }],
-      deliveryTaxableAmountPaise: 0,
-      deliveryTaxPaise: 0,
-      totalTaxPaise: 450,
-    })).toEqual({
-      preDiscountTaxableFoodPaise: 10_000,
-      discountContraPaise: 1_000,
-      taxableDeliveryPaise: 0,
-      itemTaxPaise: 450,
-      deliveryTaxPaise: 0,
-    });
-  });
-
-  it("rejects a recognition snapshot whose stored tax totals disagree", () => {
-    expect(() => buildRecognitionPricingSnapshot({
-      lines: [{ lineSubtotalPaise: 10_500, taxableAmountPaise: 9_000, taxPaise: 450, taxRateBps: 500 }],
-      deliveryTaxableAmountPaise: 0,
-      deliveryTaxPaise: 0,
-      totalTaxPaise: 451,
-    })).toThrowError(expect.objectContaining({ code: "ORDER_RECOGNITION_MISMATCH" }));
-  });
+const now = new Date("2026-09-15T12:00:00Z");
+export const pricingItem = (
+  overrides: Partial<PricingItemInput> = {},
+): PricingItemInput => ({
+  lineId: 1,
+  productId: 11,
+  categoryId: 5,
+  productName: "Pizza",
+  quantity: 1,
+  baseUnitPricePaise: 10_000,
+  customizations: [
+    { customizationOptionId: 7, name: "Cheese", pricePaise: 2_000 },
+  ],
+  ...overrides,
 });
-
-type CouponRecord = NonNullable<
-  Awaited<ReturnType<PricingRepository["findCoupon"]>>
->;
-type DeliveryPricingRule = Awaited<
-  ReturnType<PricingRepository["findDeliveryPricingRules"]>
->[number];
-type TaxRule = Awaited<
-  ReturnType<PricingRepository["findTaxRules"]>
->[number];
-
-const now = new Date("2026-08-31T10:00:00.000Z");
-
-const coupon = (overrides: Partial<CouponRecord> = {}): CouponRecord => ({
-  id: 7,
-  code: "SAVE10",
-  discountType: "percentage",
-  discountRateBps: 1_000,
-  discountAmountPaise: null,
+const promotion = (
+  overrides: Partial<PromotionRecord> = {},
+): PromotionRecord => ({
+  id: 1,
+  definitionVersion: 2,
+  kind: "offer",
+  name: "Offer",
+  code: null,
+  discount: { type: "percentage", rateBps: 1_000, maxDiscountPaise: null },
+  scope: "cart",
+  includeCustomizationValue: false,
   minimumOrderPaise: 0,
-  startDate: new Date("2026-08-01T00:00:00.000Z"),
-  endDate: new Date("2026-09-30T23:59:59.000Z"),
+  minimumCartQuantity: 0,
+  firstOrderOnly: false,
+  startsAt: new Date("2026-01-01"),
+  endsAt: new Date("2027-01-01"),
+  activeDaysOfWeek: null,
+  activeStartTime: null,
+  activeEndTime: null,
+  perUserRedemptionLimit: null,
+  maxRedemptions: null,
+  totalDiscountBudgetPaise: null,
+  displayPriority: 0,
+  rules: [],
   isActive: true,
-  redemptionCount: 0,
-  maxRedemptions: -1,
-  createdAt: new Date("2026-08-01T00:00:00.000Z"),
-  updatedAt: new Date("2026-08-01T00:00:00.000Z"),
   ...overrides,
 });
-
-const deliveryRule = (
-  overrides: Partial<DeliveryPricingRule> = {}
-): DeliveryPricingRule => ({
-  id: 11,
-  storeId: 1,
-  version: 3,
-  deliveryFeePaise: 4_000,
-  freeDeliveryThresholdPaise: 50_000,
-  effectiveFrom: "2026-08-01",
-  effectiveTo: null,
-  createdAt: new Date("2026-08-01T00:00:00.000Z"),
-  updatedAt: new Date("2026-08-01T00:00:00.000Z"),
-  ...overrides,
-});
-
-const taxRule = (component: "item" | "delivery", overrides: Partial<TaxRule> = {}): TaxRule => ({
-  id: component === "item" ? 21 : 22,
-  storeId: 1,
-  component,
-  version: 2,
-  rateBps: 500,
-  hsnSacCode: component === "item" ? "21069099-DEMO" : "996331-DEMO",
-  isDemo: true,
-  disclaimer: "Portfolio demo — not a statutory tax invoice",
-  effectiveFrom: "2026-08-01",
-  effectiveTo: null,
-  createdAt: new Date("2026-08-01T00:00:00.000Z"),
-  updatedAt: new Date("2026-08-01T00:00:00.000Z"),
-  ...overrides,
-});
-
-const items: PricingItemInput[] = [
-  {
-    lineId: 2,
-    productId: 20,
-    productName: "Custom pizza",
-    quantity: 2,
-    baseUnitPricePaise: 10_000,
-    customizations: [
-      { customizationOptionId: 3, name: "Cheese", pricePaise: 500 },
-    ],
-  },
-  {
-    lineId: 1,
-    productId: 10,
-    productName: "Pizza",
-    quantity: 1,
-    baseUnitPricePaise: 9_000,
-    customizations: [],
-  },
-];
-
-const createHarness = (
-  couponRecord: CouponRecord | null = coupon(),
-  activeUses = 0,
-  rules: DeliveryPricingRule[] = [deliveryRule()],
-  storeContext: { timezone: string; state: string } | undefined = {
-    timezone: "Asia/Kolkata",
-    state: "Maharashtra",
-  },
-  taxRules: TaxRule[] = [taxRule("item"), taxRule("delivery")]
+export const pricingHarness = (
+  definitions: PromotionRecord[] = [],
+  usage: Partial<PromotionUsageContext> = {},
+  qualifyingOrderCount = 0,
 ) => {
-  const repository: PricingRepository = {
-    findCoupon: vi.fn(async () => couponRecord ?? undefined),
-    countActiveCouponUses: vi.fn(async () => activeUses),
-    findStorePricingContext: vi.fn(async () => storeContext),
-    findDeliveryPricingRules: vi.fn(async () => rules),
-    findTaxRules: vi.fn(async (_storeId, component) =>
-      taxRules.filter((rule) => rule.component === component)
-    ),
+  const delivery = {
+    id: 11,
+    storeId: 1,
+    version: 3,
+    deliveryFeePaise: 4_000,
+    freeDeliveryThresholdPaise: 1,
+    effectiveFrom: "2026-01-01",
+    effectiveTo: null,
+    createdAt: now,
+    updatedAt: now,
   };
-  return { service: new PricingService(repository), repository };
-};
-
-describe("PricingService", () => {
-  it("prices a bundle only from its selling price and reports markdown separately", async () => {
-    const { service } = createHarness(null);
-    const result = await service.buildQuote({
-      storeId: 1,
-      now,
-      items: [{
-        lineId: 8,
-        productId: 30,
-        productName: "Pizza + Drink",
-        productType: "bundle",
-        quantity: 2,
-        baseUnitPricePaise: 30_000,
-        compareAtUnitPricePaise: 36_000,
-        customizations: [],
-        bundleComponents: [
-          { productId: 11, name: "Pizza", quantityPerBundle: 1, totalQuantity: 2, isAvailable: true },
-          { productId: 20, name: "Cola", quantityPerBundle: 1, totalQuantity: 2, isAvailable: true },
-        ],
-      }],
-    });
-    expect(result.quote.itemsSubtotalPaise).toBe(60_000);
-    expect(result.quote.discountPaise).toBe(0);
-    expect(result.quote.items[0]).toMatchObject({
-      unitPricePaise: 30_000,
-      lineSubtotalPaise: 60_000,
-      bundleMarkdownPaise: 12_000,
-      lineTotalPaise: 60_000,
-    });
-  });
-
-  it("rejects coupons for a deal bundle without querying coupon state", async () => {
-    const { service, repository } = createHarness();
-    await expect(service.buildQuote({
-      storeId: 1,
-      couponCode: "SAVE10",
-      now,
-      items: [{
-        lineId: 8,
-        productId: 30,
-        productName: "Combo",
-        productType: "bundle",
-        quantity: 1,
-        baseUnitPricePaise: 30_000,
-        compareAtUnitPricePaise: 36_000,
-        customizations: [],
-        bundleComponents: [{ productId: 11, name: "Pizza", quantityPerBundle: 1, totalQuantity: 1, isAvailable: true }],
-      }],
-    })).rejects.toThrowError(expect.objectContaining({
-      code: "COUPON_NOT_COMBINABLE_WITH_OFFERS",
-      data: { couponEligibility: { eligible: false, reasonCode: "DEAL_BUNDLE_PRESENT", conflictingLineIds: [8] } },
-    }));
-    expect(repository.findCoupon).not.toHaveBeenCalled();
-  });
-
-  it("builds a versioned paise quote and deterministically allocates discount", async () => {
-    const { service } = createHarness();
-
-    const result = await service.buildQuote({
-      storeId: 1,
-      items,
-      couponCode: " save10 ",
-      now,
-    });
-
-    expect(result.quote).toMatchObject({
-      quoteVersion: QUOTE_VERSION,
-      currency: "INR",
-      pricingPolicyVersion: PRICING_POLICY_VERSION,
-      itemsSubtotalPaise: 30_000,
-      discountPaise: 3_000,
-      deliveryFeePaise: 4_000,
-      roundingAdjustmentPaise: 0,
-      grandTotalPaise: 31_000,
-      taxableAmountPaise: 29_524,
-      taxPaise: 1_476,
-      coupon: {
-        id: 7,
-        code: "SAVE10",
-        discountPaise: 3_000,
-        applied: true,
-      },
-      deliveryPricing: {
-        ruleId: 11,
-        ruleVersion: 3,
+  const repository: PricingRepository = {
+    findStorePricingContext: vi.fn(async () => ({
+      timezone: "Asia/Kolkata",
+      state: "Karnataka",
+    })),
+    findDeliveryPricingRules: vi.fn(async () => [delivery]),
+    findTaxRules: vi.fn(async (_store, component) => [
+      {
+        id: component === "item" ? 21 : 22,
         storeId: 1,
-        businessDate: "2026-08-31",
-        timezone: "Asia/Kolkata",
-        standardFeePaise: 4_000,
-        freeDeliveryThresholdPaise: 50_000,
-        freeDeliveryApplied: false,
-      },
-      tax: {
-        calculationPolicyVersion: 1,
+        component,
+        version: 2,
+        rateBps: component === "item" ? 500 : 1_800,
+        hsnSacCode: "DEMO",
         isDemo: true,
-        disclaimer: "Portfolio demo — not a statutory tax invoice",
-        placeOfSupplyState: "Maharashtra",
-        placeOfSupplySource: "store_estimate",
-        itemRule: {
-          ruleId: 21,
-          ruleVersion: 2,
-          rateBps: 500,
-          hsnSacCode: "21069099-DEMO",
+        disclaimer: DEMO_TAX_DISCLAIMER,
+        effectiveFrom: "2026-01-01",
+        effectiveTo: null,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]),
+  };
+  const source: PromotionPricingSource = {
+    load: vi.fn(async () => ({
+      promotions: definitions,
+      qualifyingOrderCount,
+      usageByPromotionId: Object.fromEntries(
+        definitions.map((definition) => [
+          definition.id,
+          {
+            storeEnabled: true,
+            globalRedemptionsUsed: 0,
+            userRedemptionsUsed: 0,
+            budgetUsedPaise: 0,
+            ...usage,
+          },
+        ]),
+      ),
+    })),
+  };
+  return {
+    service: new PricingService(repository, source),
+    repository,
+    source,
+    delivery,
+  };
+};
+const quote = async (
+  h: ReturnType<typeof pricingHarness>,
+  items = [pricingItem()],
+  couponCode?: string,
+) =>
+  (
+    await h.service.buildQuote({
+      storeId: 1,
+      userId: 7,
+      items,
+      couponCode,
+      now,
+    })
+  ).quote;
+const reconcile = (q: Awaited<ReturnType<typeof quote>>) => {
+  expect(q.items.reduce((sum, item) => sum + item.itemDiscountPaise, 0)).toBe(
+    q.itemDiscountPaise,
+  );
+  expect(q.promotions.reduce((sum, p) => sum + p.totalSavingsPaise, 0)).toBe(
+    q.promotionSavingsPaise,
+  );
+  expect(q.standardDeliveryFeePaise - q.chargedDeliveryFeePaise).toBe(
+    q.deliveryDiscountPaise,
+  );
+  expect(
+    q.itemsSubtotalPaise - q.itemDiscountPaise + q.chargedDeliveryFeePaise,
+  ).toBe(q.grandTotalPaise);
+  expect(q.taxableAmountPaise + q.taxPaise).toBe(q.grandTotalPaise);
+  expect(q.promotionSavingsPaise + q.bundleMarkdownPaise).toBe(
+    q.totalDisplayedSavingsPaise,
+  );
+  for (const p of q.promotions)
+    expect(p.allocations.reduce((sum, a) => sum + a.amountPaise, 0)).toBe(
+      p.totalSavingsPaise,
+    );
+  for (const item of q.items) {
+    expect(item.lineTotalPaise).toBeGreaterThanOrEqual(0);
+    expect(item.taxableAmountPaise + item.taxPaise).toBe(item.lineTotalPaise);
+  }
+};
+describe("promotion pricing v4", () => {
+  it("returns the frozen shape and ignores legacy free delivery thresholds", async () => {
+    const q = await quote(pricingHarness());
+    expect(q).toMatchObject({
+      quoteVersion: QUOTE_VERSION,
+      pricingPolicyVersion: PRICING_POLICY_VERSION,
+      discountMode: "none",
+      itemDiscountPaise: 0,
+      standardDeliveryFeePaise: 4_000,
+      chargedDeliveryFeePaise: 4_000,
+    });
+    expect(q).not.toHaveProperty("coupon");
+    expect(q).not.toHaveProperty("discountPaise");
+    expect(q).not.toHaveProperty("deliveryFeePaise");
+    reconcile(q);
+  });
+  it.each([
+    ["percentage", promotion(), 1_000, 0],
+    [
+      "fixed_amount",
+      promotion({ discount: { type: "fixed_amount", amountPaise: 3_000 } }),
+      3_000,
+      0,
+    ],
+    [
+      "free_delivery",
+      promotion({ discount: { type: "free_delivery" }, scope: "delivery" }),
+      0,
+      4_000,
+    ],
+    [
+      "tiered",
+      promotion({
+        discount: { type: "tiered" },
+        rules: [
+          {
+            type: "tier",
+            minimumSubtotalPaise: 0,
+            discount: { type: "fixed_amount", amountPaise: 500 },
+          },
+          {
+            type: "tier",
+            minimumSubtotalPaise: 12_000,
+            discount: { type: "fixed_amount", amountPaise: 2_000 },
+          },
+        ],
+      }),
+      2_000,
+      0,
+    ],
+    [
+      "buy_x_get_y",
+      promotion({
+        scope: "product",
+        discount: { type: "buy_x_get_y" },
+        rules: [
+          {
+            type: "buy_x_get_y",
+            buyQuantity: 1,
+            getQuantity: 1,
+            buyProductIds: [11],
+            buyCategoryIds: [],
+            getProductIds: [11],
+            getCategoryIds: [],
+          },
+        ],
+      }),
+      10_000,
+      0,
+    ],
+  ] as const)(
+    "resolves %s and tax through the quote",
+    async (_type, definition, itemSaving, deliverySaving) => {
+      const q = await quote(pricingHarness([definition]), [
+        pricingItem({
+          quantity: definition.discount.type === "buy_x_get_y" ? 2 : 1,
+        }),
+      ]);
+      expect(q.itemDiscountPaise).toBe(itemSaving);
+      expect(q.deliveryDiscountPaise).toBe(deliverySaving);
+      expect(q.discountMode).toBe("automatic_deals");
+      expect(q.promotions[0]).toMatchObject({
+        definitionVersion: 2,
+        applied: true,
+        code: null,
+      });
+      reconcile(q);
+    },
+  );
+  it("keeps customizations outside the basis unless explicitly included and recomputes inclusive tax", async () => {
+    const q = await quote(pricingHarness([promotion()]));
+    expect(q.items[0]).toMatchObject({
+      baseUnitPricePaise: 10_000,
+      customizationUnitPricePaise: 2_000,
+      lineTotalPaise: 11_000,
+      taxableAmountPaise: 10_476,
+      taxPaise: 524,
+    });
+    expect(
+      (
+        await quote(
+          pricingHarness([promotion({ includeCustomizationValue: true })]),
+        )
+      ).itemDiscountPaise,
+    ).toBe(1_200);
+    reconcile(q);
+  });
+  it("applies distinct product/category offers and breaks ties by priority then ID", async () => {
+    const q = await quote(
+      pricingHarness([
+        promotion({
+          id: 5,
+          scope: "product",
+          rules: [{ type: "product_include", productId: 11 }],
+        }),
+        promotion({
+          id: 3,
+          displayPriority: 1,
+          scope: "product",
+          rules: [{ type: "product_include", productId: 11 }],
+        }),
+        promotion({
+          id: 2,
+          displayPriority: 1,
+          scope: "product",
+          rules: [{ type: "product_include", productId: 11 }],
+        }),
+        promotion({
+          id: 8,
+          scope: "category",
+          rules: [{ type: "category_include", categoryId: 8 }],
+        }),
+      ]),
+      [
+        pricingItem(),
+        pricingItem({
+          lineId: 2,
+          productId: 20,
+          categoryId: 8,
+          customizations: [],
+        }),
+      ],
+    );
+    expect(q.promotions.map((p) => p.id)).toEqual([2, 8]);
+    expect(q.couponEligibility.conflictingLineIds).toEqual([1, 2]);
+    reconcile(q);
+  });
+  it("normalizes only the supplied manual coupon and never applies other coupons", async () => {
+    const h = pricingHarness([
+      promotion({ kind: "coupon", code: "SAVE", name: "Coupon" }),
+      promotion({ id: 2, kind: "coupon", code: "HIDDEN" }),
+    ]);
+    expect((await quote(h)).promotions).toEqual([]);
+    const q = await quote(h, [pricingItem()], " save ");
+    expect(q.discountMode).toBe("coupon");
+    expect(q.promotions).toHaveLength(1);
+    expect(h.source.load).toHaveBeenLastCalledWith(1, 7, "SAVE", now, {});
+    reconcile(q);
+  });
+  it.each([
+    promotion(),
+    promotion({ scope: "delivery", discount: { type: "free_delivery" } }),
+  ])(
+    "rejects coupons while any automatic offer applies",
+    async (definition) => {
+      await expect(
+        quote(pricingHarness([definition]), [pricingItem()], "MISSING"),
+      ).rejects.toMatchObject({
+        code: "COUPON_NOT_COMBINABLE_WITH_OFFERS",
+        data: {
+          couponEligibility: { eligible: false, reasonCode: "OFFER_APPLIED" },
         },
-        deliveryRule: {
-          ruleId: 22,
-          ruleVersion: 2,
-          rateBps: 500,
-          hsnSacCode: "996331-DEMO",
-          taxableAmountPaise: 3_810,
-          taxPaise: 190,
+      });
+    },
+  );
+  const bundle = pricingItem({
+    productType: "bundle",
+    baseUnitPricePaise: 10_000,
+    customizations: [],
+    compareAtUnitPricePaise: 15_000,
+    bundleComponents: [
+      {
+        productId: 20,
+        name: "Drink",
+        quantityPerBundle: 1,
+        totalQuantity: 1,
+        isAvailable: true,
+      },
+    ],
+  });
+  it("keeps bundle markdown display-only and blocks coupons", async () => {
+    const q = await quote(pricingHarness(), [bundle]);
+    expect(q.bundleMarkdownPaise).toBe(5_000);
+    expect(q.discountMode).toBe("automatic_deals");
+    expect(q.grandTotalPaise).toBe(14_000);
+    reconcile(q);
+    await expect(
+      quote(pricingHarness(), [bundle], "SAVE"),
+    ).rejects.toMatchObject({
+      code: "COUPON_NOT_COMBINABLE_WITH_OFFERS",
+      data: {
+        couponEligibility: {
+          reasonCode: "DEAL_BUNDLE_PRESENT",
+          conflictingLineIds: [1],
         },
       },
     });
-    expect(result.quote.items).toEqual([
-      expect.objectContaining({
-        lineId: 2,
-        unitPricePaise: 10_500,
-        lineSubtotalPaise: 21_000,
-        discountAllocationPaise: 2_100,
-        lineTotalPaise: 18_900,
-        taxableAmountPaise: 18_000,
-        taxPaise: 900,
-      }),
-      expect.objectContaining({
-        lineId: 1,
-        unitPricePaise: 9_000,
-        lineSubtotalPaise: 9_000,
-        discountAllocationPaise: 900,
-        lineTotalPaise: 8_100,
-        taxableAmountPaise: 7_714,
-        taxPaise: 386,
-      }),
-    ]);
+  });
+  it("skips opted-out offers and reports explicit coupon disablement", async () => {
     expect(
-      result.quote.items.reduce(
-        (sum, item) => sum + item.discountAllocationPaise,
-        0
-      )
-    ).toBe(result.quote.discountPaise);
-    expect(
-      result.quote.items.reduce((sum, item) => sum + item.lineTotalPaise, 0)
-    ).toBe(result.quote.grandTotalPaise - result.quote.deliveryFeePaise);
-    expect(
-      result.quote.items.reduce((sum, item) => sum + item.taxPaise, 0)
-      + result.quote.tax.deliveryRule.taxPaise
-    ).toBe(result.quote.taxPaise);
-    expect(result.quote.taxableAmountPaise + result.quote.taxPaise).toBe(
-      result.quote.grandTotalPaise
-    );
-  });
-
-  it("uses half-away-from-zero percentage rounding and caps fixed discounts", async () => {
-    const percentage = createHarness(coupon({ discountRateBps: 5_000 }));
-    const oneLine = [{ ...items[1], baseUnitPricePaise: 101 }];
+      (await quote(pricingHarness([promotion()], { storeEnabled: false })))
+        .promotions,
+    ).toEqual([]);
     await expect(
-      percentage.service.buildQuote({ storeId: 1, items: oneLine, couponCode: "SAVE10", now })
-    ).resolves.toMatchObject({
-      quote: { itemsSubtotalPaise: 101, discountPaise: 51, grandTotalPaise: 4_050 },
-    });
-
-    const fixed = createHarness(
-      coupon({ discountType: "fixed", discountRateBps: null, discountAmountPaise: 50_000 })
-    );
-    await expect(
-      fixed.service.buildQuote({ storeId: 1, items: oneLine, couponCode: "SAVE10", now })
-    ).resolves.toMatchObject({
-      quote: { discountPaise: 101, grandTotalPaise: 4_000 },
-    });
+      quote(
+        pricingHarness([promotion({ kind: "coupon", code: "SAVE" })], {
+          storeEnabled: false,
+        }),
+        [pricingItem()],
+        "SAVE",
+      ),
+    ).rejects.toMatchObject({ code: "PROMOTION_DISABLED_FOR_STORE" });
   });
-
-  it("returns the same quote for preview and transaction-locked checkout", async () => {
-    const { service, repository } = createHarness();
-    const tx = { testTransaction: true } as unknown as TransactionType;
-
-    const preview = await service.buildQuote(
-      { storeId: 1, items, couponCode: "save10", now },
-      { lockCoupon: false }
-    );
-    const checkout = await service.buildQuote(
-      { storeId: 1, items, couponCode: "save10", now },
-      { executor: tx, lockCoupon: true }
-    );
-
-    expect(preview.quote).toEqual(checkout.quote);
-    expect(repository.findCoupon).toHaveBeenNthCalledWith(
-      1,
-      "SAVE10",
-      expect.objectContaining({ lock: false })
-    );
-    expect(repository.findCoupon).toHaveBeenNthCalledWith(
-      2,
-      "SAVE10",
-      { executor: tx, lock: true }
-    );
-  });
-
-  it("requires a caller transaction when coupon locking is requested", async () => {
-    const { service, repository } = createHarness();
-    await expect(
-      service.buildQuote(
-        { storeId: 1, items, couponCode: "SAVE10", now },
-        { lockCoupon: true } as BuildPricingQuoteOptions
-      )
-    ).rejects.toMatchObject({
-      status: 500,
-      code: "PRICING_TRANSACTION_REQUIRED",
-    });
-    expect(repository.findCoupon).not.toHaveBeenCalled();
-  });
-
   it.each([
-    [null, 0, "Coupon not found", 404],
-    [coupon({ isActive: false }), 0, "Coupon is not active", 400],
-    [coupon({ startDate: new Date("2026-09-01T00:00:00.000Z") }), 0, "Coupon is expired or not yet valid", 400],
-    [coupon({ minimumOrderPaise: 30_100 }), 0, "Minimum order value of 301.00 not met", 400],
-    [coupon({ maxRedemptions: 2, redemptionCount: 0 }), 2, "Coupon maximum redemption limit reached", 400],
+    [
+      { maxRedemptions: 1 },
+      { globalRedemptionsUsed: 1 },
+      "PROMOTION_CAPACITY_EXHAUSTED",
+    ],
+    [
+      { totalDiscountBudgetPaise: 1_000 },
+      { budgetUsedPaise: 1 },
+      "PROMOTION_BUDGET_EXHAUSTED",
+    ],
+    [
+      { perUserRedemptionLimit: 1 },
+      { userRedemptionsUsed: 1 },
+      "PROMOTION_INELIGIBLE",
+    ],
+    [{ isActive: false }, {}, "PROMOTION_NOT_ACTIVE"],
+    [{ endsAt: now }, {}, "PROMOTION_INELIGIBLE"],
   ] as const)(
-    "rejects invalid coupon context %#",
-    async (couponRecord, activeUses, message, status) => {
-      const { service } = createHarness(couponRecord, activeUses);
+    "keeps coupon eligibility errors stable",
+    async (definition, usage, code) => {
       await expect(
-        service.buildQuote({ storeId: 1, items, couponCode: "SAVE10", now })
-      ).rejects.toMatchObject({ message, status });
-    }
+        quote(
+          pricingHarness(
+            [promotion({ kind: "coupon", code: "SAVE", ...definition })],
+            usage,
+          ),
+          [pricingItem()],
+          "SAVE",
+        ),
+      ).rejects.toMatchObject({ code });
+    },
   );
-
-  it("rejects duplicate lines and bounded order overflow", async () => {
-    const { service } = createHarness();
-    await expect(
-      service.buildQuote({ storeId: 1, items: [items[0], items[0]] })
-    ).rejects.toMatchObject({
-      message: "Cart contains duplicate line identifiers",
-      status: 409,
-    });
-    await expect(
-      service.buildQuote({
-        storeId: 1,
-        items: Array.from({ length: 6 }, (_, index) => ({
-          ...items[1],
-          lineId: index + 1,
-          baseUnitPricePaise: 100_000,
-        })),
-      })
-    ).rejects.toEqual(
-      expect.objectContaining({
-        message: "Cart total is too large",
-        status: 400,
-      })
-    );
+  it("uses qualifying orders and authenticated identity for first-order eligibility", async () => {
+    const definition = promotion({ firstOrderOnly: true });
+    expect(
+      (await quote(pricingHarness([definition], {}, 1))).promotions,
+    ).toEqual([]);
+    expect(
+      (await quote(pricingHarness([definition], {}, 0))).promotions,
+    ).toHaveLength(1);
+    expect(
+      (
+        await pricingHarness([definition]).service.buildQuote({
+          storeId: 1,
+          items: [pricingItem()],
+          now,
+        })
+      ).quote.promotions,
+    ).toEqual([]);
   });
-
-  it("applies free delivery to the post-discount item value at the threshold", async () => {
-    const { service } = createHarness(null, 0, [
-      deliveryRule({ freeDeliveryThresholdPaise: 30_000 }),
+  it("uses store timezone at overnight windows", async () => {
+    const h = pricingHarness([
+      promotion({
+        activeStartTime: "22:00",
+        activeEndTime: "02:00",
+        activeDaysOfWeek: [2],
+      }),
     ]);
-
-    const result = await service.buildQuote({ storeId: 1, items, now });
-
-    expect(result.quote).toMatchObject({
-      deliveryFeePaise: 0,
-      grandTotalPaise: 30_000,
-      deliveryPricing: { freeDeliveryApplied: true },
-    });
+    const q = (
+      await h.service.buildQuote({
+        storeId: 1,
+        items: [pricingItem()],
+        now: new Date("2026-09-15T19:30:00Z"),
+      })
+    ).quote;
+    expect(q.promotions).toHaveLength(1);
+    expect(q.deliveryPricing.businessDate).toBe("2026-09-16");
   });
-
-  it("selects rules using the store-local business date", async () => {
-    const { service, repository } = createHarness(null);
-
-    await service.buildQuote({
-      storeId: 1,
-      items,
-      now: new Date("2026-08-31T18:30:00.000Z"),
+  it("does not fabricate a free-delivery saving on a zero standard fee", async () => {
+    const h = pricingHarness([
+      promotion({ scope: "delivery", discount: { type: "free_delivery" } }),
+    ]);
+    h.delivery.deliveryFeePaise = 0;
+    const q = await quote(h);
+    expect(q.promotions).toEqual([]);
+    expect(q.deliveryDiscountPaise).toBe(0);
+    reconcile(q);
+  });
+  it("uses the caller executor for final resolution and demands a transaction", async () => {
+    const h = pricingHarness();
+    // Opaque executor identity only; every DB boundary is stubbed in this unit test.
+    const tx = {} as TransactionType;
+    await h.service.buildQuote(
+      { storeId: 1, items: [pricingItem()], now },
+      { executor: tx, lockPromotions: true },
+    );
+    expect(h.source.load).toHaveBeenCalledWith(1, null, null, now, {
+      executor: tx,
+      lockPromotions: true,
     });
-
-    expect(repository.findDeliveryPricingRules).toHaveBeenCalledWith(
+    expect(h.repository.findTaxRules).toHaveBeenCalledWith(
       1,
-      "2026-09-01",
-      expect.objectContaining({ lock: false })
+      "item",
+      "2026-09-15",
+      { executor: tx, lock: true },
     );
   });
-
-  it("uses delivery address state as place of supply without changing inclusive totals", async () => {
-    const { service } = createHarness(null);
-    const result = await service.buildQuote({
-      storeId: 1,
-      items,
-      destinationState: "Karnataka",
-      now,
-    });
-    expect(result.quote.grandTotalPaise).toBe(34_000);
-    expect(result.quote.tax).toMatchObject({
-      placeOfSupplyState: "Karnataka",
-      placeOfSupplySource: "delivery_address",
-    });
-    expect(result.quote.taxableAmountPaise + result.quote.taxPaise).toBe(
-      result.quote.grandTotalPaise
-    );
+  it.each([0, -1, 1.5, Number.MAX_SAFE_INTEGER])(
+    "rejects invalid quantities/overflow (%s)",
+    async (quantity) => {
+      await expect(
+        quote(pricingHarness(), [pricingItem({ quantity })]),
+      ).rejects.toMatchObject({ code: "PRICING_ITEMS_INVALID" });
+    },
+  );
+  it("rejects unknown/oversized normalized coupons and duplicate lines", async () => {
+    await expect(
+      quote(pricingHarness(), [pricingItem()], "NOPE"),
+    ).rejects.toMatchObject({ code: "PROMOTION_NOT_FOUND" });
+    await expect(
+      quote(pricingHarness(), [pricingItem()], "ß".repeat(64)),
+    ).rejects.toMatchObject({ code: "PROMOTION_INVALID_DEFINITION" });
+    await expect(
+      quote(pricingHarness(), [pricingItem(), pricingItem()]),
+    ).rejects.toMatchObject({ code: "PRICING_ITEMS_INVALID" });
   });
-
-  it.each([
-    [[], "TAX_RULE_NOT_FOUND", 422],
-    [[taxRule("item"), taxRule("item", { id: 23, version: 3 })], "TAX_RULE_OVERLAP", 500],
-  ] as const)("rejects invalid item tax rule selection %#", async (itemRules, code, status) => {
-    const { service } = createHarness(
-      null,
-      0,
-      [deliveryRule()],
-      { timezone: "Asia/Kolkata", state: "Maharashtra" },
-      [...itemRules, taxRule("delivery")]
-    );
-    await expect(service.buildQuote({ storeId: 1, items, now })).rejects.toMatchObject({
-      code,
-      status,
-    });
-  });
-
-  it.each([
-    [[], "DELIVERY_PRICING_RULE_NOT_FOUND", 422],
-    [[deliveryRule(), deliveryRule({ id: 12, version: 4 })], "DELIVERY_PRICING_RULE_OVERLAP", 500],
-  ] as const)("rejects invalid delivery rule selection %#", async (rules, code, status) => {
-    const { service } = createHarness(null, 0, [...rules]);
-    await expect(service.buildQuote({ storeId: 1, items, now })).rejects.toMatchObject({
-      code,
-      status,
-    });
+  it("reconciles capped allocations at one-paise remainders over varied cart quantities", async () => {
+    for (const amount of [1, 2, 99, 500_000])
+      for (const quantity of [1, 2, 7]) {
+        const q = await quote(
+          pricingHarness([
+            promotion({
+              discount: { type: "fixed_amount", amountPaise: amount },
+            }),
+          ]),
+          [
+            pricingItem({
+              baseUnitPricePaise: 101,
+              quantity,
+              customizations: [],
+            }),
+            pricingItem({
+              lineId: 2,
+              baseUnitPricePaise: 103,
+              quantity,
+              customizations: [],
+            }),
+          ],
+        );
+        reconcile(q);
+        expect(q.itemDiscountPaise).toBeLessThanOrEqual(q.itemsSubtotalPaise);
+      }
   });
 });
