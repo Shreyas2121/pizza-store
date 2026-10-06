@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { PROMOTION_CODE_MAX_LENGTH } from "./promotion.constants";
 import {
   promotionDefinitionWriteSchema,
   promotionListQuerySchema,
@@ -40,6 +41,10 @@ const validDefinition = () => ({
 });
 
 describe("promotion definition schemas", () => {
+  it("enforces the code length after uppercase normalization expands Unicode", () => {
+    const coupon = { ...validDefinition(), kind: "coupon", code: "ß".repeat(PROMOTION_CODE_MAX_LENGTH), scope: "cart", rules: [] };
+    expect(promotionDefinitionWriteSchema.safeParse(coupon).success).toBe(false);
+  });
   it("accepts the frozen contract and permits overnight time windows", () => {
     const result = promotionDefinitionWriteSchema.parse(validDefinition());
 

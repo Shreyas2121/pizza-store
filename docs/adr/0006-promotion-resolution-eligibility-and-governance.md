@@ -15,6 +15,7 @@ PizzaStore is replacing the legacy coupon-only model with automatic offers and m
 1. Every quote and order has exactly one `DiscountMode`: `none`, `automatic_deals`, or `coupon`.
 2. Offers are discovered and applied automatically from authoritative store, catalogue, cart, user, clock, and usage data. Clients never submit an offer ID or remove an eligible offer independently of its cart item.
 3. Coupons are hidden, code-based promotions. The server evaluates a coupon only when a customer manually submits its code; it never searches for or auto-selects a coupon.
+   Normalized codes must satisfy the length cap after uppercase conversion, including Unicode expansions, before persistence.
 4. If any offer has a non-zero application, or any pre-built deal bundle is present, a submitted coupon fails with `COUPON_NOT_COMBINABLE_WITH_OFFERS`. The server does not remove or reprice the offer or bundle to make the coupon eligible.
 5. When both an applied offer and a deal bundle block a coupon, `couponEligibility.reasonCode` is `OFFER_APPLIED`. `conflictingLineIds` contains the sorted union of every offer-affected and deal-bundle line. `DEAL_BUNDLE_PRESENT` is used when bundles are the only blocker.
 6. Coupon mode contains exactly one coupon application. Automatic-deals mode may contain multiple offer applications, but only through non-overlapping winning unit/delivery allocations.

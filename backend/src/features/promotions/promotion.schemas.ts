@@ -139,6 +139,7 @@ const definitionWriteObject = z
       .min(1)
       .max(PROMOTION_CODE_MAX_LENGTH)
       .transform((value) => value.toUpperCase())
+      .pipe(z.string().max(PROMOTION_CODE_MAX_LENGTH))
       .nullable(),
     discount: promotionDiscountSchema,
     scope: z.enum(PROMOTION_SCOPES),
