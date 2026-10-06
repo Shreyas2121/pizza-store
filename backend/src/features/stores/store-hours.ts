@@ -43,7 +43,8 @@ export const formatStoreTime = (time: string) => {
 export const isStoreOpen = (
   opensAt: string,
   closesAt: string,
-  date = new Date()
+  date = new Date(),
+  timezone = APP_TIME_ZONE
 ) => {
   const opensAtMinutes = parseTime(opensAt);
   const closesAtMinutes = parseTime(closesAt);
@@ -51,7 +52,14 @@ export const isStoreOpen = (
   if (opensAtMinutes === null || closesAtMinutes === null) return false;
   if (opensAtMinutes === closesAtMinutes) return true;
 
-  const currentMinutes = getIstTimeInMinutes(date);
+  const parts = new Intl.DateTimeFormat(APP_LOCALE, {
+    timeZone: timezone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const currentMinutes = Number(parts.find((part) => part.type === "hour")?.value) * 60
+    + Number(parts.find((part) => part.type === "minute")?.value);
 
   if (opensAtMinutes < closesAtMinutes) {
     return currentMinutes >= opensAtMinutes && currentMinutes < closesAtMinutes;
