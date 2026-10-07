@@ -142,6 +142,8 @@ Feature pages are lazy-loaded with `React.lazy()` and rendered under Suspense. T
 
 ### State management
 
+Access capabilities are cached by authenticated user ID under `accessKeys.principal(userId)`. The `accessKeys.me()` prefix still invalidates every capability query after membership changes or forbidden responses. Requests consume TanStack Query's cancellation signal, so an obsolete account request cannot populate another account's cache. An account switch starts without the previous user's capabilities; backend authorization remains authoritative.
+
 The frontend separates server state from client state:
 
 | Concern | Tool | What it manages |

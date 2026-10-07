@@ -2,21 +2,20 @@ import { useQuery } from "@tanstack/react-query";
 import { API } from "@/shared/api";
 import { useUser } from "@/features/auth";
 import type { UserAccessResponse } from "../model/access.types";
-
-export const accessKeys = {
-  all: ["access"] as const,
-  me: () => ["access", "me"] as const,
-};
+import { accessKeys } from "../model/access.keys";
+export { accessKeys } from "../model/access.keys";
 
 export const useAccessMe = () => {
-  const { token, isLoggedIn } = useUser();
+  const { user, token, isLoggedIn } = useUser();
   return useQuery({
-    queryKey: accessKeys.me(),
-    queryFn: async () => {
-      const res = await API.get<{ data: UserAccessResponse }>("/access/me");
+    queryKey: accessKeys.principal(user?.id),
+    queryFn: async ({ signal }) => {
+      const res = await API.get<{ data: UserAccessResponse }>("/access/me", {
+        signal,
+      });
       return res.data.data;
     },
-    enabled: isLoggedIn && !!token,
+    enabled: isLoggedIn && !!token && user !== null,
     staleTime: 1000 * 60,
   });
 };
