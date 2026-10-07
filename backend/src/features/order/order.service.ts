@@ -11,7 +11,6 @@ import defaultAuthorizationService, {
 import defaultAuditService from "../audit/audit.service";
 import type { AuditWriter } from "../audit/audit.types";
 import cartService from "../cart/cart.service";
-import checkoutService from "../checkout/checkout.service";
 import { codCheckoutService } from "../checkout";
 import inventoryService from "../inventory/inventory.service";
 import paymentService from "../payments/payment.service";
@@ -27,7 +26,6 @@ import financialEventService from "../finance-events/financial-event.service";
 import type { FinancialEventWriter } from "../finance-events/financial-event.types";
 import cashService, { type CashSourceWriter } from "../cash-management/cash.service";
 import { businessDateFor } from "../../utils/business-date";
-import { PRICING_POLICY_VERSION } from "../pricing";
 import { buildDeliveredOrderPayload } from "../finance-events/order-recognition.payload";
 import { promotionApplicationService, PromotionApplicationRepository } from "../promotions/applications";
 
@@ -233,9 +231,7 @@ class OrderService {
       assertValidOrderTransition(order.status, status);
 
       if (status === "cancelled") {
-        if (order.pricingPolicyVersion === PRICING_POLICY_VERSION) {
-          await new PromotionApplicationRepository().lockOwner(order.id, tx);
-        }
+        await new PromotionApplicationRepository().lockOwner(order.id, tx);
         await inventoryService.restoreStockForOrder(
           {
             orderId: order.id,
@@ -244,12 +240,7 @@ class OrderService {
           tx
         );
 
-        if (order.pricingPolicyVersion === PRICING_POLICY_VERSION) {
-          await promotionApplicationService.release(order.id, tx, now);
-        }
-        if (order.couponId) {
-          await checkoutService.releaseCouponReservation(order.id, tx);
-        }
+        await promotionApplicationService.release(order.id, tx, now);
       }
 
       let capturedPaymentAttempt: { id: number; method: string | null } | null = null;

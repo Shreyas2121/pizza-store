@@ -92,7 +92,7 @@ and test limitations are recorded in the evidence document.
    - Releases active reservations, making their stock available again.
    - Closing the browser payment modal alone does not release reservations.
    - Status cancellation does not issue a provider refund or reverse consumed
-     coupon redemptions. Paid-order cancellation restores recorded tracked stock
+     promotion applications. Paid-order cancellation restores recorded tracked stock
      while leaving the completed payment unchanged.
 
 4. **Expiry Reconciliation (`pnpm run inventory:reconcile-reservations`)**:

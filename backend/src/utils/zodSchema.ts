@@ -171,17 +171,6 @@ export const runPaymentSimulatorSchema = z
   })
   .strict();
 
-export const validateCouponSchema = z
-  .object({
-    code: z
-      .string()
-      .trim()
-      .min(1, "Coupon code is required")
-      .max(100, "Coupon code is too long")
-      .transform((code) => code.toUpperCase()),
-  })
-  .strict();
-
 export const checkoutQuoteItemSchema = z
   .object({
     productId: z.number().int().positive("Product ID must be a positive integer"),
@@ -221,20 +210,6 @@ export const updateCartItemSchema = z.object({
 export const updateCartCustomizationSchema = z.object({
   cartItemId: z.number().int().positive("Cart item ID is required"),
   cIds: z.array(z.number().int().positive()).default([]),
-});
-
-export const createCouponSchema = z.object({
-  code: z.string().min(1, "Coupon code is required"),
-  discountType: z.enum(["percentage", "fixed"]),
-  discountValue: z.number().positive("Discount value must be positive").max(5_000).multipleOf(0.01),
-  minOrderValue: z.number().nonnegative().max(5_000).multipleOf(0.01).optional(),
-  maxRedemptions: z.number().int().optional(),
-  startDate: z.string().optional(),
-  endDate: z.string().optional(),
-}).superRefine((coupon, context) => {
-  if (coupon.discountType === "percentage" && coupon.discountValue > 100) {
-    context.addIssue({ code: "custom", path: ["discountValue"], message: "Percentage discount cannot exceed 100" });
-  }
 });
 
 const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;

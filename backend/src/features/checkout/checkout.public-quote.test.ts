@@ -392,3 +392,170 @@ describe("CheckoutService public quote authorization and catalogue validation", 
     });
   });
 });
+
+describe("CheckoutService calculatePublicQuote", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("validates a manual code using the owned cart store and v4 quote", async () => {
+    vi.spyOn(publicQuoteRepository, "findOwnedCart").mockResolvedValue({
+      storeId: 2, items: [{ id: 101, productId: 1, quantity: 1, customizationOptionIds: [] }],
+    });
+    const quote = vi.spyOn(checkoutService, "calculatePublicQuote").mockResolvedValue(validQuote);
+    await expect(checkoutService.previewPromotionCoupon(7, "SAVE")).resolves.toEqual(validQuote);
+    expect(quote).toHaveBeenCalledWith({ userId: 7, storeId: 2, couponCode: "SAVE" });
+  });
+
+  it.each([undefined, { storeId: 2, items: [] }])("rejects manual validation without an owned populated cart", async (cart) => {
+    vi.spyOn(publicQuoteRepository, "findOwnedCart").mockResolvedValue(cart);
+    const quote = vi.spyOn(checkoutService, "calculatePublicQuote");
+    await expect(checkoutService.previewPromotionCoupon(7, "SAVE")).rejects.toMatchObject({ code: "CART_EMPTY", status: 400 });
+    expect(quote).not.toHaveBeenCalled();
+  });
+
+  it("calculates authoritative quote from provided items and customization options", async () => {
+    const mockQuote = validQuote;
+
+    const buildQuoteSpy = vi
+      .spyOn(pricingService, "buildQuote")
+      .mockResolvedValue({
+        quote: mockQuote,
+      });
+
+    vi.spyOn(publicQuoteRepository, "findStoreProducts").mockResolvedValue([
+      {
+        productId: 1,
+        productName: "Margherita",
+        pricePaise: 37_000,
+        categoryId: 5,
+        productType: "single",
+        compareAtUnitPricePaise: null,
+        productIsAvailable: true,
+        storeProductIsAvailable: true,
+      },
+    ]);
+    vi.spyOn(
+      publicQuoteRepository,
+      "findProductCustomizationOptions",
+    ).mockResolvedValue([
+      {
+        productId: 1,
+        optionId: 101,
+        optionName: "Extra Cheese",
+        pricePaise: 5_000,
+        isAvailable: true,
+      },
+    ]);
+
+    const result = await checkoutService.calculatePublicQuote({
+      storeId: 1,
+      couponCode: "SAVE50",
+      destinationState: "Karnataka",
+      items: [
+        {
+          productId: 1,
+          quantity: 1,
+          customizationOptionIds: [101],
+        },
+      ],
+    });
+
+    expect(result).toEqual(mockQuote);
+    expect(buildQuoteSpy).toHaveBeenCalledWith({
+      storeId: 1,
+      userId: undefined,
+      items: [
+        {
+          lineId: 1,
+          productId: 1,
+          productName: "Margherita",
+          categoryId: 5,
+          productType: "single",
+          compareAtUnitPricePaise: null,
+          bundleComponents: [],
+          quantity: 1,
+          baseUnitPricePaise: 37_000,
+          customizations: [
+            {
+              customizationOptionId: 101,
+              name: "Extra Cheese",
+              pricePaise: 5_000,
+            },
+          ],
+        },
+      ],
+      couponCode: "SAVE50",
+      destinationState: "Karnataka",
+    });
+  });
+
+  it("calculates authoritative quote from user cart when items are omitted", async () => {
+    vi.spyOn(publicQuoteRepository, "findOwnedCart").mockResolvedValue({
+      storeId: 2,
+      items: [
+        { id: 101, productId: 1, quantity: 2, customizationOptionIds: [] },
+      ],
+    });
+    vi.spyOn(publicQuoteRepository, "findStoreProducts").mockResolvedValue([
+      {
+        productId: 1,
+        productName: "Margherita",
+        categoryId: 5,
+        pricePaise: 25_000,
+        productType: "single",
+        compareAtUnitPricePaise: null,
+        productIsAvailable: true,
+        storeProductIsAvailable: true,
+      },
+    ]);
+    const buildQuoteSpy = vi
+      .spyOn(pricingService, "buildQuote")
+      .mockResolvedValue({
+        quote: validQuote,
+      });
+
+    const result = await checkoutService.calculatePublicQuote({
+      storeId: 2,
+      userId: 10,
+    });
+
+    expect(result.grandTotalPaise).toBe(validQuote.grandTotalPaise);
+    expect(buildQuoteSpy).toHaveBeenCalledWith({
+      storeId: 2,
+      userId: 10,
+      items: [
+        {
+          lineId: 101,
+          productId: 1,
+          productName: "Margherita",
+          categoryId: 5,
+          productType: "single",
+          compareAtUnitPricePaise: null,
+          bundleComponents: [],
+          quantity: 2,
+          baseUnitPricePaise: 25_000,
+          customizations: [],
+        },
+      ],
+      couponCode: undefined,
+      destinationState: null,
+    });
+  });
+
+  it("throws 400 when items are omitted and user has no active cart", async () => {
+    vi.spyOn(publicQuoteRepository, "findOwnedCart").mockResolvedValue(
+      undefined,
+    );
+
+    await expect(
+      checkoutService.calculatePublicQuote({
+        storeId: 1,
+        userId: 10,
+      }),
+    ).rejects.toMatchObject({
+      message: "Cart is empty",
+      status: 400,
+    });
+  });
+});

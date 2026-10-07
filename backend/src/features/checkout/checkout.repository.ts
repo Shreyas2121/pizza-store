@@ -54,7 +54,7 @@ export const publicQuoteRepository = {
     addressId: number,
     userId: number,
     executor: Executor = db,
-  ) {
+  ): Promise<string | undefined> {
     const [address] = await executor
       .select({ state: addressTable.state })
       .from(addressTable)

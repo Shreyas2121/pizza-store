@@ -7,37 +7,12 @@ import {
   TRUNCATE_APPLICATION_DATA_SQL,
 } from "./system-maintenance.service";
 
-const expectedApplicationTables = [
-  "addresses",
-  "audit_logs",
-  "cart",
-  "cart_item_customizations",
-  "cart_items",
-  "categories",
-  "chat_messages",
-  "chat_sessions",
-  "coupon_redemptions",
-  "coupons",
-  "customization_groups",
-  "customization_options",
-  "delivery_pricing_rules",
-  "delivery_zones",
-  "inventory_movements",
-  "inventory_reservations",
-  "menu_items",
-  "menu_items_mapping",
-  "order_item_customizations",
-  "order_items",
-  "orders",
-  "payment_webhook_events",
-  "payments",
-  "product_customization_group_mapping",
-  "products",
-  "store_memberships",
-  "store_products",
-  "store_staff_invitations",
-  "stores",
-  "tax_rules",
+// Representative FK owners missed by the previous commerce-only reset list.
+const requiredApplicationTables = [
+  "promotion_applications", "promotion_discount_allocations",
+  "promotions", "promotion_rules", "store_promotion_settings",
+  "bundle_components", "order_item_bundle_components", "payment_attempts",
+  "financial_outbox", "journal_entries", "journal_lines", "employee_finance_profiles",
 ];
 
 const createTransaction = (requestingRole: "admin" | "user" = "admin") => {
@@ -75,6 +50,7 @@ const createTransaction = (requestingRole: "admin" | "user" = "admin") => {
 };
 
 const adminPrincipal = {
+  tokenVersion: 0,
   userId: 1,
   email: "admin@example.com",
   platformRole: "admin" as const,
@@ -82,12 +58,13 @@ const adminPrincipal = {
 
 describe("SystemMaintenanceService", () => {
   it("covers every application table while excluding users", () => {
-    expect([...APPLICATION_DATA_TABLE_NAMES].sort()).toEqual(
-      expectedApplicationTables.sort()
-    );
+    expect(APPLICATION_DATA_TABLE_NAMES).toEqual(expect.arrayContaining(requiredApplicationTables));
+    expect(new Set(APPLICATION_DATA_TABLE_NAMES).size).toBe(APPLICATION_DATA_TABLE_NAMES.length);
+    expect(APPLICATION_DATA_TABLE_NAMES).not.toContain("coupons");
+    expect(APPLICATION_DATA_TABLE_NAMES).not.toContain("coupon_redemptions");
     expect(APPLICATION_DATA_TABLE_NAMES).not.toContain("users");
     expect(TRUNCATE_APPLICATION_DATA_SQL).not.toContain('"users"');
-    for (const tableName of expectedApplicationTables) {
+    for (const tableName of APPLICATION_DATA_TABLE_NAMES) {
       expect(TRUNCATE_APPLICATION_DATA_SQL).toContain(`"${tableName}"`);
     }
   });
@@ -109,7 +86,7 @@ describe("SystemMaintenanceService", () => {
     }));
     expect(result).toEqual({
       cleared: true,
-      clearedTableCount: expectedApplicationTables.length,
+      clearedTableCount: APPLICATION_DATA_TABLE_NAMES.length,
       deletedNonAdminUsers: 2,
       preservedAdminUsers: 2,
     });

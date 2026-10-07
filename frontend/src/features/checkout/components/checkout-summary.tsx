@@ -3,14 +3,14 @@ import { ChevronRight, LockKeyhole } from "lucide-react";
 import { CartRes } from "@/features/cart";
 import { BASE_URL } from "@/shared/config";
 import { formatPaise } from "@/shared/lib";
-import { Coupon, PaymentType, PricingQuote } from "../model/checkout.types";
+import { PaymentType, PricingQuote } from "../model/checkout.types";
 import CouponField from "./coupon-field";
 
 type CheckoutSummaryProps = {
   cart: CartRes;
   itemCount: number;
   code: string;
-  coupon: Coupon | null;
+  appliedCouponCode: string | null;
   quote: PricingQuote | null;
   loadingQuote?: boolean;
   quoteError?: string | null;
@@ -29,7 +29,7 @@ export const CheckoutSummary = ({
   cart,
   itemCount,
   code,
-  coupon,
+  appliedCouponCode,
   quote,
   loadingQuote,
   quoteError,
@@ -45,10 +45,9 @@ export const CheckoutSummary = ({
 }: CheckoutSummaryProps) => {
   const subtotalFormatted = quote ? formatPaise(quote.itemsSubtotalPaise) : "Calculating…";
 
-  const discountPaise = quote?.discountPaise ?? 0;
-  const deliveryFeePaise = quote?.deliveryFeePaise ?? 0;
+  const discountPaise = quote?.itemDiscountPaise ?? 0;
+  const deliveryFeePaise = quote?.chargedDeliveryFeePaise ?? 0;
   const isFreeDelivery =
-    quote?.deliveryPricing.freeDeliveryApplied ||
     (quote !== null && deliveryFeePaise === 0);
 
   const grandTotalFormatted = quote ? formatPaise(quote.grandTotalPaise) : "Calculating…";
@@ -90,7 +89,7 @@ export const CheckoutSummary = ({
 
       <CouponField
         code={code}
-        coupon={coupon}
+        appliedCouponCode={appliedCouponCode}
         loading={validatingCoupon || loadingQuote}
         onCodeChange={onCodeChange}
         onApply={onApplyCoupon}

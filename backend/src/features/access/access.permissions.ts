@@ -51,7 +51,6 @@ export const PLATFORM_CAPABILITIES = [
   "platform.stores.create",
   "platform.stores.delete",
   "platform.store_managers.manage",
-  "platform.coupons.manage",
   "platform.promotions.manage",
   "platform.payments.reconcile",
   "platform.support.manage",

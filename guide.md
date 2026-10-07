@@ -2,7 +2,7 @@
 
 Status: execution guide
 
-Implementation progress (2026-10-07): C00-C09 implemented on `feature/promotions-overhaul`. C08 was requested directly after C07; C11/C12 frontend work remains pending. Next backend slice: C10 orders/legacy cleanup. See the [C09 handoff](./docs/promotions-c09-handoff.md) for implementation, verification, and explicitly deferred database checks.
+Implementation progress (2026-10-07): C00-C10 implemented on `feature/promotions-overhaul`. C10 exposes immutable order snapshots and removes legacy coupon persistence/routes. Next slice: C11 frontend governance, followed by C12 discovery and C13 checkout/history UX. See the [C10 handoff](./docs/promotions-c10-handoff.md) for implementation, verification, migration review and explicitly deferred database checks.
 
 Authoritative product plan: [`implementation_plan.md`](./implementation_plan.md)
 

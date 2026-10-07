@@ -23,8 +23,6 @@ export {
 } from "./lib/razorpay";
 
 export type {
-  Coupon,
-  CouponPreview,
   PricingQuote,
   PricingQuoteItem,
   PricingCustomizationSnapshot,
@@ -35,7 +33,6 @@ export type {
   PaymentStatus,
   PaymentProvider,
   PaymentMethods,
-  CouponType,
   InitiateRazorpayOrderRequest,
   RazorpayCheckoutData,
   RazorpayFailure,

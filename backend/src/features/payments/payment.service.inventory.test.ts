@@ -57,7 +57,6 @@ describe("PaymentService inventory reservation lifecycle", () => {
             lowStockThreshold: 5,
           },
         ],
-        coupon: null,
       };
 
       vi.spyOn(checkoutService, "buildQuote").mockResolvedValue(mockQuote as any);

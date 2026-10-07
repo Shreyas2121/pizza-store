@@ -1,78 +1,18 @@
-import { eq, getTableName, ne, sql } from "drizzle-orm";
+import { eq, getTableName, is, ne, sql } from "drizzle-orm";
 import { db } from "../../db";
-import {
-  addressTable,
-  auditLogsTable,
-  cartItemCustomizationsTable,
-  cartItemsTable,
-  cartTable,
-  categoriesTable,
-  chatMessagesTable,
-  chatSessionsTable,
-  couponRedemptionsTable,
-  couponsTable,
-  customizationGroupsTable,
-  customizationOptionsTable,
-  deliveryPricingRulesTable,
-  deliveryZonesTable,
-  inventoryMovementsTable,
-  inventoryReservationsTable,
-  menuItemsMappingTable,
-  menuItemsTable,
-  orderItemCustomizationsTable,
-  orderItemsTable,
-  ordersTable,
-  paymentWebhookEventsTable,
-  paymentsTable,
-  productCustomizationGroupMappingTable,
-  productsTable,
-  storeMembershipsTable,
-  storeProductsTable,
-  storeStaffInvitationsTable,
-  storesTable,
-  taxRulesTable,
-  usersTable,
-} from "../../db/schema";
+import { PgTable } from "drizzle-orm/pg-core";
+import * as schema from "../../db/schema";
+import { auditLogsTable, usersTable } from "../../db/schema";
 import { AppError } from "../../utils/error";
 import type { TransactionType } from "../../utils/types";
 import type { AuthPrincipal } from "../auth/auth.types";
 
-const applicationDataTables = [
-  addressTable,
-  auditLogsTable,
-  cartItemCustomizationsTable,
-  cartItemsTable,
-  cartTable,
-  categoriesTable,
-  chatMessagesTable,
-  chatSessionsTable,
-  couponRedemptionsTable,
-  couponsTable,
-  customizationGroupsTable,
-  customizationOptionsTable,
-  deliveryPricingRulesTable,
-  deliveryZonesTable,
-  inventoryMovementsTable,
-  inventoryReservationsTable,
-  menuItemsMappingTable,
-  menuItemsTable,
-  orderItemCustomizationsTable,
-  orderItemsTable,
-  ordersTable,
-  paymentWebhookEventsTable,
-  paymentsTable,
-  productCustomizationGroupMappingTable,
-  productsTable,
-  storeMembershipsTable,
-  storeProductsTable,
-  storeStaffInvitationsTable,
-  storesTable,
-  taxRulesTable,
-] as const;
-
-export const APPLICATION_DATA_TABLE_NAMES = applicationDataTables.map((table) =>
-  getTableName(table)
-);
+// Keep the reset FK-complete as application domains are added. Users are
+// deleted separately so platform administrator accounts can be preserved.
+export const APPLICATION_DATA_TABLE_NAMES = [...new Set(
+  Object.values(schema).filter((value) => is(value, PgTable))
+    .map(getTableName).filter((name) => name !== getTableName(usersTable))
+)].sort();
 
 const quoteIdentifier = (identifier: string) =>
   `"${identifier.replaceAll('"', '""')}"`;

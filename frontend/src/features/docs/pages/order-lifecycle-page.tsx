@@ -26,7 +26,7 @@ export default function OrderLifecyclePage() {
       <p className="mt-6 max-w-2xl text-lg leading-8 text-ink-muted">Checkout connects a cart, stock, coupon use, fulfillment, and payment. This page follows what commits together and what needs a separate recovery path.</p>
       <div className="mt-7 rounded-control border border-border bg-surface-muted p-5 text-sm leading-6 text-ink-muted">
         <p>Source snapshot: <code>{reviewedRevision.slice(0, 7)}</code>, reviewed {reviewedDate}. Financial work is in progress on another branch; these flows describe the audited main-branch implementation, not a claim that the full online UI works end to end.</p>
-        <p className="mt-2">At this revision, frontend method-discovery and retry calls have no registered backend routes. Retry service code exists but does not restore released stock holds.</p>
+        <p className="mt-2">These are historical findings. The current promotion overhaul registers method-discovery/retry routes, restores saved stock and promotion holds together, and uses immutable promotion and bundle snapshots. Current evidence is recorded in the repository promotion handoffs; live database/provider checks remain pending.</p>
       </div>
     </header>
 

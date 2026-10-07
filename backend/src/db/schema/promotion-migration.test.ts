@@ -17,7 +17,7 @@ const journal = JSON.parse(
 
 describe("promotion foundation migration", () => {
   it("checks in matching SQL and Drizzle metadata", () => {
-    expect(journal.entries.at(-1)).toMatchObject({
+    expect(journal.entries.find((entry) => entry.idx === 29)).toMatchObject({
       idx: 29,
       tag: "0029_promotion_application_bundle_foundation",
     });

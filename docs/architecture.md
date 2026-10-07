@@ -45,7 +45,8 @@ Selected business modules (supporting domains also include `auth`, `access`, `st
 | `order` | Order creation from cart, order listing with status filtering, admin views |
 | `payments` | Cash and Razorpay payment processing, lifecycle, and reconciliation |
 | `inventory` | Store-level stock management, reservations, atomic movements, and threshold alerts |
-| `coupon` | Coupon CRUD, validation against order totals, redemption tracking |
+| `promotions` | Platform governance, store participation, manual coupon validation, automatic offers and immutable applications/allocations |
+| `bundles` | Catalogue component definitions, availability and saved order components |
 | `dashboard` | Revenue, order count, active users, average order value, low-stock items; time-series charts |
 | `chat` | Support session lifecycle, message persistence, Socket.IO integration |
 
@@ -219,3 +220,5 @@ Operational recovery and limitations are in [finance-operations-runbook.md](fina
 ### Image handling
 
 Product and menu images are uploaded as `multipart/form-data` via Multer. Files are stored on disk in `backend/uploads/` with generated filenames. The frontend constructs image URLs as `${BASE_URL}${product.image}`.
+
+Order reads share a bounded snapshot query and explicit public projection. Saved promotion/item/customization/bundle names survive catalogue edits; only current product images decorate historical lines. Customer credentials, cost snapshots and provider internals are excluded. The retired coupon module has no persistence or HTTP adapter. See [C10 handoff](promotions-c10-handoff.md).

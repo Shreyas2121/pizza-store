@@ -60,6 +60,12 @@ Do not remove or silently redefine the v1 dashboard finance fields. Their retire
 
 ## 3. Authoritative server quote and checkout consolidation
 
+C10 update: sections 3.1 and 3.2 preserve the historical financial-overhaul
+proposal, including its retired singular coupon response. Current checkout uses
+the [v4 promotion quote contract](promotions-contract.md#43-authoritative-pricing-quote)
+with `discountMode`, `promotions[]`, separate item/delivery savings and
+`couponEligibility`. The legacy preview route and persistence are removed.
+
 ### 3.1 Problem with legacy checkout calculation
 
 Previously, coupon preview (`coupon.service.ts#validateCoupon`) and checkout calculation (`buildQuote`) performed independent calculations:
@@ -141,8 +147,8 @@ All pricing, discount allocation, tax extraction, and delivery fee calculation i
 
 ### 3.3 Parity rule
 
-- **Coupon preview (`POST /api/v1/coupon/validate`)**: Temporary authenticated cutover route that calls `pricing.service.ts#buildQuote` internally and returns the verified discount in paise and formatted presentation INR. The promotions overhaul replaces it with `POST /api/v1/promotions/validate`.
-- **Final checkout (`POST /api/v1/checkout`)**: Verifies the submitted quote or recalculates via `pricing.service.ts` in the database transaction, writes immutable paise snapshots, and consumes inventory reservations atomically.
+- **Manual coupon validation (`POST /api/v1/promotions/validate`)**: Authenticated owned-cart v4 quote with application collections and exact integer-paise savings. The legacy coupon preview route and response were removed in C10.
+- **Final checkout (`POST /api/v1/order` for COD; `POST /api/v1/payments/razorpay/order` for online)**: Recalculates via v4 pricing under transaction locks, writes immutable paise/application/bundle snapshots, and consumes or reserves inventory and promotion capacity atomically. Browser quotes are never trusted for the payable amount.
 - The frontend renders values directly from the server quote response; browser JavaScript never computes totals, taxes, or discounts.
 
 ---

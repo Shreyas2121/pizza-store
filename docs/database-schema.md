@@ -248,23 +248,6 @@ Relations: one-to-many with cart item customizations.
 | `price_paise` | integer | NOT NULL, CHECK >= 0 | Snapshot of option price |
 | `created_at`, `updated_at` | timestamptz | | |
 
-### `coupons`
-
-| Column | Type | Constraints | Notes |
-| --- | --- | --- | --- |
-| `id` | integer | PK | |
-| `code` | text | UNIQUE, NOT NULL | Case-sensitive coupon code |
-| `discount_type` | text | NOT NULL | `"percentage"` or `"fixed"` |
-| `discount_rate_bps` | integer | nullable, CHECK 1–10000 | Percentage rate in basis points; set only for percentage coupons |
-| `discount_amount_paise` | integer | nullable, CHECK > 0 | Fixed discount in paise; set only for fixed coupons |
-| `minimum_order_paise` | integer | NOT NULL, default `0`, CHECK >= 0 | Minimum item subtotal in paise |
-| `start_date` | timestamptz | NOT NULL | |
-| `end_date` | timestamptz | NOT NULL | |
-| `is_active` | boolean | NOT NULL, default `true` | |
-| `redemption_count` | integer | NOT NULL, default `0` | Current uses |
-| `max_redemptions` | integer | NOT NULL, default `-1` | `-1` = unlimited |
-| `created_at`, `updated_at` | timestamptz | | |
-
 ### `payments`
 
 | Column | Type | Constraints | Notes |
@@ -335,10 +318,6 @@ unique indexes allow one allocation per refunded item and one delivery-fee
 allocation per refund. P2.6 validates that allocation totals equal the refund
 amount and do not exceed the captured attempt or original order snapshots.
 
-### `coupon_redemptions`
-
-Per-order coupon reservation state used to prevent concurrent oversubscription. It links a coupon, order, and user; `order_id` is unique; and state is `reserved`, `consumed`, or `released`, with matching lifecycle timestamps.
-
 ### `orders`
 
 | Column | Type | Constraints | Notes |
@@ -346,9 +325,8 @@ Per-order coupon reservation state used to prevent concurrent oversubscription. 
 | `id` | integer | PK | |
 | `user_id` | integer | FK → users, NOT NULL | |
 | `order_date` | timestamptz | default `now()` | |
-| `coupon_id` | integer | FK → coupons, nullable | |
 | `items_subtotal_paise` | integer | NOT NULL | Subtotal of all order lines in integer paise |
-| `discount_paise` | integer | NOT NULL | Coupon discount in integer paise |
+| `discount_paise` | integer | NOT NULL | Item promotion discount in integer paise |
 | `delivery_fee_paise` | integer | NOT NULL | Delivery fee in integer paise |
 | `taxable_amount_paise` | integer | NOT NULL | Net taxable base amount in integer paise |
 | `tax_paise` | integer | NOT NULL | Extracted inclusive tax in integer paise |
@@ -379,7 +357,7 @@ Per-order coupon reservation state used to prevent concurrent oversubscription. 
 | `store_id` | integer | FK → stores, NOT NULL | Fulfilling store |
 | `created_at`, `updated_at` | timestamptz | | |
 
-Relations: belongs to user, payment, coupon, address, store, and delivery pricing rule; one-to-many with order items.
+Relations: belongs to user, payment, address, store, and delivery pricing rule; one-to-many with order items and promotion applications. Historical read DTOs expose application collections, saved names, allocations and bundle components.
 
 ### `order_items`
 
@@ -513,15 +491,20 @@ erDiagram
     cart_items ||--o{ cart_item_customizations : has
     cart_item_customizations }o--|| customization_options : references
 
+    promotions ||--o{ promotion_rules : defines
+    promotions ||--o{ store_promotion_settings : participates
+    stores ||--o{ store_promotion_settings : selects
+    promotions ||--o{ promotion_applications : applied_as
+    orders ||--o{ promotion_applications : snapshots
+    promotion_applications ||--o{ promotion_discount_allocations : allocates
+    order_items ||--o{ promotion_discount_allocations : receives
+    products ||--o{ bundle_components : bundles
+    order_items ||--o{ order_item_bundle_components : snapshots
     orders ||--o{ order_items : contains
-    orders }o--o| coupons : uses
     orders }o--o| payments : paid_by
     orders ||--o{ payment_attempts : attempts
     stores ||--o{ payment_attempts : processes
-    orders ||--o| coupon_redemptions : reserves
     orders ||--o{ inventory_reservations : holds
-    coupons ||--o{ coupon_redemptions : tracks
-    users ||--o{ coupon_redemptions : owns
     orders }o--o| addresses : delivered_to
     order_items }o--|| products : references
     order_items ||--o{ order_item_customizations : has
@@ -558,6 +541,34 @@ Key report indexes are `journal_entries_store_date_idx` for store history and th
 
 Money columns use the `_paise` suffix and integers. Aggregate API values that can exceed JavaScript's safe integer range serialize as decimal strings. Business dates are stored separately from timestamps and are derived using the store timezone. Posted/reversed rows are never updated for correction except the controlled original-status transition performed alongside a linked reversal.
 
+## Promotion and bundle persistence (C02-C10)
+
+| Table | Purpose |
+| --- | --- |
+| `promotions` | Platform definitions, offer/manual coupon kind, version, scheduling, nullable redemption/budget limits and media metadata |
+| `promotion_rules` | Product/category targets, thresholds, BXGY and tier rule configuration |
+| `store_promotion_settings` | Manager participation, version and reason per store |
+| `promotion_applications` | Immutable order/store/user identity, definition name/code/version, savings and reserved/consumed/released lifecycle |
+| `promotion_discount_allocations` | Exact item-unit or delivery allocation paise tied to saved applications/order items |
+| `bundle_components` | Catalogue bundle component products and quantity per bundle |
+| `order_item_bundle_components` | Saved component name, quantity per bundle and total ordered quantity |
+
+Orders store `discount_mode` and exact aggregate item/charged-delivery amounts;
+order items store product names, selling and compare-at unit prices, display-only
+markdown, paid discount/tax allocations and component snapshots. Current
+definitions never reprice a saved order.
+
+Migration `0030_remove_legacy_coupons.sql` removes the retired coupon tables and
+order link after the additive `0029` foundation. Its referencing FK is dropped
+before the child and parent tables; no CASCADE or backfill is used. Historical
+migrations remain unchanged. Generation and static metadata/SQL review were
+performed without applying migrations or connecting to PostgreSQL.
+
+System maintenance derives all application table names from the schema exports
+and truncates them together, including finance/payroll/promotion/bundle tables.
+Users are handled separately to preserve admins, then the reset audit is appended.
+This reset is not executed as an implementation check.
+
 ## Transaction boundaries
 
 The following operations use database transactions:
@@ -565,9 +576,9 @@ The following operations use database transactions:
 - **Cart add**: Checking available stock → creating/finding cart → creating cart item → creating cart item customizations → updating cart total price.
 - **Cart update (quantity)**: Checking available stock → updating cart item quantity/price → updating cart total.
 - **Cart item delete**: Calculating price to subtract → deleting cart item → updating cart total.
-- **COD order creation**: Locking store products in ascending ID order, verifying stock availability, quoting the cart, validating/consuming coupon, creating pending payment, snapshotting order/customizations, deducting `on_hand_quantity`, writing `sale` inventory movements, and deleting the cart commit atomically.
-- **Online payment initiation**: Locking store products, validating stock, creating order and payment in `awaiting_payment` status, creating `inventory_reservations` rows, and reserving coupon commit atomically.
-- **Online payment capture**: Locking store products in ascending ID order, locking matching reservations, consuming reservations, decrementing `on_hand_quantity`, writing `sale` inventory movements, consuming coupon, and transitioning payment/order to completed/pending commit atomically.
+- **COD order creation**: Locking store products in ascending ID order, verifying stock availability, quoting the cart, resolving/consuming promotion applications, creating pending payment, snapshotting order/customizations, deducting `on_hand_quantity`, writing `sale` inventory movements, and deleting the cart commit atomically.
+- **Online payment initiation**: Locking store products, validating stock, creating order and payment in `awaiting_payment` status, creating `inventory_reservations` rows, and reserving promotion applications commit atomically.
+- **Online payment capture**: Locking store products in ascending ID order, locking matching reservations, consuming reservations, decrementing `on_hand_quantity`, writing `sale` inventory movements, consuming promotion applications, and transitioning payment/order to completed/pending commit atomically.
 - **Order cancellation**: Locking order, locking store products in ascending ID order, releasing active reservations or restoring previously deducted stock with `cancellation` inventory movements, and updating order status commit atomically.
 - **Admin restock / adjustment / bulk restock**: Locking store products in deterministic ID order, computing new quantities, updating on-hand stock and `last_restocked_at`, and logging immutable `inventory_movements` commit atomically.
 
@@ -577,6 +588,6 @@ No transaction is held open while awaiting user input or external service calls.
 
 - The `status` column in `orders` is enforced by database CHECK constraint `orders_status_valid` (`awaiting_payment`, `pending`, `preparing`, `out_for_delivery`, `delivered`, `cancelled`). The legacy `delievered` typo was canonicalized in P1.9.
 - Payment provider/currency and support-table states have database CHECK constraints; order states are constrained by `orders_status_valid`.
-- `max_redemptions` of `-1` on coupons indicates unlimited redemptions.
+- Promotion capacity limits are nullable (unlimited); active reserved/consumed application rows are authoritative.
 - Cart and order items snapshot prices at creation time to protect against subsequent price changes.
 - `cart_items` and `cart_item_customizations` cascade on delete of their parent.

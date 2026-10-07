@@ -1,6 +1,6 @@
 # Promotion governance and media operations
 
-C05 provides backend administration and discovery; C06 provides pricing and owned-cart coupon validation; C07/C08 share immutable COD/online promotion and bundle snapshots. C08 carries the collections through online payment recovery. Finance integration, remaining order DTO cleanup, and frontend controls follow in their assigned commits.
+C05 provides backend administration and discovery; C06 provides pricing and owned-cart coupon validation; C07/C08 share immutable COD/online promotion and bundle snapshots. C08 carries the collections through online payment recovery. C09 integrates financial recognition and refunds; C10 exposes historical order snapshots and removes legacy coupon persistence/routes. Frontend governance/discovery and the full checkout experience remain C11-C13 work. See the [C10 handoff](promotions-c10-handoff.md) for migration review and deferred database evidence.
 
 Only platform admins with `platform.promotions.manage` create, replace, deactivate, upload or remove media, or read analytics. `PUT /promotions/:id` is a full replacement with `expectedDefinitionVersion`. Deactivation preserves rules, media, historical applications and store choices. Exhaustion is derived from reserved plus consumed applications and never flips the administrative active switch.
 

@@ -755,55 +755,17 @@ summary so one provider failure does not prevent recovery of the rest.
 
 ---
 
-## Coupons
+## Manual coupon validation
 
-The legacy create/list/detail/code/update/delete coupon endpoints were retired in
-C00 and return `404`; they have no compatibility contract. During the staged
-backend cutover, only the authenticated validation endpoint below remains. C10
-removes it after consumers move to `/promotions/validate`.
+Manual coupons are promotion definitions. All legacy coupon routes, including
+validation and redemption, are retired and return `404`. There is no adapter.
 
-The final promotions endpoint and DTO contract is frozen in
-[Promotions and offers API contract](promotions-contract.md).
-
-### `POST /coupon/validate` 🔒
-
-Preview a coupon against the authenticated user's current server-calculated
-cart subtotal. Checkout always locks and revalidates the coupon before use.
-
-**Body:**
-```json
-{
-  "code": "SAVE20"
-}
-```
-
-**Response `200`:**
-```json
-{
-  "data": {
-    "id": 1,
-    "code": "SAVE20",
-    "discountType": "percentage",
-    "discountValue": 20,
-    "quoteVersion": "2026-09-01-02",
-    "currency": "INR",
-    "pricingPolicyVersion": 3,
-    "itemsSubtotalPaise": 50000,
-    "discountPaise": 10000,
-    "discountAmount": 100,
-    "grandTotalPaise": 40000
-  }
-}
-```
-
-This temporary response is internal cutover scaffolding, not a target
-compatibility shape. The additive quote fields come from the same integer-paise
-policy used by final checkout; `discountAmount` is the temporary rupee
-presentation value.
-
-Coupon redemption is internal to the order transaction. The former public
-`POST /coupon/redeem` endpoint has been removed to prevent replay and
-cross-order redemption.
+Use authenticated `POST /promotions/validate` with
+`{ "couponCode": "SAVE20" }`. The response is `{ "data": PricingQuote }`
+using the v4 [promotion quote contract](promotions-contract.md#43-authoritative-pricing-quote).
+The server resolves the owned cart and returns `promotions[]`, separate item and
+delivery savings, and `couponEligibility`; it does not expose a raw coupon row.
+Checkout revalidates eligibility and capacity under transaction locks.
 
 ---
 
@@ -1125,7 +1087,6 @@ Financial endpoints are mounted under `/api/v1/finance/*` and `/api/v1/checkout/
 ### Pricing & Server Quote
 - `POST /checkout/quote` — Promotion-aware pricing policy v4 and quote version `2026-09-12-03`. Current store prices, categories, customizations and bundle components come from the server. Returns the [frozen quote contract](promotions-contract.md#43-authoritative-pricing-quote), with automatic offers, optional manual coupon, separate item/delivery savings, display-only bundle markdown and inclusive tax after line discounts.
 - `POST /promotions/validate` 🔒 — Body `{ "couponCode": "SAVE" }`; resolves the authenticated user's active cart and returns the same v4 quote. Store overrides, prices and offer IDs are rejected. Validation and coupon-bearing quote requests share a process-local 30-attempt/minute quota per authenticated user or anonymous IP; excess requests return `429`, `PROMOTION_VALIDATION_RATE_LIMITED`, and `Retry-After`. Both endpoints return `Cache-Control: no-store`.
-- `POST /coupon/validate` 🔒 — Temporary legacy preview for online-payment callers awaiting C08 cutover. It remains on pricing policy v3 and is removed with its remaining consumers in C10. It is not an adapter to v4.
 
 ### Reports & P&L
 - `GET /finance/overview` 🔒 — Recognized revenue, collections, COGS, gross margin, operating results, and drill-downs.
@@ -1251,7 +1212,7 @@ The promotion backend exposes platform administration, store-manager participati
 
 Definition writes are strict and version-checked. Store disable requests require a reason. Media uses one decoded JPEG/PNG/WebP file, a desktop/mobile variant and useful alt text. See [promotion operations](promotions-operations.md) for storage, replacement, cleanup and analytics semantics.
 
-Promotion-aware public quotes and owned-cart coupon validation are implemented in C06; COD order/application persistence is implemented in C07. Online initiation/recovery remains on temporary v3 checkout scaffolding until C08 moves every payment finalizer to application collections. Finance integration, remaining order DTO cleanup and frontend consumption follow in C09/C10/C13. These slices are released together.
+C06-C10 implement v4 quotes, owned-cart manual coupon validation, shared COD/online application and bundle snapshots, payment recovery, promotion finance accounting and historical order DTOs. Legacy coupon persistence and routes are removed. Frontend governance/discovery and the full checkout experience remain C11-C13 work; all slices require the C14 release gate.
 
 ## Authentication legend
 

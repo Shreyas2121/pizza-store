@@ -1,10 +1,9 @@
 import { Button, TextInput } from "@mantine/core";
 import { BadgePercent } from "lucide-react";
-import { Coupon } from "../model/checkout.types";
 
 type CouponFieldProps = {
   code: string;
-  coupon: Coupon | null;
+  appliedCouponCode: string | null;
   loading?: boolean;
   onCodeChange: (code: string) => void;
   onApply: () => void;
@@ -13,7 +12,7 @@ type CouponFieldProps = {
 
 export const CouponField = ({
   code,
-  coupon,
+  appliedCouponCode,
   loading,
   onCodeChange,
   onApply,
@@ -32,22 +31,22 @@ export const CouponField = ({
           id="coupon-code"
           value={code}
           onChange={(event) => onCodeChange(event.currentTarget.value.toUpperCase())}
-          disabled={!!coupon || loading}
+          disabled={!!appliedCouponCode || loading}
           placeholder="Enter code"
           className="min-w-0 flex-1"
         />
         <Button
-          variant={coupon ? "light" : "filled"}
-          color={coupon ? "red" : "brand"}
+          variant={appliedCouponCode ? "light" : "filled"}
+          color={appliedCouponCode ? "red" : "brand"}
           loading={loading}
-          onClick={() => (coupon ? onRemove() : onApply())}
+          onClick={() => (appliedCouponCode ? onRemove() : onApply())}
         >
-          {coupon ? "Remove" : "Apply"}
+          {appliedCouponCode ? "Remove" : "Apply"}
         </Button>
       </div>
-      {coupon && (
+      {appliedCouponCode && (
         <p className="mt-2 text-xs font-semibold text-basil">
-          {coupon.code} applied successfully
+          {appliedCouponCode} applied successfully
         </p>
       )}
     </div>

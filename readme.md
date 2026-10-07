@@ -8,8 +8,8 @@ The project is structured as two independent packages (`backend/` and `frontend/
 
 1. Users browse a menu-driven product catalogue with customizable items and real-time stock availability badges.
 2. Cart operations are transactional — price consistency and available stock limits are enforced server-side.
-3. Orders are placed atomically: cart items, customizations, stock deductions/reservations, and coupon redemptions resolve in a single database transaction.
-4. Admin operations (product creation, order status updates, inventory management, coupon management, dashboard analytics) are role-gated.
+3. Orders are placed atomically: cart items, customizations, stock deductions/reservations, and promotion applications resolve in a single database transaction.
+4. Admin operations (product creation, order status updates, inventory management, promotion governance, dashboard analytics) are role-gated.
 5. Real-time communication uses Socket.IO for order placement notifications, low-stock threshold alerts, and live chat support.
 6. All environment-specific values are loaded through validated environment variables.
 7. Financial amounts are exact integer paise; payment capture and delivery recognition are distinct, and posted journals are corrected through reversal rather than editing.
@@ -80,7 +80,7 @@ verified.
 
 ## Application in one workflow
 
-A user opens the storefront, browses menu categories, selects a product with optional customizations (e.g., toppings, sizes), and adds it to their cart subject to available store stock. Checkout uses a saved delivery address and optional coupon. COD creation atomically records the order/payment, deducts tracked stock, copies item/customization prices, and clears the cart; its route emits notifications after commit. Online initiation reserves tracked stock locally before calling the configured provider, with verification and reconciliation handled separately. Payment-method discovery and retry routes are registered after financial-overhaul integration; the remaining retry-reservation and notification limitations are documented in the evidence audit and Razorpay runbook. Staff interfaces expose order fulfillment, finance, payroll, stock operations, and support chat.
+A user opens the storefront, browses menu categories, selects a product with optional customizations (e.g., toppings, sizes), and adds it to their cart subject to available store stock. Checkout uses a saved delivery address and optional coupon. COD creation atomically records the order/payment, deducts tracked stock, copies item/customization prices, and clears the cart; its route emits notifications after commit. Online initiation reserves tracked stock locally before calling the configured provider, with verification and reconciliation handled separately. Payment-method discovery and retry routes are registered; retry restores saved inventory and promotion holds together. Current limits are documented in the Razorpay runbook and promotion handoffs. The case-study audit preserves its explicitly dated historical evidence. Staff interfaces expose order fulfillment, finance, payroll, stock operations, and support chat.
 
 ## Development
 
@@ -132,7 +132,8 @@ food/
         order/               Order creation, status, admin views
         payments/            COD and Razorpay payment processing
         inventory/           Stock queries, bulk restock, adjustments, movements
-        coupon/              CRUD, validation, redemption
+        promotions/          Governance, discovery, pricing and application lifecycle
+        bundles/             Component definitions and availability
         dashboard/           Revenue, orders, active users, low stock analytics
         finance-reports/     Ledger-backed overview, P&L, sales/margins, CSV exports
         ledger/              Chart, balanced journals, reversal, trial balance, periods

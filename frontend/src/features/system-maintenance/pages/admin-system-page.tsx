@@ -70,8 +70,8 @@ export function AdminSystemPage() {
             </Text>
             <Text c="dimmed" mt={4} maw={760}>
               Permanently clear stores, catalogue products, menus,
-              customizations, inventory, orders, payments, coupons, customer
-              accounts, carts, addresses, and support chats.
+              customizations, inventory, orders, payments, promotions, bundles, finance,
+              payroll, customer accounts, carts, addresses, and support chats.
             </Text>
 
             <Alert

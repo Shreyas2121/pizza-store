@@ -11,8 +11,6 @@ export * from "./store.schema";
 export * from "./customization.schema";
 export * from "./menu.schema";
 export * from "./cart.schema";
-export * from "./coupon.schema";
-export * from "./coupon-redemption.schema";
 export * from "./promotion.schema";
 export * from "./promotion-rule.schema";
 export * from "./store-promotion-setting.schema";

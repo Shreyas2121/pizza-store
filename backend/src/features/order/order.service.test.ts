@@ -12,6 +12,7 @@ import paymentService from "../payments/payment.service";
 import paymentRepository from "../payments/payment.repository";
 import { OrderService } from "./order.service";
 import { ORDER_SNAPSHOT_RELATIONS } from "./order-read.repository";
+import { PromotionApplicationRepository, promotionApplicationService } from "../promotions/applications";
 import type { CostSnapshotWriter } from "../costs/cost.service";
 import type { FinancialEventWriter } from "../finance-events/financial-event.types";
 import type { CashSourceWriter } from "../cash-management/cash.service";
@@ -147,6 +148,11 @@ describe("OrderService unit tests", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.restoreAllMocks();
+    vi.spyOn(PromotionApplicationRepository.prototype, "lockOwner").mockResolvedValue({
+      id: 42, userId: 7, storeId: 1, discountMode: "none",
+      discountPaise: 0, deliveryFeePaise: 0, grandTotalPaise: 10_000,
+    });
+    vi.spyOn(promotionApplicationService, "release").mockResolvedValue(undefined);
   });
 
   describe("createOrder (COD)", () => {
@@ -170,7 +176,6 @@ describe("OrderService unit tests", () => {
             lowStockThreshold: 5,
           },
         ],
-        coupon: null,
       };
 
       vi.spyOn(db, "transaction").mockImplementation(async (cb: any) =>
@@ -248,6 +253,7 @@ describe("OrderService unit tests", () => {
         {
           id: 1,
           userId: 7,
+          items: [], promotionApplications: [],
           discountPaise: 2_000,
           storeId: 1,
           discountMode: "none",
@@ -271,18 +277,21 @@ describe("OrderService unit tests", () => {
       vi.spyOn(db.query.ordersTable, "findFirst").mockResolvedValue({
         id: 1,
         userId: 7,
+        promotionApplications: [],
         discountPaise: 0,
         storeId: 1,
         discountMode: "none",
         grandTotalPaise: 25_000,
         items: [
           {
+            id: 5, orderId: 1, productId: 3, quantity: 1, productType: "single",
+            bundleComponents: [],
             productName: "Snapshot Pizza",
             unitPricePaise: 25_000,
             product: { name: "Current Pizza" },
             orderItemCustomizations: [
               {
-                customizationName: "Snapshot Cheese",
+                customizationOptionId: 2, customizationName: "Snapshot Cheese",
                 pricePaise: 5_000,
                 customizationOption: { name: "Current Cheese" },
               },
@@ -329,6 +338,7 @@ describe("OrderService unit tests", () => {
           id: 1,
           storeId: 1,
           status: "pending",
+          items: [], promotionApplications: [],
           discountPaise: 0,
           userId: 7,
           discountMode: "none",
@@ -360,6 +370,7 @@ describe("OrderService unit tests", () => {
           id: 1,
           storeId: 1,
           status: "pending",
+          items: [], promotionApplications: [],
           discountPaise: 0,
           userId: 7,
           discountMode: "none",
@@ -369,6 +380,7 @@ describe("OrderService unit tests", () => {
           id: 2,
           storeId: 2,
           status: "pending",
+          items: [], promotionApplications: [],
           discountPaise: 0,
           userId: 7,
           discountMode: "none",
@@ -397,7 +409,6 @@ describe("OrderService unit tests", () => {
         status: "pending",
         paymentType: "razorpay",
         paymentId: 100,
-        couponId: null,
       };
 
       const updatedOrder = {
@@ -460,7 +471,6 @@ describe("OrderService unit tests", () => {
         status: "pending",
         paymentType: "razorpay",
         paymentId: 100,
-        couponId: null,
       };
 
       const updatedOrder = {
@@ -510,7 +520,6 @@ describe("OrderService unit tests", () => {
         status: "pending",
         paymentType: "cash",
         paymentId: 100,
-        couponId: null,
       };
 
       const mockTx = {
@@ -548,7 +557,6 @@ describe("OrderService unit tests", () => {
         status: "pending",
         paymentType: "cash",
         paymentId: 100,
-        couponId: null,
       };
 
       const mockTx = {
@@ -582,7 +590,6 @@ describe("OrderService unit tests", () => {
         id: 42,
         storeId: 1,
         status: "pending",
-        couponId: null,
       };
 
       const mockTx = {
@@ -619,6 +626,8 @@ describe("OrderService unit tests", () => {
       const updated = await orderService.updateOrderStatus(42, "cancelled", adminActor);
 
       expect(updated.status).toBe("cancelled");
+      expect(promotionApplicationService.release).toHaveBeenCalledWith(42, mockTx, expect.any(Date));
+      expect(PromotionApplicationRepository.prototype.lockOwner).toHaveBeenCalledWith(42, mockTx);
       expect(inventoryService.restoreStockForOrder).toHaveBeenCalledWith(
         { orderId: 42, createdBy: adminActor.userId },
         mockTx
@@ -706,7 +715,6 @@ describe("OrderService unit tests", () => {
                     status: "out_for_delivery",
                     paymentType: "cash",
                     paymentId: 100,
-                    couponId: null,
                     deliveredAt: new Date("2026-09-04T12:00:00.000Z"),
                     recognizedAt: null,
                     pricingBusinessDate: "2026-09-04",
@@ -715,7 +723,7 @@ describe("OrderService unit tests", () => {
                     currency: "INR",
                     grandTotalPaise: 10_000,
                     itemsSubtotalPaise: 10_000,
-                    discountPaise: 0,
+          discountPaise: 0,
                     deliveryFeePaise: 0,
                     deliveryTaxableAmountPaise: 0,
                     deliveryTaxPaise: 0,
@@ -801,7 +809,6 @@ describe("OrderService unit tests", () => {
                     status: "preparing",
                     paymentType: "cash",
                     paymentId: 100,
-                    couponId: null,
                     deliveredAt: null,
                     recognizedAt: null,
                     pricingBusinessDate: "2026-09-04",
@@ -810,7 +817,7 @@ describe("OrderService unit tests", () => {
                     currency: "INR",
                     grandTotalPaise: 10_000,
                     itemsSubtotalPaise: 10_000,
-                    discountPaise: 0,
+          discountPaise: 0,
                     deliveryFeePaise: 0,
                     deliveryTaxableAmountPaise: 0,
                     deliveryTaxPaise: 0,
@@ -864,7 +871,6 @@ describe("OrderService unit tests", () => {
                     status: "out_for_delivery",
                     paymentType: "razorpay",
                     paymentId: 100,
-                    couponId: null,
                     deliveredAt: null,
                     recognizedAt: null,
                     pricingBusinessDate: "2026-09-04",
@@ -873,7 +879,7 @@ describe("OrderService unit tests", () => {
                     currency: "INR",
                     grandTotalPaise: 10_000,
                     itemsSubtotalPaise: 10_000,
-                    discountPaise: 0,
+          discountPaise: 0,
                     deliveryFeePaise: 0,
                     deliveryTaxableAmountPaise: 0,
                     deliveryTaxPaise: 0,
@@ -992,7 +998,6 @@ describe("OrderService unit tests", () => {
                     status: "out_for_delivery",
                     paymentType: "cash",
                     paymentId: 100,
-                    couponId: null,
                     cancelledAt: null,
                   },
                 ]),

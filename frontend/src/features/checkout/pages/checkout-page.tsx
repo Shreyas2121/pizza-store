@@ -7,7 +7,7 @@ import { AddressForm, useGetAddresses, useGetUser } from "@/features/account";
 import { useGetCartCheckout } from "@/features/cart";
 import { useCreateOrder } from "@/features/orders";
 import { error, formatClockTime, formatStoreHours, handleStockApiError, success, warning } from "@/shared/lib";
-import { CheckoutQuoteRequest, Coupon, PaymentType } from "../model/checkout.types";
+import { CheckoutQuoteRequest, PaymentType } from "../model/checkout.types";
 import { useValidateCoupon } from "../api/coupon.mutations";
 import { useCheckoutQuote } from "../api/quote.queries";
 import {
@@ -36,7 +36,7 @@ export const CheckoutPage = () => {
   const verifyRazorpayM = useVerifyRazorpayPayment();
   const runSimulatorM = useRunPaymentSimulator();
   const { data: paymentMethods } = usePaymentMethods();
-  const [coupon, setCoupon] = useState<Coupon | null>(null);
+  const [appliedCouponCode, setAppliedCouponCode] = useState<string | null>(null);
   const [code, setCode] = useState("");
   const [selectedAddress, setSelectedAddress] = useState<number | null>(null);
   const [paymentType, setPaymentType] = useState<PaymentType>("cash");
@@ -56,7 +56,7 @@ export const CheckoutPage = () => {
 
   useEffect(() => {
     clientRequestId.current = null;
-  }, [selectedAddress, coupon?.code]);
+  }, [selectedAddress, appliedCouponCode]);
 
   const selectedAddressDetails = addresses?.find((address) => address.id === selectedAddress);
 
@@ -64,7 +64,7 @@ export const CheckoutPage = () => {
     if (!resolvedStore || !cart || cart.items.length === 0) return null;
     return {
       storeId: resolvedStore.id,
-      couponCode: coupon?.code ?? null,
+      couponCode: appliedCouponCode,
       destinationState: selectedAddressDetails?.state ?? null,
       addressId: selectedAddress ?? null,
       items: cart.items.map((item) => ({
@@ -73,7 +73,7 @@ export const CheckoutPage = () => {
         customizationOptionIds: item.customizations.map((c) => c.optionId),
       })),
     };
-  }, [resolvedStore, cart, coupon?.code, selectedAddressDetails?.state, selectedAddress]);
+  }, [resolvedStore, cart, appliedCouponCode, selectedAddressDetails?.state, selectedAddress]);
 
   const {
     data: quote,
@@ -107,8 +107,10 @@ export const CheckoutPage = () => {
     if (!cart) return;
     validateCouponM.mutate({ code: normalized }, {
       onSuccess: (validated) => {
-        setCoupon(validated);
-        setCode(validated.code);
+        const applied = validated.promotions.find((promotion) => promotion.kind === "coupon" && promotion.code === normalized);
+        if (!applied?.code) { error("The coupon was not applied. Refresh your cart and try again."); return; }
+        setAppliedCouponCode(applied.code);
+        setCode(applied.code);
         success("Coupon applied");
       },
       onError: (err) => {
@@ -142,7 +144,7 @@ export const CheckoutPage = () => {
       return;
     }
     if (paymentType === "cash") {
-      createOrderM.mutate({ addressId: selectedAddress, paymentType: "cash", couponCode: coupon?.code ?? null }, {
+      createOrderM.mutate({ addressId: selectedAddress, paymentType: "cash", couponCode: appliedCouponCode }, {
         onSuccess: (response) => {
           success(response.message);
           navigate(`/order/${response.data}`);
@@ -174,7 +176,7 @@ export const CheckoutPage = () => {
       clientRequestId.current ??= crypto.randomUUID();
       const initiation = await initiateRazorpayM.mutateAsync({
         addressId: selectedAddress,
-        couponCode: coupon?.code ?? null,
+        couponCode: appliedCouponCode,
         clientRequestId: clientRequestId.current,
       });
       const checkout = initiation.data;
@@ -314,7 +316,7 @@ export const CheckoutPage = () => {
           cart={cart}
           itemCount={itemCount}
           code={code}
-          coupon={coupon}
+          appliedCouponCode={appliedCouponCode}
           quote={quote ?? null}
           loadingQuote={loadingQuote}
           quoteError={quoteErrorMessage}
@@ -332,7 +334,7 @@ export const CheckoutPage = () => {
           }
           onCodeChange={(newCode) => setCode(newCode)}
           onApplyCoupon={applyCoupon}
-          onRemoveCoupon={() => { setCoupon(null); setCode(""); }}
+          onRemoveCoupon={() => { setAppliedCouponCode(null); setCode(""); }}
           onPlaceOrder={placeOrder}
         />
       </div>

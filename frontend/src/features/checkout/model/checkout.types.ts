@@ -6,7 +6,6 @@ export type PaymentStatus =
   | "refunded";
 export type PaymentType = "cash" | "razorpay";
 export type PaymentProvider = "cod" | "razorpay";
-export type CouponType = "percentage" | "fixed";
 
 export type PaymentMethods = {
   cash: true;
@@ -32,31 +31,6 @@ export type Payment = {
   failedAt: string | null;
 };
 
-export type Coupon = {
-  id: number;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-  code: string;
-  discountType: CouponType;
-  discountValue: number;
-  minOrderValue: number;
-  startDate: string;
-  endDate: string;
-  redemptionCount: number;
-  maxRedemptions: number;
-};
-
-export type CouponPreview = Coupon & {
-  quoteVersion: string;
-  currency: "INR";
-  pricingPolicyVersion: number;
-  itemsSubtotalPaise: number;
-  discountPaise: number;
-  discountAmount: number;
-  grandTotalPaise: number;
-};
-
 export type PricingCustomizationSnapshot = {
   customizationOptionId: number;
   name: string;
@@ -70,7 +44,13 @@ export type PricingQuoteItem = {
   quantity: number;
   unitPricePaise: number;
   lineSubtotalPaise: number;
-  discountAllocationPaise: number;
+  baseUnitPricePaise: number;
+  customizationUnitPricePaise: number;
+  itemDiscountPaise: number;
+  productType: "single" | "bundle";
+  compareAtUnitPricePaise: number | null;
+  bundleMarkdownPaise: number;
+  bundleComponents: { productId: number; name: string; quantityPerBundle: number; totalQuantity: number; isAvailable: boolean }[];
   taxRuleId: number;
   taxRuleVersion: number;
   taxRateBps: number;
@@ -88,24 +68,42 @@ export type TaxRuleSnapshot = {
   hsnSacCode: string;
 };
 
+export type PromotionSnapshot = {
+  id: number;
+  kind: "offer" | "coupon";
+  name: string;
+  code: string | null;
+  discountType: "percentage" | "fixed_amount" | "buy_x_get_y" | "free_delivery" | "tiered";
+  definitionVersion: number;
+  itemDiscountPaise: number;
+  deliveryDiscountPaise: number;
+  totalSavingsPaise: number;
+};
+export type QuotePromotion = PromotionSnapshot & {
+  applied: true;
+  allocations: { lineId: number | null; component: "item" | "delivery"; unitIndexes: number[]; amountPaise: number }[];
+};
+
 export type PricingQuote = {
   quoteVersion: string;
   currency: "INR";
   pricingPolicyVersion: number;
   itemsSubtotalPaise: number;
-  discountPaise: number;
-  deliveryFeePaise: number;
+  discountMode: "none" | "automatic_deals" | "coupon";
+  itemDiscountPaise: number;
+  standardDeliveryFeePaise: number;
+  chargedDeliveryFeePaise: number;
+  deliveryDiscountPaise: number;
+  promotionSavingsPaise: number;
+  bundleMarkdownPaise: number;
+  totalDisplayedSavingsPaise: number;
   roundingAdjustmentPaise: number;
   grandTotalPaise: number;
   taxableAmountPaise: number;
   taxPaise: number;
   items: PricingQuoteItem[];
-  coupon: {
-    id: number;
-    code: string;
-    discountPaise: number;
-    applied: true;
-  } | null;
+  promotions: QuotePromotion[];
+  couponEligibility: { eligible: boolean; reasonCode: "OFFER_APPLIED" | "DEAL_BUNDLE_PRESENT" | null; conflictingLineIds: number[] };
   deliveryPricing: {
     ruleId: number;
     ruleVersion: number;
@@ -113,8 +111,7 @@ export type PricingQuote = {
     businessDate: string;
     timezone: string;
     standardFeePaise: number;
-    freeDeliveryThresholdPaise: number | null;
-    freeDeliveryApplied: boolean;
+    chargedFeePaise: number;
   };
   tax: {
     calculationPolicyVersion: number;
@@ -166,6 +163,9 @@ export type RazorpayCheckoutData = {
   paymentStatus: PaymentStatus;
   providerStatus: string | null;
   checkoutReady: boolean;
+  discountMode: PricingQuote["discountMode"];
+  orderStatus: VerifyRazorpayPaymentResult["orderStatus"];
+  promotions: PromotionSnapshot[];
   failure: RazorpayFailure | null;
 };
 

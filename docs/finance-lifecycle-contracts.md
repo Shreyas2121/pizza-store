@@ -247,11 +247,17 @@ When one transaction must lock more than one existing row, acquire only the requ
 | 9 | Pay run, then employee/line rows ascending ID |
 | 10 | Store-product rows, ascending ID |
 | 11 | Inventory reservations, ascending ID |
-| 12 | Coupon redemption, then coupon |
+| 12 | Sorted promotion definitions/store settings, then application collections |
 | 13 | Fiscal period |
 | 14 | Existing journal entry when reversing; journal lines ascending ID |
 
 Rules:
+
+- The promotion overhaul extends checkout/existing-order paths with user
+  eligibility and store serialization before inventory/application transitions.
+  Follow ADR-006 and the current [promotion operations](promotions-operations.md)
+  for those paths. The table above describes finance lock classes; unit/query
+  tests do not establish a universal deadlock-free order.
 
 - Resolve IDs and authorize store scope before the write transaction where possible; high-risk operations re-authorize inside the transaction and lock membership first.
 - A workflow reached from a child ID still resolves its parent IDs first, then starts a transaction and locks in the table above. For example, a refund action locks order, payment attempt, then refund.

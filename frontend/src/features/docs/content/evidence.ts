@@ -31,9 +31,11 @@ export const evidence = {
   },
   "ORDER-03": {
     title: "Price snapshot boundaries",
-    source: "backend/src/features/checkout/checkout.service.ts",
-    symbol: "createOrderSnapshot / releaseCouponReservation",
-    scope: "Source review: item/customization prices are copied; product identities and address remain references. Only reserved coupon uses are released.",
+    source: "backend/src/features/order/order.mapper.ts",
+    symbol: "toOrderResponse / ORDER_SNAPSHOT_RELATIONS",
+    test: "backend/src/features/order/order.mapper.test.ts",
+    revision: "245e748",
+    scope: "C10 source and database-free regression tests: historical product, customization, promotion and bundle names/prices come from saved snapshots. Allocations and released applications remain visible. Product images and the delivery address remain references. No live database or browser evidence is claimed.",
   },
   "PAY-01": {
     title: "Online initiation boundaries",

@@ -7,23 +7,23 @@ interface ExactOrderMoney {
   grandTotalPaise: number | null;
 }
 interface CustomizationSnapshot {
-  customizationOptionId?: number;
+  customizationOptionId: number;
   customizationName: string | null;
   pricePaise: number | null;
 }
-type ItemSnapshot = Partial<Omit<typeof orderItemsTable.$inferSelect, "productName" | "unitPricePaise">> & {
+type ItemSnapshot = Omit<typeof orderItemsTable.$inferSelect, "productName" | "unitPricePaise"> & {
   productName: string | null;
   unitPricePaise: number | null;
   product?: { image?: string | null } | null;
-  orderItemCustomizations?: CustomizationSnapshot[];
-  bundleComponents?: (typeof orderItemBundleComponentsTable.$inferSelect)[];
+  orderItemCustomizations: CustomizationSnapshot[];
+  bundleComponents: (typeof orderItemBundleComponentsTable.$inferSelect)[];
 };
 type ApplicationSnapshot = typeof promotionApplicationsTable.$inferSelect & {
   allocations: (typeof promotionDiscountAllocationsTable.$inferSelect)[];
 };
-type OrderSnapshot = ExactOrderMoney & Partial<Omit<typeof ordersTable.$inferSelect, "discountPaise" | "grandTotalPaise">> & {
-  items?: ItemSnapshot[];
-  promotionApplications?: ApplicationSnapshot[];
+type OrderSnapshot = ExactOrderMoney & Omit<typeof ordersTable.$inferSelect, "discountPaise" | "grandTotalPaise"> & {
+  items: ItemSnapshot[];
+  promotionApplications: ApplicationSnapshot[];
   address?: typeof addressTable.$inferSelect | null;
   payment?: typeof paymentsTable.$inferSelect | null;
   user?: { id: number; fname: string; lname: string; email: string };
@@ -39,7 +39,7 @@ export const orderGrandTotalRupees = (order: ExactOrderMoney) =>
 const mapOrderItem = (snapshot: ItemSnapshot) => {
   const productName = requireSnapshot(snapshot.productName, "product name");
   const unitPricePaise = requireSnapshot(snapshot.unitPricePaise, "unit price");
-  const options = (snapshot.orderItemCustomizations ?? []).map((option) => ({
+  const options = snapshot.orderItemCustomizations.map((option) => ({
     id: option.customizationOptionId,
     name: requireSnapshot(option.customizationName, "customization name"),
     pricePaise: requireSnapshot(option.pricePaise, "customization price"),
@@ -61,7 +61,7 @@ const mapOrderItem = (snapshot: ItemSnapshot) => {
     price: paiseToRupees(baseUnitPricePaise),
     product: { id: snapshot.productId, name: productName, image: snapshot.product?.image ?? null },
     options,
-    bundleComponents: [...(snapshot.bundleComponents ?? [])]
+    bundleComponents: [...snapshot.bundleComponents]
       .sort((a, b) => a.componentProductId - b.componentProductId)
       .map((component) => ({
         componentProductId: component.componentProductId, name: component.componentName,
@@ -75,8 +75,8 @@ const mapOrderItem = (snapshot: ItemSnapshot) => {
 export const toOrderResponse = (order: OrderSnapshot) => {
   const discountPaise = requireSnapshot(order.discountPaise, "discount");
   const totalPrice = orderGrandTotalRupees(order);
-  const items = (order.items ?? []).map(mapOrderItem);
-  const promotions = [...(order.promotionApplications ?? [])]
+  const items = order.items.map(mapOrderItem);
+  const promotions = [...order.promotionApplications]
     .sort((a, b) => a.promotionId - b.promotionId)
     .map((application) => ({
       id: application.promotionId, applicationId: application.id,
@@ -106,11 +106,13 @@ export const toOrderResponse = (order: OrderSnapshot) => {
     taxableAmountPaise: order.taxableAmountPaise, taxPaise: order.taxPaise,
     roundingAdjustmentPaise: order.roundingAdjustmentPaise, grandTotalPaise: order.grandTotalPaise,
     currency: order.currency, quoteVersion: order.quoteVersion, pricingPolicyVersion: order.pricingPolicyVersion,
+    deliveryPricingRuleId: order.deliveryPricingRuleId, deliveryPricingRuleVersion: order.deliveryPricingRuleVersion,
     pricingBusinessDate: order.pricingBusinessDate, pricingTimezone: order.pricingTimezone,
     taxCalculationPolicyVersion: order.taxCalculationPolicyVersion, taxDisclaimer: order.taxDisclaimer,
     taxIsDemo: order.taxIsDemo, placeOfSupplyState: order.placeOfSupplyState,
+    deliveryTaxRuleId: order.deliveryTaxRuleId, deliveryTaxRuleVersion: order.deliveryTaxRuleVersion,
     deliveryTaxRateBps: order.deliveryTaxRateBps, deliveryTaxableAmountPaise: order.deliveryTaxableAmountPaise,
-    deliveryTaxPaise: order.deliveryTaxPaise, deliveredAt: order.deliveredAt,
+    deliveryTaxPaise: order.deliveryTaxPaise, deliveryHsnSacCode: order.deliveryHsnSacCode, deliveredAt: order.deliveredAt,
     recognizedAt: order.recognizedAt, cancelledAt: order.cancelledAt,
     discountAmount: paiseToRupees(discountPaise), totalPrice, items, promotions,
     ...(order.user ? { user: { id: order.user.id, fname: order.user.fname, lname: order.user.lname, email: order.user.email } } : {}),

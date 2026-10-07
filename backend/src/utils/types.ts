@@ -10,7 +10,6 @@ import {
   orderItemsTable,
   ordersTable,
   paymentsTable,
-  couponsTable,
   customizationGroupsTable,
   customizationOptionsTable,
   storesTable,
@@ -149,8 +148,6 @@ export const EXPENSE_PAYMENT_METHODS = [
   "bank_transfer", "cash", "card", "upi", "other",
 ] as const;
 export type ExpensePaymentMethod = (typeof EXPENSE_PAYMENT_METHODS)[number];
-export type CouponRedemptionStatus = "reserved" | "consumed" | "released";
-export type CouponType = "percentage" | "fixed";
 export type ChatStatus = "open" | "close" | "rejected" | "pending";
 export type InventoryChangeType =
   | "sale"
@@ -195,7 +192,6 @@ export type OrderItem = typeof orderItemsTable.$inferSelect;
 
 export type Payment = typeof paymentsTable.$inferSelect;
 
-export type Coupon = typeof couponsTable.$inferSelect;
 
 export type CustomizationGroup = typeof customizationGroupsTable.$inferSelect;
 

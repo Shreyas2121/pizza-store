@@ -13,7 +13,6 @@ import { OrderStatus, PaymentCurrency, PaymentType } from "../../utils/types";
 import { usersTable, addressTable } from "./user.schema";
 import { productsTable } from "./catalog.schema";
 import { paymentsTable } from "./payment.schema";
-import { couponsTable } from "./coupon.schema";
 import { customizationOptionsTable } from "./customization.schema";
 import { deliveryPricingRulesTable, storesTable } from "./store.schema";
 import { taxRulesTable } from "./tax.schema";
@@ -25,7 +24,6 @@ export const ordersTable = pgTable(
     id,
     userId: integer("user_id").references(() => usersTable.id).notNull(),
     orderDate: timestamp("order_date", { withTimezone: true }).defaultNow(),
-    couponId: integer("coupon_id").references(() => couponsTable.id),
     discountMode: text("discount_mode")
       .$type<"none" | "automatic_deals" | "coupon">()
       .default("none")
