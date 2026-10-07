@@ -46,6 +46,8 @@ import {
 import { expandBundleDemand } from "../bundles/bundle.logic";
 import { loadBundleDefinitions } from "../bundles/bundle.repository";
 
+export const INVENTORY_RESERVATION_DURATION_MS = 30 * 60_000;
+
 type InventoryListStatus = "all" | "low_stock" | "out_of_stock";
 
 interface InventoryListInput {
@@ -289,7 +291,7 @@ class InventoryService {
   ): Promise<LowStockAlert[]> {
     const alerts: LowStockAlert[] = [];
     const expiresAt =
-      data.expiresAt ?? new Date(Date.now() + 30 * 60_000);
+      data.expiresAt ?? new Date(Date.now() + INVENTORY_RESERVATION_DURATION_MS);
 
     for (const allocation of data.allocations) {
       if (!allocation.isTracked || allocation.onHandQuantity === null) {
@@ -326,6 +328,37 @@ class InventoryService {
     }
 
     return alerts;
+  }
+
+  // Caller holds order/user/store locks. Use saved component demand, never a
+  // current bundle definition, and validate the complete set before writing.
+  async restoreReservationsForOrder(orderId: number, tx: TransactionType, now = new Date()) {
+    const before = await tx.select().from(inventoryReservationsTable)
+      .where(eq(inventoryReservationsTable.orderId, orderId));
+    if (!before.length) return;
+    const ids = [...new Set(before.map((row) => row.storeProductId))];
+    const products = await tx.select().from(storeProductsTable)
+      .where(inArray(storeProductsTable.id, ids))
+      .orderBy(asc(storeProductsTable.id)).for("update");
+    const rows = await tx.select().from(inventoryReservationsTable)
+      .where(eq(inventoryReservationsTable.orderId, orderId))
+      .orderBy(asc(inventoryReservationsTable.id)).for("update");
+    if (rows.some((row) => row.status === "consumed"))
+      throw new AppError("Inventory has already been consumed", 409, "INVENTORY_RESERVATIONS_STATE_CONFLICT");
+    const released = rows.filter((row) => row.status === "released");
+    const reserved = await this.getActiveReservedQuantities(ids, tx);
+    const demand = new Map<number, number>();
+    for (const row of released) demand.set(row.storeProductId, (demand.get(row.storeProductId) ?? 0) + row.quantity);
+    for (const [id, quantity] of demand) {
+      const product = products.find((row) => row.id === id);
+      if (!product || !product.isAvailable ||
+        (product.onHandQuantity !== null && product.onHandQuantity - (reserved.get(id) ?? 0) < quantity))
+        throw new AppError("Inventory capacity is unavailable for retry", 409, "INSUFFICIENT_STOCK", { orderId, storeProductId: id });
+    }
+    if (released.length) await tx.update(inventoryReservationsTable).set({
+      status: "reserved", releasedAt: null, consumedAt: null,
+      expiresAt: new Date(now.getTime() + INVENTORY_RESERVATION_DURATION_MS), updatedAt: now,
+    }).where(and(inArray(inventoryReservationsTable.id, released.map((row) => row.id)), eq(inventoryReservationsTable.status, "released")));
   }
 
   async consumeReservationsForOrder(
@@ -402,10 +435,7 @@ class InventoryService {
     const now = new Date();
     for (const res of lockedReservations) {
       const sp = storeProductMap.get(res.storeProductId);
-      if (!sp || sp.onHandQuantity === null) continue;
-
-      const previousQuantity = sp.onHandQuantity;
-      const newQuantity = previousQuantity - res.quantity;
+      if (!sp) throw new AppError("Reserved store product is missing", 409, "INVENTORY_RESERVATIONS_STATE_CONFLICT");
 
       await tx
         .update(inventoryReservationsTable)
@@ -415,6 +445,10 @@ class InventoryService {
           updatedAt: now,
         })
         .where(eq(inventoryReservationsTable.id, res.id));
+
+      if (sp.onHandQuantity === null) continue;
+      const previousQuantity = sp.onHandQuantity;
+      const newQuantity = previousQuantity - res.quantity;
 
       await tx
         .update(storeProductsTable)
