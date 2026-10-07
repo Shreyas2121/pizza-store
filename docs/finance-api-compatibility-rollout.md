@@ -9,6 +9,8 @@
 
 ## 1. Scope and purpose
 
+The legacy-to-canonical mappings below document the earlier finance rollout. The current promotion release accepts canonical `delivered`, exposes the v4 quote and collection-based order snapshots, and has no retired coupon persistence/HTTP adapter. See [promotion API contract](promotions-contract.md) and [C14 evidence](promotions-c14-handoff.md). Historical target shapes are not additional compatibility endpoints.
+
 This document maps how PizzaStore transitions from its legacy commerce contracts to an authoritative, double-entry financial architecture without breaking in-flight workflows or mixing operational and accounting semantics.
 
 Under the fresh database policy, stored records use the final schema without data dual-writes. However, **API contracts and UI interactions require disciplined compatibility**:

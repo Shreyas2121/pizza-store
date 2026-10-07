@@ -23,9 +23,9 @@ export default function OrderLifecyclePage() {
     <header className="pb-10">
       <p className="docs-eyebrow mb-5">03 / Orders & payments</p>
       <h1 className="max-w-3xl font-display text-4xl font-normal leading-tight tracking-tight sm:text-5xl">An order has a lifecycle.<br /><span className="text-brand">So does its payment.</span></h1>
-      <p className="mt-6 max-w-2xl text-lg leading-8 text-ink-muted">Checkout connects a cart, stock, coupon use, fulfillment, and payment. This page follows what commits together and what needs a separate recovery path.</p>
+      <p className="mt-6 max-w-2xl text-lg leading-8 text-ink-muted">Checkout connects a cart, stock, promotion applications, fulfillment, and payment. This page follows what commits together and what needs a separate recovery path.</p>
       <div className="mt-7 rounded-control border border-border bg-surface-muted p-5 text-sm leading-6 text-ink-muted">
-        <p>Source snapshot: <code>{reviewedRevision.slice(0, 7)}</code>, reviewed {reviewedDate}. Financial work is in progress on another branch; these flows describe the audited main-branch implementation, not a claim that the full online UI works end to end.</p>
+        <p>Earlier source review: <code>{reviewedRevision.slice(0, 7)}</code>, {reviewedDate}. Promotion, snapshot and state sections updated 2026-10-07 after C13. Offline unit/static verification is available; database concurrency and browser/provider walkthroughs remain unrun.</p>
         <p className="mt-2">These are historical findings. The current promotion overhaul registers method-discovery/retry routes, restores saved stock and promotion holds together, and uses immutable promotion and bundle snapshots. Current evidence is recorded in the repository promotion handoffs; live database/provider checks remain pending.</p>
       </div>
     </header>
@@ -33,13 +33,13 @@ export default function OrderLifecyclePage() {
     <DocsSection section={snapshot}>
       <div className="grid gap-5 sm:grid-cols-2">
         <div className="rounded-card border border-border bg-surface p-6"><h3 className="mb-3 font-semibold">The values that are copied</h3><p className="text-sm leading-7 text-ink-muted">Order items retain quantity and price; customization selections retain their prices. Order total and discount are also recorded. Both COD and online initiation clear the cart within the local creation transaction.</p></div>
-        <div className="rounded-card border border-border bg-surface p-6"><h3 className="mb-3 font-semibold">The references that remain</h3><p className="text-sm leading-7 text-ink-muted">Product identities, customization identities, and the delivery address remain linked records. This is a price snapshot, not a complete immutable copy of product names or address text.</p></div>
+        <div className="rounded-card border border-border bg-surface p-6"><h3 className="mb-3 font-semibold">Saved names and references</h3><p className="text-sm leading-7 text-ink-muted">Product, customization, promotion and bundle component names, quantities, prices and discount allocations are saved. Product images and delivery addresses remain linked references. Later promotion edits or store opt-outs do not reprice saved provider orders.</p></div>
       </div>
       <EvidenceLinks id="ORDER-03" />
     </DocsSection>
 
     <DocsSection section={cod}>
-      <p className="mb-6 leading-7 text-ink-muted">COD begins with a pending order and pending payment. Quote validation, stock deduction, snapshots, coupon consumption, and cart clearing share a database transaction; delivery later completes the linked cash payment.</p>
+      <p className="mb-6 leading-7 text-ink-muted">COD begins with a pending order and pending payment. Quote validation, stock deduction, snapshots, promotion consumption, and cart clearing share a database transaction; delivery later completes the linked cash payment.</p>
       <DiagramCard diagram={codLifecycle} />
       <EvidenceLinks id="ORDER-01" />
     </DocsSection>
@@ -64,7 +64,7 @@ export default function OrderLifecyclePage() {
 
     <DocsSection section={states}>
       <DiagramCard diagram={orderTransitions} />
-      <p className="mt-5 text-sm leading-7 text-ink-muted">The stored delivered value is spelled <code>delievered</code>; this documentation does not rename it. Staff status updates use the shared map plus authorization. The map allows awaiting_payment → pending, while the payment finalizer independently verifies capture before making that transition.</p>
+      <p className="mt-5 text-sm leading-7 text-ink-muted">Order states are awaiting_payment, pending, preparing, out_for_delivery, delivered and cancelled. Staff updates require permission; online finalization independently verifies capture before moving awaiting_payment to pending. Delivered and cancelled are terminal.</p>
       <EvidenceLinks id="ORDER-02" />
       <h3 className="mb-4 mt-8 text-lg font-semibold">Payment status is a separate record</h3>
       <div className="overflow-x-auto rounded-card border border-border" tabIndex={0} role="region" aria-label="Payment and order status comparison">
@@ -76,15 +76,15 @@ export default function OrderLifecyclePage() {
     </DocsSection>
 
     <DocsSection section={cancellation}>
-      <p className="mb-6 leading-7 text-ink-muted">Cancellation is not synonymous with refund. Its inventory and coupon effects depend on whether stock was reserved or sold and whether coupon use was reserved or consumed.</p>
+      <p className="mb-6 leading-7 text-ink-muted">Cancellation is not synonymous with refund. Inventory and promotion effects depend on whether stock was reserved or sold and whether applications were reserved or consumed.</p>
       <div className="overflow-x-auto rounded-card border border-border" tabIndex={0} role="region" aria-label="Cancellation and expiry effects, scroll horizontally">
-        <table className="w-full min-w-[1150px] text-left text-sm leading-6"><caption className="border-b border-border bg-surface px-5 py-4 text-left text-xs text-ink-muted">Current cancellation effects. Scroll horizontally to compare reservations, stock, coupon use, local state, and recovery.</caption>
-          <thead className="bg-surface-muted"><tr>{["Trigger", "Reservations", "On-hand stock", "Coupon", "Order / payment", "Recovery"].map((heading) => <th key={heading} scope="col" className="px-4 py-4 font-semibold">{heading}</th>)}</tr></thead>
-          <tbody>{cancellationRows.map((row) => <tr key={row.trigger} className="border-t border-border bg-surface align-top"><th scope="row" className="px-4 py-4 font-medium">{row.trigger}</th>{[row.reservations, row.stock, row.coupon, row.payment, row.recovery].map((value, index) => <td key={index} className="px-4 py-4 text-ink-muted">{value}</td>)}</tr>)}</tbody>
+        <table className="w-full min-w-[1150px] text-left text-sm leading-6"><caption className="border-b border-border bg-surface px-5 py-4 text-left text-xs text-ink-muted">Current cancellation effects. Scroll horizontally to compare reservations, stock, promotions, local state, and recovery.</caption>
+          <thead className="bg-surface-muted"><tr>{["Trigger", "Reservations", "On-hand stock", "Promotions", "Order / payment", "Recovery"].map((heading) => <th key={heading} scope="col" className="px-4 py-4 font-semibold">{heading}</th>)}</tr></thead>
+          <tbody>{cancellationRows.map((row) => <tr key={row.trigger} className="border-t border-border bg-surface align-top"><th scope="row" className="px-4 py-4 font-medium">{row.trigger}</th>{[row.reservations, row.stock, row.promotions, row.payment, row.recovery].map((value, index) => <td key={index} className="px-4 py-4 text-ink-muted">{value}</td>)}</tr>)}</tbody>
         </table>
       </div>
-      <p className="mt-5 text-sm leading-7 text-ink-muted">Repeated same-status cancellation is an early no-op. Delivered-to-cancelled is rejected before restoration. Releasing a coupon reservation filters only reserved use, so it does not undo a consumed redemption or decrement its count.</p>
-      <p className="mt-3 text-sm leading-7 text-ink-muted">A completed online payment remains completed when its order is cancelled through the status service. No provider refund operation exists in the reviewed gateway; the presence of a refunded status does not implement one.</p>
+      <p className="mt-5 text-sm leading-7 text-ink-muted">Repeated same-status cancellation is an early no-op. Delivered-to-cancelled is rejected before restoration. Releasing promotion applications affects reserved rows only; consumed applications remain consumed. Counts and budget are derived from application states.</p>
+      <p className="mt-3 text-sm leading-7 text-ink-muted">Cancellation and refunds are separate operations. Refund allocation uses captured paid amounts and tax; delivery waivers and bundle compare-at savings cannot be refunded. Promotion reservations produce no revenue journal.</p>
       <EvidenceLinks id="ORDER-02" /><EvidenceLinks id="REC-01" />
     </DocsSection>
 

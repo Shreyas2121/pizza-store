@@ -9,7 +9,7 @@ Platform and store authority are separate:
 - `users.role` is the platform role and remains `admin | user`.
 - `store_memberships.role` is a store role: `manager | finance_manager | payroll_manager | operator | inventory_staff`.
 - Staff users retain `users.role = user`. A user can have active memberships in multiple stores.
-- Platform admins do not need membership rows and bypass store permissions, but platform-only capabilities still require `users.role = admin`.
+- Platform admins do not need membership rows and normally bypass store permissions, but platform-only capabilities still require `users.role = admin`. Promotion participation endpoints are an explicit exception: only an active same-store manager can toggle, and platform-admin override is denied.
 - Membership status is `active | suspended | revoked`. Only active memberships for active stores grant access.
 
 JWTs contain identity and token-version claims, not memberships or permissions. Every authenticated HTTP request reloads the active user from PostgreSQL. Store authorization then checks the current membership, so suspension or revocation affects the next request without waiting for the JWT to expire.
@@ -42,7 +42,8 @@ JWTs contain identity and token-version claims, not memberships or permissions. 
 | Read store staff and audit | All stores | Assigned store | No | No | No | No |
 | Manage operators/inventory staff | All stores | Assigned store | No | No | No | No |
 | Grant, change, or revoke manager/finance/payroll roles | Yes | No | No | No | No | No |
-| Global catalog/coupons/payments/support/system | Yes | No | No | No | No | No |
+| Global catalogue/promotion definitions/media/analytics/payments/support/system | Yes | No | No | No | No | No |
+| Promotion participation toggle | No | Assigned store only | No | No | No | No |
 
 The canonical permission strings and role mapping live in `backend/src/features/access/access.permissions.ts`. Detailed finance/payroll segregation of duties and error codes are mapped in [Finance API compatibility and rollout map](finance-api-compatibility-rollout.md). UI visibility is only a convenience; backend policy remains authoritative.
 

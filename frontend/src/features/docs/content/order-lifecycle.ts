@@ -3,7 +3,7 @@ export const cancellationRows = [
     trigger: "Authorized cancellation: awaiting-payment online order",
     reservations: "Active stock reservations released.",
     stock: "Normally no recorded sale to restore.",
-    coupon: "Reserved use released; consumed use is not reversed.",
+    promotions: "Reserved applications released; consumed applications are not reversed.",
     payment: "Order cancelled; payment status unchanged.",
     recovery: "Compare any later provider capture with the cancelled local order; resolve outside automatic finalization.",
   },
@@ -11,15 +11,15 @@ export const cancellationRows = [
     trigger: "Authorized cancellation: pending or preparing COD",
     reservations: "No online reservation in normal COD flow.",
     stock: "Recorded sales restored once while stock remains tracked; cancellation movement appended.",
-    coupon: "Consumed use and redemption count remain consumed.",
+    promotions: "Consumed applications remain consumed; counts derive from application states.",
     payment: "Order cancelled; COD payment remains pending.",
-    recovery: "No online refund operation applies; review the retained payment and coupon records as needed.",
+    recovery: "No online refund operation applies; review retained payment and promotion applications as needed.",
   },
   {
     trigger: "Authorized cancellation: pending or preparing paid online order",
     reservations: "Consumed reservations remain consumed.",
     stock: "Recorded sales restored once while stock remains tracked.",
-    coupon: "Consumed use and redemption count remain consumed.",
+    promotions: "Consumed applications remain consumed; counts derive from application states.",
     payment: "Order cancelled; completed payment remains completed.",
     recovery: "A refund requires separate operational handling; this code path makes no provider refund call.",
   },
@@ -27,7 +27,7 @@ export const cancellationRows = [
     trigger: "Safe expiry: local order still awaiting payment",
     reservations: "Active reservations released after provider-state checks.",
     stock: "Reservation release increases availability without increasing on-hand stock.",
-    coupon: "Reserved use released.",
+    promotions: "Reserved applications released.",
     payment: "Order cancelled; pending/processing payment becomes failed. Already-failed status remains failed.",
     recovery: "Inspect reconciliation conflicts/errors. Late capture cannot automatically revive the cancelled order.",
   },
@@ -36,7 +36,7 @@ export const cancellationRows = [
 export const recoveryScenarios = [
   {
     title: "The provider call times out",
-    behavior: "The creation error path marks the local payment failed and releases stock/coupon reservations. The cart was already cleared. A timeout alone cannot establish whether the provider created an order.",
+    behavior: "The creation error path marks the local payment failed and releases stock/promotion reservations. The cart was already cleared. A timeout alone cannot establish whether the provider created an order.",
     limit: "Stale-payment reconciliation can search by receipt for an unattached order. That does not recreate released inventory or undo an external success.",
   },
   {
@@ -47,7 +47,7 @@ export const recoveryScenarios = [
   {
     title: "A failed payment is observed",
     behavior: "Reconciliation checks for a captured or authorized payment on the provider order before accepting a failed observation. A confirmed failed payment releases active holds and leaves the local order awaiting_payment.",
-    limit: "Retry service code can restore coupon/payment processing state but does not recreate released stock reservations in this revision.",
+    limit: "Retry restores saved stock demand and all promotion applications in one transaction. Current capacity or stock shortages reject the whole retry; saved prices are retained.",
   },
   {
     title: "The browser window is dismissed",
@@ -66,7 +66,7 @@ export const recoveryScenarios = [
   },
   {
     title: "Capture arrives after release or cancellation",
-    behavior: "An awaiting-payment order with released reservations fails with INVENTORY_RESERVATIONS_RELEASED. An already-cancelled order fails with PAYMENT_ORDER_NOT_PAYABLE before new finalization.",
-    limit: "The transaction does not finalize the order. There is no automatic stock reallocation or refund; provider/local state needs operational resolution.",
+    behavior: "Verified late capture can restore released stock and promotion applications under the saved contract before consuming them. Only captured provider money may bypass current promotion capacity; inventory must still be physically available.",
+    limit: "Cancelled orders and insufficient inventory require operational resolution. Customer retry cannot bypass capacity, and capture never reprices the saved order.",
   },
 ] as const;

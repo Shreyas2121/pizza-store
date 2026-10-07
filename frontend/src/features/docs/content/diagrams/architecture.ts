@@ -50,8 +50,8 @@ export const codRequest: DiagramDefinition = {
   explanation: [
     "POST /api/v1/order passes through body parsing, CORS, request logging, JWT/current-user authentication, and create-order body validation.",
     "OrderService opens a transaction. Checkout locks the cart, checks store hours, address ownership and delivery zone, then checks manual availability.",
-    "The quote locks stock rows in ascending ID order, reads reservations, validates aggregate demand, and locks/validates an optional coupon.",
-    "The transaction writes a pending COD payment, order and price snapshots, tracked stock deductions and movement entries, optional coupon consumption, and cart clearing. An error aborts those local changes.",
+    "Final checkout locks user eligibility, store participation, catalogue rows and promotion rows in the shared order, then resolves automatic offers or a manual coupon against authoritative demand.",
+    "The transaction writes a pending COD payment, order and immutable snapshots, tracked stock deductions and movements, consumed promotion applications, and cart clearing. An error aborts those local changes.",
     "After commit, the route emits orderPlaced and applicable lowStock notifications, then returns JSON. A process failure after commit can still interrupt notification delivery.",
   ],
   source: `sequenceDiagram
@@ -71,9 +71,9 @@ export const codRequest: DiagramDefinition = {
     S->>D: Begin transaction; lock cart
     Note over S,D: Check store, hours, address and zone; manual availability
     S->>D: Lock stock by ascending ID; read reservations
-    Note over S,D: Validate demand; lock and validate optional coupon
+    Note over S,D: Validate demand and final offer or manual coupon eligibility
     S->>D: Payment, order, item prices and stock ledger
-    S->>D: Consume optional coupon; clear cart
+    S->>D: Consume promotion applications; clear cart
     S->>D: Commit transaction
     D-->>S: Committed result
     S-->>R: Order and low-stock alerts

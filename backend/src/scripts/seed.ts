@@ -12,6 +12,7 @@ import {
   addressTable,
 } from "../db/schema";
 import { seedDefaultStore } from "./default-store";
+import { seedPromotions } from "./promotions";
 
 /**
  * Master seed script — seeds the entire database with realistic food data.
@@ -438,6 +439,8 @@ async function seed() {
   }
 
   const defaultStore = await seedDefaultStore();
+  const promotions = await seedPromotions();
+  console.log(`  Created ${promotions.created} promotion fixtures and combo #${promotions.bundleProductId}.`);
 
   console.log("\n🎉 Seed completed successfully!");
   console.log("\n📌 Quick reference:");

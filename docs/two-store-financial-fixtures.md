@@ -1,5 +1,7 @@
 # Deterministic two-store financial fixtures
 
+C14 adds a separate promotion benchmark without changing the historical July/August expected totals. [`promotion-reconciliation.fixtures.ts`](../backend/src/fixtures/promotion-reconciliation.fixtures.ts) passes production recognition, posting validation and report projection across two stores for automatic offers/free delivery, manual coupons, and bundle markdown/free delivery. Expected platform tax-exclusive recognized revenue is respectively 27,000, 37,000 and 30,000 paise; item contra-revenue is 3,000, 3,000 and zero. The platform equals the sum of store reports, with no second discount. The offline `finance:reconcile-fixture` command executes both benchmarks. This is fixture evidence, not live ledger reconciliation; see [C14 handoff](promotions-c14-handoff.md).
+
 - Status: Reference benchmark accepted for verification and seeding
 - Date: 2026-08-31
 - Target branch: `feature/financial-overhaul`

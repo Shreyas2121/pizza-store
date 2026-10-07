@@ -68,6 +68,7 @@ verified.
 | [Promotion administration and store controls](docs/promotions-c11-handoff.md) | Platform create/edit/media/analytics, manager participation workflow and C11 verification |
 | [Customer offers and combos](docs/promotions-c12-handoff.md) | Store-specific discovery, accessible featured offers, bundle catalogue/cart display and C12 verification |
 | [Checkout and saved order savings](docs/promotions-c13-handoff.md) | Authoritative coupon eligibility, separate savings, stale quote recovery, immutable order history and C13 verification |
+| [Promotion fixtures and release evidence](docs/promotions-c14-handoff.md) | Deterministic seeds/media, two-store offline reconciliation, lifecycle diagram and explicitly unrun release gates |
 | [Finance lifecycle and event contracts](docs/finance-lifecycle-contracts.md) | Planned state machines, event payloads, reversals, and database lock order |
 | [Finance API compatibility and rollout map](docs/finance-api-compatibility-rollout.md) | Endpoint contracts, server quote consolidation, error codes, and permission matrix |
 | [Deterministic two-store financial fixtures](docs/two-store-financial-fixtures.md) | Reference scenario, P&L benchmarks, settlement matching, and expected outputs |

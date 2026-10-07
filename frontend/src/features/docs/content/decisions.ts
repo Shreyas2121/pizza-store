@@ -16,7 +16,7 @@ export const decisionRecords: readonly DecisionRecord[] = [
   {
     number: "01",
     title: "Keep coordinated local work in one application",
-    context: "Checkout crosses cart, catalogue, stock, coupons, orders, and payments. Those local records need a clear commit boundary.",
+    context: "Checkout crosses cart, catalogue, stock, promotion applications, orders, and payments. Those local records need a clear commit boundary.",
     constraints: [
       "COD creation should either persist all related local changes or none of them.",
       "Razorpay remains outside the database transaction regardless of application shape.",

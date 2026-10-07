@@ -1,4 +1,5 @@
 import type { AuthPrincipal } from "../features/auth/auth.types";
+import { reconcilePromotionFinanceFixtures } from "../fixtures/promotion-reconciliation.fixtures";
 import { FinanceReportService } from "../features/finance-reports/finance-report.service";
 import type { ReportTotalsDto } from "../features/finance-reports/finance-report.schemas";
 import {
@@ -128,7 +129,11 @@ export async function reconcileFinancialScenarioReports() {
 
 if (require.main === module) {
   reconcileFinancialScenarioReports()
-    .then((result) => console.log(`Finance fixture reconciliation passed: ${result.checkedReports} reports, ${result.checkedCsvExports} CSV exports, ${result.storeMonths} store-months; source ${result.expectedSource}.`))
+    .then((result) => {
+      console.log(`Finance fixture reconciliation passed: ${result.checkedReports} reports, ${result.checkedCsvExports} CSV exports, ${result.storeMonths} store-months; source ${result.expectedSource}.`);
+      const promotions = reconcilePromotionFinanceFixtures();
+      console.log(`Promotion fixture reconciliation passed: ${promotions.journals} journals, ${promotions.consolidatedScenarios} two-store scenarios; no database queries.`);
+    })
     .catch((cause) => {
       console.error(cause instanceof Error ? cause.message : "Finance fixture reconciliation failed.");
       process.exitCode = 1;

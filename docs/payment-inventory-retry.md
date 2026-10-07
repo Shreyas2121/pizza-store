@@ -1,5 +1,7 @@
 # Inventory reservation recovery
 
+C14's [lifecycle diagram and release evidence](promotions-c14-handoff.md) covers discovery, final quote, reservation, capture, immutable order snapshots and ledger/reporting. Frontend retry shows the saved payable total and posts the owned order ID; it never supplies a newly selected promotion or recalculates the amount. No database/provider retry walkthrough was executed in this release pass.
+
 Payment retry restores the original inventory reservation rows and quantities, including saved bundle component demand. It checks current availability against all active reservations while locking store products and then reservation rows in ascending ID order. A shortage rejects the whole retry transaction before any released reservation changes. Repeated restoration leaves active rows unchanged; consumed rows cannot be restored. Restored rows receive the same named 30-minute reservation duration as initial checkout.
 
 Capture marks a saved reservation consumed even when stock tracking was disabled after checkout. It makes no stock movement for an untracked product. Previously this case left the reservation active indefinitely; `inventory-retry.service.test.ts` covers the correction.

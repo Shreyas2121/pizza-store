@@ -12,7 +12,7 @@ export const onlineInitiation: DiagramDefinition = {
   wide: true,
   explanation: [
     "Initiation checks the client request ID. An existing same-user attempt is reused; the diagram follows a new attempt.",
-    "Transaction A validates the quote, snapshots order prices, creates a pending payment and awaiting-payment order, reserves tracked inventory and optional coupon capacity, clears the cart, and commits.",
+    "Transaction A validates the final quote, snapshots prices and promotion allocations, creates payment/order intent, reserves inventory and exact promotion capacity/budget, clears the cart, and commits.",
     "Transaction B locks the payment and claims provider creation by changing it to processing, then commits. Concurrent callers can return the existing processing attempt.",
     "Razorpay order creation happens after that commit. The result must match the local amount, currency, and expected created status.",
     "Transaction C locks the payment and attaches the provider order. The browser can then open provider Checkout. Capture is a later flow, not part of these transactions.",
@@ -31,7 +31,7 @@ export const onlineInitiation: DiagramDefinition = {
       Note over A,D: Transaction A - local checkout
       A->>D: Begin; validate quote and lock stock
       A->>D: Pending payment and awaiting-payment order
-      A->>D: Price snapshots; stock and coupon reservations
+      A->>D: Immutable snapshots; stock and promotion reservations
       A->>D: Clear cart; commit
     end
     rect rgb(241, 234, 223)
@@ -56,8 +56,8 @@ export const captureLifecycle: DiagramDefinition = {
   explanation: [
     "A customer callback verifies order ownership and checkout signature; a webhook verifies its raw-body signature and claims an event ID. These entry points have different authentication mechanisms.",
     "Reconciliation fetches current provider order/payment state outside the finalization transaction. Capture requires matching identities, currency and amounts, captured payment, paid order, exact amount paid and zero due.",
-    "The local transaction locks order/payment and rechecks payable or already-completed state. For a new completion, it consumes active inventory, records sales, completes payment, sets the order pending, and consumes optional coupon use.",
-    "A repeated completion with the same provider payment ID returns without consuming stock again. Released reservations or a cancelled order prevent a new completion.",
+    "The local transaction locks order/payment and rechecks payable or already-completed state. Completion consumes saved inventory and promotion applications, records sales, completes payment and sets the order pending.",
+    "A repeated completion with the same provider payment ID returns without consuming stock again. Verified late capture may restore released holds under the saved contract; a cancelled order requires operational resolution.",
     "After commit, the caller may emit notifications. Webhook processing status is recorded separately. Neither proves durable event delivery.",
   ],
   source: `sequenceDiagram
@@ -79,7 +79,7 @@ export const captureLifecycle: DiagramDefinition = {
       else Awaiting payment with usable reservations
         R->>D: Lock stock and active reservations in sorted order
         R->>D: Consume reservations; deduct stock; append sales
-        R->>D: Complete payment; order pending; consume coupon
+        R->>D: Complete payment; order pending; consume promotion applications
       end
       R->>D: Commit
     end
@@ -92,8 +92,8 @@ export const orderTransitions: DiagramDefinition = {
   caption: "This is the implemented order transition map, not a payment state machine. Same-state requests are no-ops.",
   explanation: [
     "Online orders start awaiting_payment; COD orders start pending. The shared map permits awaiting_payment to pending or cancelled.",
-    "Pending can move to preparing or cancelled. Preparing can move to delivered or cancelled. There is no out_for_delivery state in this revision.",
-    "Delivered and cancelled are terminal. The persisted delivered identifier is spelled delievered; the diagram displays the readable label.",
+    "Pending can move to preparing or cancelled. Preparing advances to out_for_delivery, then delivered; cancellation is allowed before delivery.",
+    "Delivered and cancelled are terminal; delivered is the canonical stored identifier.",
     "Staff updates also require permission, and payment finalization independently validates provider/payable state. The map by itself is not proof of payment completion.",
   ],
   source: `stateDiagram-v2
@@ -102,7 +102,8 @@ export const orderTransitions: DiagramDefinition = {
     state "Awaiting payment" as awaiting_payment
     state "Pending" as pending
     state "Preparing" as preparing
-    state "Delivered (stored: delievered)" as delievered
+    state "Out for delivery" as out_for_delivery
+    state "Delivered" as delivered
     state "Cancelled" as cancelled
     [*] --> awaiting_payment: Online creation
     [*] --> pending: COD creation
@@ -110,8 +111,10 @@ export const orderTransitions: DiagramDefinition = {
     awaiting_payment --> cancelled
     pending --> preparing
     pending --> cancelled
-    preparing --> delievered
+    preparing --> out_for_delivery
     preparing --> cancelled
-    delievered --> [*]
+    out_for_delivery --> delivered
+    out_for_delivery --> cancelled
+    delivered --> [*]
     cancelled --> [*]`,
 };

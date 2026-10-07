@@ -6,6 +6,8 @@
 
 ## Scope and current-reality boundary
 
+The following P0.2 reality description is historical. Current orders use canonical `delivered` with `out_for_delivery`; refund, settlement, cash, expense, payroll, outbox and journal aggregates are implemented. C00-C14 add promotion applications, immutable bundle/discount snapshots and offline release evidence. Use [promotion operations](promotions-operations.md), [database schema](database-schema.md) and [C14 handoff](promotions-c14-handoff.md) for current behavior and unrun release checks.
+
 This document defines target contracts for P1-P6. It does not claim they are implemented in P0.2.
 
 Today, orders use `awaiting_payment`, `pending`, `preparing`, misspelled `delievered`, and `cancelled`; `preparing` goes directly to `delievered`. Payments are one-per-order with `pending`, `processing`, `completed`, `failed`, and `refunded`. Refund, settlement, cash-session, expense, pay-run, outbox, fiscal-period, and journal aggregates do not exist yet.

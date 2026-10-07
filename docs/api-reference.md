@@ -1204,6 +1204,8 @@ Attempt actions use the stable `<operation>.failed` or `<operation>.denied` form
 
 ## Promotion governance (C05)
 
+C14 changes fixture/demo workflows and documentation, not HTTP shapes. `seed:promotions` provisions eight global definitions, bundle metadata and one store opt-out; public discovery still returns offers only, quotes remain authoritative, and saved orders retain collection snapshots. The [C14 handoff](promotions-c14-handoff.md) records the authorization matrix, offline reconciliation and unrun database/manual release gates.
+
 The promotion backend exposes platform administration, store-manager participation, analytics, media, and public discovery through the [frozen promotion contract](promotions-contract.md#7-endpoint-contract).
 
 - Platform: `POST/GET /promotions`, `GET/PUT/DELETE /promotions/:id`, `POST/DELETE /promotions/:id/images`, and `GET /promotions/:id/analytics`; requires `platform.promotions.manage`.

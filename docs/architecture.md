@@ -1,5 +1,7 @@
 # Architecture
 
+The complete promotion path is public discovery → authoritative quote → locked final checkout → COD consumption or online reservation/payment → immutable order/application snapshots → delivered-order event → store journal → platform consolidation. The same [accessible diagram](../frontend/src/features/docs/content/diagrams/promotions.ts) is rendered in `/docs/architecture`. [C14 fixtures/evidence](promotions-c14-handoff.md) documents deterministic seeds, offline reconciliation, governance and the pending database/browser release gates.
+
 ## Overview
 
 PizzaStore is a client-server web application with a React single-page frontend and a Node.js/Express REST API backend. The frontend owns presentation, routing, and client-side state. The backend owns business logic, data access, authentication, file uploads, and real-time event delivery. PostgreSQL is the single source of truth for all persistent data. Socket.IO provides a bidirectional event channel between the server and all connected clients.

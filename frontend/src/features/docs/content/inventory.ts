@@ -39,7 +39,7 @@ export const inventoryLedgerExample = [
 export const lockPaths = [
   {
     operation: "COD or online checkout",
-    sequence: "Cart row -> manual availability read -> store-product rows by ascending ID -> active reservation totals -> optional coupon row",
+    sequence: "Cart -> user eligibility -> store -> catalogue and stock in ascending IDs -> promotions in ascending IDs -> existing store settings",
     result: "Demand is validated while stock locks are held. COD deducts tracked stock; online checkout inserts reservations before commit.",
   },
   {
@@ -54,7 +54,7 @@ export const lockPaths = [
   },
   {
     operation: "Safe expiry",
-    sequence: "Provider reads outside SQL -> order row -> payment row -> release reservations and optional coupon",
+    sequence: "Provider reads outside SQL -> order row -> payment row -> release inventory and promotion applications",
     result: "Uncertain or unsafe provider state preserves the reservation instead of entering the release transaction.",
   },
   {
@@ -72,7 +72,7 @@ export const lockPaths = [
 export const operationalInteractions = [
   {
     title: "Payment failure",
-    behavior: "A confirmed provider failure releases active stock and coupon reservations. On-hand quantity was never deducted for the online hold, so release changes displayed availability without adding stock.",
+    behavior: "A confirmed provider failure releases active stock and promotion reservations. On-hand quantity was never deducted for the online hold, so release changes displayed availability without adding stock.",
     limit: "The order remains awaiting_payment. Retry code does not recreate released stock reservations in the audited revision.",
   },
   {

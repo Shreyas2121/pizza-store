@@ -4,6 +4,8 @@ This runbook covers the management-accounting and payroll-lite features shipped 
 
 ## Routine checks
 
+For promotion operations, also follow [promotion governance/media/recovery](promotions-operations.md). Only consumed item savings feed store account `4100`; application analytics and delivery ledger revenue use different populations/business dates. Waived delivery and bundle compare-at savings never create `4100` entries or refund capacity. Platform reports consolidate store journals once. The offline [C14 fixture reconciliation](promotions-c14-handoff.md) checks these policies without verifying production data.
+
 Run these checks per store and then consolidated:
 
 1. Confirm the financial outbox has no overdue `pending`, `failed`, `processing`, or `dead_letter` events.

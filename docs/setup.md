@@ -332,6 +332,18 @@ Do not use `db:push` as a production migration substitute. For backup, forward-o
 
 Product and menu images are uploaded to `backend/uploads/`. This directory is created automatically on first upload and served statically by Express. It is excluded from version control via `.gitignore`.
 
+## Promotion demo fixtures
+
+`pnpm.cmd db:seed` now adds eight validated global definitions and a pizza/drink combo after creating the base catalogue and default store. For an existing development catalogue/admin/store, `pnpm.cmd --filter backend seed:promotions` adds missing fixture definitions without replacing existing versions, media or store choices. Fixture identities use kind/name (and normalized coupon code uniqueness); renaming a fixture then rerunning may create a new offer. These are development data commands, not migrations or production configuration.
+
+The confirmed local-only `pnpm.cmd demo:reset` additionally creates Mumbai/Bengaluru managers, a customer with no orders and addresses in both stores, one Bengaluru opt-out, and the historical July/August finance scenario. See [fixture walkthrough and release evidence](promotions-c14-handoff.md). Store IDs are resolved by slug and product IDs by catalogue rows. Bundles have component-backed stock and separate compare-at prices.
+
+Trusted fixture SVG source is rasterized through Sharp into three WebP files under `backend/uploads/promotions`: desktop/mobile percentage artwork and desktop-only fixed-discount artwork. UUID filenames match the managed cleanup policy. Existing files are never overwritten; a different file or symlink at a fixture path causes an error. Offers without images demonstrate textual fallback. Public upload validation still rejects SVG. Catalogue product photos remain the existing optional local upload assets; these fixtures do not fabricate those photos.
+
+`pnpm.cmd finance:reconcile-fixture` is offline: injected report repositories and pure promotion recognition/posting fixtures verify 12 reports, 12 CSV exports and six journals across three two-store scenarios without database queries. It does not verify a migrated database or live ledger.
+
+No seed/reset, migration or live database check was executed during C14, at the owner's request. Empty-database seed/reset, races and the browser/manual matrix remain pending release evidence.
+
 ## Troubleshooting
 
 ### "Access denied, no token provided"

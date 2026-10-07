@@ -4,6 +4,8 @@ PostgreSQL stores all application state. Drizzle ORM defines domain schemas in `
 
 ## Connection policy
 
+C14 adds no schema or migration. Promotion definitions/rules/settings/applications and catalogue/order bundle component tables use the existing C02-C10 chain. Fixture seeds resolve actual IDs, keep store participation default-enabled unless explicitly disabled, and do not create mutable redemption counters. Offline schema/migration tests remain distinct from applying the chain to PostgreSQL. See [C14 evidence](promotions-c14-handoff.md) for the unrun empty-database and concurrency gates.
+
 - The database URL is constructed from individual environment variables (`DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, `DB_NAME`).
 - A single connection pool is initialized at startup via `drizzle-orm/node-postgres`.
 - All timestamps use `timestamp with time zone` and default to `now()`.

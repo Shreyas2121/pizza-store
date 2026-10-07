@@ -2,7 +2,7 @@
 
 Status: execution guide
 
-Implementation progress (2026-10-07): C00-C13 implemented on `feature/promotions-overhaul`. C13 adds authoritative checkout eligibility/savings, cancellable manual coupon validation and immutable order-history presentation. Separate prerequisite fixes isolate private caches by account and repair cart/catalogue invalidation. Next slice: C14 fixtures, documentation and release evidence. See the [C13 handoff](./docs/promotions-c13-handoff.md) for implementation, verification and explicitly deferred database/browser checks.
+Implementation progress (2026-10-07): C00-C14 implementation integrated on `feature/promotions-overhaul`. C14 adds deterministic promotion/bundle/media/participation fixtures, demo workflows, offline two-store finance reconciliation, lifecycle diagrams and release documentation. Release validation remains pending: live database checks were skipped at the owner's request, and the browser/provider/manual matrix is unrun. See the [C14 handoff](./docs/promotions-c14-handoff.md). Next work is missing release evidence and integration-owner review; persistent owner restrictions continue to apply.
 
 Authoritative product plan: [`implementation_plan.md`](./implementation_plan.md)
 

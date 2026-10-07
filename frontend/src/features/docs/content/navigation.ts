@@ -33,6 +33,7 @@ export const docsArchitecture: DocsEntry = {
     { id: "cod-request", title: "A COD request" },
     { id: "state-ownership", title: "State ownership" },
     { id: "architectural-tradeoffs", title: "Tradeoffs" },
+    { id: "promotions-and-revenue", title: "Promotions & revenue" },
   ],
 };
 

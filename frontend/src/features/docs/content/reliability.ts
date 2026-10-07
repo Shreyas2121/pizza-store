@@ -16,8 +16,8 @@ export const testCategories = [
   {
     category: "Disposable database integration",
     status: "Missing",
-    establishes: "No dedicated suite was found. One payment test accidentally reached the configured database and failed before its intended assertions.",
-    limit: "That accidental query is a test-isolation defect, not evidence of concurrency correctness or rollback behavior.",
+    establishes: "Database verification was skipped at the owner's request in the promotion release. Offline schema/query/service tests do not establish real PostgreSQL behavior.",
+    limit: "Empty-database migrations, deterministic seed/reset and coordinated lock races remain required release evidence.",
   },
   {
     category: "Browser flows",
@@ -39,7 +39,7 @@ export const failureRows: readonly {
     currentBehavior: "Local attempt exists first. The error path marks payment failed and releases holds; receipt-based reconciliation can find an unattached provider order.",
     evidence: ["PAY-01", "REC-02"],
     operationalAction: "Inspect local order/payment IDs and the deterministic receipt, then run stale-payment reconciliation against the intended environment.",
-    limit: "Released inventory is not recreated by retry, and a provider success cannot be rolled back by SQL.",
+    limit: "Retry restores saved inventory and promotion capacity transactionally when available. SQL cannot roll back an external provider success.",
   },
   {
     scenario: "Callback or webhook repeats",
@@ -57,16 +57,16 @@ export const failureRows: readonly {
   },
   {
     scenario: "Capture appears after reservation release",
-    currentBehavior: "Finalization conflicts on released reservations, or rejects an order already cancelled by expiry.",
+    currentBehavior: "Verified capture can restore released inventory and promotion applications under saved prices. A cancelled order or unavailable stock requires operational resolution.",
     evidence: ["INV-03", "REC-01"],
     operationalAction: "Compare provider and local state, protect fulfillment from the unresolved order, and resolve customer/refund handling operationally.",
-    limit: "No automatic stock reacquisition, order revival, or provider refund exists in the reviewed path.",
+    limit: "Only verified captured money can bypass current promotion capacity. Inventory availability remains enforced; a cancelled order is not revived automatically.",
   },
   {
     scenario: "A paid order is cancelled",
-    currentBehavior: "Recorded tracked stock is restored once, while the completed payment and consumed coupon use remain completed/consumed.",
+    currentBehavior: "Recorded tracked stock is restored once, while completed payment and consumed promotion applications remain completed/consumed.",
     evidence: ["ORDER-02"],
-    operationalAction: "Review payment and coupon records and perform any refund/customer communication through a separate operations process.",
+    operationalAction: "Review saved payment/promotion records and use the separate authorized refund workflow when needed.",
     limit: "Order cancellation is not a refund workflow.",
   },
   {
@@ -74,7 +74,7 @@ export const failureRows: readonly {
     currentBehavior: "The database change remains committed. Route-level Socket.IO delivery can be skipped, and CLI reconciliation emits no replacement event.",
     evidence: ["RT-02"],
     operationalAction: "Treat the database as source of truth and refresh affected order/inventory views; inspect logs for the committed operation and missing delivery.",
-    limit: "No outbox, durable event log, or notification replay was found.",
+    limit: "A financial outbox exists for durable ledger posting; it does not guarantee replay of every route-level realtime notification.",
   },
   {
     scenario: "Membership changes while sockets are connected",
@@ -88,9 +88,9 @@ export const failureRows: readonly {
 export const improvementPriorities = [
   {
     priority: "P0",
-    title: "Finish and verify online-payment recovery",
+    title: "Verify online-payment recovery in the target environment",
     trigger: "Before enabling Razorpay for real customers or claiming the browser flow is complete.",
-    change: "Register and test method-discovery/retry behavior, make retry inventory-aware, and define late-capture and refund operations.",
+    change: "Execute the implemented method discovery, inventory/promotion retry, late capture and refund paths against an isolated database and provider/browser setup, recording results.",
   },
   {
     priority: "P0",

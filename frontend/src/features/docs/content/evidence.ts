@@ -27,7 +27,7 @@ export const evidence = {
     source: "backend/src/features/order/order.logic.ts",
     symbol: "VALID_ORDER_TRANSITIONS; OrderService.updateOrderStatus applies this map",
     test: "backend/src/features/order/order.service.test.ts",
-    scope: "Transition rules and mocked status/cancellation tests. Stock restoration, coupon release, and payment changes remain separate service operations.",
+    scope: "Transition rules and mocked status/cancellation tests. Inventory and promotion release share the caller transaction; cancellation and refund remain separate operations. No PostgreSQL race evidence is claimed.",
   },
   "ORDER-03": {
     title: "Price snapshot boundaries",

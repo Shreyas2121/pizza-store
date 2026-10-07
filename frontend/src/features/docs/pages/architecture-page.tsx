@@ -6,6 +6,7 @@ import { EvidenceLinks } from "../components/evidence-links";
 import { docsArchitecture } from "../content/navigation";
 import { systemContext, containers, codRequest } from "../content/diagrams/architecture";
 import { reviewedDate, reviewedRevision } from "../content/evidence";
+import { promotionsLifecycle } from "../content/diagrams/promotions";
 
 const ownership = [
   ["Presentation and navigation", "React and React Router", "Feature pages, layouts, forms, and navigation."],
@@ -16,7 +17,7 @@ const ownership = [
 ];
 
 export default function ArchitecturePage() {
-  const [context, applications, request, state, decisions] = docsArchitecture.sections;
+  const [context, applications, request, state, decisions, promotions] = docsArchitecture.sections;
   return <DocsPage title={docsArchitecture.title} description={docsArchitecture.description}>
     <header className="pb-10">
       <p className="docs-eyebrow mb-5">02 / Architecture</p>
@@ -40,7 +41,7 @@ export default function ArchitecturePage() {
       <p className="mb-6 leading-7 text-ink-muted">This traces the implemented customer COD endpoint. It does not insert a staff permission guard into customer checkout: the quote checks address ownership and store eligibility instead.</p>
       <DiagramCard diagram={codRequest} />
       <EvidenceLinks id="ORDER-01" />
-      <p className="mt-5 text-sm leading-6 text-ink-muted">Webhook requests follow a different entry path: their raw-body handler is mounted before normal JSON parsing, CORS, and request logging. Online payment creation happens outside the local checkout transaction. Financial work is under revision and must be re-audited before stronger claims are published.</p>
+      <p className="mt-5 text-sm leading-6 text-ink-muted">Webhook requests follow a different entry path: their raw-body handler is mounted before normal JSON parsing, CORS, and request logging. Online payment creation happens outside the local checkout transaction. Delivery financial events are committed locally and posted through the outbox; browser and PostgreSQL concurrency evidence remains pending.</p>
     </DocsSection>
 
     <DocsSection section={state}>
@@ -61,6 +62,11 @@ export default function ArchitecturePage() {
       </div>
       <p className="mt-6 text-sm leading-7 text-ink-muted">Consider changing these boundaries when measured bottlenecks, independent release needs, or operational requirements justify it. No production scale, durable event delivery, global deadlock freedom, or performance improvement is claimed by these diagrams.</p>
       <p className="mt-5 text-sm leading-6 text-ink-muted">Diagram conventions: <a className="underline underline-offset-4" href="https://c4model.com/diagrams/container">C4 container diagrams</a>. Rendering: <a className="underline underline-offset-4" href="https://mermaid.js.org/config/usage.html">Mermaid’s asynchronous API</a>, with <a className="underline underline-offset-4" href="https://mermaid.js.org/config/schema-docs/config-properties-securitylevel.html">strict security</a> and links outside the diagrams.</p>
+    </DocsSection>
+    <DocsSection section={promotions}>
+      <DiagramCard diagram={promotionsLifecycle} />
+      <p className="mt-5 text-sm leading-7 text-ink-muted">Reviewed on 2026-10-07 after C00–C13. Platform admins manage definitions, media and analytics. Store managers only toggle their own participation; finance managers, operators, inventory staff and customers cannot toggle. Global deactivation overrides store choices. Hidden coupon codes never appear in public offer discovery.</p>
+      <p className="mt-3 text-sm leading-7 text-ink-muted">Displayed item, delivery and bundle savings are separate from payable. Refunds use paid post-discount allocations; compare-at markdown and waived delivery are never refundable. Existing provider orders keep their saved prices after a promotion edit or store opt-out.</p>
     </DocsSection>
     <div className="flex flex-wrap gap-3"><Link to="/docs/order-lifecycle" className="docs-button">Continue to orders & payments</Link><Link to="/docs" className="docs-button-secondary"><ArrowLeft size={16} aria-hidden="true" />Project overview</Link></div>
   </DocsPage>;
