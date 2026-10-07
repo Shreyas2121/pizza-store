@@ -10,6 +10,15 @@ Target repository: PizzaStore monorepo (`backend`, `frontend`)
 
 Delivery model: one implementation branch with ordered, reviewable commits
 
+### Persistent owner instructions (2026-10-07)
+
+These instructions apply to subsequent slices in this workstream until the owner changes them:
+
+- **Skip live database checks.** Do not run database-backed verification, apply migrations, push schemas, or execute seed/reset scripts as part of verification. Continue offline schema/migration review, unit tests, lint, typechecks and builds. This owner instruction overrides database execution gates below; record those checks as unrun at the owner's request and never claim database release validation passed.
+- **Review related code while implementing.** Fix demonstrated bugs, incorrect library usage, best-practice violations and code-quality issues encountered in touched or related code. Follow Section 8 for evidence, regression coverage and separate fix commits; keep changes relevant rather than starting unrelated rewrites.
+- **Update affected documentation.** Keep contracts, architecture, workflows and handoffs accurate whenever implementation or a discovered fix changes them.
+- **Carry these instructions forward.** Read this section on each continuation, including when the owner simply says “Next.”
+
 This guide converts the approved implementation plan into an ordered delivery sequence. Implementers must read the complete implementation plan and this guide before changing code. Where this guide and the plan differ, stop and resolve the contradiction before implementation; do not improvise around money, tax, authorization, inventory, or payment lifecycle behavior.
 
 ---
