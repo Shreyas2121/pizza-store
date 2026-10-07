@@ -1,19 +1,21 @@
 import { API, createMutation, createQuery } from "@/shared/api";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Address } from "../model/account.types";
+import { useUser } from "@/features/auth";
 
 export const addressKeys = {
   all: ["addressAll"] as const,
-  lists: () => ["addressAll"] as const,
+  lists: (userId?: number | null) => ["addressAll", ...(userId === undefined ? [] : [userId])] as const,
 };
 
 export const useGetAddresses = (enabled: boolean = true) => {
+  const { user, isLoggedIn } = useUser();
   return createQuery<Address[]>(
-    addressKeys.lists(),
+    addressKeys.lists(user?.id ?? null),
     "/user/address",
     "data",
     undefined,
-    { enabled },
+    { enabled: enabled && isLoggedIn && user?.id !== undefined },
   );
 };
 

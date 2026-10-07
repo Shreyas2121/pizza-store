@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { API } from "@/shared/api";
+import { useUser } from "@/features/auth";
 import type {
   CheckoutQuoteRequest,
   CheckoutQuoteResponse,
@@ -8,9 +9,10 @@ import type {
 
 export const checkoutQuoteKeys = {
   all: ["checkout-quote"] as const,
-  quote: (req: CheckoutQuoteRequest | null) =>
+  quote: (req: CheckoutQuoteRequest | null, userId: number | null = null) =>
     [
       "checkout-quote",
+      userId,
       req?.storeId,
       req?.couponCode,
       req?.destinationState,
@@ -23,15 +25,17 @@ export const useCheckoutQuote = (
   request: CheckoutQuoteRequest | null,
   options?: { enabled?: boolean }
 ) => {
+  const { user, isLoggedIn } = useUser();
   return useQuery({
-    queryKey: checkoutQuoteKeys.quote(request),
-    queryFn: async (): Promise<PricingQuote | null> => {
+    queryKey: checkoutQuoteKeys.quote(request, isLoggedIn ? user?.id ?? null : null),
+    queryFn: async ({ signal }): Promise<PricingQuote | null> => {
       if (!request || !request.storeId) {
         return null;
       }
       const { data } = await API.post<CheckoutQuoteResponse>(
         "/checkout/quote",
-        request
+        request,
+        { signal }
       );
       return data.data;
     },

@@ -1,9 +1,10 @@
 import { createMutation, createQuery } from "@/shared/api";
 import { User } from "../model/auth.types";
+import { useUser } from "../model/auth.store";
 
 export const authKeys = {
   all: ["user"] as const,
-  getUser: () => ["get"] as const,
+  getUser: (userId?: number | null) => ["get", ...(userId === undefined ? [] : [userId])] as const,
 };
 
 export const useLogin = () => {
@@ -21,5 +22,6 @@ export const useRegister = () => {
 };
 
 export const useGetUser = () => {
-  return createQuery<User>(authKeys.getUser(), "/user", "data");
+  const { user, isLoggedIn } = useUser();
+  return createQuery<User>(authKeys.getUser(user?.id ?? null), "/user", "data", undefined, { enabled: isLoggedIn && user?.id !== undefined });
 };

@@ -1,21 +1,23 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { API, createMutation, createQuery, createSuspenseQuery } from "@/shared/api";
 import { CartRes } from "../model/cart.types";
+import { useUser } from "@/features/auth";
 
 export const cartKeys = {
   all: ["cart"] as const,
-  count: () => ["cart-count"] as const,
-  get: () => ["cart-get"] as const,
-  checkout: () => ["cart-checkout"] as const,
+  count: (userId?: number | null) => ["cart-count", ...(userId === undefined ? [] : [userId])] as const,
+  get: (userId?: number | null) => ["cart-get", ...(userId === undefined ? [] : [userId])] as const,
+  checkout: (userId?: number | null) => ["cart-checkout", ...(userId === undefined ? [] : [userId])] as const,
 };
 
 export const useGetCartCount = (enabled: boolean = true) => {
+  const { user, isLoggedIn } = useUser();
   return createQuery<number>(
-    cartKeys.count(),
+    cartKeys.count(user?.id ?? null),
     "/cart/count",
     "data",
     undefined,
-    { enabled }
+    { enabled: enabled && isLoggedIn && user?.id !== undefined }
   );
 };
 
@@ -31,15 +33,18 @@ export const useAddToCart = () => {
 };
 
 export const useGetCart = () => {
-  return createSuspenseQuery<CartRes>(cartKeys.get(), "/cart", "data");
+  const { user } = useUser();
+  return createSuspenseQuery<CartRes>(cartKeys.get(user?.id ?? null), "/cart", "data");
 };
 
 export const useGetCartOptional = (enabled: boolean = true) => {
-  return createQuery<CartRes | null>(cartKeys.get(), "/cart", "data", undefined, { enabled });
+  const { user, isLoggedIn } = useUser();
+  return createQuery<CartRes | null>(cartKeys.get(user?.id ?? null), "/cart", "data", undefined, { enabled: enabled && isLoggedIn && user?.id !== undefined });
 };
 
 export const useGetCartCheckout = () => {
-  return createQuery<CartRes>(cartKeys.checkout(), "/cart/checkout", "data");
+  const { user, isLoggedIn } = useUser();
+  return createQuery<CartRes>(cartKeys.checkout(user?.id ?? null), "/cart/checkout", "data", undefined, { enabled: isLoggedIn && user?.id !== undefined });
 };
 
 export const useUpdateCartItemQuantity = () => {
@@ -75,12 +80,13 @@ export const useRemoveCartItem = () => {
 
 export const useClearCart = () => {
   const client = useQueryClient();
+  const { user } = useUser();
   return useMutation({
     mutationFn: async (itemIds: number[]) => {
       for (const itemId of itemIds) await API.delete(`/cart/${itemId}`);
     },
     onSuccess: () => {
-      client.setQueryData(cartKeys.get(), null);
+      client.setQueryData(cartKeys.get(user?.id ?? null), null);
       client.invalidateQueries({ queryKey: cartKeys.get() });
       client.invalidateQueries({ queryKey: cartKeys.checkout() });
       client.invalidateQueries({ queryKey: cartKeys.count() });

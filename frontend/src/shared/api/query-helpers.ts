@@ -19,8 +19,8 @@ export function createQuery<T>(
 ) {
   return useQuery({
     queryKey: key,
-    queryFn: async () => {
-      const { data } = await API.get(url, { params });
+    queryFn: async ({ signal }) => {
+      const { data } = await API.get(url, { params, signal });
       const res = dataKey !== undefined ? data[dataKey] : (data as T);
       return res ?? null;
     },
@@ -37,8 +37,8 @@ export function createSuspenseQuery<T>(
 ) {
   return useSuspenseQuery({
     queryKey: key,
-    queryFn: async () => {
-      const { data } = await API.get(url, { params });
+    queryFn: async ({ signal }) => {
+      const { data } = await API.get(url, { params, signal });
       const res = dataKey !== undefined ? data[dataKey] : (data as T);
       return res ?? null;
     },
