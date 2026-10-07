@@ -42,7 +42,7 @@ export class PromotionAnalyticsRepository {
         where d.component = 'item' and a.status = 'consumed'
       ), shares as (
         select d.order_item_id, d.promotion_application_id, sum(d.amount_paise::numeric) as weight,
-          round(i.line_subtotal_paise::numeric * ${BASIS_POINTS_SCALE} / (${BASIS_POINTS_SCALE} + i.tax_rate_bps)) - i.taxable_amount_paise as reduction
+          i.line_subtotal_paise::numeric - round(i.line_subtotal_paise::numeric * i.tax_rate_bps / (${BASIS_POINTS_SCALE} + i.tax_rate_bps)) - i.taxable_amount_paise as reduction
         from promotion_discount_allocations d join selected_items si on si.order_item_id = d.order_item_id
         join order_items i on i.id = d.order_item_id
         group by d.order_item_id, d.promotion_application_id, i.id
