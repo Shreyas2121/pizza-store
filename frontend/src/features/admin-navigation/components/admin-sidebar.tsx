@@ -51,6 +51,7 @@ export const AdminSidebar = ({
         (to === "/admin/products" && location.pathname.startsWith("/admin/product"));
 
   const visibleLinks = sidebarLinks.filter((link) => {
+    if (link.managerOnly && getActiveMembershipRole(access, activeStoreId) !== "manager") return false;
     if (link.platformOnly) {
       return isPlatformAdmin(access);
     }

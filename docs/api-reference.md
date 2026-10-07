@@ -1212,7 +1212,7 @@ The promotion backend exposes platform administration, store-manager participati
 
 Definition writes are strict and version-checked. Store disable requests require a reason. Media uses one decoded JPEG/PNG/WebP file, a desktop/mobile variant and useful alt text. See [promotion operations](promotions-operations.md) for storage, replacement, cleanup and analytics semantics.
 
-C06-C10 implement v4 quotes, owned-cart manual coupon validation, shared COD/online application and bundle snapshots, payment recovery, promotion finance accounting and historical order DTOs. Legacy coupon persistence and routes are removed. Frontend governance/discovery and the full checkout experience remain C11-C13 work; all slices require the C14 release gate.
+C06-C10 implement v4 quotes, owned-cart manual coupon validation, shared COD/online application and bundle snapshots, payment recovery, promotion finance accounting and historical order DTOs. Legacy coupon persistence and routes are removed. C11 adds `/admin/promotions` for platform definition/media/analytics management and `/admin/store-promotions` for same-store manager participation; see the [frontend governance handoff](promotions-c11-handoff.md). Customer discovery and the full checkout experience remain C12-C13 work; all slices require the C14 release gate.
 
 ## Authentication legend
 

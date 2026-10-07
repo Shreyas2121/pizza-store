@@ -12,6 +12,7 @@ import {
   Users,
   Landmark,
   WalletCards,
+  Tags,
 } from "lucide-react";
 
 export interface SidebarLinkConfig {
@@ -19,10 +20,13 @@ export interface SidebarLinkConfig {
   to: string;
   icon: LucideIcon;
   platformOnly?: boolean;
+  managerOnly?: boolean;
   requiredPermission?: string;
 }
 
 export const sidebarLinks: SidebarLinkConfig[] = [
+  { label: "Promotions", to: "/admin/promotions", icon: Tags, platformOnly: true },
+  { label: "Store promotions", to: "/admin/store-promotions", icon: Tags, managerOnly: true, requiredPermission: "store.promotions.toggle" },
   {
     label: "Dashboard",
     to: "/admin",

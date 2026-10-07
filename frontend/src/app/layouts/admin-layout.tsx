@@ -19,6 +19,8 @@ import {
 } from "@/shared/realtime";
 
 const pageNames: Record<string, string> = {
+  "/admin/promotions": "Promotions",
+  "/admin/store-promotions": "Store promotions",
   "/admin": "Dashboard",
   "/admin/products": "Products",
   "/admin/product/new": "New product",

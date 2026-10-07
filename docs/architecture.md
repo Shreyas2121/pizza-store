@@ -179,7 +179,11 @@ frontend/src/
 
 ### Form validation
 
-Client-side validation uses React Hook Form with Zod resolvers. Schemas live in feature `model/` modules, including auth, catalogue, account address, store, and inventory schemas. Dependency versions should be read from package manifests/lockfiles; the C01 evidence record notes an installed frontend Zod mismatch.
+Client-side validation uses React Hook Form with Zod resolvers in several features and controlled Zod-validated forms in promotion administration. Schemas live in feature `model/` modules. Promotion drafts retain the captured definition version until explicit confirmed reload; automatic refresh does not replace edits. Money/rate fields use integer paise/basis points, and the browser validates form shape while the server owns eligibility/pricing. Dependency versions should be read from package manifests/lockfiles; the C01 evidence record notes an installed frontend Zod mismatch.
+
+### Promotion governance UI
+
+C11 exposes separate platform definition/media/analytics and same-store manager participation routes and sidebar entries. Governance query keys include principal, store and filters, consume cancellation signals and avoid cross-store placeholder data. Managers see server effective status and read-only global definitions; a reason-backed confirmation changes only their selected store. Platform admins never override a manager choice. Media editing is separate from definition drafts; homepage placement follows save → desktop upload/alt text → versioned edit. Analytics preserve aggregate strings/BigInt and distinguish application attribution from ledger recognition. See the [C11 handoff](promotions-c11-handoff.md) for coverage and remaining manual checks.
 
 ## Cross-cutting concerns
 

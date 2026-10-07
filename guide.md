@@ -2,7 +2,7 @@
 
 Status: execution guide
 
-Implementation progress (2026-10-07): C00-C10 implemented on `feature/promotions-overhaul`. C10 exposes immutable order snapshots and removes legacy coupon persistence/routes. Next slice: C11 frontend governance, followed by C12 discovery and C13 checkout/history UX. See the [C10 handoff](./docs/promotions-c10-handoff.md) for implementation, verification, migration review and explicitly deferred database checks.
+Implementation progress (2026-10-07): C00-C11 implemented on `feature/promotions-overhaul`. C11 adds platform promotion administration and same-store manager participation controls, with a separate account-scoped access-cache fix. Next slice: C12 discovery, followed by C13 checkout/history UX. See the [C11 handoff](./docs/promotions-c11-handoff.md) for implementation, verification and explicitly deferred database/browser checks.
 
 Authoritative product plan: [`implementation_plan.md`](./implementation_plan.md)
 

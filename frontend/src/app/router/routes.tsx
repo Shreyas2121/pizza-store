@@ -5,6 +5,10 @@ import { ProtectedRoutes } from "./guards/protected-route";
 import { StaffProtectedRoute } from "./guards/staff-route";
 import { PlatformAdminProtectedRoute } from "./guards/platform-admin-route";
 import { NotFoundPage as NotFound } from "./not-found-page";
+import { PromotionRoute } from "@/features/promotions";
+
+const AdminPromotions = lazy(() => import("@/features/promotions/pages/admin-promotions-page"));
+const StorePromotions = lazy(() => import("@/features/promotions/pages/store-promotions-page"));
 
 const DocsLayout = lazy(() => import("@/features/docs/components/docs-layout"));
 const DocsIndex = lazy(() => import("@/features/docs/pages/docs-index-page"));
@@ -101,6 +105,8 @@ export const AppRoutes = () => (
       }
     >
       <Route index element={<AdminHome />} />
+      <Route path="/admin/promotions" element={<PromotionRoute><AdminPromotions /></PromotionRoute>} />
+      <Route path="/admin/store-promotions" element={<PromotionRoute manager><StorePromotions /></PromotionRoute>} />
       <Route
         path="/admin/products"
         element={
