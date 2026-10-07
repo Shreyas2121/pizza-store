@@ -498,7 +498,25 @@ List current user's orders, filtered by status.
 
 ### `GET /order/:orderId` 🔒
 
-Get full order details including items, customizations, address, coupon, and payment.
+Get full order details including saved items, customizations, bundle components,
+promotion applications/allocations, delivery address and safe payment status.
+Historical names and prices come from order snapshots; current product images
+are optional decoration. Internal cost snapshots, customer credentials and
+provider request/attempt metadata are excluded.
+
+Customer and staff lists use the same snapshot projection. `discountMode` is
+`none`, `automatic_deals` or `coupon`; `promotions[]` contains immutable name,
+code, kind, discount type, definition version, application status, item/delivery/
+total savings, and allocations (`orderItemId`, `component`, `unitIndex`,
+`amountPaise`). Released applications remain visible as order history.
+Bundle lines expose saved selling/compare-at prices, markdown and component
+names/quantities. Bundle markdown is display metadata and is never subtracted
+again from `grandTotalPaise`. Item and delivery savings remain separate.
+
+Both list endpoints accept `page` (default 1, maximum 10,000) and `limit`
+(default 25, maximum 100), and sort by order date then ID descending. Responses
+remain arrays; an empty page marks the end. Staff scope and detail ownership
+checks continue to apply.
 
 ### `PATCH /order/:orderId` 🔒🛡️
 

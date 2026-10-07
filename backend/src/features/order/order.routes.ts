@@ -70,9 +70,9 @@ orderRoutes.get(
     if (!req.principal) throw authenticationRequired();
     const userId = req.principal.userId;
 
-    const { status } = orderListQuerySchema.parse(req.query);
+    const { status, page, limit } = orderListQuerySchema.parse(req.query);
 
-    const orders = await orderService.getOrders(userId, status);
+    const orders = await orderService.getOrders(userId, status, { page, limit });
 
     res.json({
       data: orders,
@@ -85,7 +85,7 @@ orderRoutes.get(
   authenticateUser,
   asyncHandler(async (req: AuthenticatedRequest, res) => {
     if (!req.principal) throw authenticationRequired();
-    const { status } = orderListQuerySchema.parse(req.query);
+    const { status, page, limit } = orderListQuerySchema.parse(req.query);
     const isPlatformAdmin = req.principal.platformRole === "admin";
 
     let storeId: number | undefined;
@@ -114,6 +114,8 @@ orderRoutes.get(
     const data = await orderService.getAdminOrders({
       status,
       storeId,
+      page,
+      limit,
     });
 
     res.json({
@@ -143,18 +145,8 @@ orderRoutes.get(
       });
     }
 
-    const items = order.items.map((item) => {
-      return {
-        ...item,
-        options: item.orderItemCustomizations.map((c) => c.customizationOption),
-      };
-    });
-
     res.json({
-      data: {
-        ...order,
-        items,
-      },
+      data: order,
     });
   })
 );

@@ -1,7 +1,16 @@
 import type { User } from "@/features/auth";
 import type { Address } from "@/features/account";
-import type { Product, CustomizationOption } from "@/features/catalog";
-import type { Coupon, Payment, PaymentType } from "@/features/checkout";
+import type { Payment, PaymentType } from "@/features/checkout";
+
+export type OrderPromotion = {
+  id: number; applicationId: number;
+  kind: "offer" | "coupon"; name: string; code: string | null;
+  discountType: "percentage" | "fixed_amount" | "buy_x_get_y" | "free_delivery" | "tiered";
+  definitionVersion: number; status: "reserved" | "consumed" | "released";
+  itemDiscountPaise: number; deliveryDiscountPaise: number; totalSavingsPaise: number;
+  standardDeliveryFeePaise: number; chargedDeliveryFeePaise: number;
+  allocations: { orderItemId: number | null; component: "item" | "delivery"; unitIndex: number | null; amountPaise: number }[];
+};
 
 export type OrderStatus =
   | "awaiting_payment"
@@ -30,7 +39,11 @@ export type Order = {
   grandTotalPaise: number;
   orderDate: string | null;
   discountAmount: number;
-  couponId: number | null;
+  discountMode: "none" | "automatic_deals" | "coupon";
+  itemsSubtotalPaise: number; itemDiscountPaise: number;
+  chargedDeliveryFeePaise: number; deliveryDiscountPaise: number;
+  promotionSavingsPaise: number; bundleMarkdownPaise: number; totalDisplayedSavingsPaise: number;
+  promotions: OrderPromotion[];
   paymentType: PaymentType;
   paymentId: number | null;
   addressId: number | null;
@@ -42,6 +55,11 @@ export type OrderItem = {
   updatedAt: string;
   price: number;
   unitPricePaise: number;
+  productName: string;
+  productType: "single" | "bundle";
+  compareAtUnitPricePaise: number | null;
+  bundleMarkdownPaise: number;
+  bundleComponents: { componentProductId: number; name: string; quantityPerBundle: number; totalQuantity: number }[];
   lineSubtotalPaise: number;
   productId: number;
   quantity: number;
@@ -49,17 +67,16 @@ export type OrderItem = {
 };
 
 export interface OrderItemRes extends OrderItem {
-  product: Product;
-  options: CustomizationOption[];
+  product: { id: number; name: string; image: string | null };
+  options: { id: number; name: string; pricePaise: number; price: number }[];
 }
 
 export interface OrderRes extends Order {
-  address: Address;
-  coupon: Coupon | null;
-  payment: Payment | null;
+  address: Pick<Address, "id" | "type" | "street" | "city" | "state" | "pincode" | "phone"> | null;
+  payment: Pick<Payment, "id" | "provider" | "status" | "providerStatus" | "amountPaise" | "currency" | "paidAt" | "failedAt"> | null;
   items: OrderItemRes[];
 }
 
 export interface OrdersAdmin extends Order {
-  user: User;
+  user: Pick<User, "id" | "fname" | "lname" | "email">;
 }

@@ -1,5 +1,5 @@
 export { OrderAddress } from "./components/order-address";
-export { OrderCoupon } from "./components/order-coupon";
+export { OrderPromotions } from "./components/order-promotions";
 export { OrderItems } from "./components/order-items";
 export { OrderStatus, getOrderStatusMeta } from "./components/order-status";
 export { CustomerOrdersPage } from "./pages/customer-orders-page";

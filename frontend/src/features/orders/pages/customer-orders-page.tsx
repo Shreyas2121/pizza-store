@@ -1,3 +1,4 @@
+import { ORDER_PAGE_SIZE, ORDER_MAX_PAGE } from "../model/order.constants";
 import { Button } from "@mantine/core";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Box, ReceiptText } from "lucide-react";
@@ -26,7 +27,9 @@ export const CustomerOrdersPage = () => {
   const requested = searchParams.get("status") as Filter | null;
   const selected: Filter = filters.some((filter) => filter.value === requested) ? requested! : "all";
   const selectedStatus = selected === "all" ? undefined : selected;
-  const { data: orders, isLoading, isError, isFetching } = useGetOrders(selectedStatus);
+  const requestedPage = Number(searchParams.get("page") ?? 1);
+  const page = Number.isInteger(requestedPage) && requestedPage > 0 && requestedPage <= ORDER_MAX_PAGE ? requestedPage : 1;
+  const { data: orders, isLoading, isError, isFetching } = useGetOrders(selectedStatus, page);
   const queryClient = useQueryClient();
 
   const refreshOrders = () => {
@@ -39,6 +42,7 @@ export const CustomerOrdersPage = () => {
   const setFilter = (filter: Filter) => {
     setSearchParams((previous) => {
       const next = new URLSearchParams(previous);
+      next.delete("page");
       if (filter === "all") next.delete("status"); else next.set("status", filter);
       return next;
     });
@@ -77,6 +81,7 @@ export const CustomerOrdersPage = () => {
           </div>
         </>
       )}
+      {!isLoading && !isError && <nav aria-label="Order history pages" className="mt-5 flex items-center justify-center gap-4"><Button variant="default" disabled={page === 1 || isFetching} onClick={() => setSearchParams((previous) => { const next = new URLSearchParams(previous); next.set("page", String(page - 1)); return next; })}>Previous</Button><span>Page {page}</span><Button variant="default" disabled={isFetching || (orders?.length ?? 0) < ORDER_PAGE_SIZE || page >= ORDER_MAX_PAGE} onClick={() => setSearchParams((previous) => { const next = new URLSearchParams(previous); next.set("page", String(page + 1)); return next; })}>Next</Button></nav>}
     </section>
   );
 };

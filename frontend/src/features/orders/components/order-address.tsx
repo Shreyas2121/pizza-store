@@ -1,7 +1,7 @@
 import { MapPin, Phone } from "lucide-react";
-import { Address } from "@/features/account";
+import type { OrderRes } from "../model/order.types";
 
-export const OrderAddress = ({ address }: { address: Address | null }) => (
+export const OrderAddress = ({ address }: { address: OrderRes["address"] }) => (
   <section className="rounded-card border border-border bg-surface p-5 shadow-subtle" aria-labelledby="delivery-address-title">
     <div className="flex items-center gap-2">
       <MapPin size={19} className="text-brand" aria-hidden="true" />

@@ -15,7 +15,7 @@ export const OrderItems = ({ items }: { items: OrderItemRes[] }) => (
       <ul className="divide-y divide-border">
         {items.map((item) => (
           <li key={item.id} className="flex gap-4 px-5 py-5 sm:px-6">
-            <img src={`${BASE_URL}${item.product.image}`} alt="" className="h-16 w-16 shrink-0 rounded-control bg-surface-muted object-cover sm:h-20 sm:w-20" />
+            {item.product.image && <img src={`${BASE_URL}${item.product.image}`} alt="" className="h-16 w-16 shrink-0 rounded-control bg-surface-muted object-cover sm:h-20 sm:w-20" />}
             <div className="min-w-0 flex-1">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -32,6 +32,12 @@ export const OrderItems = ({ items }: { items: OrderItemRes[] }) => (
                     </li>
                   ))}
                 </ul>
+              )}
+              {item.productType === "bundle" && (
+                <div className="mt-3 text-sm text-ink-muted">
+                  {item.compareAtUnitPricePaise !== null && <p><s>{formatPaise(item.compareAtUnitPricePaise)}</s> · Bundle savings {formatPaise(item.bundleMarkdownPaise)}</p>}
+                  <ul aria-label="Bundle contents">{item.bundleComponents.map((component) => <li key={component.componentProductId}>{component.name} × {component.totalQuantity}</li>)}</ul>
+                </div>
               )}
             </div>
           </li>

@@ -11,6 +11,7 @@ import inventoryService from "../inventory/inventory.service";
 import paymentService from "../payments/payment.service";
 import paymentRepository from "../payments/payment.repository";
 import { OrderService } from "./order.service";
+import { ORDER_SNAPSHOT_RELATIONS } from "./order-read.repository";
 import type { CostSnapshotWriter } from "../costs/cost.service";
 import type { FinancialEventWriter } from "../finance-events/financial-event.types";
 import type { CashSourceWriter } from "../cash-management/cash.service";
@@ -223,6 +224,24 @@ describe("OrderService unit tests", () => {
   });
 
   describe("customer order reads", () => {
+    it("loads saved collections on bounded customer and staff lists and detail", async () => {
+      const { orderService } = createTestHarness();
+      const lists = vi.spyOn(db.query.ordersTable, "findMany").mockResolvedValue([]);
+      const detail = vi.spyOn(db.query.ordersTable, "findFirst").mockResolvedValue(undefined);
+      await orderService.getOrders(7, "delivered", { page: 3, limit: 10 });
+      await orderService.getAllUserOrders(7);
+      await orderService.getAdminOrders({ storeId: 1, page: 2, limit: 20 });
+      await orderService.getOrderDetails(42);
+      expect(lists.mock.calls.map(([query]) => ({ limit: query?.limit, offset: query?.offset })))
+        .toEqual([{ limit: 10, offset: 20 }, { limit: 25, offset: 0 }, { limit: 20, offset: 20 }]);
+      for (const [query] of lists.mock.calls) {
+        expect(query?.with).toMatchObject(ORDER_SNAPSHOT_RELATIONS);
+        expect(query?.where).toBeDefined();
+        expect(query?.orderBy).toHaveLength(2);
+      }
+      expect(detail.mock.calls[0][0]?.with).toMatchObject(ORDER_SNAPSHOT_RELATIONS);
+    });
+
     it("maps list totals from exact paise snapshots", async () => {
       const { orderService } = createTestHarness();
       vi.spyOn(db.query.ordersTable, "findMany").mockResolvedValue([
@@ -230,6 +249,8 @@ describe("OrderService unit tests", () => {
           id: 1,
           userId: 7,
           discountPaise: 2_000,
+          storeId: 1,
+          discountMode: "none",
           grandTotalPaise: 18_000,
           discountAmount: 999,
           totalPrice: 999,
@@ -251,6 +272,8 @@ describe("OrderService unit tests", () => {
         id: 1,
         userId: 7,
         discountPaise: 0,
+        storeId: 1,
+        discountMode: "none",
         grandTotalPaise: 25_000,
         items: [
           {
@@ -276,10 +299,10 @@ describe("OrderService unit tests", () => {
           {
             price: 200,
             product: { name: "Snapshot Pizza" },
-            orderItemCustomizations: [
+            options: [
               {
                 price: 50,
-                customizationOption: { name: "Snapshot Cheese" },
+                name: "Snapshot Cheese",
               },
             ],
           },
@@ -307,6 +330,8 @@ describe("OrderService unit tests", () => {
           storeId: 1,
           status: "pending",
           discountPaise: 0,
+          userId: 7,
+          discountMode: "none",
           grandTotalPaise: 30_000,
         },
       ];
@@ -336,6 +361,8 @@ describe("OrderService unit tests", () => {
           storeId: 1,
           status: "pending",
           discountPaise: 0,
+          userId: 7,
+          discountMode: "none",
           grandTotalPaise: 30_000,
         },
         {
@@ -343,6 +370,8 @@ describe("OrderService unit tests", () => {
           storeId: 2,
           status: "pending",
           discountPaise: 0,
+          userId: 7,
+          discountMode: "none",
           grandTotalPaise: 45_000,
         },
       ];

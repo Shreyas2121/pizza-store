@@ -1,3 +1,4 @@
+import { ORDER_PAGE_SIZE, ORDER_MAX_PAGE } from "../model/order.constants";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router";
@@ -23,10 +24,13 @@ import { DataTable } from "@/shared/ui";
 export const AdminOrdersPage = () => {
   const [selectedStatus, setSelectedStatus] = useState<OrderStatusType>("pending");
   const { activeStoreId } = useStaffActiveStore();
+  const [pagination, setPagination] = useState({ storeId: activeStoreId, status: selectedStatus, page: 1 });
+  const page = pagination.storeId === activeStoreId && pagination.status === selectedStatus ? pagination.page : 1;
   const queryClient = useQueryClient();
   const { data: orders, isLoading, isError, isFetching } = useGetAdminOrders(
     selectedStatus,
-    activeStoreId
+    activeStoreId,
+    page
   );
 
   useSocketEvent(
@@ -101,6 +105,7 @@ export const AdminOrdersPage = () => {
           )}
         />
       )}
+      {!isLoading && !isError && <nav aria-label="Staff order pages" className="mt-5 flex items-center justify-center gap-4"><Button variant="default" disabled={page === 1 || isFetching} onClick={() => setPagination({ storeId: activeStoreId, status: selectedStatus, page: page - 1 })}>Previous</Button><span>Page {page}</span><Button variant="default" disabled={isFetching || (orders?.length ?? 0) < ORDER_PAGE_SIZE || page >= ORDER_MAX_PAGE} onClick={() => setPagination({ storeId: activeStoreId, status: selectedStatus, page: page + 1 })}>Next</Button></nav>}
     </div>
   );
 };

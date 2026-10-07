@@ -4,7 +4,7 @@ import { ArrowLeft, Bike, Check, ChefHat, Clock3, CreditCard, PackageCheck, Rece
 import { Link, useParams } from "react-router";
 import { orderKeys, useGetOrder } from "../api/order.queries";
 import { getOrderStatusMeta } from "../components/order-status";
-import { formatDateTime, formatPrice, success, info } from "@/shared/lib";
+import { formatDateTime, formatPaise, formatPrice, success, info } from "@/shared/lib";
 import {
   RealtimeEvents,
   type OrderPlacedPayload,
@@ -13,7 +13,7 @@ import {
 } from "@/shared/realtime";
 import { DetailsPageSkeleton, PageHeader } from "@/shared/ui";
 import { OrderAddress } from "../components/order-address";
-import { OrderCoupon } from "../components/order-coupon";
+import { OrderPromotions } from "../components/order-promotions";
 import { OrderItems } from "../components/order-items";
 import { OrderStatus } from "../components/order-status";
 import { PendingPaymentCard } from "@/features/checkout";
@@ -67,7 +67,6 @@ export const CustomerOrderDetailsPage = () => {
         : isDelivered
           ? 3
           : 0;
-  const subtotal = order.totalPrice + order.discountAmount;
   const timeline = [
     { label: "Order received", description: "We have your order", icon: Clock3 },
     { label: "Preparing", description: "Fresh in the kitchen", icon: ChefHat },
@@ -123,9 +122,9 @@ export const CustomerOrderDetailsPage = () => {
           <OrderAddress address={order.address} />
           <section className="rounded-card border border-border bg-surface p-5 shadow-subtle" aria-labelledby="payment-title">
             <div className="flex items-center gap-2"><CreditCard size={19} className="text-brand" /><h2 id="payment-title" className="font-semibold text-ink">Payment details</h2></div>
-            <dl className="mt-4 space-y-3 text-sm"><div className="flex justify-between gap-3"><dt className="text-ink-muted">Subtotal</dt><dd className="tabular-nums text-ink">{formatPrice(subtotal)}</dd></div>{order.discountAmount > 0 && <div className="flex justify-between gap-3 text-basil"><dt>Discount</dt><dd className="tabular-nums">−{formatPrice(order.discountAmount)}</dd></div>}<div className="flex justify-between gap-3 border-t border-border pt-3 text-base font-bold"><dt>Total</dt><dd className="tabular-nums text-brand">{formatPrice(order.totalPrice)}</dd></div></dl>
+            <dl className="mt-4 space-y-3 text-sm"><div className="flex justify-between gap-3"><dt className="text-ink-muted">Items subtotal</dt><dd className="tabular-nums text-ink">{formatPaise(order.itemsSubtotalPaise)}</dd></div>{order.itemDiscountPaise > 0 && <div className="flex justify-between gap-3 text-basil"><dt>Item discount</dt><dd className="tabular-nums">−{formatPaise(order.itemDiscountPaise)}</dd></div>}<div className="flex justify-between gap-3"><dt className="text-ink-muted">Delivery</dt><dd className="tabular-nums">{formatPaise(order.chargedDeliveryFeePaise)}</dd></div><div className="flex justify-between gap-3 border-t border-border pt-3 text-base font-bold"><dt>Total</dt><dd className="tabular-nums text-brand">{formatPaise(order.grandTotalPaise)}</dd></div></dl>
           </section>
-          {order.coupon && <OrderCoupon coupon={order.coupon} />}
+          <OrderPromotions promotions={order.promotions} />
         </aside>
       </div>
     </section>

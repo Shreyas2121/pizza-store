@@ -24,10 +24,17 @@ describe("order schemas", () => {
   });
 
   it("parses optional status query parameter", () => {
-    expect(orderListQuerySchema.parse({})).toEqual({});
+    expect(orderListQuerySchema.parse({})).toEqual({ page: 1, limit: 25 });
     expect(orderListQuerySchema.parse({ status: "out_for_delivery" })).toEqual({
       status: "out_for_delivery",
+      page: 1, limit: 25,
     });
     expect(() => orderListQuerySchema.parse({ status: "delievered" })).toThrow();
+  });
+  it("bounds pagination and accepts validated query strings", () => {
+    expect(orderListQuerySchema.parse({ page: "2", limit: "100" })).toEqual({ page: 2, limit: 100 });
+    for (const query of [{ limit: 101 }, { page: 0 }, { page: 10_001 }, { limit: "x" }]) {
+      expect(orderListQuerySchema.safeParse(query).success).toBe(false);
+    }
   });
 });

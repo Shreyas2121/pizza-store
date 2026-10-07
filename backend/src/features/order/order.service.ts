@@ -17,6 +17,8 @@ import inventoryService from "../inventory/inventory.service";
 import paymentService from "../payments/payment.service";
 import { assertValidOrderTransition } from "./order.logic";
 import { orderGrandTotalRupees, toOrderResponse } from "./order.mapper";
+import { ORDER_SNAPSHOT_RELATIONS } from "./order-read.repository";
+import { ORDER_LIST_DEFAULT_LIMIT } from "./order.constants";
 import defaultCostService, {
   type CostSnapshotWriter,
   type OrderCostSnapshot,
@@ -103,33 +105,24 @@ class OrderService {
     });
   }
 
-  async getOrders(userId: number, status?: OrderStatus) {
+  async getOrders(userId: number, status?: OrderStatus, { page = 1, limit = ORDER_LIST_DEFAULT_LIMIT } = {}) {
     const orders = await db.query.ordersTable.findMany({
       where: status
         ? and(eq(ordersTable.status, status), eq(ordersTable.userId, userId))
         : eq(ordersTable.userId, userId),
-      orderBy: desc(ordersTable.orderDate),
+      orderBy: [desc(ordersTable.orderDate), desc(ordersTable.id)],
+      limit, offset: (page - 1) * limit,
+      with: ORDER_SNAPSHOT_RELATIONS,
     });
     return orders.map(toOrderResponse);
   }
 
-  async getAllUserOrders(userId: number) {
+  async getAllUserOrders(userId: number, { page = 1, limit = ORDER_LIST_DEFAULT_LIMIT } = {}) {
     const orders = await db.query.ordersTable.findMany({
       where: eq(ordersTable.userId, userId),
-      orderBy: desc(ordersTable.orderDate),
-      with: {
-        items: {
-          with: {
-            product: true,
-            orderItemCustomizations: {
-              with: {
-                customizationOption: true,
-              },
-            },
-            bundleComponents: true,
-          },
-        },
-      },
+      orderBy: [desc(ordersTable.orderDate), desc(ordersTable.id)],
+      limit, offset: (page - 1) * limit,
+      with: ORDER_SNAPSHOT_RELATIONS,
     });
     return orders.map(toOrderResponse);
   }
@@ -139,21 +132,9 @@ class OrderService {
       where: eq(ordersTable.id, orderId),
       with: {
         address: true,
-        coupon: true,
-        items: {
-          with: {
-            product: true,
-            orderItemCustomizations: {
-              with: {
-                customizationOption: true,
-              },
-            },
-            bundleComponents: true,
-          },
-        },
+        ...ORDER_SNAPSHOT_RELATIONS,
         payment: true,
-        paymentAttempts: true,
-        store: true,
+        store: { columns: { id: true, name: true, slug: true } },
       },
     });
     return order ? toOrderResponse(order) : undefined;
@@ -162,9 +143,13 @@ class OrderService {
   async getAdminOrders({
     status = "pending",
     storeId,
+    page = 1,
+    limit = ORDER_LIST_DEFAULT_LIMIT,
   }: {
     status?: OrderStatus;
     storeId?: number;
+    page?: number;
+    limit?: number;
   } = {}) {
     const conditions = [];
     if (status) {
@@ -176,10 +161,12 @@ class OrderService {
 
     const orders = await db.query.ordersTable.findMany({
       where: conditions.length > 0 ? and(...conditions) : undefined,
-      orderBy: desc(ordersTable.orderDate),
+      orderBy: [desc(ordersTable.orderDate), desc(ordersTable.id)],
+      limit, offset: (page - 1) * limit,
       with: {
+        ...ORDER_SNAPSHOT_RELATIONS,
         user: { columns: { id: true, fname: true, lname: true, email: true } },
-        store: true,
+        store: { columns: { id: true, name: true, slug: true } },
       },
     });
     return orders.map(toOrderResponse);

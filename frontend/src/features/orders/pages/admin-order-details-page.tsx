@@ -7,7 +7,7 @@ import { OrderStatus as OT, orderStatus } from "../model/order.types";
 import { formatDateTime, formatPrice, success } from "@/shared/lib";
 import { DetailsPageSkeleton, PageHeader } from "@/shared/ui";
 import { OrderAddress } from "../components/order-address";
-import { OrderCoupon } from "../components/order-coupon";
+import { OrderPromotions } from "../components/order-promotions";
 import { OrderItems } from "../components/order-items";
 import { OrderStatus } from "../components/order-status";
 
@@ -55,7 +55,7 @@ export const AdminOrderDetailsPage = () => {
       </Card>
 
       <OrderItems items={order.items} />
-      <div className="grid gap-5 lg:grid-cols-2"><OrderAddress address={order.address} />{order.coupon && <OrderCoupon coupon={order.coupon} />}</div>
+      <div className="grid gap-5 lg:grid-cols-2"><OrderAddress address={order.address} /><OrderPromotions promotions={order.promotions} /></div>
     </div>
   );
 };
