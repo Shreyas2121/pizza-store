@@ -30,6 +30,7 @@ describe("PaymentRepository — Payment Attempts", () => {
 
   const sampleOrder = {
     id: 100,
+    paymentId: 17,
     userId: 7,
     grandTotalPaise: 49900,
     couponId: null,
@@ -79,7 +80,7 @@ describe("PaymentRepository — Payment Attempts", () => {
 
       expect(legacy).toEqual({
         localOrderId: 100,
-        localPaymentId: 42,
+        localPaymentId: 17,
         userId: 7,
         storeId: 1,
         storeName: "Indiranagar Store",

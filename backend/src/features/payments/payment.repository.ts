@@ -219,6 +219,7 @@ class PaymentRepository {
     attempt: typeof paymentAttemptsTable.$inferSelect,
     order: {
       id: number;
+      paymentId: number;
       userId: number;
       grandTotalPaise: number | null;
       couponId: number | null;
@@ -236,7 +237,7 @@ class PaymentRepository {
 
     return {
       localOrderId: order.id,
-      localPaymentId: attempt.id,
+      localPaymentId: order.paymentId,
       userId: order.userId,
       storeId: store.id,
       storeName: store.name,
