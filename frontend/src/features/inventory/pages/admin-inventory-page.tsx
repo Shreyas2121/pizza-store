@@ -15,6 +15,7 @@ import { InventoryActionModal } from "../components/inventory-action-modal";
 import { BulkRestockModal } from "../components/bulk-restock-modal";
 import { InventoryTable } from "../components/inventory-table";
 import { MovementHistoryDrawer } from "../components/movement-history-drawer";
+import { InventoryDetailDrawer } from "../components/inventory-detail-drawer";
 import type {
   InventoryAction,
   InventoryItem,
@@ -47,9 +48,14 @@ export function AdminInventoryPage() {
   const [status, setStatus] = useState<InventoryStatusFilter>(initialStatus);
 
   useEffect(() => {
-    if (activeStoreId) {
-      setStoreId(activeStoreId);
-    }
+    setStoreId(activeStoreId);
+    setPage(1);
+    setSelectedItems(new Map());
+    setBulkOpened(false);
+    setHistoryTarget(null);
+    setDetailProductId(null);
+    setAction(null);
+    setTarget(null);
   }, [activeStoreId]);
 
   useEffect(() => {
@@ -68,6 +74,7 @@ export function AdminInventoryPage() {
     () => new Map<number, InventoryItem>()
   );
   const [bulkOpened, setBulkOpened] = useState(false);
+  const [detailProductId, setDetailProductId] = useState<number | null>(null);
   const [historyTarget, setHistoryTarget] =
     useState<InventoryMutationTarget | null>(null);
 
@@ -180,6 +187,7 @@ export function AdminInventoryPage() {
             setSelectedItems(new Map());
             setBulkOpened(false);
             setHistoryTarget(null);
+            setDetailProductId(null);
             closeAction();
           }}
           searchable
@@ -288,12 +296,22 @@ export function AdminInventoryPage() {
           onPageChange={setPage}
           onAction={openAction}
           onHistory={(item) => setHistoryTarget(asMutationTarget(item))}
+          onDetails={(item) => setDetailProductId(item.productId)}
           selectedProductIds={new Set(selectedItems.keys())}
           onToggleSelection={toggleSelection}
           onTogglePage={togglePage}
         />
       )}
 
+      {detailProductId !== null && storeId !== null && (
+        <InventoryDetailDrawer
+          key={`${storeId}-${detailProductId}`}
+          storeId={storeId}
+          productId={detailProductId}
+          onClose={() => setDetailProductId(null)}
+          onHistory={(item) => { setDetailProductId(null); setHistoryTarget(asMutationTarget(item)); }}
+        />
+      )}
       <InventoryActionModal
         action={action}
         target={target}

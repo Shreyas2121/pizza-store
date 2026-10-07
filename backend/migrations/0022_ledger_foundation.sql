@@ -119,7 +119,7 @@ CREATE INDEX "ledger_accounts_parent_idx" ON "ledger_accounts" USING btree ("par
 CREATE INDEX "ledger_accounts_active_code_idx" ON "ledger_accounts" USING btree ("is_active","code");--> statement-breakpoint
 ALTER TABLE "expense_categories" ADD CONSTRAINT "expense_categories_ledger_account_id_ledger_accounts_id_fk" FOREIGN KEY ("ledger_account_id") REFERENCES "public"."ledger_accounts"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "expense_allocations" ADD CONSTRAINT "expense_allocations_ledger_account_id_ledger_accounts_id_fk" FOREIGN KEY ("ledger_account_id") REFERENCES "public"."ledger_accounts"("id") ON DELETE no action ON UPDATE no action;
-+--> statement-breakpoint
+--> statement-breakpoint
 INSERT INTO "ledger_accounts" ("code", "name", "type", "normal_side", "currency", "is_system", "is_active") VALUES
   ('1000', 'Cash on Hand', 'asset', 'debit', 'INR', true, true),
   ('1010', 'Bank', 'asset', 'debit', 'INR', true, true),

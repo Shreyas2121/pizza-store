@@ -1,12 +1,13 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { Button, Skeleton } from "@mantine/core";
+import { Alert, Button, Skeleton } from "@mantine/core";
+import { useQueryClient } from "@tanstack/react-query";
 import { Headphones, MessageCircle, Send } from "lucide-react";
 import {
   useGetActiveChat,
   useGetExistingMessages,
   useSendMessage,
+  supportKeys,
 } from "../api/chat.queries";
-import { Message } from "../model/support.types";
 import { LoadingRegion } from "@/shared/ui";
 import { formatTime } from "@/shared/lib";
 import { RealtimeEvents, useSocketEvent } from "@/shared/realtime";
@@ -19,38 +20,37 @@ interface Props {
 
 export const Chat = ({ height = "620px", width = "100%", userId }: Props) => {
   const isAdminView = typeof userId === "number";
-  const { data: chatSession, isLoading: loadingChat } = useGetActiveChat(userId);
-  const { data: existingMessages, isLoading: loadingMessages } = useGetExistingMessages(userId);
+  const queryClient = useQueryClient();
+  const activeChat = useGetActiveChat(userId);
+  const { data: chatSession, isLoading: loadingChat } = activeChat;
+  const history = useGetExistingMessages(userId, chatSession?.id, Boolean(chatSession?.id));
+  const { data: existingMessages, isLoading: loadingMessages } = history;
   const sendMessageM = useSendMessage();
-  const [messages, setMessages] = useState<Message[]>([]);
+  const messages = existingMessages ?? [];
   const [newMessage, setNewMessage] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (existingMessages) setMessages(existingMessages);
-  }, [existingMessages]);
-
-  useSocketEvent(RealtimeEvents.newMessage, (incoming: Message) => {
-      setMessages((current) =>
-        current.some((message) => message.id === incoming.id) ? current : [...current, incoming]
-      );
+  // Support-room events include other customers and carry no session ID.
+  // Reload the selected conversation instead of appending an unscoped message.
+  useSocketEvent(RealtimeEvents.newMessage, () => {
+    void queryClient.invalidateQueries({ queryKey: ["support", "messages"] });
+  });
+  useSocketEvent(RealtimeEvents.chatStatusChange, () => {
+    void queryClient.invalidateQueries({ queryKey: supportKeys.all });
   });
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages]);
+  }, [existingMessages]);
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const message = newMessage.trim();
-    if (!message || !chatSession?.id || sendMessageM.isPending) return;
+    if (!message || !chatSession?.id || chatSession.status !== "open" || sendMessageM.isPending) return;
     sendMessageM.mutate(
       { message, sessionId: chatSession.id },
       {
-        onSuccess: (sent: Message) => {
-          setMessages((current) =>
-            current.some((item) => item.id === sent.id) ? current : [...current, sent]
-          );
+        onSuccess: () => {
           setNewMessage("");
         },
       }
@@ -68,6 +68,13 @@ export const Chat = ({ height = "620px", width = "100%", userId }: Props) => {
         </div>
       </LoadingRegion>
     );
+  }
+
+  if (activeChat.isError || history.isError) {
+    return <Alert color="red" title="Conversation could not be loaded">
+      Please try again.
+      <Button variant="subtle" onClick={() => { void activeChat.refetch(); if (chatSession?.id) void history.refetch(); }}>Retry</Button>
+    </Alert>;
   }
 
   if (!chatSession) {
@@ -157,7 +164,7 @@ export const Chat = ({ height = "620px", width = "100%", userId }: Props) => {
             id="support-message"
             rows={1}
             value={newMessage}
-            disabled={sendMessageM.isPending}
+            disabled={sendMessageM.isPending || chatSession.status !== "open"}
             onChange={(event) => setNewMessage(event.currentTarget.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter" && !event.shiftKey) {
@@ -173,7 +180,7 @@ export const Chat = ({ height = "620px", width = "100%", userId }: Props) => {
             size="md"
             px={13}
             loading={sendMessageM.isPending}
-            disabled={!newMessage.trim()}
+            disabled={!newMessage.trim() || chatSession.status !== "open"}
             aria-label="Send message"
           >
             <Send size={18} />

@@ -15,17 +15,26 @@ CREATE TABLE "product_cost_versions" (
 	CONSTRAINT "product_cost_versions_range_valid" CHECK ("product_cost_versions"."effective_to" is null or "product_cost_versions"."effective_to" >= "product_cost_versions"."effective_from")
 );
 --> statement-breakpoint
-ALTER TABLE "order_items" DROP CONSTRAINT "order_items_cost_snapshot_complete";--> statement-breakpoint
-ALTER TABLE "order_items" ADD COLUMN "cost_version_id" integer;--> statement-breakpoint
-ALTER TABLE "product_cost_versions" ADD CONSTRAINT "product_cost_versions_created_by_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "product_cost_versions" ADD CONSTRAINT "product_cost_versions_store_product_store_fk" FOREIGN KEY ("store_product_id","store_id") REFERENCES "public"."store_products"("id","store_id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-CREATE INDEX "product_cost_versions_store_product_effective_idx" ON "product_cost_versions" USING btree ("store_product_id","effective_from","effective_to");--> statement-breakpoint
-CREATE EXTENSION IF NOT EXISTS "btree_gist";--> statement-breakpoint
+ALTER TABLE "order_items" DROP CONSTRAINT "order_items_cost_snapshot_complete";
+--> statement-breakpoint
+ALTER TABLE "order_items" ADD COLUMN "cost_version_id" integer;
+--> statement-breakpoint
+ALTER TABLE "product_cost_versions" ADD CONSTRAINT "product_cost_versions_created_by_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "store_products" ADD CONSTRAINT "store_products_id_store_id_unique" UNIQUE("id","store_id");
+--> statement-breakpoint
+ALTER TABLE "product_cost_versions" ADD CONSTRAINT "product_cost_versions_store_product_store_fk" FOREIGN KEY ("store_product_id","store_id") REFERENCES "public"."store_products"("id","store_id") ON DELETE no action ON UPDATE no action;
+--> statement-breakpoint
+CREATE INDEX "product_cost_versions_store_product_effective_idx" ON "product_cost_versions" USING btree ("store_product_id","effective_from","effective_to");
+--> statement-breakpoint
+CREATE EXTENSION IF NOT EXISTS "btree_gist";
+--> statement-breakpoint
 ALTER TABLE "product_cost_versions" ADD CONSTRAINT "product_cost_versions_no_overlap" EXCLUDE USING gist (
 	"store_product_id" WITH =,
 	daterange("effective_from", COALESCE("effective_to", 'infinity'::date), '[]') WITH &&
-);--> statement-breakpoint
-ALTER TABLE "order_items" ADD CONSTRAINT "order_items_cost_version_id_product_cost_versions_id_fk" FOREIGN KEY ("cost_version_id") REFERENCES "public"."product_cost_versions"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "store_products" ADD CONSTRAINT "store_products_id_store_id_unique" UNIQUE("id","store_id");--> statement-breakpoint
+);
+--> statement-breakpoint
+ALTER TABLE "order_items" ADD CONSTRAINT "order_items_cost_version_id_product_cost_versions_id_fk" FOREIGN KEY ("cost_version_id") REFERENCES "public"."product_cost_versions"("id") ON DELETE no action ON UPDATE no action;
+--> statement-breakpoint
 ALTER TABLE "order_items" ADD CONSTRAINT "order_items_cost_snapshot_complete" CHECK (("order_items"."unit_cost_paise" is null and "order_items"."line_cost_paise" is null and "order_items"."cost_version_id" is null)
         or ("order_items"."unit_cost_paise" is not null and "order_items"."line_cost_paise" is not null and "order_items"."cost_version_id" is not null));

@@ -105,23 +105,42 @@ CREATE TABLE "pay_runs" (
 	CONSTRAINT "pay_runs_reversal_evidence" CHECK ("pay_runs"."status" <> 'reversed' or ("pay_runs"."reversed_by" is not null and "pay_runs"."reversed_at" is not null and nullif(btrim("pay_runs"."reversal_reason"), '') is not null))
 );
 --> statement-breakpoint
-ALTER TABLE "pay_run_commands" ADD CONSTRAINT "pay_run_commands_pay_run_id_pay_runs_id_fk" FOREIGN KEY ("pay_run_id") REFERENCES "public"."pay_runs"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "pay_run_commands" ADD CONSTRAINT "pay_run_commands_actor_id_users_id_fk" FOREIGN KEY ("actor_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "pay_run_employees" ADD CONSTRAINT "pay_run_employees_run_store_fk" FOREIGN KEY ("pay_run_id","pay_run_store_id") REFERENCES "public"."pay_runs"("id","store_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "pay_run_employees" ADD CONSTRAINT "pay_run_employees_profile_store_fk" FOREIGN KEY ("profile_id","pay_run_store_id") REFERENCES "public"."employee_finance_profiles"("id","store_id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "pay_run_employees" ADD CONSTRAINT "pay_run_employees_compensation_profile_store_fk" FOREIGN KEY ("compensation_version_id","profile_id","pay_run_store_id") REFERENCES "public"."compensation_versions"("id","profile_id","store_id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "pay_run_lines" ADD CONSTRAINT "pay_run_lines_pay_run_employee_id_pay_run_employees_id_fk" FOREIGN KEY ("pay_run_employee_id") REFERENCES "public"."pay_run_employees"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "pay_run_lines" ADD CONSTRAINT "pay_run_lines_compensation_component_id_compensation_components_id_fk" FOREIGN KEY ("compensation_component_id") REFERENCES "public"."compensation_components"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "pay_runs" ADD CONSTRAINT "pay_runs_store_id_stores_id_fk" FOREIGN KEY ("store_id") REFERENCES "public"."stores"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "pay_runs" ADD CONSTRAINT "pay_runs_created_by_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "pay_runs" ADD CONSTRAINT "pay_runs_calculated_by_users_id_fk" FOREIGN KEY ("calculated_by") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "pay_runs" ADD CONSTRAINT "pay_runs_approved_by_users_id_fk" FOREIGN KEY ("approved_by") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "pay_runs" ADD CONSTRAINT "pay_runs_paid_by_users_id_fk" FOREIGN KEY ("paid_by") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "pay_runs" ADD CONSTRAINT "pay_runs_posted_by_users_id_fk" FOREIGN KEY ("posted_by") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "pay_runs" ADD CONSTRAINT "pay_runs_voided_by_users_id_fk" FOREIGN KEY ("voided_by") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "pay_runs" ADD CONSTRAINT "pay_runs_reversed_by_users_id_fk" FOREIGN KEY ("reversed_by") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-CREATE INDEX "pay_run_commands_run_action_idx" ON "pay_run_commands" USING btree ("pay_run_id","action","id");--> statement-breakpoint
-CREATE INDEX "pay_run_employees_run_idx" ON "pay_run_employees" USING btree ("pay_run_id","id");--> statement-breakpoint
-CREATE INDEX "pay_run_lines_employee_idx" ON "pay_run_lines" USING btree ("pay_run_employee_id","type","id");--> statement-breakpoint
-CREATE INDEX "pay_runs_store_period_status_idx" ON "pay_runs" USING btree ("store_id","period_start","period_end","status");--> statement-breakpoint
+ALTER TABLE "pay_run_commands" ADD CONSTRAINT "pay_run_commands_pay_run_id_pay_runs_id_fk" FOREIGN KEY ("pay_run_id") REFERENCES "public"."pay_runs"("id") ON DELETE cascade ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "pay_run_commands" ADD CONSTRAINT "pay_run_commands_actor_id_users_id_fk" FOREIGN KEY ("actor_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "pay_run_employees" ADD CONSTRAINT "pay_run_employees_run_store_fk" FOREIGN KEY ("pay_run_id","pay_run_store_id") REFERENCES "public"."pay_runs"("id","store_id") ON DELETE cascade ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "pay_run_employees" ADD CONSTRAINT "pay_run_employees_profile_store_fk" FOREIGN KEY ("profile_id","pay_run_store_id") REFERENCES "public"."employee_finance_profiles"("id","store_id") ON DELETE no action ON UPDATE no action;
+--> statement-breakpoint
 ALTER TABLE "compensation_versions" ADD CONSTRAINT "compensation_versions_id_profile_store_unique" UNIQUE("id","profile_id","store_id");
+--> statement-breakpoint
+ALTER TABLE "pay_run_employees" ADD CONSTRAINT "pay_run_employees_compensation_profile_store_fk" FOREIGN KEY ("compensation_version_id","profile_id","pay_run_store_id") REFERENCES "public"."compensation_versions"("id","profile_id","store_id") ON DELETE no action ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "pay_run_lines" ADD CONSTRAINT "pay_run_lines_pay_run_employee_id_pay_run_employees_id_fk" FOREIGN KEY ("pay_run_employee_id") REFERENCES "public"."pay_run_employees"("id") ON DELETE cascade ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "pay_run_lines" ADD CONSTRAINT "pay_run_lines_compensation_component_id_compensation_components_id_fk" FOREIGN KEY ("compensation_component_id") REFERENCES "public"."compensation_components"("id") ON DELETE no action ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "pay_runs" ADD CONSTRAINT "pay_runs_store_id_stores_id_fk" FOREIGN KEY ("store_id") REFERENCES "public"."stores"("id") ON DELETE no action ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "pay_runs" ADD CONSTRAINT "pay_runs_created_by_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "pay_runs" ADD CONSTRAINT "pay_runs_calculated_by_users_id_fk" FOREIGN KEY ("calculated_by") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "pay_runs" ADD CONSTRAINT "pay_runs_approved_by_users_id_fk" FOREIGN KEY ("approved_by") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "pay_runs" ADD CONSTRAINT "pay_runs_paid_by_users_id_fk" FOREIGN KEY ("paid_by") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "pay_runs" ADD CONSTRAINT "pay_runs_posted_by_users_id_fk" FOREIGN KEY ("posted_by") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "pay_runs" ADD CONSTRAINT "pay_runs_voided_by_users_id_fk" FOREIGN KEY ("voided_by") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "pay_runs" ADD CONSTRAINT "pay_runs_reversed_by_users_id_fk" FOREIGN KEY ("reversed_by") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;
+--> statement-breakpoint
+CREATE INDEX "pay_run_commands_run_action_idx" ON "pay_run_commands" USING btree ("pay_run_id","action","id");
+--> statement-breakpoint
+CREATE INDEX "pay_run_employees_run_idx" ON "pay_run_employees" USING btree ("pay_run_id","id");
+--> statement-breakpoint
+CREATE INDEX "pay_run_lines_employee_idx" ON "pay_run_lines" USING btree ("pay_run_employee_id","type","id");
+--> statement-breakpoint
+CREATE INDEX "pay_runs_store_period_status_idx" ON "pay_runs" USING btree ("store_id","period_start","period_end","status");

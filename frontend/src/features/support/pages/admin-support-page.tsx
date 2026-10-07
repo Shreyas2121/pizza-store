@@ -1,7 +1,9 @@
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button, Select } from "@mantine/core";
 import { RotateCcw } from "lucide-react";
-import { useGetSupportRequests } from "../api/chat.queries";
+import { supportKeys, useGetSupportRequests } from "../api/chat.queries";
+import { RealtimeEvents, useSocketEvent } from "@/shared/realtime";
 import { chatStatus, ChatStatus } from "../model/support.types";
 import { adminSupportColumns, getPriority, getWaitTime } from "../components/admin/admin-support-columns";
 import SupportStatusPill from "../components/admin/support-status-pill";
@@ -11,7 +13,11 @@ import { DataTable, PageHeader, TableSkeleton } from "@/shared/ui";
 
 export const AdminSupportPage = () => {
   const [statusFilter, setStatusFilter] = useState<ChatStatus>("pending");
-  const { data, isLoading, isError, isFetching } = useGetSupportRequests(statusFilter);
+  const { data, isLoading, isError, isFetching, refetch } = useGetSupportRequests(statusFilter);
+  const queryClient = useQueryClient();
+  const refreshQueue = () => { void queryClient.invalidateQueries({ queryKey: supportKeys.admin() }); };
+  useSocketEvent(RealtimeEvents.chatRequest, refreshQueue);
+  useSocketEvent(RealtimeEvents.chatStatusChange, refreshQueue);
   const filter = (
     <div className="flex w-full items-end gap-2 sm:w-auto">
       <Select
@@ -46,6 +52,7 @@ export const AdminSupportPage = () => {
       ) : isError ? (
         <div className="surface-card p-8 text-center text-danger">
           Support requests could not be loaded.
+          <Button variant="subtle" onClick={() => refetch()}>Retry</Button>
         </div>
       ) : (
         <DataTable

@@ -1,122 +1,84 @@
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { API, createMutation, createQuery } from "@/shared/api";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { API } from "@/shared/api";
+import { useUser } from "@/features/auth";
 import { useSupportStore } from "../model/support.store";
-
-import {
-  ChatSession,
-  ChatSessionWithUser,
-  ChatStatus,
-  Message,
-} from "../model/support.types";
+import type { ChatSession, ChatSessionWithUser, ChatStatus, Message } from "../model/support.types";
 
 export const supportKeys = {
   all: ["support"] as const,
-  user: () => ["user-support"] as const,
-  admin: () => ["all-support"] as const,
-  adminUserChat: (userId?: number) => ["admin-user-chat", userId] as const,
-  messages: (id?: number) => ["chat-messages", id] as const,
+  user: (viewerId?: number) => ["support", "active", viewerId, "self"] as const,
+  admin: () => ["support", "requests"] as const,
+  adminUserChat: (userId?: number, viewerId?: number) => ["support", "active", viewerId, userId ?? "self"] as const,
+  messages: (userId?: number, sessionId?: number, viewerId?: number) => ["support", "messages", viewerId, userId ?? "self", sessionId ?? "active"] as const,
 };
+const validUser = (userId?: number) => userId === undefined || (Number.isInteger(userId) && userId > 0);
+const userParams = (userId?: number) => userId === undefined ? {} : { userId };
 
 export const useChatRequest = () => {
-  return createMutation<{
-    message: string;
-    data: ChatSession;
-  }>("/chat/request", "post");
-};
-
-export const useSyncChatStatus = (enabled: boolean = true) => {
-  const { setChatSession } = useSupportStore();
-  return useQuery({
-    queryKey: supportKeys.user(),
-    queryFn: async ({ signal }) => {
-      const { data } = await API.get("/chat/active", { signal });
-      const chat = data.data as ChatSession | undefined;
-      if (chat) {
-        setChatSession(chat.status === "open" || chat.status === "pending" ? chat.status : null);
-      } else setChatSession(null);
-      return chat ?? null;
-    },
-    enabled,
-  });
-};
-
-export const useGetActiveChat = (userId?: number | undefined) => {
-  return createQuery<ChatSessionWithUser | undefined>(
-    supportKeys.adminUserChat(userId),
-    `/chat/active/${userId}`,
-    "data",
-    {},
-    { enabled: !!userId }
-  );
-};
-
-export const useGetChatMessages = (chatSessionId: number) => {
-  return createQuery<Message[]>(
-    supportKeys.messages(chatSessionId),
-    `/chat/messages/${chatSessionId}`,
-    "data",
-    {},
-    { enabled: !!chatSessionId }
-  );
-};
-
-export const useGetExistingMessages = (userId?: number) => {
-  return createQuery<Message[]>(
-    supportKeys.messages(userId),
-    userId ? `/chat/messages/user/${userId}` : "/chat/messages",
-    "data"
-  );
-};
-
-export const useSendMessage = () => {
-  return createMutation<Message>(
-    "/chat/send",
-    "post"
-  );
-};
-
-export const useGetAllSupportRequests = () => {
-  return createQuery<ChatSessionWithUser[]>(
-    supportKeys.admin(),
-    "/chat/all",
-    "data"
-  );
-};
-
-export const useGetSupportRequests = (status?: string) => {
-  return createQuery<ChatSessionWithUser[]>(
-    [...supportKeys.admin(), status],
-    `/chat/all${status ? `?status=${status}` : ""}`,
-    "data",
-    undefined,
-    { placeholderData: keepPreviousData }
-  );
-};
-
-export const useUpdateSupportStatus = () => {
-  const queryClient = useQueryClient();
+  const client = useQueryClient();
   return useMutation({
-    mutationFn: async ({
-      chatSessionId,
-      chatId,
-      status,
-    }: {
-      chatSessionId?: number;
-      chatId?: string | number;
-      status: ChatStatus;
-    }) => {
-      const id = chatSessionId ?? chatId;
-      const { data } = await API.patch(`/chat/status/${id}`, {
-        status,
-      });
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: supportKeys.admin(),
-      });
-    },
+    mutationFn: async (input: { title: string }) => (await API.post<{ message: string; data: ChatSession }>("/chat/request", input)).data,
+    onSuccess: () => client.invalidateQueries({ queryKey: supportKeys.all }),
   });
 };
-
+export const useGetActiveChat = (userId?: number, enabled = true) => {
+  const viewerId = useUser((state) => state.user?.id);
+  return useQuery({
+    queryKey: supportKeys.adminUserChat(userId, viewerId),
+    queryFn: async ({ signal }) => (await API.get<{ data?: ChatSessionWithUser | null }>("/chat/active", { params: userParams(userId), signal })).data.data ?? null,
+    enabled: enabled && Boolean(viewerId) && validUser(userId),
+  });
+};
+export const useSyncChatStatus = (enabled = true) => {
+  const viewerId = useUser((state) => state.user?.id);
+  const setChatSession = useSupportStore((state) => state.setChatSession);
+  return useQuery({
+    queryKey: supportKeys.user(viewerId),
+    queryFn: async ({ signal }) => {
+      const chat = (await API.get<{ data?: ChatSessionWithUser | null }>("/chat/active", { params: {}, signal })).data.data ?? null;
+      setChatSession(chat?.status === "open" || chat?.status === "pending" ? chat.status : null);
+      return chat;
+    },
+    enabled: enabled && Boolean(viewerId),
+  });
+};
+// The API resolves the active session by customer user ID, not by session ID.
+// sessionId distinguishes replacement conversations in the query cache.
+export const useGetChatMessages = (userId?: number, sessionId?: number, enabled = true) => {
+  const viewerId = useUser((state) => state.user?.id);
+  return useQuery({
+    queryKey: supportKeys.messages(userId, sessionId, viewerId),
+    queryFn: async ({ signal }) => (await API.get<{ data: Message[] }>("/chat/messages", { params: userParams(userId), signal })).data.data,
+    enabled: enabled && Boolean(viewerId) && validUser(userId),
+  });
+};
+export const useGetExistingMessages = useGetChatMessages;
+export const useSendMessage = () => {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { sessionId: number; message: string }) => (await API.post<{ data: Message }>("/chat/message", input)).data.data,
+    onSuccess: () => client.invalidateQueries({ queryKey: ["support", "messages"] }),
+  });
+};
+export const useGetSupportRequests = (status: ChatStatus = "pending") => {
+  const viewerId = useUser((state) => state.user?.id);
+  return useQuery({
+    queryKey: [...supportKeys.admin(), viewerId, status],
+    queryFn: async ({ signal }) => (await API.get<{ data: ChatSessionWithUser[] }>("/chat/requests", { params: { status }, signal })).data.data,
+    enabled: Boolean(viewerId),
+  });
+};
+// Backend queues require a status; this helper defaults to pending.
+export const useGetAllSupportRequests = () => useGetSupportRequests();
+export const useUpdateSupportStatus = () => {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ chatSessionId, chatId, status }: { chatSessionId?: number; chatId?: string | number; status: ChatStatus }) => {
+      const id = Number(chatSessionId ?? chatId);
+      if (!Number.isInteger(id) || id <= 0) throw new Error("A valid chat session ID is required.");
+      return (await API.patch<{ message: string; data: { updatedChatSession: ChatSession; oldStatus: ChatStatus } }>("/chat/request", { chatId: String(id), status })).data;
+    },
+    onSuccess: () => client.invalidateQueries({ queryKey: supportKeys.all }),
+  });
+};
 export const useUpdateSupportRequest = useUpdateSupportStatus;

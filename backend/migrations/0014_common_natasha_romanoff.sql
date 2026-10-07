@@ -81,23 +81,42 @@ CREATE TABLE "refunds" (
         and ("refunds"."failed_at" is null or "refunds"."failed_at" >= "refunds"."requested_at"))
 );
 --> statement-breakpoint
-ALTER TABLE "refund_allocations" ADD CONSTRAINT "refund_allocations_refund_order_fk" FOREIGN KEY ("refund_id","order_id") REFERENCES "public"."refunds"("id","order_id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "refund_allocations" ADD CONSTRAINT "refund_allocations_item_order_fk" FOREIGN KEY ("order_item_id","order_id") REFERENCES "public"."order_items"("id","order_id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "refunds" ADD CONSTRAINT "refunds_store_id_stores_id_fk" FOREIGN KEY ("store_id") REFERENCES "public"."stores"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "refunds" ADD CONSTRAINT "refunds_requested_by_users_id_fk" FOREIGN KEY ("requested_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "refunds" ADD CONSTRAINT "refunds_approved_by_users_id_fk" FOREIGN KEY ("approved_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "refunds" ADD CONSTRAINT "refunds_rejected_by_users_id_fk" FOREIGN KEY ("rejected_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "refunds" ADD CONSTRAINT "refunds_cancelled_by_users_id_fk" FOREIGN KEY ("cancelled_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "refunds" ADD CONSTRAINT "refunds_submitted_by_users_id_fk" FOREIGN KEY ("submitted_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "refunds" ADD CONSTRAINT "refunds_processed_by_users_id_fk" FOREIGN KEY ("processed_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "refunds" ADD CONSTRAINT "refunds_payment_attempt_order_store_fk" FOREIGN KEY ("payment_attempt_id","order_id","store_id") REFERENCES "public"."payment_attempts"("id","order_id","store_id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-CREATE INDEX "refund_allocations_refund_id_idx" ON "refund_allocations" USING btree ("refund_id");--> statement-breakpoint
-CREATE INDEX "refund_allocations_order_item_id_idx" ON "refund_allocations" USING btree ("order_item_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "refund_allocations_item_unique" ON "refund_allocations" USING btree ("refund_id","order_item_id") WHERE "refund_allocations"."kind" = 'item';--> statement-breakpoint
-CREATE UNIQUE INDEX "refund_allocations_delivery_fee_unique" ON "refund_allocations" USING btree ("refund_id","kind") WHERE "refund_allocations"."kind" = 'delivery_fee';--> statement-breakpoint
-CREATE INDEX "refunds_store_requested_at_idx" ON "refunds" USING btree ("store_id","requested_at" DESC NULLS LAST);--> statement-breakpoint
-CREATE INDEX "refunds_order_id_idx" ON "refunds" USING btree ("order_id");--> statement-breakpoint
-CREATE INDEX "refunds_payment_attempt_id_idx" ON "refunds" USING btree ("payment_attempt_id");--> statement-breakpoint
-CREATE INDEX "refunds_store_status_idx" ON "refunds" USING btree ("store_id","status");--> statement-breakpoint
-ALTER TABLE "payment_attempts" ADD CONSTRAINT "payment_attempts_refund_scope_unique" UNIQUE("id","order_id","store_id");--> statement-breakpoint
+ALTER TABLE "refund_allocations" ADD CONSTRAINT "refund_allocations_refund_order_fk" FOREIGN KEY ("refund_id","order_id") REFERENCES "public"."refunds"("id","order_id") ON DELETE no action ON UPDATE no action;
+--> statement-breakpoint
 ALTER TABLE "order_items" ADD CONSTRAINT "order_items_refund_scope_unique" UNIQUE("id","order_id");
+--> statement-breakpoint
+ALTER TABLE "refund_allocations" ADD CONSTRAINT "refund_allocations_item_order_fk" FOREIGN KEY ("order_item_id","order_id") REFERENCES "public"."order_items"("id","order_id") ON DELETE no action ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "refunds" ADD CONSTRAINT "refunds_store_id_stores_id_fk" FOREIGN KEY ("store_id") REFERENCES "public"."stores"("id") ON DELETE no action ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "refunds" ADD CONSTRAINT "refunds_requested_by_users_id_fk" FOREIGN KEY ("requested_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "refunds" ADD CONSTRAINT "refunds_approved_by_users_id_fk" FOREIGN KEY ("approved_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "refunds" ADD CONSTRAINT "refunds_rejected_by_users_id_fk" FOREIGN KEY ("rejected_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "refunds" ADD CONSTRAINT "refunds_cancelled_by_users_id_fk" FOREIGN KEY ("cancelled_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "refunds" ADD CONSTRAINT "refunds_submitted_by_users_id_fk" FOREIGN KEY ("submitted_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "refunds" ADD CONSTRAINT "refunds_processed_by_users_id_fk" FOREIGN KEY ("processed_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "payment_attempts" ADD CONSTRAINT "payment_attempts_refund_scope_unique" UNIQUE("id","order_id","store_id");
+--> statement-breakpoint
+ALTER TABLE "refunds" ADD CONSTRAINT "refunds_payment_attempt_order_store_fk" FOREIGN KEY ("payment_attempt_id","order_id","store_id") REFERENCES "public"."payment_attempts"("id","order_id","store_id") ON DELETE no action ON UPDATE no action;
+--> statement-breakpoint
+CREATE INDEX "refund_allocations_refund_id_idx" ON "refund_allocations" USING btree ("refund_id");
+--> statement-breakpoint
+CREATE INDEX "refund_allocations_order_item_id_idx" ON "refund_allocations" USING btree ("order_item_id");
+--> statement-breakpoint
+CREATE UNIQUE INDEX "refund_allocations_item_unique" ON "refund_allocations" USING btree ("refund_id","order_item_id") WHERE "refund_allocations"."kind" = 'item';
+--> statement-breakpoint
+CREATE UNIQUE INDEX "refund_allocations_delivery_fee_unique" ON "refund_allocations" USING btree ("refund_id","kind") WHERE "refund_allocations"."kind" = 'delivery_fee';
+--> statement-breakpoint
+CREATE INDEX "refunds_store_requested_at_idx" ON "refunds" USING btree ("store_id","requested_at" DESC NULLS LAST);
+--> statement-breakpoint
+CREATE INDEX "refunds_order_id_idx" ON "refunds" USING btree ("order_id");
+--> statement-breakpoint
+CREATE INDEX "refunds_payment_attempt_id_idx" ON "refunds" USING btree ("payment_attempt_id");
+--> statement-breakpoint
+CREATE INDEX "refunds_store_status_idx" ON "refunds" USING btree ("store_id","status");

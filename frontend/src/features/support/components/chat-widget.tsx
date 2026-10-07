@@ -44,7 +44,7 @@ export const ChatRequestForm = () => {
 
   const onSubmit = (data: ChatRequestFormValues) => {
     requestM.mutate(
-      { title: data.title } as never,
+      { title: data.title },
       {
         onSuccess: (res: { message: string }) => {
           success(res.message);

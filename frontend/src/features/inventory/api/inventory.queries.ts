@@ -1,5 +1,4 @@
 import {
-  keepPreviousData,
   useMutation,
   useQuery,
   useQueryClient,
@@ -15,6 +14,7 @@ import type {
   ThresholdValues,
 } from "../model/inventory.schemas";
 import type {
+  InventoryItem,
   InventoryListParams,
   InventoryListResponse,
   InventoryMovementsParams,
@@ -23,6 +23,7 @@ import type {
 
 export const inventoryKeys = {
   all: ["inventory"] as const,
+  detail: (storeId: number | null, productId: number | null) => ["inventory", "detail", storeId, productId] as const,
   list: (params: InventoryListParams) => ["inventory", "list", params] as const,
   movements: (params: InventoryMovementsParams) =>
     ["inventory", "movements", params] as const,
@@ -31,10 +32,11 @@ export const inventoryKeys = {
 export const useInventoryList = (params: InventoryListParams) =>
   useQuery({
     queryKey: inventoryKeys.list(params),
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const { data } = await API.get<InventoryListResponse>(
         `/inventory/store/${params.storeId}`,
         {
+          signal,
           params: {
             status: params.status,
             search: params.search || undefined,
@@ -46,16 +48,16 @@ export const useInventoryList = (params: InventoryListParams) =>
       return data;
     },
     enabled: params.storeId !== null && params.storeId > 0,
-    placeholderData: keepPreviousData,
   });
 
 export const useInventoryMovements = (params: InventoryMovementsParams) =>
   useQuery({
     queryKey: inventoryKeys.movements(params),
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const { data } = await API.get<InventoryMovementsResponse>(
         `/inventory/store/${params.storeId}/movements`,
         {
+          signal,
           params: {
             productId: params.productId,
             changeType:
@@ -72,7 +74,6 @@ export const useInventoryMovements = (params: InventoryMovementsParams) =>
       params.storeId > 0 &&
       params.productId !== null &&
       params.productId > 0,
-    placeholderData: keepPreviousData,
   });
 
 export const invalidateInventoryQueries = (
@@ -157,3 +158,12 @@ export const useUpdateInventoryThreshold = (storeId: number | null) => {
     onSuccess: invalidate,
   });
 };
+
+export const useProductInventory = (storeId: number | null, productId: number | null) =>
+  useQuery({
+    queryKey: inventoryKeys.detail(storeId, productId),
+    queryFn: async ({ signal }) => (await API.get<{ data: InventoryItem }>(
+      `/inventory/store/${storeId}/product/${productId}`, { signal }
+    )).data.data,
+    enabled: Number.isInteger(storeId) && Number(storeId) > 0 && Number.isInteger(productId) && Number(productId) > 0,
+  });

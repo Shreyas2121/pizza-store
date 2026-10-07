@@ -31,6 +31,7 @@ type InventoryTableProps = {
   onPageChange: (page: number) => void;
   onAction: (item: InventoryItem, action: InventoryAction) => void;
   onHistory: (item: InventoryItem) => void;
+  onDetails: (item: InventoryItem) => void;
   selectedProductIds: Set<number>;
   onToggleSelection: (item: InventoryItem, selected: boolean) => void;
   onTogglePage: (items: InventoryItem[], selected: boolean) => void;
@@ -99,6 +100,7 @@ export function InventoryTable({
   onAction,
   onHistory,
   selectedProductIds,
+  onDetails,
   onToggleSelection,
   onTogglePage,
 }: InventoryTableProps) {
@@ -141,7 +143,7 @@ export function InventoryTable({
                   className="h-12 w-12 rounded-lg border border-border object-cover"
                 />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold text-ink">{item.productName}</p>
+                  <button className="truncate text-left font-semibold text-ink hover:text-brand" onClick={() => onDetails(item)} aria-label={`View inventory for ${item.productName}`}>{item.productName}</button>
                   <div className="mt-1 flex flex-wrap gap-1.5">
                     <Badge size="sm" color={status.color} variant="light">
                       {status.label}
@@ -253,7 +255,7 @@ export function InventoryTable({
                         className="h-10 w-10 rounded-lg border border-border object-cover"
                       />
                       <div className="min-w-0">
-                        <p className="truncate font-semibold text-ink">{item.productName}</p>
+                        <button className="truncate text-left font-semibold text-ink hover:text-brand" onClick={() => onDetails(item)} aria-label={`View inventory for ${item.productName}`}>{item.productName}</button>
                         {(!item.isAvailable || !item.productIsAvailable) && (
                           <p className="text-xs text-ink-muted">Manually unavailable</p>
                         )}
