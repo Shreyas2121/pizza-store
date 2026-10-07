@@ -14,7 +14,12 @@ export const catalogKeys = {
     all: () => [CATALOG_QUERY_ROOT, "menu-all"] as const,
   },
   category: {
+    all: () => [CATALOG_QUERY_ROOT, "categories"] as const,
     select: () => [CATALOG_QUERY_ROOT, "Select Category"] as const,
+  },
+  bundles: {
+    admin: (id: number) => [CATALOG_QUERY_ROOT, "bundle", "admin", id] as const,
+    public: (id: number, storeId: number) => [CATALOG_QUERY_ROOT, "bundle", id, storeId] as const,
   },
   customizations: {
     admin: () => [CATALOG_QUERY_ROOT, "allCustomizationsA"] as const,

@@ -34,6 +34,7 @@ export const AdminProductsPage = () => {
                 <div className="flex items-start justify-between gap-3"><p className="font-semibold text-ink">{product.name}</p><p className="shrink-0 font-semibold tabular-nums">{formatPaise(product.pricePaise)}</p></div>
                 <p className="mt-0.5 text-sm text-ink-muted">{product.category.name} · {product.veg ? "Veg" : "Non-veg"}</p>
                 <div className="mt-2 flex flex-wrap gap-2"><Badge size="sm" color={product.isAvailable ? "basil" : "gray"} variant="light">{product.isAvailable ? "Available" : "Unavailable"}</Badge>{product.hasCustomization && <Badge size="sm" color="brand" variant="outline">Customizable</Badge>}</div>
+                {product.productType === "bundle" && <Button component={Link} to={`/admin/bundles/${product.id}`} mt="sm" size="xs" variant="light">Edit bundle</Button>}
               </div>
             </div>
           )}

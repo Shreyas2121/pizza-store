@@ -1,10 +1,16 @@
 import type { DataTableColumnDef } from "@/shared/ui";
-import { Badge } from "@mantine/core";
+import { Badge, Button } from "@mantine/core";
+import { Link } from "react-router";
 import { ProductWithCategory } from "../../model/catalog.types";
 import { BASE_URL } from "@/shared/config";
 import { cap, formatPaise } from "@/shared/lib";
 
 export const ProductsCol: DataTableColumnDef<ProductWithCategory>[] = [
+  {
+    header: "Bundle",
+    id: "bundle",
+    cell: ({ row }) => row.original.productType === "bundle" ? <Button component={Link} to={`/admin/bundles/${row.original.id}`} size="xs" variant="light">Edit bundle</Button> : <span className="text-ink-muted">Single product</span>,
+  },
   {
     header: "Product",
     accessorKey: "name",

@@ -1,4 +1,5 @@
-import { createMutation, createQuery } from "@/shared/api";
+import { API, createQuery } from "@/shared/api";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Product, ProductWithCategory } from "../model/catalog.types";
 import { catalogKeys } from "../model/catalog.keys";
 
@@ -42,10 +43,15 @@ export const useGetProductsA = () => {
   );
 };
 
-export const useCreateProduct = () =>
-  createMutation<{ data: Product }>("/product", "post", [
-    catalogKeys.products.admin() as unknown as string[],
-  ]);
+export const useCreateProduct = () => {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: FormData) => (await API.post<{ data: Product }>("/product", payload, {
+      headers: { "Content-Type": "multipart/form-data" },
+    })).data,
+    onSuccess: () => client.invalidateQueries({ queryKey: catalogKeys.products.admin() }),
+  });
+};
 
 export const useGetProductByCat = (categoryId: number | null) => {
   return createQuery<Product[]>(

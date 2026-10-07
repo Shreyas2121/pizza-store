@@ -5,6 +5,7 @@ export const productSchema = z.object({
   description: z.string().optional(),
   price: z.number().positive(),
   isVeg: z.boolean(),
+  productType: z.enum(["single", "bundle"]),
   categoryId: z.number().positive(),
   image: z.custom<File>(
     (file) => {

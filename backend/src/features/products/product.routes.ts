@@ -20,6 +20,10 @@ productRoutes.post(
   asyncHandler(async (req, res) => {
     const data = req.body;
     const image = req.file as Express.Multer.File;
+    const productType = data.productType ?? "single";
+    if (productType !== "single" && productType !== "bundle") {
+      throw new AppError("Product type must be single or bundle", 400);
+    }
 
     if (!image) {
       throw new AppError("Image is required", 400);
@@ -29,6 +33,7 @@ productRoutes.post(
 
     const [product] = await productService.createProduct({
       ...data,
+      productType,
       pricePaise: parsePaise(data.pricePaise, MONEY_CAPS.ITEM_PRICE, "Product price"),
       categoryId: Number(data.categoryId),
       veg: data.veg === "true" || data.veg === true,

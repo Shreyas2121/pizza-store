@@ -3,12 +3,15 @@ import { authenticateAdmin } from "../../middleware/authenticateUser";
 import { asyncHandler } from "../../utils/error";
 import categoryService from "./category.service";
 import { cap } from "../../utils";
+import { validateBody } from "../../middleware/validateBody";
+import { categoryCreateSchema } from "./category.schemas";
 
 export const categoryRoutes = Router();
 
 categoryRoutes.post(
   "/",
   authenticateAdmin,
+  validateBody(categoryCreateSchema),
   asyncHandler(async (req, res) => {
     const { name } = req.body;
     const category = await categoryService.createCategory(name);

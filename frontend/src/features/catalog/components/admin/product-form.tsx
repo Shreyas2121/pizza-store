@@ -16,7 +16,7 @@ export const ProductForm = () => {
   const navigate = useNavigate();
   const { control, handleSubmit, formState: { errors } } = useForm<TProduct>({
     resolver: zodResolver(productSchema),
-    defaultValues: { name: "", description: "", price: undefined, isVeg: false, categoryId: undefined, image: undefined },
+    defaultValues: { name: "", description: "", price: undefined, isVeg: false, productType: "single", categoryId: undefined, image: undefined },
   });
 
   const handleImageChange = (file: File | null) => {
@@ -31,11 +31,12 @@ export const ProductForm = () => {
     payload.append("pricePaise", String(parseRupeesToPaise(data.price)));
     payload.append("categoryId", String(data.categoryId));
     payload.append("veg", String(data.isVeg));
+    payload.append("productType", data.productType);
     payload.append("image", data.image);
-    createProduct.mutate(payload as never, {
-      onSuccess: () => {
+    createProduct.mutate(payload, {
+      onSuccess: (response) => {
         success("Product created successfully.");
-        navigate("/admin/products");
+        navigate(data.productType === "bundle" ? `/admin/bundles/${response.data.id}` : "/admin/products");
       },
     });
   };
@@ -46,6 +47,9 @@ export const ProductForm = () => {
         <Text fw={700} size="lg">Product details</Text>
         <Text size="sm" c="dimmed" mb="lg">The name, category, and description customers see in the catalogue.</Text>
         <div className="grid gap-5 md:grid-cols-2">
+          <Controller name="productType" control={control} render={({ field }) => (
+            <Select label="Product type" description="Bundles combine existing products. Configure contents and store prices after saving." data={[{ value: "single", label: "Single product" }, { value: "bundle", label: "Bundle / combo" }]} allowDeselect={false} {...field} error={errors.productType?.message} />
+          )} />
           <Controller name="name" control={control} render={({ field }) => (
             <TextInput label="Product name" placeholder="e.g. Margherita pizza" withAsterisk error={errors.name?.message} {...field} />
           )} />
