@@ -1,5 +1,4 @@
 import { AppError } from "../../utils/error";
-import { calculateInclusiveTax } from "../../utils/money";
 import type { RefundStatus } from "../../utils/types";
 import type { RequestRefundInput } from "./refund.schemas";
 
@@ -9,6 +8,7 @@ export interface RefundableOrderItem {
   lineTotalPaise: number;
   discountAllocationPaise: number;
   taxRateBps: number;
+  taxPaise: number;
 }
 
 export interface ExistingAllocation {
@@ -16,6 +16,7 @@ export interface ExistingAllocation {
   orderItemId: number | null;
   quantity: number | null;
   amountPaise: number;
+  taxPaise: number;
 }
 
 export const activeRefundStatuses: RefundStatus[] = [
@@ -52,17 +53,21 @@ const proportional = (part: number, total: number, amount: number) => {
   return Number((BigInt(part) * BigInt(amount)) / BigInt(total));
 };
 
+const remainingTaxAllocation = (paidTax: number, paidAmount: number, usedTax: number, usedAmount: number, amount: number) =>
+  Math.min(amount, paidTax - usedTax, Math.max(0, proportional(paidTax, paidAmount, usedAmount + amount) - usedTax));
+
 export const buildRefundAllocations = ({
   input,
   orderItems,
   deliveryFeePaise,
-  deliveryTaxRateBps,
+  deliveryTaxPaise,
   existing,
 }: {
   input: RequestRefundInput;
   orderItems: RefundableOrderItem[];
   deliveryFeePaise: number;
   deliveryTaxRateBps: number;
+  deliveryTaxPaise: number;
   existing: ExistingAllocation[];
 }) => {
   const itemById = new Map(orderItems.map((item) => [item.id, item]));
@@ -85,19 +90,24 @@ export const buildRefundAllocations = ({
       const usedAmount = existing
         .filter((row) => row.kind === "item" && row.orderItemId === item.id)
         .reduce((sum, row) => sum + row.amountPaise, 0);
-      const maxForQuantity = proportional(item.lineTotalPaise, item.quantity, allocation.quantity);
+      const maxForQuantity = proportional(item.lineTotalPaise, item.quantity, usedQuantity + allocation.quantity) - usedAmount;
       if (usedQuantity + allocation.quantity > item.quantity ||
           usedAmount + allocation.allocatedPaise > item.lineTotalPaise ||
           allocation.allocatedPaise > maxForQuantity) {
         throw new AppError("Refund item allocation exceeds the purchased quantity or amount.", 422, "INVALID_REFUND_ALLOCATION");
       }
-      const tax = calculateInclusiveTax(allocation.allocatedPaise, item.taxRateBps);
+      const usedTax = existing.filter((row) => row.kind === "item" && row.orderItemId === item.id)
+        .reduce((sum, row) => sum + row.taxPaise, 0);
+      // Cumulative apportionment exhausts the immutable paid tax exactly,
+      // including the rounding remainder on the final allocation.
+      const taxPaise = remainingTaxAllocation(item.taxPaise, item.lineTotalPaise, usedTax, usedAmount, allocation.allocatedPaise);
       return {
         kind: "item" as const,
         orderItemId: item.id,
         quantity: allocation.quantity,
         amountPaise: allocation.allocatedPaise,
-        ...tax,
+        taxableAmountPaise: allocation.allocatedPaise - taxPaise,
+        taxPaise,
         discountReversalPaise: proportional(
           item.discountAllocationPaise,
           item.lineTotalPaise,
@@ -114,12 +124,16 @@ export const buildRefundAllocations = ({
     if (usedAmount + allocation.allocatedPaise > deliveryFeePaise) {
       throw new AppError("Refund delivery allocation exceeds the charged fee.", 422, "INVALID_REFUND_ALLOCATION");
     }
+    const usedTax = existing.filter((row) => row.kind === "delivery_fee")
+      .reduce((sum, row) => sum + row.taxPaise, 0);
+    const taxPaise = remainingTaxAllocation(deliveryTaxPaise, deliveryFeePaise, usedTax, usedAmount, allocation.allocatedPaise);
     return {
       kind: "delivery_fee" as const,
       orderItemId: null,
       quantity: null,
       amountPaise: allocation.allocatedPaise,
-      ...calculateInclusiveTax(allocation.allocatedPaise, deliveryTaxRateBps),
+      taxableAmountPaise: allocation.allocatedPaise - taxPaise,
+      taxPaise,
       discountReversalPaise: 0,
     };
   });

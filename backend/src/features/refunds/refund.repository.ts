@@ -77,6 +77,7 @@ export class RefundRepository {
       orderItemId: refundAllocationsTable.orderItemId,
       quantity: refundAllocationsTable.quantity,
       amountPaise: refundAllocationsTable.amountPaise,
+      taxPaise: refundAllocationsTable.taxPaise,
     }).from(refundAllocationsTable)
       .innerJoin(refundsTable, eq(refundsTable.id, refundAllocationsTable.refundId))
       .where(and(eq(refundsTable.orderId, orderId), inArray(refundsTable.status, statuses)));

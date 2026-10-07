@@ -140,6 +140,7 @@ export class RefundService {
           orderItems,
           deliveryFeePaise: order.deliveryFeePaise,
           deliveryTaxRateBps: order.deliveryTaxRateBps,
+          deliveryTaxPaise: order.deliveryTaxPaise,
           existing: existingAllocations,
         });
         const refund = await this.repository.create(tx, {
