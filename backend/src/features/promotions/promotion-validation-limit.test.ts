@@ -33,4 +33,16 @@ describe("coupon validation attempt limit", () => {
     now = COUPON_VALIDATION_WINDOW_MS;
     expect(limiter.attempt("ip:new").allowed).toBe(true);
   });
+  it("expires staggered windows without resetting a still-active quota", () => {
+    let now = 0;
+    const limiter = new CouponValidationLimiter(() => now);
+    limiter.attempt("early");
+    now = COUPON_VALIDATION_WINDOW_MS / 2;
+    for (let i = 0; i < COUPON_VALIDATION_MAX_ATTEMPTS; i++) limiter.attempt("later");
+    now = COUPON_VALIDATION_WINDOW_MS;
+    expect(limiter.attempt("early").allowed).toBe(true);
+    expect(limiter.attempt("later").allowed).toBe(false);
+    now += COUPON_VALIDATION_WINDOW_MS / 2;
+    expect(limiter.attempt("later").allowed).toBe(true);
+  });
 });
