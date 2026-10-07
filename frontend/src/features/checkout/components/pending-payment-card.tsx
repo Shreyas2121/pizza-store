@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@mantine/core";
 import { CreditCard, RefreshCw, ShieldCheck } from "lucide-react";
 import axios from "axios";
@@ -11,6 +12,7 @@ import {
   useVerifyRazorpayPayment,
 } from "../api/payment.mutations";
 import { openRazorpayCheckout } from "../lib/razorpay";
+import { usePaymentOrderStatus } from "../api/payment.queries";
 
 type PendingPaymentCardProps = {
   localOrderId: number;
@@ -26,18 +28,30 @@ export const PendingPaymentCard = ({
   const retryPayment = useRetryRazorpayOrder();
   const verifyPayment = useVerifyRazorpayPayment();
   const runSimulator = useRunPaymentSimulator();
+  const paymentStatus = usePaymentOrderStatus(localOrderId);
+  const client = useQueryClient();
   const { data: paymentMethods, isLoading: loadingMethods } = usePaymentMethods();
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [failureMessage, setFailureMessage] = useState<string | null>(null);
   const busy = retryPayment.isPending || verifyPayment.isPending || runSimulator.isPending || !!statusMessage;
   const retryEnabled = paymentMethods?.razorpay ?? false;
+  const paymentResolved = !!paymentStatus.data && (paymentStatus.data.paymentStatus === "completed" || paymentStatus.data.paymentStatus === "refunded" || paymentStatus.data.orderStatus !== "awaiting_payment");
+
+  useEffect(() => {
+    if (!paymentResolved) return;
+    for (const key of [["order-single", localOrderId], ["order-all"], ["cart"]]) void client.invalidateQueries({ queryKey: key });
+  }, [paymentResolved, localOrderId, client]);
 
   const retry = async () => {
     if (busy || !retryEnabled) return;
     setFailureMessage(null);
     try {
       setStatusMessage("Preparing secure payment…");
+      const checked = await paymentStatus.refetch();
+      if (checked.isError || !checked.data) throw new Error("Payment status could not be checked. Refresh the status before retrying.");
+      if (checked.data.paymentStatus === "completed" || checked.data.paymentStatus === "refunded" || checked.data.orderStatus !== "awaiting_payment") return;
       const { data: checkout } = await retryPayment.mutateAsync(localOrderId);
+      await paymentStatus.refetch();
       if (!checkout.checkoutReady) {
         throw new Error(
           checkout.failure?.description ??
@@ -87,6 +101,7 @@ export const PendingPaymentCard = ({
       );
     } finally {
       setStatusMessage(null);
+      void paymentStatus.refetch();
     }
   };
 
@@ -99,7 +114,7 @@ export const PendingPaymentCard = ({
           </span>
           <div>
             <h2 id="pending-payment-title" className="font-semibold text-ink">
-              Payment required
+              {paymentResolved ? "Payment updated" : "Payment required"}
             </h2>
             <p className="mt-1 max-w-xl text-sm text-ink-muted">
               {retryEnabled
@@ -109,6 +124,8 @@ export const PendingPaymentCard = ({
                 : "Online checkout is temporarily paused. Your order remains saved and will not reach the kitchen until payment is captured."}
             </p>
             <p className="mt-2 text-sm">Saved total: {formatPaise(amountPaise)}. Retry uses this order’s captured prices and promotions.</p>
+            <p className="mt-2 text-sm" role="status">{paymentStatus.isLoading ? "Checking payment status…" : paymentStatus.isError ? "Payment status could not be checked." : paymentResolved ? "Payment or order status has changed. Refreshing your order…" : paymentStatus.data?.paymentStatus === "failed" ? paymentStatus.data.failure?.description ?? "The last payment attempt failed. You can retry." : "Waiting for payment confirmation. Status updates automatically."}</p>
+            <Button mt="sm" size="xs" variant="subtle" loading={paymentStatus.isFetching} disabled={busy} onClick={() => void paymentStatus.refetch()}>Refresh payment status</Button>
             {failureMessage && <p className="mt-2 text-sm text-danger" role="alert">{failureMessage}</p>}
             {statusMessage && (
               <p className="mt-2 text-sm font-semibold text-brand" role="status">
@@ -120,7 +137,7 @@ export const PendingPaymentCard = ({
         <Button
           onClick={retry}
           loading={busy || loadingMethods}
-          disabled={!retryEnabled}
+          disabled={!retryEnabled || paymentResolved || !paymentStatus.data || paymentStatus.isError || paymentStatus.isFetching}
           leftSection={<RefreshCw size={16} />}
           rightSection={<ShieldCheck size={16} />}
           className="shrink-0"

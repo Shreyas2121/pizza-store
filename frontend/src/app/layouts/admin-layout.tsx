@@ -24,6 +24,7 @@ const pageNames: Record<string, string> = {
   "/admin": "Dashboard",
   "/admin/products": "Products",
   "/admin/categories": "Categories",
+  "/admin/payments": "Payments",
   "/admin/product/new": "New product",
   "/admin/customization": "Customizations",
   "/admin/menu": "Menu management",

@@ -48,11 +48,11 @@ class CartService {
         tx
       );
 
-      if (storeProduct.hasCustomization && cIds.length === 0) {
-        throw new AppError("Customization options are required");
-      }
       if (storeProduct.productType === "bundle" && cIds.length > 0) {
         throw new AppError("Bundles cannot be customized", 409, "BUNDLE_DEFINITION_INVALID");
+      }
+      if (storeProduct.hasCustomization || cIds.length > 0) {
+        await customizeService.validateProductSelection(productId, cIds, tx);
       }
 
       let cartId: number;
@@ -553,13 +553,14 @@ class CartService {
 
       const product = await tx.query.productsTable.findFirst({
         where: eq(productsTable.id, cartItem.productId),
-        columns: { productType: true },
+        columns: { productType: true, hasCustomization: true },
       });
       if (product?.productType === "bundle" && cIds.length > 0) {
         throw new AppError("Bundles cannot be customized", 409, "BUNDLE_DEFINITION_INVALID");
       }
 
       const uniqueIds = [...new Set(cIds)];
+      if (product?.hasCustomization || cIds.length > 0) await customizeService.validateProductSelection(cartItem.productId, cIds, tx);
       const options = await Promise.all(uniqueIds.map((id) => customizeService.getCustomizationOptionById(id)));
       if (options.some((option) => !option || !option.isAvailable)) throw new AppError("One or more customization options are unavailable", 400);
 

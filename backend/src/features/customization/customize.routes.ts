@@ -1,9 +1,10 @@
 import { Router } from "express";
-import { AppError, asyncHandler } from "../../utils/error";
+import { asyncHandler } from "../../utils/error";
 import { authenticateAdmin } from "../../middleware/authenticateUser";
 import customizeService from "./customize.service";
 import { parseIntegerParam } from "../../utils/request";
-import { MONEY_CAPS, parsePaise } from "../../utils/money";
+import { validateBody } from "../../middleware/validateBody";
+import { customizationGroupSchema, customizationOptionSchema, customizationMappingSchema } from "./customize.schemas";
 
 export const customizationRoutes = Router();
 
@@ -12,6 +13,7 @@ export const customizationRoutes = Router();
 customizationRoutes.post(
   "/group",
   authenticateAdmin,
+  validateBody(customizationGroupSchema),
   asyncHandler(async (req, res) => {
     const data = req.body;
     const [group] = await customizeService.createCustomizationGroup(data);
@@ -24,10 +26,10 @@ customizationRoutes.post(
 customizationRoutes.post(
   "/option",
   authenticateAdmin,
+  validateBody(customizationOptionSchema),
   asyncHandler(async (req, res) => {
     const data = req.body;
-    const pricePaise = parsePaise(data.pricePaise ?? 0, MONEY_CAPS.CUSTOMIZATION_PRICE, "Customization price");
-    const [option] = await customizeService.createCustomizationOption({ ...data, pricePaise });
+    const [option] = await customizeService.createCustomizationOption(data);
     res.status(201).json({ data: option });
   })
 );
@@ -37,12 +39,9 @@ customizationRoutes.post(
 customizationRoutes.post(
   "/mapping",
   authenticateAdmin,
+  validateBody(customizationMappingSchema),
   asyncHandler(async (req, res) => {
     const { productIds, groupId } = req.body;
-
-    if (!Number.isInteger(groupId) || !Array.isArray(productIds)) {
-      throw new AppError("A valid group and product list are required", 400);
-    }
 
     const uniqueProductIds = [...new Set(productIds)].filter(Number.isInteger) as number[];
     await customizeService.replaceProductCustomizationGroupMappings(

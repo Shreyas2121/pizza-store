@@ -24,6 +24,7 @@ const Home = lazy(() => import("@/features/catalog").then((m) => ({ default: m.H
 const AdminProducts = lazy(() => import("@/features/catalog").then((m) => ({ default: m.AdminProductsPage })));
 const AdminCategories = lazy(() => import("@/features/catalog/pages/admin-categories-page"));
 const AdminBundle = lazy(() => import("@/features/catalog/pages/admin-bundle-page"));
+const AdminPayments = lazy(() => import("@/features/checkout/pages/admin-payments-page"));
 const AdminNewProduct = lazy(() => import("@/features/catalog").then((m) => ({ default: m.AdminNewProductPage })));
 const AdminCustomization = lazy(() => import("@/features/catalog").then((m) => ({ default: m.AdminCustomizationsPage })));
 const AdminMenu = lazy(() => import("@/features/catalog").then((m) => ({ default: m.AdminMenuPage })));
@@ -111,6 +112,7 @@ export const AppRoutes = () => (
     >
       <Route index element={<AdminHome />} />
       <Route path="/admin/categories" element={<PlatformAdminProtectedRoute><AdminCategories /></PlatformAdminProtectedRoute>} />
+      <Route path="/admin/payments" element={<PlatformAdminProtectedRoute><AdminPayments /></PlatformAdminProtectedRoute>} />
       <Route path="/admin/bundles/:id" element={<PlatformAdminProtectedRoute><AdminBundle /></PlatformAdminProtectedRoute>} />
       <Route path="/admin/promotions" element={<PromotionRoute><AdminPromotions /></PromotionRoute>} />
       <Route path="/admin/store-promotions" element={<PromotionRoute manager><StorePromotions /></PromotionRoute>} />

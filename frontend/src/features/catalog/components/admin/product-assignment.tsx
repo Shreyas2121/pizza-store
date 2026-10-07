@@ -26,7 +26,7 @@ export const ProductAssignment = ({ groupId }: { groupId: number }) => {
     }
   }, [groupedProducts]);
 
-  const available = useMemo(() => (products ?? []).filter((product) => !assigned.some((item) => item.id === product.id) && product.name.toLowerCase().includes(availableSearch.toLowerCase())), [products, assigned, availableSearch]);
+  const available = useMemo(() => (products ?? []).filter((product) => product.productType !== "bundle" && !assigned.some((item) => item.id === product.id) && product.name.toLowerCase().includes(availableSearch.toLowerCase())), [products, assigned, availableSearch]);
   const filteredAssigned = assigned.filter((product) => product.name.toLowerCase().includes(assignedSearch.toLowerCase()));
   const currentIds = assigned.map((product) => product.id).sort((a, b) => a - b);
   const hasChanges = currentIds.join(",") !== initialIds.join(",");
@@ -51,7 +51,7 @@ export const ProductAssignment = ({ groupId }: { groupId: number }) => {
       <div className="rounded-xl bg-brand-soft p-4 text-sm text-ink"><strong>{assigned.length} products assigned.</strong> Move products between the available and assigned lists, then save the final selection.</div>
       <div className="grid gap-5 md:grid-cols-2">
         <section>
-          <div className="mb-2 flex items-center justify-between"><div><p className="font-semibold">Available</p><p className="text-xs text-ink-muted">Source · {available.length} shown</p></div><Button size="xs" variant="subtle" disabled={!available.length} onClick={() => setAssigned(products ?? [])}>Assign all</Button></div>
+          <div className="mb-2 flex items-center justify-between"><div><p className="font-semibold">Available</p><p className="text-xs text-ink-muted">Source · {available.length} shown</p></div><Button size="xs" variant="subtle" disabled={!available.length} onClick={() => setAssigned((products ?? []).filter((product) => product.productType !== "bundle"))}>Assign all</Button></div>
           <TextInput mb="sm" aria-label="Search available products" placeholder="Search available" leftSection={<Search size={15} />} value={availableSearch} onChange={(event) => setAvailableSearch(event.currentTarget.value)} />
           <ProductList items={available} destination="assigned" />
         </section>

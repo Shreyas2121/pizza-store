@@ -10,6 +10,8 @@
 
 > **Implementation follow-up (October 7, 2026):** Categories and Bundles from the unused-feature list are now integrated. `/admin/categories` lists and creates categories, refreshing product-form dropdowns. Product creation supports `single` and `bundle`; bundle products link to `/admin/bundles/:id` to create or update components and store prices. The editor also calls the public bundle lookup for a saved, store-specific availability preview. All six endpoints in these two feature groups now have frontend callers. The counts and tables below describe the original audit before this follow-up.
 
+> **Customizations and Payments follow-up:** `/admin/customization` now creates groups and options, with rupee entry converted to paise. Assignments update the customer-facing customization flag and exclude bundles; cart selections enforce required/single groups and product-specific available options. `/admin/payments` provides a platform-admin payment reconciliation form and batch results. Pending customer orders poll the private payment status endpoint, expose manual refresh, and check status before retrying. All four endpoints listed under features 3 and 4 now have frontend callers.
+
 | Category | Count | Description |
 |---|:---:|---|
 | **Total Backend Endpoints** | **175** | 173 registered in `mainRoutes` + 2 server-level routes (`index.ts`) |
