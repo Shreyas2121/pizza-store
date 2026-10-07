@@ -3,11 +3,12 @@ import { API, createMutation, createQuery, createSuspenseQuery } from "@/shared/
 import { CartRes } from "../model/cart.types";
 import { useUser } from "@/features/auth";
 
+const CART_QUERY_ROOT = "cart";
 export const cartKeys = {
-  all: ["cart"] as const,
-  count: (userId?: number | null) => ["cart-count", ...(userId === undefined ? [] : [userId])] as const,
-  get: (userId?: number | null) => ["cart-get", ...(userId === undefined ? [] : [userId])] as const,
-  checkout: (userId?: number | null) => ["cart-checkout", ...(userId === undefined ? [] : [userId])] as const,
+  all: [CART_QUERY_ROOT] as const,
+  count: (userId?: number | null) => [CART_QUERY_ROOT, "cart-count", ...(userId === undefined ? [] : [userId])] as const,
+  get: (userId?: number | null) => [CART_QUERY_ROOT, "cart-get", ...(userId === undefined ? [] : [userId])] as const,
+  checkout: (userId?: number | null) => [CART_QUERY_ROOT, "cart-checkout", ...(userId === undefined ? [] : [userId])] as const,
 };
 
 export const useGetCartCount = (enabled: boolean = true) => {

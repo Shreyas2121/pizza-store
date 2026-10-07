@@ -1,21 +1,22 @@
+const CATALOG_QUERY_ROOT = "catalog";
 export const catalogKeys = {
-  all: ["catalog"] as const,
+  all: [CATALOG_QUERY_ROOT] as const,
   products: {
-    all: ["products"] as const,
+    all: [CATALOG_QUERY_ROOT, "products"] as const,
     allMenu: (menuSlug?: string | null, page?: string, sortBy?: string, storeId?: number) =>
-      ["all-menu", menuSlug, page, sortBy, storeId] as const,
-    admin: () => ["adminA"] as const,
-    byCategory: (catId: number | null) => ["products-cat", catId] as const,
-    byGroup: (groupId: number) => ["products-group", groupId] as const,
-    customizations: (id: number) => ["group", id] as const,
+      [CATALOG_QUERY_ROOT, "all-menu", menuSlug, page, sortBy, storeId] as const,
+    admin: () => [CATALOG_QUERY_ROOT, "adminA"] as const,
+    byCategory: (catId: number | null) => [CATALOG_QUERY_ROOT, "products-cat", catId] as const,
+    byGroup: (groupId: number) => [CATALOG_QUERY_ROOT, "products-group", groupId] as const,
+    customizations: (id: number) => [CATALOG_QUERY_ROOT, "group", id] as const,
   },
   menu: {
-    all: () => ["menu-all"] as const,
+    all: () => [CATALOG_QUERY_ROOT, "menu-all"] as const,
   },
   category: {
-    select: () => ["Select Category"] as const,
+    select: () => [CATALOG_QUERY_ROOT, "Select Category"] as const,
   },
   customizations: {
-    admin: () => ["allCustomizationsA"] as const,
+    admin: () => [CATALOG_QUERY_ROOT, "allCustomizationsA"] as const,
   },
 };
