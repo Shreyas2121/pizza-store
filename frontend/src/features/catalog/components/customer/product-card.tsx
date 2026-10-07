@@ -11,6 +11,7 @@ import { useAuthModalStore } from "@/shared/model";
 import { Login, useUser } from "@/features/auth";
 import CustomizationDrawer from "./customization-drawer";
 import { useStoreStore } from "@/features/store";
+import { BundleContents, BundlePrice } from "./bundle-merchandising";
 
 const DietaryMark = ({ vegetarian }: { vegetarian: boolean }) => {
   const color = vegetarian ? "#39734E" : "#8B2E1F";
@@ -35,6 +36,7 @@ export const ProductCard = ({ product }: { product: Product }) => {
   const { openModal } = useAuthModalStore();
   const resolvedStore = useStoreStore((state) => state.resolvedStore);
   const openPincodeModal = useStoreStore((state) => state.openPincodeModal);
+  const isBundle = product.productType === "bundle";
 
   const isOutOfStock = !product.isAvailable || product.stockStatus === "out_of_stock";
   const isLowStock = !isOutOfStock && product.stockStatus === "low_stock" && typeof product.stockCount === "number";
@@ -52,7 +54,7 @@ export const ProductCard = ({ product }: { product: Product }) => {
       return;
     }
 
-    if (product.hasCustomization) {
+    if (product.hasCustomization && !isBundle) {
       setOpened(true);
       return;
     }
@@ -72,6 +74,8 @@ export const ProductCard = ({ product }: { product: Product }) => {
 
   const buttonLabel = isOutOfStock
     ? "Sold out"
+    : isBundle
+      ? "Add Combo"
     : !isLoggedIn
       ? "Sign in to add"
       : product.hasCustomization
@@ -118,14 +122,14 @@ export const ProductCard = ({ product }: { product: Product }) => {
             ) : (
               <p className="mt-2 min-h-10 text-sm leading-5 text-ink-muted">Freshly prepared with our signature crust and sauce.</p>
             )}
-            {product.hasCustomization && !isOutOfStock && (
+            {isBundle && <BundleContents components={product.components ?? []} />}
+            {product.hasCustomization && !isBundle && !isOutOfStock && (
               <p className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-basil"><Settings2 size={14} aria-hidden="true" /> Sizes and extras available</p>
             )}
           </div>
 
           <div className="mt-5 border-t border-border pt-4">
-            <p className="text-xs font-medium text-ink-muted">From</p>
-            <p className="mt-0.5 text-xl font-bold tabular-nums text-ink">{formatPaise(product.pricePaise)}</p>
+            {isBundle ? <BundlePrice product={product} /> : <><p className="text-xs font-medium text-ink-muted">From</p><p className="mt-0.5 text-xl font-bold tabular-nums text-ink">{formatPaise(product.pricePaise)}</p></>}
             <Button
               fullWidth
               mt="md"

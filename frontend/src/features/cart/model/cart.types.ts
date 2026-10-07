@@ -1,4 +1,4 @@
-import type { Product } from "@/features/catalog";
+import type { Product, BundleComponent } from "@/features/catalog";
 import type { Store } from "@/features/store";
 
 export type Cart = {
@@ -21,6 +21,10 @@ export type CartItem = {
 };
 
 export interface ItemRes extends CartItem {
+  productType?: "single" | "bundle";
+  compareAtUnitPricePaise?: number;
+  bundleMarkdownPaise?: number;
+  bundleComponents?: Array<BundleComponent & { totalQuantity: number }>;
   product: Product;
   customizations: {
     optionId: number;

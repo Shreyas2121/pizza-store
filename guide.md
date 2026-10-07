@@ -2,7 +2,7 @@
 
 Status: execution guide
 
-Implementation progress (2026-10-07): C00-C11 implemented on `feature/promotions-overhaul`. C11 adds platform promotion administration and same-store manager participation controls, with a separate account-scoped access-cache fix. Next slice: C12 discovery, followed by C13 checkout/history UX. See the [C11 handoff](./docs/promotions-c11-handoff.md) for implementation, verification and explicitly deferred database/browser checks.
+Implementation progress (2026-10-07): C00-C12 implemented on `feature/promotions-overhaul`. C12 adds store-specific public offer discovery, a responsive accessible homepage slider, and bundle catalogue/cart merchandising. Next slice: C13 checkout/history UX. See the [C12 handoff](./docs/promotions-c12-handoff.md) for implementation, verification and explicitly deferred database/browser checks.
 
 Authoritative product plan: [`implementation_plan.md`](./implementation_plan.md)
 

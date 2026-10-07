@@ -66,6 +66,7 @@ verified.
 | [Architecture decision records](docs/adr/README.md) | Accepted product, financial, lifecycle, and operational semantics |
 | [Promotions and offers API contract](docs/promotions-contract.md) | Frozen offer/coupon resolution, DTOs, error codes, permissions, bundles, media, and accounting behavior |
 | [Promotion administration and store controls](docs/promotions-c11-handoff.md) | Platform create/edit/media/analytics, manager participation workflow and C11 verification |
+| [Customer offers and combos](docs/promotions-c12-handoff.md) | Store-specific discovery, accessible featured offers, bundle catalogue/cart display and C12 verification |
 | [Finance lifecycle and event contracts](docs/finance-lifecycle-contracts.md) | Planned state machines, event payloads, reversals, and database lock order |
 | [Finance API compatibility and rollout map](docs/finance-api-compatibility-rollout.md) | Endpoint contracts, server quote consolidation, error codes, and permission matrix |
 | [Deterministic two-store financial fixtures](docs/two-store-financial-fixtures.md) | Reference scenario, P&L benchmarks, settlement matching, and expected outputs |

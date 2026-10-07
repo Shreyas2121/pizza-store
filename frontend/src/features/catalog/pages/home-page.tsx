@@ -1,6 +1,7 @@
 import { ArrowRight, Banknote, Check, Clock3, Flame, Wheat } from "lucide-react";
 import { Link } from "react-router";
 import MenuCategoryRail from "../components/customer/menu-category-rail";
+import { HomepageOffersSlider } from "@/features/offers";
 
 const trustPoints = ["Hand-stretched dough", "Made fresh to order", "Cash on delivery"];
 
@@ -42,7 +43,7 @@ export const HomePage = () => (
       </div>
     </section>
 
-    <section id="offers" className="border-b border-border bg-surface" aria-label="Why order from PizzaStore">
+    <section className="border-b border-border bg-surface" aria-label="Why order from PizzaStore">
       <div className="mx-auto grid max-w-storefront divide-y divide-border px-5 sm:grid-cols-3 sm:divide-x sm:divide-y-0 sm:px-8 lg:px-12">
         <div className="flex items-center gap-3 py-5 sm:px-5 sm:first:pl-0">
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand-soft text-brand"><Wheat size={20} aria-hidden="true" /></span>
@@ -59,6 +60,7 @@ export const HomePage = () => (
       </div>
     </section>
 
+    <HomepageOffersSlider />
     <MenuCategoryRail />
 
     <section className="mx-auto max-w-storefront px-5 pb-4 pt-6 sm:px-8 lg:px-12" aria-label="Delivery reassurance">

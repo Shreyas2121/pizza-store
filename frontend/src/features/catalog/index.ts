@@ -8,6 +8,7 @@ export { CustomizationDrawer } from "./components/customer/customization-drawer"
 export { MenuCategoryRail } from "./components/customer/menu-category-rail";
 export { ProductCard } from "./components/customer/product-card";
 export { ProductGrid } from "./components/customer/product-grid";
+export { BundleContents, BundlePrice } from "./components/customer/bundle-merchandising";
 
 export { ProductAssignment } from "./components/admin/product-assignment";
 export { MenuForm } from "./components/admin/menu-form";
@@ -38,6 +39,7 @@ export { productSchema, menuSchema, type TProduct, type TMenu } from "./model/ca
 export type {
   Category,
   Product,
+  BundleComponent,
   MenuItem,
   CustomizationGroup,
   CustomizationOption,

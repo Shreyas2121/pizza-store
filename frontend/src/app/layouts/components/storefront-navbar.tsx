@@ -12,7 +12,7 @@ import { isPlatformAdmin, useAccessMe } from "@/features/access";
 
 const primaryLinks = [
   { label: "Menu", to: "/#menu" },
-  { label: "Offers", to: "/#offers" },
+  { label: "Offers", to: "/offers" },
   { label: "Track order", to: "/orders" },
 ];
 

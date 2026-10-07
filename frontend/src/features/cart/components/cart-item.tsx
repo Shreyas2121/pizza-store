@@ -3,6 +3,7 @@ import { ItemRes } from "../model/cart.types";
 import QuantityStepper from "./quantity-stepper";
 import { BASE_URL } from "@/shared/config";
 import { formatPaise } from "@/shared/lib";
+import { BundleContents } from "@/features/catalog";
 
 type CartItemProps = {
   item: ItemRes;
@@ -32,6 +33,11 @@ export const CartItemCard = ({
           <p className="mt-1 font-bold tabular-nums text-brand">
             {formatPaise(item.pricePaise)}
           </p>
+          {item.product.productType === "bundle" && <>
+            {item.compareAtUnitPricePaise != null && <p className="text-sm text-ink-muted">Regular price per combo: <s>{formatPaise(item.compareAtUnitPricePaise)}</s></p>}
+            {item.bundleMarkdownPaise != null && item.bundleMarkdownPaise > 0 && <p className="text-sm text-basil">Combo savings for {item.quantity}: {formatPaise(item.bundleMarkdownPaise)}</p>}
+            <BundleContents expandable components={item.bundleComponents ?? []} />
+          </>}
           {item.customizations.length > 0 && (
             <ul
               className="mt-2 flex flex-wrap gap-1.5"
@@ -60,7 +66,7 @@ export const CartItemCard = ({
           onIncrease={() => onQuantityChange("+")}
         />
         <div className="flex items-center gap-1">
-          {item.product.hasCustomization && (
+          {item.product.hasCustomization && item.product.productType !== "bundle" && (
             <button
               type="button"
               onClick={onEditOptions}

@@ -28,6 +28,18 @@ export type Product = {
   categoryId: number;
   stockStatus?: StockStatus;
   stockCount?: number | null;
+  productType?: "single" | "bundle";
+  sellingPricePaise?: number;
+  compareAtPricePaise?: number | null;
+  markdownPaise?: number;
+  components?: BundleComponent[];
+};
+
+export type BundleComponent = {
+  productId: number;
+  name: string;
+  quantityPerBundle: number;
+  isAvailable: boolean;
 };
 
 export type MenuItem = {

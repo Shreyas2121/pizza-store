@@ -9,6 +9,7 @@ import { PromotionRoute } from "@/features/promotions";
 
 const AdminPromotions = lazy(() => import("@/features/promotions/pages/admin-promotions-page"));
 const StorePromotions = lazy(() => import("@/features/promotions/pages/store-promotions-page"));
+const Offers = lazy(() => import("@/features/offers/pages/offers-page"));
 
 const DocsLayout = lazy(() => import("@/features/docs/components/docs-layout"));
 const DocsIndex = lazy(() => import("@/features/docs/pages/docs-index-page"));
@@ -64,6 +65,8 @@ export const AppRoutes = () => (
     </Route>
     <Route element={<MainLayout />}>
       <Route path="/" element={<Home />} />
+      <Route path="/offers" element={<Offers />} />
+      <Route path="/offers/:id/products" element={<Offers />} />
       <Route path="/staff-invitations/accept" element={<AcceptStaffInvitation />} />
       <Route
         path="/cart"
