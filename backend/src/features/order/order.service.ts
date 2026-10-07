@@ -178,7 +178,7 @@ class OrderService {
       where: conditions.length > 0 ? and(...conditions) : undefined,
       orderBy: desc(ordersTable.orderDate),
       with: {
-        user: true,
+        user: { columns: { id: true, fname: true, lname: true, email: true } },
         store: true,
       },
     });

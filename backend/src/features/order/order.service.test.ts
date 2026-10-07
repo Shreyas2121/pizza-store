@@ -289,6 +289,15 @@ describe("OrderService unit tests", () => {
   });
 
   describe("getAdminOrders", () => {
+    it("selects customer identity without credentials or authorization state", async () => {
+      const { orderService } = createTestHarness();
+      const find = vi.spyOn(db.query.ordersTable, "findMany").mockResolvedValue([]);
+      await orderService.getAdminOrders({ storeId: 1 });
+      expect(find.mock.calls[0][0]?.with?.user).toEqual({
+        columns: { id: true, fname: true, lname: true, email: true },
+      });
+    });
+
     it("returns orders filtered by storeId and status", async () => {
       const { orderService } = createTestHarness();
 
