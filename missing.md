@@ -12,6 +12,8 @@
 
 > **Customizations and Payments follow-up:** `/admin/customization` now creates groups and options, with rupee entry converted to paise. Assignments update the customer-facing customization flag and exclude bundles; cart selections enforce required/single groups and product-specific available options. `/admin/payments` provides a platform-admin payment reconciliation form and batch results. Pending customer orders poll the private payment status endpoint, expose manual refresh, and check status before retrying. All four endpoints listed under features 3 and 4 now have frontend callers.
 
+> **Refunds and Expenses follow-up:** The finance refunds tab now loads the dedicated stuck-refund queue with age filtering and pagination, and provides store-scoped provider reconciliation for users with refund approval permission. Expense details now offer editing for drafts and rejected expenses under expense creation permission. The shared create/edit form uses rupees, converts to exact paise, validates allocation totals and uniqueness, and preserves existing allocation store IDs. All three endpoints listed under features 5 and 6 now have frontend callers.
+
 | Category | Count | Description |
 |---|:---:|---|
 | **Total Backend Endpoints** | **175** | 173 registered in `mainRoutes` + 2 server-level routes (`index.ts`) |

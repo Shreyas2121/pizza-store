@@ -5,6 +5,7 @@ import type {
   ReconciliationIssue,
   Refund,
   RefundStatus,
+  RefundReconciliationResult,
   SettlementBatch,
   SettlementDetail,
   CashSession,
@@ -35,7 +36,8 @@ import type {
 
 export const financeKeys = {
   all: ["finance"] as const,
-  refunds: (storeId: number | null, status?: string) => ["finance", "refunds", storeId, status] as const,
+  refunds: (storeId: number | null, status?: string, page = 1) => ["finance", "refunds", storeId, status, page] as const,
+  stuckRefunds: (storeId: number | null, olderThanMinutes: number, page: number) => ["finance", "refunds-stuck", storeId, olderThanMinutes, page] as const,
   settlements: (storeId: number | null) => ["finance", "settlements", storeId] as const,
   settlement: (id: number | null) => ["finance", "settlement", id] as const,
   issues: (storeId: number | null | undefined) => ["finance", "issues", storeId] as const,
@@ -106,11 +108,16 @@ export const useCashSession = (id: number | null) => useQuery({
   enabled: Boolean(id),
 });
 
-export const useRefunds = (storeId: number | null, status?: RefundStatus) => useQuery({
-  queryKey: financeKeys.refunds(storeId, status),
-  queryFn: async () => (await API.get<ListResponse<Refund>>("/finance/refunds", { params: { storeId, status } })).data,
-  enabled: Boolean(storeId),
-  placeholderData: keepPreviousData,
+export const useRefunds = (storeId: number | null, status?: RefundStatus, page = 1, enabled = true) => useQuery({
+  queryKey: financeKeys.refunds(storeId, status, page),
+  queryFn: async ({ signal }) => (await API.get<ListResponse<Refund>>("/finance/refunds", { params: { storeId, status, page, limit: 25 }, signal })).data,
+  enabled: Boolean(storeId) && enabled,
+});
+
+export const useStuckRefunds = (storeId: number | null, olderThanMinutes: number, page = 1, enabled = true) => useQuery({
+  queryKey: financeKeys.stuckRefunds(storeId, olderThanMinutes, page),
+  queryFn: async ({ signal }) => (await API.get<ListResponse<Refund>>("/finance/refunds/stuck", { params: { storeId, olderThanMinutes, page, limit: 25 }, signal })).data,
+  enabled: Boolean(storeId) && enabled,
 });
 
 export const useSettlements = (storeId: number | null, enabled = true) => useQuery({
@@ -167,6 +174,15 @@ export const useRetryRefund = () => useFinanceMutation(async (refundId: number) 
   (await API.post(`/finance/refunds/${refundId}/retry`)).data
 );
 
+export const useReconcileRefunds = () => {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { storeId: number; olderThanMinutes: number; limit: number }) => (await API.post<{ data: RefundReconciliationResult; message: string }>("/finance/refunds/reconcile", input)).data,
+    retry: false,
+    onSuccess: async () => { await Promise.all([client.invalidateQueries({ queryKey: financeKeys.all }), client.invalidateQueries({ queryKey: ["order-single"] }), client.invalidateQueries({ queryKey: ["order-all"] }), client.invalidateQueries({ queryKey: ["order-adminAll"] })]); },
+  });
+};
+
 export const useImportSettlement = () => useFinanceMutation(async (input:
   | { source: "fixture"; providerSettlementId: string }
   | { source: "test_provider"; providerSettlementId: string; storeId: number }
@@ -206,6 +222,7 @@ export const useUpdateVendor = () => useFinanceMutation(async (input: { id: numb
 export const useCreateExpenseCategory = () => useFinanceMutation(async (input: { storeId: number; name: string; classification: "fixed" | "variable"; ledgerAccountId?: number | null }) => (await API.post("/finance/expenses/categories", input)).data);
 export const useUpdateExpenseCategory = () => useFinanceMutation(async (input: { id: number; isActive: boolean }) => (await API.put(`/finance/expenses/categories/${input.id}`, { isActive: input.isActive })).data);
 export const useCreateExpense = () => useFinanceMutation(async (input: { idempotencyKey: string; data: ExpenseWritePayload }) => (await API.post("/finance/expenses", input.data, { headers: { "Idempotency-Key": input.idempotencyKey } })).data);
+export const useUpdateExpense = () => useFinanceMutation(async (input: { expenseId: number; data: Omit<ExpenseWritePayload, "storeId"> }) => (await API.put<{ data: ExpenseDetail }>(`/finance/expenses/${input.expenseId}`, input.data)).data.data);
 export const useExpenseCommand = () => useFinanceMutation(async (input: { expenseId: number; action: "submit" | "approve" | "reject" | "pay" | "post" | "void" | "reverse"; data?: Record<string, unknown> }) => (await API.post(`/finance/expenses/${input.expenseId}/${input.action}`, input.data ?? {}, { headers: { "Idempotency-Key": crypto.randomUUID() } })).data);
 export const useUploadExpenseReceipt = () => useFinanceMutation(async (input: { expenseId: number; file: File }) => { const body = new FormData(); body.append("receipt", input.file); return (await API.post(`/finance/expenses/${input.expenseId}/attachments`, body, { headers: { "Content-Type": "multipart/form-data" } })).data; });
 export const useDownloadExpenseReceipt = () => useMutation({ mutationFn: async (input: { expenseId: number; attachment: ExpenseAttachment }) => { const response = await API.get<Blob>(`/finance/expenses/${input.expenseId}/attachments/${input.attachment.id}`, { responseType: "blob" }); const url = URL.createObjectURL(response.data); const anchor = document.createElement("a"); anchor.href = url; anchor.download = input.attachment.originalName; anchor.click(); URL.revokeObjectURL(url); } });

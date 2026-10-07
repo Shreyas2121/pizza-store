@@ -26,6 +26,11 @@ export interface Refund {
   failureDescription: string | null;
 }
 
+export interface RefundReconciliationResult {
+  checked: number; processed: number; failed: number; processing: number; unchanged: number; errors: number;
+  results: Array<{ refundId: number; orderId: number; status: "processed" | "failed" | "processing" | "unchanged" | "error"; providerRefundId?: string; error?: string }>;
+}
+
 export interface SettlementBatch {
   id: number;
   storeId: number;
