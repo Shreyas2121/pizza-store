@@ -8,6 +8,7 @@ type AddressStepProps = {
   onSelectAddress: (id: number) => void;
   onOpenAddDrawer: () => void;
   servicePincode: string;
+  disabled?: boolean;
 };
 
 export const AddressStep = ({
@@ -16,6 +17,7 @@ export const AddressStep = ({
   onSelectAddress,
   onOpenAddDrawer,
   servicePincode,
+  disabled,
 }: AddressStepProps) => {
   return (
     <section className="rounded-card border border-border bg-surface p-5 shadow-subtle sm:p-6">
@@ -39,6 +41,7 @@ export const AddressStep = ({
           size="sm"
           leftSection={<Plus size={16} />}
           onClick={onOpenAddDrawer}
+          disabled={disabled}
         >
           Add address
         </Button>
@@ -47,6 +50,7 @@ export const AddressStep = ({
       {!addresses?.length ? (
         <button
           type="button"
+          disabled={disabled}
           onClick={onOpenAddDrawer}
           className="ml-0 mt-5 flex min-h-28 w-full flex-col items-center justify-center rounded-card border border-dashed border-brand/40 bg-brand-soft/30 p-4 text-brand sm:ml-[52px] sm:w-[calc(100%-52px)]"
         >
@@ -72,7 +76,7 @@ export const AddressStep = ({
                       value={String(address.id)}
                       mt={2}
                       aria-label={`Deliver to ${address.type} address`}
-                      disabled={!isServed}
+                      disabled={disabled || !isServed}
                     />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-3">

@@ -14,16 +14,17 @@ export const OrderItems = ({ items }: { items: OrderItemRes[] }) => (
     ) : (
       <ul className="divide-y divide-border">
         {items.map((item) => (
-          <li key={item.id} className="flex gap-4 px-5 py-5 sm:px-6">
+          <li id={`order-line-${item.id}`} key={item.id} className="flex scroll-mt-32 gap-4 px-5 py-5 sm:px-6">
             {item.product.image && <img src={`${BASE_URL}${item.product.image}`} alt="" className="h-16 w-16 shrink-0 rounded-control bg-surface-muted object-cover sm:h-20 sm:w-20" />}
             <div className="min-w-0 flex-1">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h3 className="font-semibold text-ink">{item.product.name}</h3>
+                  <h3 className="font-semibold text-ink">{item.productName}</h3>
                   <p className="mt-1 text-sm text-ink-muted">Quantity: {item.quantity}</p>
                 </div>
-                <p className="shrink-0 font-bold tabular-nums text-ink">{formatPaise(item.unitPricePaise)}</p>
+                <div className="shrink-0 text-right"><p className="text-xs text-ink-muted">Line total after discount</p><p className="font-bold tabular-nums text-ink">{formatPaise(item.lineTotalPaise)}</p></div>
               </div>
+              <p className="mt-2 text-xs text-ink-muted">Unit price {formatPaise(item.unitPricePaise)} · Item discount {formatPaise(item.discountAllocationPaise)} · Included tax {formatPaise(item.taxPaise)}</p>
               {item.options && item.options.length > 0 && (
                 <ul className="mt-3 flex flex-wrap gap-1.5" aria-label="Customizations">
                   {item.options.map((option) => (
@@ -35,8 +36,8 @@ export const OrderItems = ({ items }: { items: OrderItemRes[] }) => (
               )}
               {item.productType === "bundle" && (
                 <div className="mt-3 text-sm text-ink-muted">
-                  {item.compareAtUnitPricePaise !== null && <p><s>{formatPaise(item.compareAtUnitPricePaise)}</s> · Bundle savings {formatPaise(item.bundleMarkdownPaise)}</p>}
-                  <ul aria-label="Bundle contents">{item.bundleComponents.map((component) => <li key={component.componentProductId}>{component.name} × {component.totalQuantity}</li>)}</ul>
+                  {item.compareAtUnitPricePaise !== null && <p>Saved regular price per combo: <s>{formatPaise(item.compareAtUnitPricePaise)}</s> · Combo markdown for this line: {formatPaise(item.bundleMarkdownPaise)}</p>}
+                  <details><summary className="cursor-pointer">Saved combo contents</summary><ul aria-label="Bundle contents">{item.bundleComponents.map((component) => <li key={component.componentProductId}>{component.totalQuantity} × {component.name} ({component.quantityPerBundle} per combo)</li>)}</ul></details>
                 </div>
               )}
             </div>

@@ -10,6 +10,7 @@ import { OrderAddress } from "../components/order-address";
 import { OrderPromotions } from "../components/order-promotions";
 import { OrderItems } from "../components/order-items";
 import { OrderStatus } from "../components/order-status";
+import { PricingBreakdown } from "@/features/checkout";
 
 
 const nextAction: Record<string, string> = {
@@ -55,7 +56,8 @@ export const AdminOrderDetailsPage = () => {
       </Card>
 
       <OrderItems items={order.items} />
-      <div className="grid gap-5 lg:grid-cols-2"><OrderAddress address={order.address} /><OrderPromotions promotions={order.promotions} /></div>
+      <div className="grid gap-5 lg:grid-cols-2"><OrderAddress address={order.address} /><section className="rounded-card border border-border bg-surface p-5"><h2 className="text-card-title-scale">Saved payment details</h2><PricingBreakdown amounts={order} />{order.taxDisclaimer && <p className="mt-2 text-xs text-ink-muted">{order.taxDisclaimer}</p>}</section></div>
+      <OrderPromotions promotions={order.promotions} items={order.items} />
     </div>
   );
 };

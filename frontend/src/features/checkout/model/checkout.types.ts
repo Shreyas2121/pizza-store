@@ -84,12 +84,13 @@ export type QuotePromotion = PromotionSnapshot & {
   allocations: { lineId: number | null; component: "item" | "delivery"; unitIndexes: number[]; amountPaise: number }[];
 };
 
+export type DiscountMode = "none" | "automatic_deals" | "coupon";
 export type PricingQuote = {
   quoteVersion: string;
   currency: "INR";
   pricingPolicyVersion: number;
   itemsSubtotalPaise: number;
-  discountMode: "none" | "automatic_deals" | "coupon";
+  discountMode: DiscountMode;
   itemDiscountPaise: number;
   standardDeliveryFeePaise: number;
   chargedDeliveryFeePaise: number;

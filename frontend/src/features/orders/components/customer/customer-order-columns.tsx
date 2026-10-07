@@ -2,7 +2,7 @@ import type { DataTableColumnDef } from "@/shared/ui";
 import { Button } from "@mantine/core";
 import { Link } from "react-router";
 import { Order } from "../../model/order.types";
-import { formatDate, formatPrice } from "@/shared/lib";
+import { formatDate, formatPaise } from "@/shared/lib";
 import { OrderStatus } from "../order-status";
 
 
@@ -21,7 +21,12 @@ export const customerOrderColumns: DataTableColumnDef<Order>[] = [
   {
     header: "Total Amount",
     accessorKey: "totalAmount",
-    cell: ({ row }) => `${formatPrice(row.original.totalPrice)}`,
+    cell: ({ row }) => formatPaise(row.original.grandTotalPaise),
+  },
+  {
+    header: "Checkout savings",
+    accessorKey: "totalDisplayedSavingsPaise",
+    cell: ({ row }) => <span>{formatPaise(row.original.totalDisplayedSavingsPaise)}<span className="block text-xs text-ink-muted">{row.original.discountMode === "coupon" ? "Manual coupon" : row.original.discountMode === "automatic_deals" ? "Automatic deals" : "No promotion"}</span></span>,
   },
   {
     header: "Status",

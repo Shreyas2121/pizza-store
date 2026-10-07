@@ -4,11 +4,13 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Clock3, MapPin, Store as StoreIcon, Truck, UserRound } from "lucide-react";
 import { Link, useNavigate } from "react-router";
 import { AddressForm, useGetAddresses, useGetUser } from "@/features/account";
-import { useGetCartCheckout } from "@/features/cart";
+import { cartKeys, useGetCartCheckout } from "@/features/cart";
 import { useCreateOrder } from "@/features/orders";
 import { error, formatClockTime, formatStoreHours, handleStockApiError, success, warning } from "@/shared/lib";
 import { CheckoutQuoteRequest, PaymentType } from "../model/checkout.types";
-import { useValidateCoupon } from "../api/coupon.mutations";
+import { useCheckoutCoupon } from "../api/promotion.mutations";
+import { checkoutContextKey, checkoutErrorMessage, couponNeedsRemoval, quoteMatchesCart } from "../model/checkout.helpers";
+import { ONLINE_PAYMENT_MINIMUM_PAISE } from "../model/checkout.constants";
 import { useCheckoutQuote } from "../api/quote.queries";
 import {
   useInitiateRazorpayOrder,
@@ -28,16 +30,13 @@ export const CheckoutPage = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: addresses, isLoading: loadingAddresses, isError: addressesError } = useGetAddresses();
-  const { data: cart, isLoading: loadingCart, isError: cartError } = useGetCartCheckout();
+  const { data: cart, isLoading: loadingCart, isFetching: refreshingCart, isError: cartError } = useGetCartCheckout();
   const { data: user, isLoading: loadingUser, isError: userError } = useGetUser();
   const createOrderM = useCreateOrder();
-  const validateCouponM = useValidateCoupon();
   const initiateRazorpayM = useInitiateRazorpayOrder();
   const verifyRazorpayM = useVerifyRazorpayPayment();
   const runSimulatorM = useRunPaymentSimulator();
   const { data: paymentMethods } = usePaymentMethods();
-  const [appliedCouponCode, setAppliedCouponCode] = useState<string | null>(null);
-  const [code, setCode] = useState("");
   const [selectedAddress, setSelectedAddress] = useState<number | null>(null);
   const [paymentType, setPaymentType] = useState<PaymentType>("cash");
   const [paymentStatusMessage, setPaymentStatusMessage] = useState<string | null>(null);
@@ -46,6 +45,16 @@ export const CheckoutPage = () => {
   const resolvedStore = useStoreStore((state) => state.resolvedStore);
   const userPincode = useStoreStore((state) => state.userPincode);
   const openPincodeModal = useStoreStore((state) => state.openPincodeModal);
+  const storeResolving = useStoreStore((state) => state.isLoading);
+  const contextKey = checkoutContextKey(user?.id, resolvedStore?.id, selectedAddress, cart);
+  const coupon = useCheckoutCoupon(contextKey);
+  const appliedCouponCode = coupon.appliedCode;
+  const code = coupon.code;
+  const paymentRequestContext = useRef<string | null>(null);
+  if (paymentRequestContext.current !== contextKey) {
+    paymentRequestContext.current = contextKey;
+    clientRequestId.current = null;
+  }
 
   useEffect(() => {
     if (!selectedAddress) {
@@ -67,29 +76,36 @@ export const CheckoutPage = () => {
       couponCode: appliedCouponCode,
       destinationState: selectedAddressDetails?.state ?? null,
       addressId: selectedAddress ?? null,
-      items: cart.items.map((item) => ({
-        productId: item.productId,
-        quantity: item.quantity,
-        customizationOptionIds: item.customizations.map((c) => c.optionId),
-      })),
     };
   }, [resolvedStore, cart, appliedCouponCode, selectedAddressDetails?.state, selectedAddress]);
 
   const {
-    data: quote,
+    data: quoteData,
     isLoading: loadingQuote,
+    isFetching: refreshingQuote,
     isError: quoteIsError,
     error: quoteError,
+    refetch: refreshQuote,
   } = useCheckoutQuote(quoteRequest, {
-    enabled: !!resolvedStore && !!cart && cart.items.length > 0,
+    enabled: !!resolvedStore && !storeResolving && !!cart && cart.storeId === resolvedStore.id && cart.items.length > 0,
+    cartRevision: contextKey,
   });
+  const matchingQuote = !!quoteData && !!cart && quoteMatchesCart(quoteData, cart);
+  const quote = !quoteIsError && !refreshingQuote && !refreshingCart && !storeResolving && matchingQuote && cart?.storeId === resolvedStore?.id ? quoteData : null;
+  useEffect(() => {
+    if (quoteData && cart && !quoteMatchesCart(quoteData, cart)) {
+      void queryClient.invalidateQueries({ queryKey: cartKeys.checkout() });
+    }
+  }, [quoteData, cart, queryClient]);
+  useEffect(() => {
+    if (appliedCouponCode && couponNeedsRemoval(quoteError)) {
+      coupon.session.remove(checkoutErrorMessage(quoteError, "The coupon was removed. Review the current quote."));
+    }
+  }, [appliedCouponCode, quoteError, coupon.session]);
 
   const quoteErrorMessage = useMemo(() => {
     if (!quoteIsError || !quoteError) return null;
-    if (axios.isAxiosError<{ message?: string }>(quoteError)) {
-      return quoteError.response?.data?.message ?? "Failed to calculate quote";
-    }
-    return "Failed to calculate quote";
+    return checkoutErrorMessage(quoteError, "Failed to calculate quote. Please retry.");
   }, [quoteIsError, quoteError]);
 
   const itemCount = cart?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0;
@@ -102,28 +118,12 @@ export const CheckoutPage = () => {
   const totalPaise = quote?.grandTotalPaise ?? 0;
 
   const applyCoupon = () => {
-    const normalized = code.trim().toUpperCase();
-    if (!normalized) { error("Enter a coupon code"); return; }
-    if (!cart) return;
-    validateCouponM.mutate({ code: normalized }, {
-      onSuccess: (validated) => {
-        const applied = validated.promotions.find((promotion) => promotion.kind === "coupon" && promotion.code === normalized);
-        if (!applied?.code) { error("The coupon was not applied. Refresh your cart and try again."); return; }
-        setAppliedCouponCode(applied.code);
-        setCode(applied.code);
-        success("Coupon applied");
-      },
-      onError: (err) => {
-        if (axios.isAxiosError<{ message?: string }>(err)) {
-          error(err.response?.data?.message ?? "Invalid coupon code");
-        } else {
-          error("Invalid coupon code");
-        }
-      },
-    });
+    if (paymentBusy) return;
+    void coupon.apply(quote?.couponEligibility.eligible === true);
   };
 
   const placeOrder = async () => {
+    if (paymentBusy || coupon.pending || refreshingQuote || refreshingCart || storeResolving) return;
     if (!user) { error("Your account details are unavailable. Refresh and try again."); return; }
     if (!resolvedStore || !userPincode) { error("Select your delivery pincode before placing the order."); openPincodeModal(); return; }
     if (!cartMatchesStore) { error("Your cart belongs to a different store. Review your delivery area."); openPincodeModal(); return; }
@@ -150,6 +150,9 @@ export const CheckoutPage = () => {
           navigate(`/order/${response.data}`);
         },
         onError: (cause) => {
+          const message = checkoutErrorMessage(cause, "The order could not be placed. Refresh your quote and try again.");
+          if (appliedCouponCode && couponNeedsRemoval(cause)) coupon.session.remove(message);
+          else coupon.session.showError(message);
           const stockResult = handleStockApiError(
             cause,
             "The order could not be placed. Check store availability and try again."
@@ -165,7 +168,7 @@ export const CheckoutPage = () => {
       return;
     }
 
-    if (totalPaise < 100) {
+    if (totalPaise < ONLINE_PAYMENT_MINIMUM_PAISE) {
       error("Online payments require a total of at least ₹1.00. Choose cash on delivery.");
       return;
     }
@@ -232,6 +235,9 @@ export const CheckoutPage = () => {
       success(verification.message);
       navigate(`/order/${verification.data.localOrderId}`);
     } catch (cause) {
+      const message = checkoutErrorMessage(cause, "Online payment could not be completed. Review your saved order or try again.");
+      if (appliedCouponCode && couponNeedsRemoval(cause)) coupon.session.remove(message);
+      else coupon.session.showError(message);
       const response = axios.isAxiosError<{
         message?: string;
         data?: { localOrderId?: number };
@@ -297,6 +303,7 @@ export const CheckoutPage = () => {
             onSelectAddress={(id) => setSelectedAddress(id)}
             onOpenAddDrawer={() => setAddressDrawerOpen(true)}
             servicePincode={userPincode}
+            disabled={paymentBusy}
           />
 
           <PaymentStep
@@ -318,9 +325,11 @@ export const CheckoutPage = () => {
           code={code}
           appliedCouponCode={appliedCouponCode}
           quote={quote ?? null}
-          loadingQuote={loadingQuote}
+          loadingQuote={loadingQuote || refreshingQuote || refreshingCart || storeResolving || (!!quoteData && !matchingQuote)}
           quoteError={quoteErrorMessage}
-          validatingCoupon={validateCouponM.isPending}
+          validatingCoupon={coupon.pending}
+          couponError={coupon.error}
+          couponMessage={coupon.message}
           placingOrder={paymentBusy}
           paymentType={paymentType}
           paymentStatusMessage={paymentStatusMessage}
@@ -330,11 +339,16 @@ export const CheckoutPage = () => {
             cartMatchesStore &&
             storeOpen &&
             !quoteIsError &&
+            !refreshingQuote &&
+            !refreshingCart &&
+            !coupon.pending &&
+            !storeResolving &&
             !!quote
           }
-          onCodeChange={(newCode) => setCode(newCode)}
+          onCodeChange={coupon.session.setCode}
           onApplyCoupon={applyCoupon}
-          onRemoveCoupon={() => { setAppliedCouponCode(null); setCode(""); }}
+          onRemoveCoupon={() => coupon.session.remove()}
+          onRefreshQuote={() => void refreshQuote()}
           onPlaceOrder={placeOrder}
         />
       </div>

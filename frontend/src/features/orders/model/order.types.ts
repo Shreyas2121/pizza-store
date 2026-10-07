@@ -1,13 +1,10 @@
 import type { User } from "@/features/auth";
 import type { Address } from "@/features/account";
-import type { Payment, PaymentType } from "@/features/checkout";
+import type { Payment, PaymentType, PromotionSnapshot, DiscountMode } from "@/features/checkout";
 
-export type OrderPromotion = {
-  id: number; applicationId: number;
-  kind: "offer" | "coupon"; name: string; code: string | null;
-  discountType: "percentage" | "fixed_amount" | "buy_x_get_y" | "free_delivery" | "tiered";
-  definitionVersion: number; status: "reserved" | "consumed" | "released";
-  itemDiscountPaise: number; deliveryDiscountPaise: number; totalSavingsPaise: number;
+export type OrderPromotion = PromotionSnapshot & {
+  applicationId: number;
+  status: "reserved" | "consumed" | "released";
   standardDeliveryFeePaise: number; chargedDeliveryFeePaise: number;
   allocations: { orderItemId: number | null; component: "item" | "delivery"; unitIndex: number | null; amountPaise: number }[];
 };
@@ -39,11 +36,15 @@ export type Order = {
   grandTotalPaise: number;
   orderDate: string | null;
   discountAmount: number;
-  discountMode: "none" | "automatic_deals" | "coupon";
+  discountMode: DiscountMode;
   itemsSubtotalPaise: number; itemDiscountPaise: number;
   chargedDeliveryFeePaise: number; deliveryDiscountPaise: number;
   promotionSavingsPaise: number; bundleMarkdownPaise: number; totalDisplayedSavingsPaise: number;
   promotions: OrderPromotion[];
+  roundingAdjustmentPaise: number;
+  taxableAmountPaise: number;
+  taxPaise: number;
+  taxDisclaimer: string | null;
   paymentType: PaymentType;
   paymentId: number | null;
   addressId: number | null;
@@ -61,6 +62,10 @@ export type OrderItem = {
   bundleMarkdownPaise: number;
   bundleComponents: { componentProductId: number; name: string; quantityPerBundle: number; totalQuantity: number }[];
   lineSubtotalPaise: number;
+  discountAllocationPaise: number;
+  lineTotalPaise: number;
+  taxableAmountPaise: number;
+  taxPaise: number;
   productId: number;
   quantity: number;
   orderId: number;

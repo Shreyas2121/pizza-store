@@ -2,7 +2,7 @@
 
 Status: execution guide
 
-Implementation progress (2026-10-07): C00-C12 implemented on `feature/promotions-overhaul`. C12 adds store-specific public offer discovery, a responsive accessible homepage slider, and bundle catalogue/cart merchandising. Next slice: C13 checkout/history UX. See the [C12 handoff](./docs/promotions-c12-handoff.md) for implementation, verification and explicitly deferred database/browser checks.
+Implementation progress (2026-10-07): C00-C13 implemented on `feature/promotions-overhaul`. C13 adds authoritative checkout eligibility/savings, cancellable manual coupon validation and immutable order-history presentation. Separate prerequisite fixes isolate private caches by account and repair cart/catalogue invalidation. Next slice: C14 fixtures, documentation and release evidence. See the [C13 handoff](./docs/promotions-c13-handoff.md) for implementation, verification and explicitly deferred database/browser checks.
 
 Authoritative product plan: [`implementation_plan.md`](./implementation_plan.md)
 

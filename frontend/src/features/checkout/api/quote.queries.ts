@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { API } from "@/shared/api";
 import { useUser } from "@/features/auth";
+import { CHECKOUT_QUOTE_REFRESH_MS } from "../model/checkout.constants";
+import { retryCheckoutQuery } from "../model/checkout.helpers";
 import type {
   CheckoutQuoteRequest,
   CheckoutQuoteResponse,
@@ -9,7 +11,7 @@ import type {
 
 export const checkoutQuoteKeys = {
   all: ["checkout-quote"] as const,
-  quote: (req: CheckoutQuoteRequest | null, userId: number | null = null) =>
+  quote: (req: CheckoutQuoteRequest | null, userId: number | null = null, cartRevision?: string) =>
     [
       "checkout-quote",
       userId,
@@ -18,16 +20,17 @@ export const checkoutQuoteKeys = {
       req?.destinationState,
       req?.addressId,
       req?.items,
+      cartRevision,
     ] as const,
 };
 
 export const useCheckoutQuote = (
   request: CheckoutQuoteRequest | null,
-  options?: { enabled?: boolean }
+  options?: { enabled?: boolean; cartRevision?: string }
 ) => {
   const { user, isLoggedIn } = useUser();
   return useQuery({
-    queryKey: checkoutQuoteKeys.quote(request, isLoggedIn ? user?.id ?? null : null),
+    queryKey: checkoutQuoteKeys.quote(request, isLoggedIn ? user?.id ?? null : null, options?.cartRevision),
     queryFn: async ({ signal }): Promise<PricingQuote | null> => {
       if (!request || !request.storeId) {
         return null;
@@ -43,6 +46,9 @@ export const useCheckoutQuote = (
       !!request &&
       !!request.storeId &&
       (options?.enabled ?? true),
-    staleTime: 1000 * 30,
+    staleTime: 0,
+    retry: retryCheckoutQuery,
+    refetchOnWindowFocus: true,
+    refetchInterval: CHECKOUT_QUOTE_REFRESH_MS,
   });
 };

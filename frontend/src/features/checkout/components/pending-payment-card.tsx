@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Button } from "@mantine/core";
 import { CreditCard, RefreshCw, ShieldCheck } from "lucide-react";
 import axios from "axios";
-import { error, success, warning } from "@/shared/lib";
+import { error, success, warning, formatPaise } from "@/shared/lib";
+import { checkoutErrorMessage } from "../model/checkout.helpers";
 import {
   usePaymentMethods,
   useRunPaymentSimulator,
@@ -13,11 +14,13 @@ import { openRazorpayCheckout } from "../lib/razorpay";
 
 type PendingPaymentCardProps = {
   localOrderId: number;
+  amountPaise: number;
   contact?: string;
 };
 
 export const PendingPaymentCard = ({
   localOrderId,
+  amountPaise,
   contact,
 }: PendingPaymentCardProps) => {
   const retryPayment = useRetryRazorpayOrder();
@@ -25,10 +28,13 @@ export const PendingPaymentCard = ({
   const runSimulator = useRunPaymentSimulator();
   const { data: paymentMethods, isLoading: loadingMethods } = usePaymentMethods();
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [failureMessage, setFailureMessage] = useState<string | null>(null);
   const busy = retryPayment.isPending || verifyPayment.isPending || runSimulator.isPending || !!statusMessage;
   const retryEnabled = paymentMethods?.razorpay ?? false;
 
   const retry = async () => {
+    if (busy || !retryEnabled) return;
+    setFailureMessage(null);
     try {
       setStatusMessage("Preparing secure payment…");
       const { data: checkout } = await retryPayment.mutateAsync(localOrderId);
@@ -70,6 +76,7 @@ export const PendingPaymentCard = ({
       });
       success(verification.message);
     } catch (cause) {
+      setFailureMessage(checkoutErrorMessage(cause, cause instanceof Error ? cause.message : "Payment could not be retried."));
       error(
         axios.isAxiosError<{ message?: string }>(cause)
           ? cause.response?.data.message ?? "Payment could not be retried."
@@ -101,6 +108,8 @@ export const PendingPaymentCard = ({
                   : "This order is safely saved but will not reach the kitchen until Razorpay confirms a captured payment."
                 : "Online checkout is temporarily paused. Your order remains saved and will not reach the kitchen until payment is captured."}
             </p>
+            <p className="mt-2 text-sm">Saved total: {formatPaise(amountPaise)}. Retry uses this order’s captured prices and promotions.</p>
+            {failureMessage && <p className="mt-2 text-sm text-danger" role="alert">{failureMessage}</p>}
             {statusMessage && (
               <p className="mt-2 text-sm font-semibold text-brand" role="status">
                 {statusMessage}

@@ -4,7 +4,7 @@ import { ArrowLeft, Bike, Check, ChefHat, Clock3, CreditCard, PackageCheck, Rece
 import { Link, useParams } from "react-router";
 import { orderKeys, useGetOrder } from "../api/order.queries";
 import { getOrderStatusMeta } from "../components/order-status";
-import { formatDateTime, formatPaise, formatPrice, success, info } from "@/shared/lib";
+import { formatDateTime, formatPrice, success, info } from "@/shared/lib";
 import {
   RealtimeEvents,
   type OrderPlacedPayload,
@@ -16,7 +16,7 @@ import { OrderAddress } from "../components/order-address";
 import { OrderPromotions } from "../components/order-promotions";
 import { OrderItems } from "../components/order-items";
 import { OrderStatus } from "../components/order-status";
-import { PendingPaymentCard } from "@/features/checkout";
+import { PendingPaymentCard, PricingBreakdown } from "@/features/checkout";
 
 
 export const CustomerOrderDetailsPage = () => {
@@ -86,6 +86,7 @@ export const CustomerOrderDetailsPage = () => {
       {order.status === "awaiting_payment" ? (
         <PendingPaymentCard
           localOrderId={order.id}
+          amountPaise={order.grandTotalPaise}
           contact={order.address?.phone}
         />
       ) : order.status === "cancelled" ? (
@@ -122,9 +123,10 @@ export const CustomerOrderDetailsPage = () => {
           <OrderAddress address={order.address} />
           <section className="rounded-card border border-border bg-surface p-5 shadow-subtle" aria-labelledby="payment-title">
             <div className="flex items-center gap-2"><CreditCard size={19} className="text-brand" /><h2 id="payment-title" className="font-semibold text-ink">Payment details</h2></div>
-            <dl className="mt-4 space-y-3 text-sm"><div className="flex justify-between gap-3"><dt className="text-ink-muted">Items subtotal</dt><dd className="tabular-nums text-ink">{formatPaise(order.itemsSubtotalPaise)}</dd></div>{order.itemDiscountPaise > 0 && <div className="flex justify-between gap-3 text-basil"><dt>Item discount</dt><dd className="tabular-nums">−{formatPaise(order.itemDiscountPaise)}</dd></div>}<div className="flex justify-between gap-3"><dt className="text-ink-muted">Delivery</dt><dd className="tabular-nums">{formatPaise(order.chargedDeliveryFeePaise)}</dd></div><div className="flex justify-between gap-3 border-t border-border pt-3 text-base font-bold"><dt>Total</dt><dd className="tabular-nums text-brand">{formatPaise(order.grandTotalPaise)}</dd></div></dl>
+            <PricingBreakdown amounts={order} />
+            {order.taxDisclaimer && <p className="mt-2 text-xs text-ink-muted">{order.taxDisclaimer}</p>}
           </section>
-          <OrderPromotions promotions={order.promotions} />
+          <OrderPromotions promotions={order.promotions} items={order.items} />
         </aside>
       </div>
     </section>

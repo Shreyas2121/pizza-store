@@ -1,11 +1,12 @@
 export { CheckoutPage } from "./pages/checkout-page";
 export { AddressStep } from "./components/address-step";
-export { CouponField } from "./components/coupon-field";
+export { PromotionField } from "./components/promotion-field";
+export { PricingBreakdown } from "./components/pricing-breakdown";
 export { PaymentStep } from "./components/payment-step";
 export { CheckoutSummary } from "./components/checkout-summary";
 export { PendingPaymentCard } from "./components/pending-payment-card";
 
-export { useValidateCoupon } from "./api/coupon.mutations";
+export { useCheckoutCoupon } from "./api/promotion.mutations";
 export {
   checkoutQuoteKeys,
   useCheckoutQuote,
@@ -24,6 +25,8 @@ export {
 
 export type {
   PricingQuote,
+  PromotionSnapshot,
+  DiscountMode,
   PricingQuoteItem,
   PricingCustomizationSnapshot,
   CheckoutQuoteRequest,
