@@ -72,6 +72,7 @@ export function AdminStoresPage() {
               <p className="mt-4 text-sm leading-6 text-ink-muted">{store.address}</p>
               <div className="mt-3 flex items-center gap-2 text-sm text-ink-muted"><Clock3 size={16} /><span>{formatStoreHours(store.opensAt, store.closesAt)} IST</span></div>
               <div className="mt-5 grid grid-cols-2 gap-2 border-t border-border pt-4 sm:flex sm:flex-wrap">
+                <Button component={Link} to={`/stores/${encodeURIComponent(store.slug)}`} variant="subtle" size="sm">Public details</Button>
                 {canReadProducts && <Button component={Link} to={`/admin/stores/${store.id}/products`} variant="light" size="sm" leftSection={<Boxes size={15} />}>Products</Button>}
                 {canReadDeliveryZones && <Button component={Link} to={`/admin/stores/${store.id}/delivery-zones`} variant="light" size="sm" leftSection={<MapPinned size={15} />}>Delivery zones</Button>}
                 {canUpdateProfile && <Button variant="default" size="sm" leftSection={<Pencil size={15} />} onClick={() => openForm(store)}>Edit</Button>}

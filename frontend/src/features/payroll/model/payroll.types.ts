@@ -2,7 +2,9 @@ export type PayRunStatus = "draft" | "calculated" | "approved" | "paid" | "poste
 export type ComponentType = "earning" | "deduction" | "employer_cost";
 export interface PageMeta { total: number; page: number; limit: number; totalPages: number; hasNextPage: boolean; }
 export interface PayrollPolicy { currency: "INR"; demoOnly: true; boundary: string; }
-export interface PayrollProfile { id: number; storeId: number; employeeCode: string; displayName: string; employmentStartDate: string; employmentEndDate: string | null; status: "active" | "on_leave" | "terminated"; payFrequency: "monthly"; bankAccountMasked: string | null; taxIdentifierMasked: string | null; }
+export interface PayrollProfile { id: number; storeId: number; userId: number | null; employeeCode: string; displayName: string; employmentStartDate: string; employmentEndDate: string | null; status: "active" | "on_leave" | "terminated"; payFrequency: "monthly"; bankAccountMasked: string | null; taxIdentifierMasked: string | null; }
+export type PayrollProfileWrite = Pick<PayrollProfile, "userId" | "employeeCode" | "displayName" | "employmentStartDate" | "employmentEndDate" | "status" | "payFrequency"> & { bankAccountNumber?: string | null; taxIdentifier?: string | null };
+export type CompensationWrite = { effectiveFrom: string; effectiveTo: string | null; sourceNote: string | null; components: Array<Pick<CompensationComponent, "type" | "code" | "name" | "amountPaise">> };
 export interface CompensationComponent { id: number; type: ComponentType; code: string; name: string; amountPaise: number; }
 export interface CompensationVersion { id: number; effectiveFrom: string; effectiveTo: string | null; sourceNote: string | null; components: CompensationComponent[]; totals: PayTotals; }
 export interface PayTotals { grossPayPaise: number; deductionPaise: number; netPayPaise: number; employerCostPaise: number; totalEmployerCostPaise: number; }

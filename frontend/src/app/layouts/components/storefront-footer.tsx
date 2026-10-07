@@ -44,6 +44,7 @@ export function StorefrontFooter() {
             <li><a href="tel:+919876543210" className="flex gap-2.5 hover:text-white"><Phone className="shrink-0" size={17} aria-hidden="true" />+91 98765 43210</a></li>
             <li><a href="mailto:support@pizzastore.com" className="flex gap-2.5 hover:text-white"><Mail className="mt-0.5 shrink-0" size={17} aria-hidden="true" /><span className="break-all">support@pizzastore.com</span></a></li>
             <li className="flex gap-2.5"><MapPin className="mt-0.5 shrink-0" size={17} aria-hidden="true" /><span>Serving your neighborhood</span></li>
+            {store && <li><Link to={`/stores/${encodeURIComponent(store.slug)}`} className="hover:text-white">View {store.name} details</Link></li>}
           </ul>
         </section>
       </div>

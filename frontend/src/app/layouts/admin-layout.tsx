@@ -10,7 +10,7 @@ import {
   isPlatformAdmin,
   useSyncStaffStore,
 } from "@/features/access";
-import { useAdminStores } from "@/features/store";
+import { useStoreSelect } from "@/features/store";
 import { RouteSkeleton } from "@/shared/ui";
 import {
   RealtimeEvents,
@@ -47,7 +47,7 @@ export const AdminLayout = () => {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpened, setMobileOpened] = useState(false);
 
-  const { data: allAdminStores } = useAdminStores();
+  const { data: allAdminStores } = useStoreSelect(isPlatformAdmin(access));
 
   const handleStoreChange = (newStoreIdStr: string | null) => {
     const nextStoreId = !newStoreIdStr || newStoreIdStr === "all" ? null : Number(newStoreIdStr);
@@ -166,10 +166,7 @@ export const AdminLayout = () => {
                   onChange={handleStoreChange}
                   data={[
                     { value: "all", label: "🌐 All Stores (Global)" },
-                    ...(allAdminStores ?? []).map((store) => ({
-                      value: String(store.id),
-                      label: `📍 ${store.name}`,
-                    })),
+                    ...(allAdminStores ?? []),
                   ]}
                   className="min-w-44"
                 />

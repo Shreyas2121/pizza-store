@@ -4,6 +4,8 @@ import type { DeliveryZone, Store, StoreCatalogProduct, StorePayload, StoreProdu
 
 export const storeKeys = {
   all: ["stores"] as const,
+  select: () => ["stores", "select"] as const,
+  bySlug: (slug: string) => ["stores", "slug", slug] as const,
   list: () => ["stores", "list"] as const,
   detail: (id: number) => ["stores", "detail", id] as const,
   products: (id: number) => ["stores", id, "products"] as const,
@@ -115,3 +117,14 @@ export const useRemoveDeliveryZone = (storeId: number) => {
     onSuccess: () => client.invalidateQueries({ queryKey: storeKeys.zones(storeId) }),
   });
 };
+
+export const useStoreSelect = (enabled = true) => useQuery({
+  queryKey: storeKeys.select(),
+  queryFn: async ({ signal }) => (await API.get<{ data: Array<{ value: string; label: string }> }>("/stores/select", { signal })).data.data,
+  enabled,
+});
+export const useStoreBySlug = (slug: string) => useQuery({
+  queryKey: storeKeys.bySlug(slug),
+  queryFn: async ({ signal }) => (await API.get<{ data: Store }>(`/stores/slug/${encodeURIComponent(slug)}`, { signal })).data.data,
+  enabled: Boolean(slug),
+});

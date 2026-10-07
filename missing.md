@@ -14,6 +14,8 @@
 
 > **Refunds and Expenses follow-up:** The finance refunds tab now loads the dedicated stuck-refund queue with age filtering and pagination, and provides store-scoped provider reconciliation for users with refund approval permission. Expense details now offer editing for drafts and rejected expenses under expense creation permission. The shared create/edit form uses rupees, converts to exact paise, validates allocation totals and uniqueness, and preserves existing allocation store IDs. All three endpoints listed under features 5 and 6 now have frontend callers.
 
+> **Payroll and Stores follow-up:** The payroll workspace now lists paginated employee profiles, loads masked profile details, creates and edits profiles under payroll management permission, and creates effective compensation versions with exact rupee-to-paise conversion. Unchanged bank and tax values are omitted from updates; clearing and replacement are explicit. The platform-admin store selector now calls `/stores/select`. Public `/stores/:slug` pages load `/stores/slug/:slug`, show location, hours and availability, and link from store management and the selected-store footer. Delivery selection continues through pincode resolution. All six missing dedicated Payroll and Stores endpoints now have frontend callers; the singular `/store` compatibility alias does not need separate UI.
+
 | Category | Count | Description |
 |---|:---:|---|
 | **Total Backend Endpoints** | **175** | 173 registered in `mainRoutes` + 2 server-level routes (`index.ts`) |
