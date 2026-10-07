@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { db } from "../../db";
+import { PgDialect } from "drizzle-orm/pg-core";
+import type { SQL } from "drizzle-orm";
 import { ordersTable } from "../../db/schema";
 import dashboardService, {
   EXCLUDED_DASHBOARD_ORDER_STATUSES,
@@ -47,6 +49,20 @@ describe("DashboardService unit tests", () => {
       expect(query.params).toContain(from.toISOString());
       expect(query.params).toContain(to.toISOString());
     });
+  });
+
+  it("uses saved payable totals for store and platform gross order value without subtracting promotions again", async () => {
+    const select = vi.spyOn(db, "select").mockReturnValue({
+      from: () => ({ where: vi.fn().mockResolvedValue([{ totalPaise: "28350" }]) }),
+    } as never);
+    expect(await dashboardService.getTotalRevenue({ storeId: 1 })).toBe(283.5);
+    expect(await dashboardService.getTotalRevenue({})).toBe(283.5);
+    for (const [fields] of select.mock.calls) {
+      const query = new PgDialect().sqlToQuery((fields as { totalPaise: SQL }).totalPaise);
+      expect(query.sql).toContain('SUM("orders"."grand_total_paise")');
+      expect(query.sql).not.toContain("discount_paise");
+      expect(query.sql).not.toContain("promotion");
+    }
   });
 
   describe("getLowStockItemsCount", () => {

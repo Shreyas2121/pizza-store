@@ -23,6 +23,8 @@ The reset refuses production and remote database URLs. It truncates local applic
 
 The reset seeds the complete checked-in two-store, two-month scenario. Its output lists the store IDs, reporting periods, order mapping, partial refund, settlements, COD session, pay runs, journal count, tax-inclusive customer headlines, and tax-separated ledger report/CSV totals. You can inspect reports and drill-down immediately. Run `pnpm demo:reset` again at any point to discard later walkthrough actions and replay the exact same seeded source data and totals.
 
+The C09 seed writes `PIZZA50` as a global promotion with a consumed application and immutable item allocation; it no longer inserts a legacy coupon. Delivered fixture events use the production recognition builder and saved tax rates. Existing two-month report totals are preserved. Separate database-free promotion finance fixtures cover one global offer/coupon at two stores, free delivery, bundle markdown and paid refunds. C09 did not run reset or database reconciliation; those checks remain deferred at the owner's request.
+
 ## Simulated online path
 
 1. Log in as the customer and deliver to pincode `400001`.

@@ -28,6 +28,7 @@ The legacy `/api/v1/dashboard` endpoint serves the operations overview page and 
 
 - **Metric cards (`GET /api/v1/dashboard`)**:
   - `Gross Order Value` (renamed in Q01; sums eligible placed orders, excluding `cancelled` and `awaiting_payment`).
+    It sums saved `grandTotalPaise`, already reflecting item discounts and charged delivery. Promotion spend and bundle compare-at markdown are never deducted again. Finance reports instead consolidate delivered store journals and paid refund postings.
   - `Active Users` (distinct users placing eligible orders).
   - `Total Orders` (count of eligible placed orders).
   - `Average Order Value` (`Gross Order Value / Total Orders`).

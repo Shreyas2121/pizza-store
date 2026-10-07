@@ -495,13 +495,16 @@ describe("promotion governance", () => {
     };
     vi.spyOn(h.analytics, "aggregate").mockResolvedValue([
       { ...metrics, storeId: null, storeName: null },
-      { ...metrics, storeId: 1, storeName: "Store 1" },
-      { ...metrics, storeId: 2, storeName: "Store 2" },
+      { ...metrics, storeId: 1, storeName: "Store 1", consumedApplications: "1", itemDiscountPaise: "2147483647", totalSavingsPaise: "2147483647", influencedOrderValuePaise: "4999999999", netRevenueReductionPaise: "2000000000" },
+      { ...metrics, storeId: 2, storeName: "Store 2", consumedApplications: "1", itemDiscountPaise: "2147483647", totalSavingsPaise: "2147483647", influencedOrderValuePaise: "5000000000", netRevenueReductionPaise: "2000000000" },
     ]);
     const dto = await h.service.getAnalytics(admin, 10, {});
     expect(dto.totals.uniqueUsers).toBe("1");
     expect(dto.totals.itemDiscountPaise).toBe("4294967294");
     expect(dto.stores[0]).not.toHaveProperty("reservedApplications");
+    for (const metric of ["consumedApplications", "itemDiscountPaise", "deliveryDiscountPaise", "totalSavingsPaise", "influencedOrderValuePaise", "netRevenueReductionPaise"] as const) {
+      expect(dto.stores.reduce((sum, store) => sum + BigInt(store[metric]), 0n)).toBe(BigInt(dto.totals[metric]));
+    }
     expect(
       promotionAnalyticsQuerySchema.safeParse({
         fromBusinessDate: "2026-10-02",
@@ -594,7 +597,6 @@ describe("promotion DTO boundaries", () => {
     const values = definitionToValues(bxgy);
     const ruleRows = rulesToValues(10, bxgy.rules).map((r, index) => ({
       id: index + 1,
-      promotionId: 10,
       productId: null,
       categoryId: null,
       quantity: null,

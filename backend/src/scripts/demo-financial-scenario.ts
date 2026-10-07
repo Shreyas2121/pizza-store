@@ -1,5 +1,5 @@
 import { createHash } from "crypto";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { asc, eq, inArray } from "drizzle-orm";
 import { db } from "../db";
 import {
   cashMovementsTable,
@@ -7,7 +7,9 @@ import {
   cashSessionsTable,
   compensationComponentsTable,
   compensationVersionsTable,
-  couponsTable,
+  promotionsTable,
+  promotionApplicationsTable,
+  promotionDiscountAllocationsTable,
   deliveryPricingRulesTable,
   employeeFinanceProfilesTable,
   expenseAllocationsTable,
@@ -54,6 +56,9 @@ import { buildDisbursedRefundPosting, buildProcessedRefundPosting, buildSettleme
 import { hashFinancialEvent } from "../features/finance-events/financial-event.policy";
 import type { FinancialEventType, WriteFinancialEventInput } from "../features/finance-events/financial-event.types";
 import type { TransactionType } from "../utils/types";
+import { buildDeliveredOrderPayload } from "../features/finance-events/order-recognition.payload";
+import { calculateInclusiveTax } from "../utils/money";
+import { PRICING_POLICY_VERSION } from "../features/pricing";
 
 const SEEDED_AT = new Date("2026-09-01T06:00:00.000Z");
 const HASH = createHash("sha256").update("pizzastore-deterministic-finance-demo").digest("hex");
@@ -233,24 +238,29 @@ export async function seedDemoFinancialScenario(input: DemoScenarioInput): Promi
     const costs = await tx.select().from(productCostVersionsTable)
       .where(inArray(productCostVersionsTable.storeId, stores)).orderBy(asc(productCostVersionsTable.effectiveFrom));
 
-    const [coupon] = await tx.insert(couponsTable).values({
+    const [coupon] = await tx.insert(promotionsTable).values({
       code: "PIZZA50",
-      discountType: "fixed",
+      kind: "coupon",
+      name: "Finance fixture PIZZA50",
+      description: "Deterministic finance demonstration coupon",
+      scope: "cart",
+      discountType: "fixed_amount",
       discountAmountPaise: 5_000,
       minimumOrderPaise: 40_000,
-      startDate: new Date("2026-07-01T00:00:00.000Z"),
-      endDate: new Date("2026-08-31T23:59:59.000Z"),
+      startsAt: new Date("2026-07-01T00:00:00.000Z"),
+      endsAt: new Date("2026-08-31T23:59:59.000Z"),
       isActive: true,
       maxRedemptions: 1,
-      redemptionCount: 1,
       createdAt: SEEDED_AT,
       updatedAt: SEEDED_AT,
     }).returning();
 
     const orderIds: Record<number, number> = {};
+    const orderSnapshots = new Map<number, typeof ordersTable.$inferSelect>();
     const paymentAttemptIds: Record<number, number> = {};
     const orderItemIds = new Map<string, number>();
     const orderItemCostVersionIds = new Map<string, number>();
+    const orderItemTaxRates = new Map<string, number>();
     for (const fixture of FIXTURE_ORDERS) {
       const storeId = stores[fixture.storeId - 1];
       const itemRule = rules.find((rule) => rule.storeId === storeId && rule.component === "item")!;
@@ -274,13 +284,12 @@ export async function seedDemoFinancialScenario(input: DemoScenarioInput): Promi
         createdAt: SEEDED_AT,
         updatedAt: SEEDED_AT,
       }).returning();
-      const deliveryTaxable = fixture.deliveryFeePaise ? Math.round(fixture.deliveryFeePaise * 10_000 / 10_500) : 0;
-      const deliveryTax = fixture.deliveryFeePaise - deliveryTaxable;
+      const { taxableAmountPaise: deliveryTaxable, taxPaise: deliveryTax } = calculateInclusiveTax(fixture.deliveryFeePaise, deliveryRule.rateBps);
       const deliveredAt = fixture.status === "delivered" ? new Date(fixture.placedAt) : null;
       const [order] = await tx.insert(ordersTable).values({
         userId: input.customerId,
         orderDate: new Date(fixture.placedAt),
-        couponId: fixture.couponCode ? coupon.id : null,
+        discountMode: fixture.couponCode ? "coupon" : "none",
         itemsSubtotalPaise: fixture.itemsSubtotalPaise,
         discountPaise: fixture.discountPaise,
         deliveryFeePaise: fixture.deliveryFeePaise,
@@ -290,7 +299,7 @@ export async function seedDemoFinancialScenario(input: DemoScenarioInput): Promi
         grandTotalPaise: fixture.grandTotalPaise,
         currency: "INR",
         quoteVersion: `finance-fixture:${fixture.orderNumber}`,
-        pricingPolicyVersion: 1,
+        pricingPolicyVersion: PRICING_POLICY_VERSION,
         deliveryPricingRuleId: pricingRule.id,
         deliveryPricingRuleVersion: pricingRule.version,
         pricingBusinessDate: fixture.businessDate,
@@ -316,6 +325,7 @@ export async function seedDemoFinancialScenario(input: DemoScenarioInput): Promi
         updatedAt: SEEDED_AT,
       }).returning();
       orderIds[fixture.id] = order.id;
+      orderSnapshots.set(fixture.id, order);
 
       for (let index = 0; index < fixture.items.length; index += 1) {
         const item = fixture.items[index];
@@ -346,6 +356,25 @@ export async function seedDemoFinancialScenario(input: DemoScenarioInput): Promi
         }).returning();
         orderItemIds.set(`${fixture.id}:${index}`, saved.id);
         orderItemCostVersionIds.set(`${fixture.id}:${index}`, costVersion.id);
+        orderItemTaxRates.set(`${fixture.id}:${index}`, saved.taxRateBps);
+      }
+
+      if (fixture.couponCode) {
+        const [application] = await tx.insert(promotionApplicationsTable).values({
+          promotionId: coupon.id, orderId: order.id, userId: input.customerId, storeId,
+          promotionKind: coupon.kind, promotionName: coupon.name, promotionCode: coupon.code,
+          discountType: coupon.discountType, definitionVersion: coupon.definitionVersion,
+          status: "consumed", consumedAt: paymentTime,
+          itemDiscountPaise: fixture.discountPaise, deliveryDiscountPaise: 0,
+          totalSavingsPaise: fixture.discountPaise,
+          standardDeliveryFeePaise: fixture.deliveryFeePaise, chargedDeliveryFeePaise: fixture.deliveryFeePaise,
+          createdAt: SEEDED_AT, updatedAt: SEEDED_AT,
+        }).returning();
+        await tx.insert(promotionDiscountAllocationsTable).values(fixture.items.flatMap((item, index) =>
+          item.discountAllocationPaise ? [{
+            promotionApplicationId: application.id, orderItemId: orderItemIds.get(`${fixture.id}:${index}`)!,
+            component: "item" as const, unitIndex: 0, amountPaise: item.discountAllocationPaise, createdAt: SEEDED_AT,
+          }] : []));
       }
 
       const captured = fixture.paymentStatus !== "failed";
@@ -432,13 +461,25 @@ export async function seedDemoFinancialScenario(input: DemoScenarioInput): Promi
       }
       const capture = eventInput({ eventType: "payment_attempt.captured", sourceType: "payment_attempt", sourceId: paymentAttemptIds[fixture.id], storeId, businessDate: fixture.businessDate, occurredAt: new Date(fixture.placedAt), actorId: input.adminId, payload: { paymentAttemptId: paymentAttemptIds[fixture.id], orderId: orderIds[fixture.id], provider: fixture.paymentMethod === "cod" ? "cod" : "razorpay", method: fixture.paymentMethod === "cod" ? "cash" : "upi", capturedPaise: fixture.grandTotalPaise, capturedAt: fixture.placedAt, providerReference: fixture.paymentMethod === "razorpay" ? `pay_fixture_order_${fixture.id}` : null, cashSessionId: fixture.paymentMethod === "cod" ? cashSessionByOrder.get(fixture.id) : null } });
       if (await seedEvent(tx, capture, buildCapturedPaymentPosting(asEvent(capture)))) journalCount += 1;
-      const lineCostSnapshots = fixture.items.map((item, index) => ({ orderItemId: orderItemIds.get(`${fixture.id}:${index}`)!, productId: productIdByFixtureId.get(item.productId)!, quantity: item.quantity, costVersionId: orderItemCostVersionIds.get(`${fixture.id}:${index}`)!, unitCostPaise: Math.trunc(item.totalCostPaise / item.quantity), lineCostPaise: item.totalCostPaise }));
-      const deliveryTaxable = fixture.deliveryFeePaise - Math.round(fixture.deliveryFeePaise * 500 / 10_500);
-      const deliveryTax = fixture.deliveryFeePaise - deliveryTaxable;
-      const itemTax = fixture.taxPaise - deliveryTax;
-      const foodTaxableAfterDiscount = fixture.items.reduce((sum, item) => sum + item.taxableAmountPaise, 0);
-      const discountContra = fixture.discountPaise ? Math.round(fixture.discountPaise * 10_000 / 10_500) : 0;
-      const delivery = eventInput({ eventType: "order.delivered", sourceType: "order", sourceId: orderIds[fixture.id], storeId, businessDate: fixture.businessDate, occurredAt: new Date(fixture.placedAt), actorId: input.adminId, payload: { orderId: orderIds[fixture.id], pricingPolicyVersion: 1, customerTotalPaise: fixture.grandTotalPaise, preDiscountTaxableFoodPaise: foodTaxableAfterDiscount + discountContra, discountContraPaise: discountContra, taxableDeliveryPaise: deliveryTaxable, itemTaxPaise: itemTax, deliveryTaxPaise: deliveryTax, roundingAdjustmentPaise: fixture.roundingAdjustmentPaise, lineCostSnapshots, deliveredAt: fixture.placedAt } });
+      const lineCostSnapshots = fixture.items.map((item, index) => ({
+        orderItemId: orderItemIds.get(`${fixture.id}:${index}`)!,
+        productId: productIdByFixtureId.get(item.productId)!,
+        quantity: item.quantity,
+        costVersionId: orderItemCostVersionIds.get(`${fixture.id}:${index}`)!,
+        unitCostPaise: Math.trunc(item.totalCostPaise / item.quantity),
+        lineCostPaise: item.totalCostPaise,
+        lineSubtotalPaise: item.lineSubtotalPaise,
+        discountAllocationPaise: item.discountAllocationPaise,
+        taxableAmountPaise: item.taxableAmountPaise,
+        taxPaise: item.taxPaise,
+        taxRateBps: orderItemTaxRates.get(`${fixture.id}:${index}`)!,
+      }));
+      const deliveredAt = new Date(fixture.placedAt);
+      const delivery = eventInput({
+        eventType: "order.delivered", sourceType: "order", sourceId: orderIds[fixture.id],
+        storeId, businessDate: fixture.businessDate, occurredAt: deliveredAt, actorId: input.adminId,
+        payload: buildDeliveredOrderPayload(orderSnapshots.get(fixture.id)!, lineCostSnapshots, deliveredAt),
+      });
       if (await seedEvent(tx, delivery, buildDeliveredOrderPosting(asEvent(delivery)))) journalCount += 1;
     }
 

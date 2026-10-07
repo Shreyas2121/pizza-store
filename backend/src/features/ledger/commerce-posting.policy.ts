@@ -115,6 +115,11 @@ export const buildDeliveredOrderPosting = (event: FinancialOutboxEvent): Posting
   const parsed = deliveredOrderSchema.safeParse(event.payload);
   if (!parsed.success || event.schemaVersion !== 1) throw invalidPayload(event);
   const payload = parsed.data;
+  if (payload.discountContraPaise > payload.preDiscountTaxableFoodPaise ||
+      payload.customerTotalPaise !== payload.preDiscountTaxableFoodPaise - payload.discountContraPaise +
+        payload.taxableDeliveryPaise + payload.itemTaxPaise + payload.deliveryTaxPaise + payload.roundingAdjustmentPaise) {
+    throw invalidPayload(event);
+  }
   const itemCostPaise = payload.lineCostSnapshots.reduce((sum, line) => sum + line.lineCostPaise, 0);
   if (!Number.isSafeInteger(itemCostPaise) || itemCostPaise > 2_147_483_647) throw invalidPayload(event);
   const dimensions = { orderId: payload.orderId };

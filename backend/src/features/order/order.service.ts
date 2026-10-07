@@ -25,7 +25,8 @@ import financialEventService from "../finance-events/financial-event.service";
 import type { FinancialEventWriter } from "../finance-events/financial-event.types";
 import cashService, { type CashSourceWriter } from "../cash-management/cash.service";
 import { businessDateFor } from "../../utils/business-date";
-import { buildRecognitionPricingSnapshot, PRICING_POLICY_VERSION } from "../pricing";
+import { PRICING_POLICY_VERSION } from "../pricing";
+import { buildDeliveredOrderPayload } from "../finance-events/order-recognition.payload";
 import { promotionApplicationService, PromotionApplicationRepository } from "../promotions/applications";
 
 interface CreateCodOrderData {
@@ -407,12 +408,6 @@ class OrderService {
       }
 
       if (status === "delivered") {
-        const recognitionPricing = buildRecognitionPricingSnapshot({
-          lines: costSnapshots,
-          deliveryTaxableAmountPaise: order.deliveryTaxableAmountPaise,
-          deliveryTaxPaise: order.deliveryTaxPaise,
-          totalTaxPaise: order.taxPaise,
-        });
         await this.eventWriter.write(tx, {
           eventType: "order.delivered",
           schemaVersion: 1,
@@ -425,20 +420,7 @@ class OrderService {
           businessDate: businessDateFor(deliveryOccurredAt!, order.pricingTimezone),
           timezone: order.pricingTimezone,
           actorId: principal?.userId ?? null,
-          payload: {
-            orderId: order.id,
-            pricingPolicyVersion: order.pricingPolicyVersion,
-            customerTotalPaise: order.grandTotalPaise,
-            ...recognitionPricing,
-            foodSubtotalPaise: order.itemsSubtotalPaise,
-            discountPaise: order.discountPaise,
-            deliveryFeePaise: order.deliveryFeePaise,
-            foodAndDeliveryTaxPaise: order.taxPaise,
-            deliveryTaxPaise: order.deliveryTaxPaise,
-            roundingAdjustmentPaise: order.roundingAdjustmentPaise,
-            lineCostSnapshots: costSnapshots,
-            deliveredAt: deliveryOccurredAt!.toISOString(),
-          },
+          payload: buildDeliveredOrderPayload(order, costSnapshots, deliveryOccurredAt!),
         });
       }
 

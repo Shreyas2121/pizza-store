@@ -1131,6 +1131,11 @@ Headline metric definitions:
 | Operating result | Gross profit minus operating expenses and payroll employer cost; suppressed with payroll cost to prevent subtraction. |
 | Unsettled Razorpay | Net Razorpay clearing balance through the report end date, including prior captures, refunds, and settlements. |
 | Cash variance | Net posted cash shortages less overages from closed COD sessions. |
+
+Promotion accounting uses store journals: `4000` credits pre-discount tax-exclusive food revenue, `4100` debits the tax-exclusive item offer/coupon discount, and `2200` credits post-discount tax. Free delivery reduces charged delivery revenue to zero without a `4100` debit. Bundle compare-at markdown is display metadata. Platform consolidation sums store movements and never subtracts promotion analytics spend again. Dashboard GOV/AOV use saved customer-payable order totals; application analytics can include consumed orders still awaiting delivery.
+
+Refund allocations are capped by saved paid item/charged-delivery amounts and use saved tax paise. Cumulative partial allocations preserve the final tax/quantity rounding remainder. Delivered refunds reverse paid revenue through `4110` and paid tax through `2200`; the original item discount is not reversed again. Neither bundle compare-at markdown nor waived delivery is refundable.
+
 - `GET /finance/exports/:reportType` 🔒 — CSV exports with formula-injection mitigation.
   - `reportType`: `overview`, `profit-and-loss`, `sales`, or `margins`.
   - Query: `from`, `to`, optional `storeId`, and optional `groupBy=month|quarter|fiscal_year`.

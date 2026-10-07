@@ -7,7 +7,6 @@ export interface RefundableOrderItem {
   quantity: number;
   lineTotalPaise: number;
   discountAllocationPaise: number;
-  taxRateBps: number;
   taxPaise: number;
 }
 
@@ -66,7 +65,6 @@ export const buildRefundAllocations = ({
   input: RequestRefundInput;
   orderItems: RefundableOrderItem[];
   deliveryFeePaise: number;
-  deliveryTaxRateBps: number;
   deliveryTaxPaise: number;
   existing: ExistingAllocation[];
 }) => {

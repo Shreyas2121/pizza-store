@@ -11,7 +11,9 @@ describe("promotion analytics query", () => {
     await new PromotionAnalyticsRepository().aggregate(7, {
       fromBusinessDate: "2026-07-01", toBusinessDate: "2026-08-31", storeId: 2,
     });
-    const query = new PgDialect().sqlToQuery(execute.mock.calls[0][0]);
+    const statement = execute.mock.calls[0][0];
+    if (typeof statement === "string") throw new Error("Expected a structured analytics query");
+    const query = new PgDialect().sqlToQuery(statement.getSQL());
     // At 100% inclusive tax, 105 paise pays 53 tax and 52 taxable.
     // Rounding the taxable component directly would incorrectly return 53.
     expect(query.sql).toContain("i.line_subtotal_paise::numeric - round(i.line_subtotal_paise::numeric * i.tax_rate_bps /");

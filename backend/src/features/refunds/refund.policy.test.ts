@@ -27,7 +27,6 @@ describe("refund policy", () => {
       },
       orderItems: [item],
       deliveryFeePaise: 5_000,
-      deliveryTaxRateBps: 1800,
       deliveryTaxPaise: 763,
       existing: [],
     });
@@ -56,7 +55,6 @@ describe("refund policy", () => {
       },
       orderItems: [item],
       deliveryFeePaise: 5_000,
-      deliveryTaxRateBps: 1800,
       deliveryTaxPaise: 763,
       existing: [{ kind: "item", orderItemId: 12, quantity: 1, amountPaise: 20_000, taxPaise: 952 }],
     })).toThrowError(expect.objectContaining({ code: "INVALID_REFUND_ALLOCATION", status: 422 }));
@@ -66,7 +64,7 @@ describe("refund policy", () => {
     const refund = (amount: number, existing: { kind: "item"; orderItemId: number; quantity: number; amountPaise: number; taxPaise: number }[]) => buildRefundAllocations({
       input: { reasonCode: "damaged", amountPaise: amount, allocations: [{ orderItemId: 12, quantity: 1, allocatedPaise: amount }] },
       orderItems: [{ ...item, lineTotalPaise: 22, taxPaise: 1, discountAllocationPaise: 0 }],
-      deliveryFeePaise: 0, deliveryTaxRateBps: 500, deliveryTaxPaise: 0, existing,
+      deliveryFeePaise: 0, deliveryTaxPaise: 0, existing,
     })[0];
     const first = refund(11, []);
     const second = refund(11, [{ kind: "item", orderItemId: 12, quantity: 1, amountPaise: 11, taxPaise: first.taxPaise }]);
@@ -78,7 +76,7 @@ describe("refund policy", () => {
     expect(buildRefundAllocations({
       input: { reasonCode: "damaged", amountPaise: 11, allocations: [{ orderItemId: 12, quantity: 1, allocatedPaise: 11 }] },
       orderItems: [{ ...item, lineTotalPaise: 21, taxPaise: 1 }],
-      deliveryFeePaise: 0, deliveryTaxRateBps: 500, deliveryTaxPaise: 0,
+      deliveryFeePaise: 0, deliveryTaxPaise: 0,
       existing: [{ kind: "item", orderItemId: 12, quantity: 1, amountPaise: 10, taxPaise: 0 }],
     })[0]).toMatchObject({ amountPaise: 11, taxPaise: 1, taxableAmountPaise: 10 });
   });
@@ -86,7 +84,7 @@ describe("refund policy", () => {
   it("does not reverse negative tax after an earlier reservation is released", () => {
     expect(buildRefundAllocations({
       input: { reasonCode: "damaged", amountPaise: 1, allocations: [{ type: "delivery_fee", allocatedPaise: 1 }] },
-      orderItems: [], deliveryFeePaise: 22, deliveryTaxRateBps: 500, deliveryTaxPaise: 1,
+      orderItems: [], deliveryFeePaise: 22, deliveryTaxPaise: 1,
       existing: [{ kind: "delivery_fee", orderItemId: null, quantity: null, amountPaise: 11, taxPaise: 1 }],
     })[0]).toMatchObject({ taxPaise: 0, taxableAmountPaise: 1 });
   });

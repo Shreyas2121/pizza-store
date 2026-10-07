@@ -139,7 +139,6 @@ export class RefundService {
           input,
           orderItems,
           deliveryFeePaise: order.deliveryFeePaise,
-          deliveryTaxRateBps: order.deliveryTaxRateBps,
           deliveryTaxPaise: order.deliveryTaxPaise,
           existing: existingAllocations,
         });

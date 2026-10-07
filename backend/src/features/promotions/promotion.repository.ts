@@ -53,7 +53,7 @@ export class PromotionRepository {
     const rows = lock ? await query.for("update") : await query;
     return rows[0];
   }
-  async setting(storeId: number, promotionId: number, tx: TransactionType) {
+  async setting(storeId: number, promotionId: number, tx: TransactionType): Promise<typeof storePromotionSettingsTable.$inferSelect | undefined> {
     const [row] = await tx
       .select()
       .from(storePromotionSettingsTable)
