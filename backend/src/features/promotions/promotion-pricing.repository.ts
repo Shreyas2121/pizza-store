@@ -1,10 +1,11 @@
-import { and, asc, eq, gt, inArray, lte, or, sql } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, lte, ne, or, sql } from "drizzle-orm";
 import { db } from "../../db";
 import {
   ordersTable,
   promotionsTable,
   promotionApplicationsTable,
   storesTable,
+  paymentsTable,
 } from "../../db/schema";
 import type { DatabaseType, TransactionType } from "../../utils/types";
 import { AppError } from "../../utils/error";
@@ -119,6 +120,10 @@ export class PromotionPricingRepository {
                 inArray(ordersTable.status, [
                   ...FIRST_ORDER_DISQUALIFYING_STATUSES,
                 ]),
+                or(ne(ordersTable.status, "awaiting_payment"), sql`not exists (
+                  select 1 from ${paymentsTable} where ${paymentsTable.id} = ${ordersTable.paymentId}
+                    and ${paymentsTable.status} = 'failed'
+                )`),
               ),
             )
             .limit(1);

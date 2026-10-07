@@ -22,13 +22,13 @@ const row: PromotionRow = {
   imageUrl: null, mobileImageUrl: null, imageAlt: null, showOnHomepage: false, isActive: true, createdAt: now, updatedAt: now,
 };
 const loadHarness = () => {
-  const events: Array<{ table: unknown; lock?: string; params?: unknown[] }> = [];
+  const events: Array<{ table: unknown; lock?: string; params?: unknown[]; sql?: string }> = [];
   const rows = new Map<unknown, unknown[]>([[storesTable, [{ id: 1 }]], [promotionsTable, [row]],
     [promotionApplicationsTable, [{ promotionId: 10, used: "2" }]], [ordersTable, [{ id: 99 }]]]);
   const executor = { select: () => ({ from: (table: unknown) => {
     const event: typeof events[number] = { table }; events.push(event);
     const query = {
-      where: (condition: SQL) => { event.params = new PgDialect().sqlToQuery(condition).params; return query; },
+      where: (condition: SQL) => { const compiled = new PgDialect().sqlToQuery(condition); event.params = compiled.params; event.sql = compiled.sql; return query; },
       orderBy: () => query, limit: () => query, groupBy: () => query,
       for: (lock: string) => { event.lock = lock; return query; },
       then: (resolve: (value: unknown[]) => unknown) => Promise.resolve(rows.get(table) ?? []).then(resolve),
@@ -51,7 +51,10 @@ describe("promotion pricing query boundaries", () => {
     expect(h.related.related).toHaveBeenCalledExactlyOnceWith([10], 1, h.tx, true);
     expect(result.usageByPromotionId[10]).toEqual({ storeEnabled: true, globalRedemptionsUsed: 3, userRedemptionsUsed: 2, budgetUsedPaise: 12000 });
     expect(result.qualifyingOrderCount).toBe(1);
-    expect(h.events.find(event => event.table === ordersTable)?.params).toEqual([7, "awaiting_payment", "pending", "preparing", "out_for_delivery", "delivered"]);
+    expect(h.events.find(event => event.table === ordersTable)?.params).toEqual([7, "awaiting_payment", "pending", "preparing", "out_for_delivery", "delivered", "awaiting_payment"]);
+    expect(h.events.find(event => event.table === ordersTable)?.sql).toContain("not exists");
+    expect(h.events.find(event => event.table === ordersTable)?.sql).toContain('"payments"."id" = "orders"."payment_id"');
+    expect(h.events.find(event => event.table === ordersTable)?.sql).toContain('"payments"."status" = \'failed\'');
     expect(h.events.find(event => event.table === promotionApplicationsTable)?.params).toEqual([10, 7, "reserved", "consumed"]);
   });
   it("reads no personal usage/orders for anonymous previews and takes no locks", async () => {

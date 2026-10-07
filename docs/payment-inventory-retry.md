@@ -5,3 +5,5 @@ Payment retry restores the original inventory reservation rows and quantities, i
 Capture marks a saved reservation consumed even when stock tracking was disabled after checkout. It makes no stock movement for an untracked product. Previously this case left the reservation active indefinitely; `inventory-retry.service.test.ts` covers the correction.
 
 The caller must hold order, user and store locks, and must restore promotion capacity in the same transaction before making another provider payment available. C08 integrates these operations. Query/unit tests do not establish PostgreSQL concurrency behavior; database checks remain deferred.
+
+First-order eligibility excludes an `awaiting_payment` order whose payment is failed, while still excluding pending/preparing/out-for-delivery/delivered orders from first-order promotions. Previously the promotion query counted failed online attempts until expiry cancelled their order. The eligibility query now checks failed payment state explicitly; its generated SQL is covered without connecting to a database.
