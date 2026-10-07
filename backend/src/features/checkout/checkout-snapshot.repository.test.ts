@@ -8,7 +8,7 @@ import {
   productCustomizationGroupMappingTable,
 } from "../../db/schema";
 import type { TransactionType } from "../../utils/types";
-import { CodCheckoutRepository } from "./checkout-cod.repository";
+import { CheckoutSnapshotRepository } from "./checkout-snapshot.repository";
 import { publicQuoteRepository } from "./checkout.repository";
 
 const harness = () => {
@@ -48,7 +48,7 @@ const harness = () => {
   return {
     tx: executor as unknown as TransactionType,
     events,
-    repository: new CodCheckoutRepository(),
+    repository: new CheckoutSnapshotRepository(),
   };
 };
 const bundles = () =>

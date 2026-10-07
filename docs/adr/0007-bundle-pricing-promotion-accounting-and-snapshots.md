@@ -44,6 +44,9 @@ Pre-built combos, item promotions, coupons, and free delivery all advertise cust
 3. COD creation consumes applications in the successful order transaction. Razorpay initiation reserves applications and exact budget/capacity with the immutable order amount.
 4. Capture consumes reservations exactly once. Confirmed failure/expiry releases them exactly once. Retry/restore uses the same immutable application snapshots and provider amount; it does not recalculate against current promotion definitions or store settings.
 5. Reservations and releases do not recognize revenue. Existing online orders remain payable under their captured contract after definition edits, global deactivation, or store opt-out.
+6. A customer retry restores original inventory demand and checks current global/per-user promotion capacity and budget atomically. It never recalculates promotion eligibility or prices. Cancelled/expired orders cannot retry; they require a new checkout.
+7. Verified provider capture may restore released promotion capacity without enforcing current limits, then consume the original collection, because the customer already paid the captured contract. This exception does not authorize customer retries or unpaid provider-order attachment to bypass capacity. Inventory shortages remain conflicts requiring operational resolution. Captures received after order cancellation remain `PAYMENT_ORDER_NOT_PAYABLE` conflicts rather than resurrecting fulfillment.
+8. Receipt attachment verifies the immutable amount/currency/receipt, preserves failed/completed/refunded state, and does not restore released applications. Retry searches by receipt before creating another provider order after an unattached creation failure.
 
 ## Alternatives considered
 

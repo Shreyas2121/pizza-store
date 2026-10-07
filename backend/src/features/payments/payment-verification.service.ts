@@ -219,7 +219,7 @@ export class PaymentVerificationService {
       localOrderId: attempt.localOrderId,
       localPaymentId: attempt.localPaymentId,
       paymentStatus: attempt.status,
-      orderStatus: "awaiting_payment",
+      orderStatus: attempt.orderStatus,
       finalizedNow: false,
     };
   }
@@ -230,6 +230,7 @@ export class PaymentVerificationService {
     providerOrder: RazorpayOrderSnapshot
   ) {
     if (
+      attempt.grandTotalPaise !== attempt.amountPaise ||
       providerPayment.orderId !== attempt.providerOrderId ||
       providerPayment.amountPaise !== attempt.amountPaise ||
       providerPayment.currency !== attempt.currency ||

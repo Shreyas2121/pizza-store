@@ -49,6 +49,7 @@ export class PaymentProviderOrderRecoveryService {
     if (!providerPayment) {
       if (
         providerOrder.id !== attempt.providerOrderId ||
+        attempt.grandTotalPaise !== attempt.amountPaise ||
         providerOrder.amountPaise !== attempt.amountPaise ||
         providerOrder.currency !== attempt.currency
       ) {
@@ -63,7 +64,7 @@ export class PaymentProviderOrderRecoveryService {
         localOrderId: attempt.localOrderId,
         localPaymentId: attempt.localPaymentId,
         paymentStatus: attempt.status,
-        orderStatus: "awaiting_payment",
+        orderStatus: attempt.orderStatus,
         finalizedNow: false,
       };
     }

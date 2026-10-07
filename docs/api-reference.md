@@ -546,7 +546,7 @@ true only when credentials are complete and `RAZORPAY_ENABLED` is true.
 
 Create or resume an online checkout attempt. The backend locks and validates
 the cart, calculates the amount, snapshots an `awaiting_payment` order, creates
-its linked payment, reserves coupon capacity, and clears the snapshotted cart
+its linked payment, reserves every promotion application and inventory demand, and clears the snapshotted cart
 before calling Razorpay. The local state therefore survives provider or browser
 failures.
 
@@ -588,8 +588,10 @@ values that should be passed to Standard Checkout.
 }
 ```
 
-If Razorpay order creation fails, the payment becomes `failed` and any coupon
-reservation is released. The local order stays `awaiting_payment` so it can be
+Responses also include immutable `discountMode`, `orderStatus`, and `promotions[]` snapshots (`id`, `kind`, `name`, `code`, `discountType`, `definitionVersion`, `itemDiscountPaise`, `deliveryDiscountPaise`, `totalSavingsPaise`). These values come from the order applications, including during retry/status/recovery. Checkout is unavailable for cancelled or already paid orders.
+
+If Razorpay order creation fails, the payment becomes `failed` and all inventory/promotion
+reservations are released. The local order stays `awaiting_payment` so it can be
 retried. The `502 PAYMENT_INIT_FAILED` response includes the safe local order
 and payment IDs so the client can link to that recovery path. A concurrent
 duplicate request can temporarily return
@@ -624,7 +626,7 @@ webhook secrets. Returns `404` for another user's order and for COD orders.
 
 Retry provider-order creation for a failed or not-yet-claimed local attempt. A
 stored Razorpay Order is reused; it is never recreated. If a failed attempt used
-a coupon, capacity is locked and reserved again before retrying. Requests made
+promotions, the complete saved application collection and inventory demand are restored atomically after capacity/budget/stock checks. Current definitions or opt-outs do not change the price. Receipt recovery precedes creation when the provider identity is missing. Cancelled/expired orders cannot retry. Requests made
 while another request is creating the provider order return the current status.
 
 ### `POST /payments/razorpay/verify` 🔒
@@ -665,7 +667,7 @@ match the stored local payment.
 ```
 
 Finalization locks the local order/payment, records the provider payment ID and
-paid timestamp, consumes the coupon reservation once, and moves fulfillment
+paid timestamp, consumes all promotion applications and inventory reservations once, and moves fulfillment
 from `awaiting_payment` to `pending` atomically. Repeated verification returns
 the same success with `finalizedNow: false`; only the first commit emits
 `orderPlaced`.

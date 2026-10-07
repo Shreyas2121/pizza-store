@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { db } from "../../db";
-import checkoutService from "../checkout/checkout.service";
+import { promotionApplicationService } from "../promotions/applications";
 import inventoryService from "../inventory/inventory.service";
 import * as paymentHelpers from "./payment.helpers";
 import paymentReconciliationService from "./payment-reconciliation.service";
@@ -28,7 +28,7 @@ describe("PaymentReconciliationService characterization tests", () => {
     storeId: 1,
     storeName: "Main Store",
     grandTotalPaise: 45_000,
-    couponId: 10,
+    discountMode: "none", orderStatus: "awaiting_payment", promotions: [],
     amountPaise: 45000,
     currency: "INR",
     provider: "razorpay",
@@ -60,6 +60,12 @@ describe("PaymentReconciliationService characterization tests", () => {
 
   beforeEach(() => {
     vi.restoreAllMocks();
+    vi.spyOn(paymentRepository, "getExpiredAwaitingOrderIds").mockResolvedValue([]);
+    vi.spyOn(paymentRepository, "lockLifecycleOwner").mockResolvedValue("awaiting_payment");
+    vi.spyOn(inventoryService, "restoreReservationsForOrder").mockResolvedValue(undefined);
+    vi.spyOn(promotionApplicationService, "restore").mockResolvedValue(undefined);
+    vi.spyOn(promotionApplicationService, "consume").mockResolvedValue(undefined);
+    vi.spyOn(promotionApplicationService, "release").mockResolvedValue(undefined);
   });
 
   describe("verifyRazorpayPayment", () => {
@@ -467,7 +473,7 @@ describe("PaymentReconciliationService characterization tests", () => {
           userId: 5,
           grandTotalPaise: 45_000,
           status: "pending",
-          couponId: 10,
+          discountMode: "none", orderStatus: "awaiting_payment", promotions: [],
         },
         payment: {
           id: 200,
@@ -496,7 +502,7 @@ describe("PaymentReconciliationService characterization tests", () => {
 
       vi.spyOn(db, "transaction").mockImplementation(async (cb: any) => cb(mockTx as any));
       const consumeInventorySpy = vi.spyOn(inventoryService, "consumeReservationsForOrder");
-      const consumeCouponSpy = vi.spyOn(checkoutService, "consumeCouponReservation");
+      const consumeCouponSpy = vi.spyOn(promotionApplicationService, "consume");
 
       const result = await paymentReconciliationService.finalizeCapturedPayment({
         userId: 5,
@@ -527,7 +533,7 @@ describe("PaymentReconciliationService characterization tests", () => {
           userId: 5,
           grandTotalPaise: 45_000,
           status: "pending",
-          couponId: null,
+          discountMode: "none", orderStatus: "awaiting_payment", promotions: [],
         },
         payment: {
           id: 200,
@@ -579,7 +585,7 @@ describe("PaymentReconciliationService characterization tests", () => {
           userId: 5,
           grandTotalPaise: 45_000,
           status: "cancelled", // ineligible status
-          couponId: null,
+          discountMode: "none", orderStatus: "awaiting_payment", promotions: [],
         },
         payment: {
           id: 200,
@@ -631,7 +637,7 @@ describe("PaymentReconciliationService characterization tests", () => {
           userId: 5,
           grandTotalPaise: 45_000,
           status: "awaiting_payment",
-          couponId: null,
+          discountMode: "none", orderStatus: "awaiting_payment", promotions: [],
         },
         payment: {
           id: 200,
@@ -871,7 +877,7 @@ describe("PaymentReconciliationService characterization tests", () => {
                   if (selectCallCount === 1) {
                     return Promise.resolve([{ id: 100, status: "awaiting_payment" }]);
                   }
-                  return Promise.resolve([{ id: 200, status: "processing" }]);
+                  return Promise.resolve([{ id: 200, status: "processing", providerOrderId: sampleAttempt.providerOrderId, updatedAt: new Date("2026-01-01") }]);
                 }),
               })),
             })),
@@ -887,7 +893,7 @@ describe("PaymentReconciliationService characterization tests", () => {
       vi.spyOn(db, "transaction").mockImplementation(async (cb: any) => cb(mockTx as any));
       const updatePaymentSpy = vi.spyOn(paymentRepository, "updatePayment").mockResolvedValue(undefined as any);
       const releaseInventorySpy = vi.spyOn(inventoryService, "releaseReservations").mockResolvedValue(undefined as any);
-      const releaseCouponSpy = vi.spyOn(checkoutService, "releaseCouponReservation").mockResolvedValue(undefined as any);
+      const releaseCouponSpy = vi.spyOn(promotionApplicationService, "release").mockResolvedValue(undefined as any);
 
       const summary = await paymentReconciliationService.reconcileExpiredReservations(25);
 
@@ -1007,6 +1013,7 @@ describe("PaymentReconciliationService characterization tests", () => {
       };
 
       const mockTx = {
+        update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn().mockResolvedValue([]) })) })),
         select: vi.fn(() => ({
           from: vi.fn(() => ({
             innerJoin: vi.fn(() => ({
@@ -1022,7 +1029,7 @@ describe("PaymentReconciliationService characterization tests", () => {
 
       vi.spyOn(db, "transaction").mockImplementation(async (cb: any) => cb(mockTx as any));
       const updatePaymentSpy = vi.spyOn(paymentRepository, "updatePayment").mockResolvedValue(undefined as any);
-      const releaseCouponSpy = vi.spyOn(checkoutService, "releaseCouponReservation").mockResolvedValue(undefined as any);
+      const releaseCouponSpy = vi.spyOn(promotionApplicationService, "release").mockResolvedValue(undefined as any);
       const releaseInventorySpy = vi.spyOn(inventoryService, "releaseReservations").mockResolvedValue(undefined as any);
 
       const result = await paymentReconciliationService.markProviderPaymentFailed(

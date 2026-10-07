@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { db } from "../../db";
 import { AppError } from "../../utils/error";
-import checkoutService from "../checkout/checkout.service";
+import checkoutService from "../checkout/checkout-snapshot.service";
+import { promotionApplicationService } from "../promotions/applications";
 import inventoryService from "../inventory/inventory.service";
 import paymentRepository from "./payment.repository";
 import paymentService from "./payment.service";
@@ -24,7 +25,7 @@ describe("Payment Attempts Lifecycle & Concurrency (P2.3)", () => {
     storeId: 2,
     storeName: "Downtown Slice",
     grandTotalPaise: 85_000,
-    couponId: null,
+    discountMode: "none", orderStatus: "awaiting_payment", promotions: [],
     amountPaise: 85000,
     currency: "INR",
     provider: "razorpay",
@@ -37,6 +38,11 @@ describe("Payment Attempts Lifecycle & Concurrency (P2.3)", () => {
 
   beforeEach(() => {
     vi.restoreAllMocks();
+    vi.spyOn(paymentRepository, "lockLifecycleOwner").mockResolvedValue("awaiting_payment");
+    vi.spyOn(inventoryService, "restoreReservationsForOrder").mockResolvedValue(undefined);
+    vi.spyOn(promotionApplicationService, "restore").mockResolvedValue(undefined);
+    vi.spyOn(promotionApplicationService, "consume").mockResolvedValue(undefined);
+    vi.spyOn(promotionApplicationService, "release").mockResolvedValue(undefined);
     vi.spyOn(razorpayConfig, "isRazorpayCheckoutEnabled").mockReturnValue(true);
     vi.spyOn(razorpayConfig, "getRazorpayConfig").mockReturnValue(sampleConfig);
   });

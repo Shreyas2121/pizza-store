@@ -10,7 +10,8 @@ import {
 import { AppError } from "../../utils/error";
 import type { TransactionType } from "../../utils/types";
 import cartService from "../cart/cart.service";
-import checkoutService from "../checkout/checkout.service";
+import checkoutService from "../checkout/checkout-snapshot.service";
+import { promotionApplicationService } from "../promotions/applications";
 import inventoryService from "../inventory/inventory.service";
 import financialEventService from "../finance-events/financial-event.service";
 import * as razorpayConfig from "./razorpay.config";
@@ -22,6 +23,12 @@ import paymentService from "./payment.service";
 describe("PaymentService inventory reservation lifecycle", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    vi.spyOn(paymentRepository, "getExpiredAwaitingOrderIds").mockResolvedValue([]);
+    vi.spyOn(paymentRepository, "lockLifecycleOwner").mockResolvedValue("awaiting_payment");
+    vi.spyOn(inventoryService, "restoreReservationsForOrder").mockResolvedValue(undefined);
+    vi.spyOn(promotionApplicationService, "restore").mockResolvedValue(undefined);
+    vi.spyOn(promotionApplicationService, "consume").mockResolvedValue(undefined);
+    vi.spyOn(promotionApplicationService, "release").mockResolvedValue(undefined);
     vi.spyOn(financialEventService, "write").mockResolvedValue({} as never);
   });
 
@@ -31,7 +38,10 @@ describe("PaymentService inventory reservation lifecycle", () => {
       const attemptSpy = vi.spyOn(paymentRepository, "createPaymentAttempt").mockResolvedValue(undefined);
       vi.spyOn(db, "transaction").mockImplementation(async (callback) => callback({} as TransactionType));
       const mockQuote = {
-        cart: { storeId: 1, store: { name: "Main Store" }, items: [] },
+        cart: { storeId: 1, items: [] },
+        store: { name: "Main Store" },
+        pricingQuote: { promotions: [] },
+        now: new Date("2026-10-07T10:00:00Z"),
         totalPaise: 50000,
         totalRupees: 500,
         stockAllocations: [
@@ -67,7 +77,7 @@ describe("PaymentService inventory reservation lifecycle", () => {
         userId: 7,
         storeId: 1,
         grandTotalPaise: 50_000,
-        couponId: null,
+        discountMode: "none", orderStatus: "awaiting_payment", promotions: [],
       } as any);
       const reserveSpy = vi
         .spyOn(inventoryService, "reserveStockForOrder")
@@ -94,6 +104,7 @@ describe("PaymentService inventory reservation lifecycle", () => {
           orderId: 42,
           storeId: 1,
           allocations: mockQuote.stockAllocations,
+          expiresAt: new Date("2026-10-07T10:30:00Z"),
         },
         expect.anything()
       );
@@ -109,7 +120,7 @@ describe("PaymentService inventory reservation lifecycle", () => {
           storeId: 1,
           grandTotalPaise: 50_000,
           status: "awaiting_payment",
-          couponId: null,
+          discountMode: "none", orderStatus: "awaiting_payment", promotions: [],
           pricingBusinessDate: "2026-09-06",
           pricingTimezone: "Asia/Kolkata",
         },
@@ -187,7 +198,7 @@ describe("PaymentService inventory reservation lifecycle", () => {
           storeId: 1,
           grandTotalPaise: 50_000,
           status: "awaiting_payment",
-          couponId: null,
+          discountMode: "none", orderStatus: "awaiting_payment", promotions: [],
         },
         payment: {
           id: 101,
@@ -260,7 +271,7 @@ describe("PaymentService inventory reservation lifecycle", () => {
           storeId: 1,
           grandTotalPaise: 50_000,
           status: "pending",
-          couponId: null,
+          discountMode: "none", orderStatus: "awaiting_payment", promotions: [],
         },
         payment: {
           id: 101,
@@ -320,7 +331,7 @@ describe("PaymentService inventory reservation lifecycle", () => {
         storeId: 1,
         storeName: "Main Store",
         grandTotalPaise: 50_000,
-        couponId: null,
+        discountMode: "none", orderStatus: "awaiting_payment", promotions: [],
         provider: "razorpay" as const,
         amountPaise: 50000,
         currency: "INR" as const,
@@ -332,6 +343,7 @@ describe("PaymentService inventory reservation lifecycle", () => {
       };
 
       const mockTx = {
+        select: vi.fn(() => ({ from: vi.fn(() => ({ where: vi.fn(() => ({ for: vi.fn(() => ({ limit: vi.fn().mockResolvedValue([{ id: 101, status: "processing", providerOrderId: null }]) })) })) })) })),
         update: vi.fn(() => ({
           set: vi.fn(() => ({
             where: vi.fn().mockResolvedValue([]),
@@ -363,7 +375,7 @@ describe("PaymentService inventory reservation lifecycle", () => {
         storeId: 1,
         storeName: "Main Store",
         grandTotalPaise: 50_000,
-        couponId: null,
+        discountMode: "none", orderStatus: "awaiting_payment", promotions: [],
         provider: "razorpay" as const,
         amountPaise: 50000,
         currency: "INR" as const,
@@ -381,7 +393,7 @@ describe("PaymentService inventory reservation lifecycle", () => {
           storeId: 1,
           grandTotalPaise: 50_000,
           status: "awaiting_payment",
-          couponId: null,
+          discountMode: "none", orderStatus: "awaiting_payment", promotions: [],
         },
         payment: {
           id: 101,
@@ -450,7 +462,7 @@ describe("PaymentService inventory reservation lifecycle", () => {
         storeId: 1,
         storeName: "Main Store",
         grandTotalPaise: 50_000,
-        couponId: null,
+        discountMode: "none", orderStatus: "awaiting_payment", promotions: [],
         provider: "razorpay" as const,
         amountPaise: 50000,
         currency: "INR" as const,
@@ -465,14 +477,15 @@ describe("PaymentService inventory reservation lifecycle", () => {
         mockAttempt
       );
 
+      let reads = 0;
       const mockTx = {
         select: vi.fn(() => ({
           from: vi.fn(() => ({
             where: vi.fn(() => ({
               for: vi.fn(() => ({
-                limit: vi.fn().mockResolvedValue([
-                  { id: 42, status: "awaiting_payment" },
-                ]),
+                limit: vi.fn().mockImplementation(async () => ++reads === 1
+                  ? [{ id: 42, status: "awaiting_payment" }]
+                  : [{ id: 101, status: "pending", providerOrderId: null, updatedAt: new Date("2026-01-01") }]),
               })),
             })),
           })),
@@ -511,7 +524,7 @@ describe("PaymentService inventory reservation lifecycle", () => {
         storeId: 1,
         storeName: "Main Store",
         grandTotalPaise: 50_000,
-        couponId: null,
+        discountMode: "none", orderStatus: "awaiting_payment", promotions: [],
         provider: "razorpay",
         amountPaise: 50000,
         currency: "INR",

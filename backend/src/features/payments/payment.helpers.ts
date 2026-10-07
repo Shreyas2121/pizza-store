@@ -41,6 +41,9 @@ export const toCheckoutResponse = (
   razorpayOrderId: attempt.providerOrderId,
   amountPaise: attempt.amountPaise,
   currency: attempt.currency,
+  discountMode: attempt.discountMode,
+  promotions: attempt.promotions,
+  orderStatus: attempt.orderStatus,
   name: "PizzaStore",
   description: `Order from ${attempt.storeName}`,
   paymentStatus: attempt.status,
@@ -48,6 +51,9 @@ export const toCheckoutResponse = (
   checkoutReady: Boolean(
     (providerMode === "simulator" || keyId) &&
       attempt.providerOrderId &&
+      attempt.orderStatus === "awaiting_payment" &&
+      attempt.providerStatus !== "paid" &&
+      attempt.providerStatus !== "captured" &&
       attempt.status === "processing"
   ),
   failure:

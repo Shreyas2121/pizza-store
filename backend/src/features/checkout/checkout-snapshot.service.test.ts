@@ -12,8 +12,8 @@ import pricingService from "../pricing";
 import inventoryService from "../inventory/inventory.service";
 import { PromotionApplicationService } from "../promotions/applications";
 import { snapshotQuote } from "../promotions/promotion-application.test-fixtures";
-import { CodCheckoutService } from "./checkout-cod.service";
-import { CodCheckoutRepository } from "./checkout-cod.repository";
+import { CheckoutSnapshotService } from "./checkout-snapshot.service";
+import { CheckoutSnapshotRepository } from "./checkout-snapshot.repository";
 import { publicQuoteRepository } from "./checkout.repository";
 import { createOrderSchema } from "../../utils/zodSchema";
 
@@ -54,7 +54,7 @@ const cart = {
   items: [{ id: 101, productId: 11, quantity: 2, customizationOptionIds: [5] }],
 };
 const harness = () => {
-  const repository = new CodCheckoutRepository();
+  const repository = new CheckoutSnapshotRepository();
   const applications = new PromotionApplicationService();
   const quote = snapshotQuote();
   const events: string[] = [];
@@ -126,7 +126,7 @@ const harness = () => {
   };
   const tx = executor as unknown as TransactionType;
   return {
-    service: new CodCheckoutService(
+    service: new CheckoutSnapshotService(
       repository,
       pricingService,
       inventoryService,
@@ -282,6 +282,18 @@ describe("COD final checkout", () => {
       h.tx,
       now,
     );
+  });
+  it("reserves all promotion snapshots for online orders with the same writer", async () => {
+    const h = harness();
+    const quote = await h.service.buildQuote({ userId: 7, addressId: 2 }, h.tx);
+    await h.service.createOrderSnapshot(quote, {
+      userId: 7, addressId: 2, paymentId: 8, paymentType: "razorpay", status: "awaiting_payment",
+    }, h.tx);
+    expect(h.writes[0]).toMatchObject({ table: ordersTable, value: {
+      discountMode: "automatic_deals", discountPaise: 200, deliveryFeePaise: 0,
+      grandTotalPaise: 1800, pricingPolicyVersion: 4, status: "awaiting_payment", paymentType: "razorpay",
+    } });
+    expect(h.applications.record).toHaveBeenCalledWith(42, h.quote, new Map([[101, 501]]), "reserved", h.tx, now);
   });
   it("snapshots bundle compare-at/components while excluding markdown from order discounts", async () => {
     const h = harness();

@@ -1,4 +1,18 @@
 import type { LowStockAlert } from "../inventory/inventory.logic";
+import type { DiscountMode, DiscountType, PromotionKind } from "../promotions/promotion.types";
+import type { ordersTable } from "../../db/schema";
+
+export interface PaymentPromotionSnapshot {
+  id: number;
+  kind: PromotionKind;
+  name: string;
+  code: string | null;
+  discountType: DiscountType;
+  definitionVersion: number;
+  itemDiscountPaise: number;
+  deliveryDiscountPaise: number;
+  totalSavingsPaise: number;
+}
 
 export interface InitiateRazorpayOrderInput {
   userId: number;
@@ -31,8 +45,10 @@ export interface LocalRazorpayAttempt {
   userId: number;
   storeId: number;
   storeName: string;
-  grandTotalPaise: number | null;
-  couponId: number | null;
+  grandTotalPaise: number;
+  discountMode: DiscountMode;
+  orderStatus: typeof ordersTable.$inferSelect.status;
+  promotions: PaymentPromotionSnapshot[];
   provider: "cod" | "razorpay";
   amountPaise: number;
   currency: "INR";

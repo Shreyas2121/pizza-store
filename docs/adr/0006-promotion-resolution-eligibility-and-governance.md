@@ -57,6 +57,8 @@ Within the catalogue stage, checkout locks all parent/component product rows by 
 
 Cart mutations lock their parent cart before reading quantities or modifying children. Cancellation locks the order, then its user/store before restoring inventory and handling applications. Re-acquiring an already-held user/store/product/promotion lock in a caller transaction adds no new lock dependency. PostgreSQL race/deadlock integration evidence remains required; query-construction tests do not prove these properties.
 
+C08 shares the v4 checkout snapshot writer between COD and online initiation. Existing-order payment lifecycle locks the order, user eligibility row, store and payment before sorted inventory stock/reservation rows, sorted promotion definitions/settings and applications. Receipt attachment follows the same owner/payment prefix. Retry restores inventory and all applications in the caller transaction. First-order queries ignore failed payments on awaiting-payment orders; fulfilment statuses still disqualify. Expiry rechecks payment identity and activity under the locks before releasing collections.
+
 ## Alternatives considered
 
 ### Let the customer choose between an offer and a coupon

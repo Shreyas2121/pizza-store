@@ -33,7 +33,7 @@ describe("PaymentRepository — Payment Attempts", () => {
     paymentId: 17,
     userId: 7,
     grandTotalPaise: 49900,
-    couponId: null,
+    discountMode: "none" as const, orderStatus: "awaiting_payment" as const, promotions: [],
   };
 
   const sampleStore = {
@@ -85,7 +85,7 @@ describe("PaymentRepository — Payment Attempts", () => {
         storeId: 1,
         storeName: "Indiranagar Store",
         grandTotalPaise: 49900,
-        couponId: null,
+        discountMode: "none" as const, orderStatus: "awaiting_payment" as const, promotions: [],
         provider: "razorpay",
         amountPaise: 49900,
         currency: "INR",

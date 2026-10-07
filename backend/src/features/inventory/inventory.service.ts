@@ -46,7 +46,8 @@ import {
 import { expandBundleDemand } from "../bundles/bundle.logic";
 import { loadBundleDefinitions } from "../bundles/bundle.repository";
 
-export const INVENTORY_RESERVATION_DURATION_MS = 30 * 60_000;
+import { INVENTORY_RESERVATION_DURATION_MS } from "./inventory.constants";
+export { INVENTORY_RESERVATION_DURATION_MS } from "./inventory.constants";
 
 type InventoryListStatus = "all" | "low_stock" | "out_of_stock";
 

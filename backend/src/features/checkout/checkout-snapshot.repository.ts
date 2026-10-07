@@ -18,7 +18,7 @@ import type { TransactionType } from "../../utils/types";
 import { AppError } from "../../utils/error";
 import { publicQuoteRepository } from "./checkout.repository";
 
-export class CodCheckoutRepository {
+export class CheckoutSnapshotRepository {
   async insertOrder(
     value: typeof ordersTable.$inferInsert,
     tx: TransactionType,

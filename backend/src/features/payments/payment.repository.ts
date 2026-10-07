@@ -1,18 +1,66 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../../db";
 import {
   ordersTable,
   paymentsTable,
   paymentAttemptsTable,
   storesTable,
+  usersTable,
+  promotionApplicationsTable,
 } from "../../db/schema";
+import { AppError } from "../../utils/error";
 import type { TransactionType } from "../../utils/types";
 import type {
   LocalRazorpayAttempt,
   PaymentAttemptDTO,
+  PaymentPromotionSnapshot,
 } from "./payment.types";
 
 class PaymentRepository {
+  // Existing-order lifecycle: order -> user -> store -> payment -> inventory ->
+  // promotion definitions/settings -> applications. Compatible with cancellation.
+  async lockLifecycleOwner(orderId: number, tx: TransactionType) {
+    const [order] = await tx.select().from(ordersTable)
+      .where(eq(ordersTable.id, orderId)).for("update").limit(1);
+    if (!order) throw new AppError("Order not found", 404, "ORDER_NOT_FOUND");
+    await tx.select({ id: usersTable.id }).from(usersTable)
+      .where(eq(usersTable.id, order.userId)).for("update");
+    await tx.select({ id: storesTable.id }).from(storesTable)
+      .where(eq(storesTable.id, order.storeId)).for("update");
+    return order.status;
+  }
+
+  private promotionSnapshots() {
+    return sql<PaymentPromotionSnapshot[]>`coalesce((select jsonb_agg(jsonb_build_object(
+      'id', ${promotionApplicationsTable.promotionId},
+      'kind', ${promotionApplicationsTable.promotionKind},
+      'name', ${promotionApplicationsTable.promotionName},
+      'code', ${promotionApplicationsTable.promotionCode},
+      'discountType', ${promotionApplicationsTable.discountType},
+      'definitionVersion', ${promotionApplicationsTable.definitionVersion},
+      'itemDiscountPaise', ${promotionApplicationsTable.itemDiscountPaise},
+      'deliveryDiscountPaise', ${promotionApplicationsTable.deliveryDiscountPaise},
+      'totalSavingsPaise', ${promotionApplicationsTable.totalSavingsPaise}
+    ) order by ${promotionApplicationsTable.promotionId}) from ${promotionApplicationsTable}
+      where ${promotionApplicationsTable.orderId} = ${ordersTable.id}), '[]'::jsonb)`;
+  }
+
+  expiredAwaitingQuery(limit: number, now: Date) {
+    return db.select({ orderId: ordersTable.id }).from(ordersTable)
+      .innerJoin(paymentsTable, eq(ordersTable.paymentId, paymentsTable.id))
+      .where(and(eq(ordersTable.status, "awaiting_payment"), eq(paymentsTable.provider, "razorpay"),
+        inArray(paymentsTable.status, ["pending", "processing", "failed"]),
+        sql`exists (select 1 from ${paymentAttemptsTable}
+          where ${paymentAttemptsTable.orderId} = ${ordersTable.id}
+            and ${paymentAttemptsTable.provider} = 'razorpay'
+            and ${paymentAttemptsTable.expiresAt} < ${now})`))
+      .orderBy(ordersTable.id).limit(limit);
+  }
+
+  async getExpiredAwaitingOrderIds(limit: number, now = new Date()) {
+    const rows = await this.expiredAwaitingQuery(limit, now);
+    return rows.map((row) => row.orderId);
+  }
   // ──────────────────────────────────────────────
   // Legacy Payments (Single Payment Compatibility)
   // ──────────────────────────────────────────────
@@ -38,21 +86,21 @@ class PaymentRepository {
     await executor.update(paymentsTable).set(data).where(eq(paymentsTable.id, id));
   }
 
-  async getAttemptByClientRequestId(clientRequestId: string) {
+  async getAttemptByClientRequestId(clientRequestId: string): Promise<LocalRazorpayAttempt | undefined> {
     const [attempt] = await this.selectAttempts()
       .where(eq(paymentsTable.clientRequestId, clientRequestId))
       .limit(1);
     return attempt;
   }
 
-  async getAttemptByOrderId(localOrderId: number) {
+  async getAttemptByOrderId(localOrderId: number): Promise<LocalRazorpayAttempt | undefined> {
     const [attempt] = await this.selectAttempts()
       .where(eq(ordersTable.id, localOrderId))
       .limit(1);
     return attempt;
   }
 
-  async getAttemptByProviderOrderId(providerOrderId: string) {
+  async getAttemptByProviderOrderId(providerOrderId: string): Promise<LocalRazorpayAttempt | undefined> {
     const [attempt] = await this.selectAttempts()
       .where(eq(paymentsTable.providerOrderId, providerOrderId))
       .limit(1);
@@ -68,7 +116,9 @@ class PaymentRepository {
         storeId: ordersTable.storeId,
         storeName: storesTable.name,
         grandTotalPaise: ordersTable.grandTotalPaise,
-        couponId: ordersTable.couponId,
+        discountMode: ordersTable.discountMode,
+        orderStatus: ordersTable.status,
+        promotions: this.promotionSnapshots(),
         provider: paymentsTable.provider,
         amountPaise: paymentsTable.amountPaise,
         currency: paymentsTable.currency,
@@ -221,8 +271,10 @@ class PaymentRepository {
       id: number;
       paymentId: number;
       userId: number;
-      grandTotalPaise: number | null;
-      couponId: number | null;
+      grandTotalPaise: number;
+      discountMode: LocalRazorpayAttempt["discountMode"];
+      orderStatus: LocalRazorpayAttempt["orderStatus"];
+      promotions: PaymentPromotionSnapshot[];
     },
     store: { id: number; name: string }
   ): LocalRazorpayAttempt {
@@ -242,7 +294,9 @@ class PaymentRepository {
       storeId: store.id,
       storeName: store.name,
       grandTotalPaise: order.grandTotalPaise,
-      couponId: order.couponId,
+      discountMode: order.discountMode,
+      orderStatus: order.orderStatus,
+      promotions: order.promotions,
       provider: attempt.provider,
       amountPaise: attempt.amountPaise,
       currency: attempt.currency,

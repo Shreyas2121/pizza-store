@@ -2,7 +2,7 @@
 
 Status: execution guide
 
-Implementation progress (2026-10-06): C00-C07 implemented on `feature/promotions-overhaul`. Next in the integration-wave sequence: C11, frontend promotion administration, then C12 discovery, then C08 payment lifecycle. See the [C07 handoff](./docs/promotions-c07-handoff.md) for completed work, verification, and deferred database checks.
+Implementation progress (2026-10-07): C00-C08 implemented on `feature/promotions-overhaul`. C08 was requested directly after C07; C11/C12 frontend work remains pending. Next backend slice: C09 finance, then C10 orders/legacy cleanup. See the [C08 handoff](./docs/promotions-c08-handoff.md) for implementation, verification, and explicitly deferred database checks.
 
 Authoritative product plan: [`implementation_plan.md`](./implementation_plan.md)
 

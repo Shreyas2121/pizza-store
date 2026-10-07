@@ -65,15 +65,17 @@ The inventory system tracks physical on-hand stock and active reservations at th
           && (on_hand_quantity IS NULL || available_quantity > 0)
   ```
 - **Customization aggregation**: Customized cart lines share the same base product availability (demand is aggregated across variants by `productId`).
-- **Allocation/consumption lock ordering**: Checkout locks the cart and stock rows; payment finalization locks the order/payment and then sorted stock/reservation rows. Its consumption path is:
+- **Allocation/consumption lock ordering**: COD and online checkout share the v4 snapshot writer and the cart/user/store/catalogue/promotion lock order in ADR-006. Existing-order payment finalization uses:
   ```text
-  1. Existing order/payment rows locked by finalization
+  1. Existing order, user eligibility, store, then payment rows
   2. store_products rows, ordered by ascending store_products.id
   3. inventory_reservations rows, ordered by ascending inventory_reservations.id
   4. inventory_movements append
+  5. Sorted promotion definitions/settings, then application collection transitions
   ```
-- **Limits to the ordering claim**: Release performs a bulk reservation update without explicit sorting; cancellation releases reservations before locking stock for restoration. Coupons and staff membership locks add other dependencies. This is not a verified universal lock order or proof of deadlock freedom. See the evidence document's lock-order audit.
+- **Limits to the ordering claim**: Release performs a bulk inventory reservation update; cancellation releases reservations before locking stock for restoration. Staff membership locks add other dependencies. Query/unit tests do not establish a universal lock order or deadlock freedom; PostgreSQL concurrency evidence remains deferred.
 - **Reservation deadlines**: Active totals include all rows still marked `reserved`, even after their deadline. The default 30-minute deadline requires explicit reconciliation; it does not release stock by itself.
+- **Promotion payment recovery**: Online initiation reserves immutable application/allocation and bundle snapshots at the saved provider amount. Failure releases the complete collection; retry restores original inventory quantities and promotion capacity together. Verified capture can restore released promotion capacity under its saved contract, then consume once; physical inventory shortages still require operational resolution. Expiry also finds inactive online holds without tracked stock and rechecks identity/activity before release. Receipt attachment preserves failed and terminal states without restoring capacity. See [promotion operations](./promotions-operations.md).
 - **Movement audit ledger**: Normal inventory writes append movement records. Schema/migration checks enforce `new_quantity = previous_quantity + quantity_change` and nonnegative balances, with unique sale/cancellation idempotency keys. The system-maintenance clear operation can truncate these records, so the ledger is not globally immutable.
 - **Manual availability independence**: Manual toggles (`is_available`) are managed solely by admins and are never overwritten by inventory logic.
 

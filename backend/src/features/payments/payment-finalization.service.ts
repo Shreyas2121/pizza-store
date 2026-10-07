@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "../../db";
 import { ordersTable, paymentsTable, paymentAttemptsTable } from "../../db/schema";
 import { AppError } from "../../utils/error";
-import checkoutService from "../checkout/checkout.service";
+import { promotionApplicationService } from "../promotions/applications";
 import inventoryService from "../inventory/inventory.service";
 import { orderGrandTotalRupees } from "../order/order.mapper";
 import { sanitizeProviderText } from "./payment.helpers";
@@ -21,6 +21,7 @@ export class PaymentFinalizationService {
 
   async finalizeCapturedPayment(data: FinalizeCapturedPaymentInput) {
     return await db.transaction(async (tx) => {
+      await paymentRepository.lockLifecycleOwner(data.localOrderId, tx);
       const [record] = await tx
         .select({ order: ordersTable, payment: paymentsTable })
         .from(ordersTable)
@@ -39,6 +40,7 @@ export class PaymentFinalizationService {
       if (
         record.payment.providerOrderId !== data.providerOrderId ||
         record.payment.amountPaise !== data.amountPaise ||
+        record.order.grandTotalPaise !== data.amountPaise ||
         record.payment.currency !== data.currency
       ) {
         throw new AppError(
@@ -93,7 +95,11 @@ export class PaymentFinalizationService {
         );
       }
 
+      await inventoryService.restoreReservationsForOrder(record.order.id, tx);
       await inventoryService.consumeReservationsForOrder(record.order.id, tx);
+      // Only authoritative capture may restore already-paid capacity without limits.
+      await promotionApplicationService.restore(record.order.id, tx, new Date(), false);
+      await promotionApplicationService.consume(record.order.id, tx);
 
       const paidAt = new Date();
       await paymentRepository.updatePayment(
@@ -110,7 +116,7 @@ export class PaymentFinalizationService {
         record.payment.id,
         tx
       );
-      if (typeof tx?.update === "function") {
+      {
         const capturedAttempt = (await tx
           .update(paymentAttemptsTable)
           .set({
@@ -158,16 +164,6 @@ export class PaymentFinalizationService {
         .set({ status: "pending" })
         .where(eq(ordersTable.id, record.order.id));
 
-      if (record.order.couponId) {
-        await checkoutService.consumeCouponReservation(
-          {
-            couponId: record.order.couponId,
-            orderId: record.order.id,
-            userId: record.order.userId,
-          },
-          tx
-        );
-      }
 
       return {
         localOrderId: record.order.id,
@@ -186,6 +182,7 @@ export class PaymentFinalizationService {
     failure: { code?: string | null; description?: string | null }
   ) {
     return await db.transaction(async (tx) => {
+      await paymentRepository.lockLifecycleOwner(attempt.localOrderId, tx);
       const [record] = await tx
         .select({ order: ordersTable, payment: paymentsTable })
         .from(ordersTable)
@@ -226,7 +223,7 @@ export class PaymentFinalizationService {
         record.payment.id,
         tx
       );
-      if (typeof tx?.update === "function") {
+      {
         await tx
           .update(paymentAttemptsTable)
           .set({
@@ -248,8 +245,8 @@ export class PaymentFinalizationService {
             )
           );
       }
-      await checkoutService.releaseCouponReservation(record.order.id, tx);
       await inventoryService.releaseReservations(record.order.id, tx);
+      await promotionApplicationService.release(record.order.id, tx);
 
       return {
         localOrderId: record.order.id,

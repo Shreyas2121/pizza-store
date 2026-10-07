@@ -3,7 +3,7 @@ import { db } from "../../db";
 import { ordersTable, paymentsTable, paymentAttemptsTable } from "../../db/schema";
 import { AppError } from "../../utils/error";
 import { logger } from "../../utils/logger";
-import checkoutService from "../checkout/checkout.service";
+import { promotionApplicationService } from "../promotions/applications";
 import inventoryService from "../inventory/inventory.service";
 import { buildPaymentReceipt } from "./payment.helpers";
 import paymentRepository from "./payment.repository";
@@ -147,8 +147,11 @@ export class PaymentStaleRecoveryService {
     limit: number,
     hooks: Pick<StaleRecoveryHooks, "reconcileProviderPayment">
   ) {
-    const orderIds =
-      await inventoryService.getExpiredActiveReservationOrderIds(limit);
+    const checkedAt = new Date();
+    const orderIds = [...new Set([
+      ...await inventoryService.getExpiredActiveReservationOrderIds(limit),
+      ...await paymentRepository.getExpiredAwaitingOrderIds(limit),
+    ])].slice(0, limit);
     const results: Array<{
       orderId: number;
       status: "finalized" | "released" | "skipped" | "conflict" | "error";
@@ -161,7 +164,9 @@ export class PaymentStaleRecoveryService {
         const attempt = await paymentRepository.getAttemptByOrderId(orderId);
         if (!attempt) {
           await db.transaction(async (tx) => {
+            await paymentRepository.lockLifecycleOwner(orderId, tx);
             await inventoryService.releaseReservations(orderId, tx);
+            await promotionApplicationService.release(orderId, tx);
           });
           results.push({ orderId, status: "released" });
           continue;
@@ -201,6 +206,9 @@ export class PaymentStaleRecoveryService {
               gateway.fetchOrder(attempt.providerOrderId),
               gateway.fetchOrderPayments(attempt.providerOrderId),
             ]);
+            if (providerOrder.id !== attempt.providerOrderId || providerOrder.amountPaise !== attempt.amountPaise ||
+              providerOrder.currency !== attempt.currency || attempt.amountPaise !== attempt.grandTotalPaise)
+              throw new AppError("Provider order does not match local quote", 409, "PAYMENT_PROVIDER_MISMATCH");
           } catch (error) {
             logger.warn(
               "Could not fetch Razorpay order status during reservation expiry",
@@ -262,14 +270,15 @@ export class PaymentStaleRecoveryService {
           }
         }
 
-        await db.transaction(async (tx) => {
+        const released = await db.transaction(async (tx) => {
+          await paymentRepository.lockLifecycleOwner(orderId, tx);
           const [order] = await tx
             .select()
             .from(ordersTable)
             .where(eq(ordersTable.id, orderId))
             .for("update")
             .limit(1);
-          if (!order || order.status !== "awaiting_payment") return;
+          if (!order || order.status !== "awaiting_payment") return false;
 
           const [payment] = await tx
             .select()
@@ -277,6 +286,10 @@ export class PaymentStaleRecoveryService {
             .where(eq(paymentsTable.id, attempt.localPaymentId))
             .for("update")
             .limit(1);
+          if (!payment || payment.status === "completed" || payment.status === "refunded") return false;
+          // A retry or provider attachment after discovery invalidates the
+          // external observation. Preserve its newly restored reservations.
+          if (payment.providerOrderId !== attempt.providerOrderId || payment.updatedAt >= checkedAt) return false;
           if (
             payment &&
             (payment.status === "pending" || payment.status === "processing")
@@ -314,11 +327,10 @@ export class PaymentStaleRecoveryService {
             .set({ status: "cancelled", updatedAt: new Date() })
             .where(eq(ordersTable.id, orderId));
           await inventoryService.releaseReservations(orderId, tx);
-          if (attempt.couponId) {
-            await checkoutService.releaseCouponReservation(orderId, tx);
-          }
+          await promotionApplicationService.release(orderId, tx);
+          return true;
         });
-        results.push({ orderId, status: "released" });
+        results.push({ orderId, status: released ? "released" : "skipped" });
       } catch (error) {
         const message =
           error instanceof Error ? error.message.slice(0, 500) : "Unknown error";
@@ -346,6 +358,7 @@ export class PaymentStaleRecoveryService {
     providerOrder: RazorpayOrderSnapshot
   ) {
     await db.transaction(async (tx) => {
+      await paymentRepository.lockLifecycleOwner(attempt.localOrderId, tx);
       const [payment] = await tx
         .select()
         .from(paymentsTable)
@@ -353,6 +366,9 @@ export class PaymentStaleRecoveryService {
         .for("update")
         .limit(1);
       if (!payment) throw new AppError("Payment not found", 404);
+      if (providerOrder.amountPaise !== payment.amountPaise || providerOrder.amountPaise !== attempt.grandTotalPaise || providerOrder.currency !== payment.currency ||
+        providerOrder.receipt !== buildPaymentReceipt(attempt))
+        throw new AppError("Recovered provider order does not match local quote", 409, "PAYMENT_PROVIDER_MISMATCH");
       if (
         payment.providerOrderId &&
         payment.providerOrderId !== providerOrder.id
@@ -363,22 +379,17 @@ export class PaymentStaleRecoveryService {
           "PAYMENT_PROVIDER_MISMATCH"
         );
       }
-      if (payment.status === "failed" && attempt.couponId) {
-        await checkoutService.restoreCouponReservation(
-          { couponId: attempt.couponId, orderId: attempt.localOrderId },
-          tx,
-          false
-        );
-      }
+      // Attaching a recovered provider identity is not evidence of capture.
+      // Released capacity stays released until retry or verified capture.
       await tx
         .update(paymentAttemptsTable)
         .set({
           providerOrderId: providerOrder.id,
           providerStatus: providerOrder.status,
-          status: "processing",
-          failureCode: null,
-          failureDescription: null,
-          failedAt: null,
+          status: payment.status === "completed" || payment.status === "refunded" ? "captured" : payment.status === "failed" ? "failed" : "processing",
+          failureCode: payment.failureCode,
+          failureDescription: payment.failureDescription,
+          failedAt: payment.failedAt,
           updatedAt: new Date(),
         })
         .where(
@@ -392,12 +403,12 @@ export class PaymentStaleRecoveryService {
           providerOrderId: providerOrder.id,
           providerStatus: providerOrder.status,
           status:
-            payment.status === "completed" || payment.status === "refunded"
+            payment.status === "completed" || payment.status === "refunded" || payment.status === "failed"
               ? payment.status
               : "processing",
-          failureCode: null,
-          failureDescription: null,
-          failedAt: null,
+          failureCode: payment.failureCode,
+          failureDescription: payment.failureDescription,
+          failedAt: payment.failedAt,
         },
         payment.id,
         tx

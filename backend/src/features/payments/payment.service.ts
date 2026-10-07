@@ -5,8 +5,10 @@ import { AppError } from "../../utils/error";
 import { logger } from "../../utils/logger";
 import type { TransactionType } from "../../utils/types";
 import cartService from "../cart/cart.service";
-import checkoutService from "../checkout/checkout.service";
+import checkoutService from "../checkout/checkout-snapshot.service";
+import { promotionApplicationService } from "../promotions/applications";
 import inventoryService from "../inventory/inventory.service";
+import { INVENTORY_RESERVATION_DURATION_MS } from "../inventory/inventory.constants";
 import { buildPaymentReceipt, toCheckoutResponse } from "./payment.helpers";
 import paymentReconciliationService from "./payment-reconciliation.service";
 import paymentRepository from "./payment.repository";
@@ -188,6 +190,7 @@ class PaymentService {
             "PAYMENT_AMOUNT_TOO_LOW"
           );
         }
+        const expiresAt = new Date(quote.now.getTime() + INVENTORY_RESERVATION_DURATION_MS);
         const payment = await this.createPayment(
           {
             provider: "razorpay",
@@ -215,6 +218,7 @@ class PaymentService {
             storeId: order.storeId,
             provider: "razorpay",
             method: "other",
+            expiresAt,
             status: "pending",
             amountPaise: quote.totalPaise,
             currency: "INR",
@@ -227,20 +231,10 @@ class PaymentService {
             orderId: order.id,
             storeId: order.storeId,
             allocations: quote.stockAllocations,
+            expiresAt,
           },
           tx
         );
-        if (quote.coupon) {
-          await checkoutService.recordCouponUse(
-            {
-              couponId: quote.coupon.id,
-              orderId: order.id,
-              userId: data.userId,
-              status: "reserved",
-            },
-            tx
-          );
-        }
         await cartService.clearCart(data.userId, tx);
 
         return {
@@ -248,9 +242,11 @@ class PaymentService {
           localPaymentId: payment.id,
           userId: order.userId,
           storeId: order.storeId,
-          storeName: quote.cart.store!.name,
+          storeName: quote.store.name,
           grandTotalPaise: order.grandTotalPaise,
-          couponId: order.couponId,
+          discountMode: order.discountMode,
+          orderStatus: order.status,
+          promotions: quote.pricingQuote.promotions.map(({ id, kind, name, code, discountType, definitionVersion, itemDiscountPaise, deliveryDiscountPaise, totalSavingsPaise }) => ({ id, kind, name, code, discountType, definitionVersion, itemDiscountPaise, deliveryDiscountPaise, totalSavingsPaise })),
           provider: payment.provider,
           amountPaise: payment.amountPaise,
           currency: payment.currency,
@@ -276,6 +272,9 @@ class PaymentService {
     attempt: LocalRazorpayAttempt,
     config: RazorpayServerConfig
   ) {
+    if (attempt.amountPaise !== attempt.grandTotalPaise) {
+      throw new AppError("Payment amount does not match the saved order", 409, "PAYMENT_PROVIDER_MISMATCH");
+    }
     if (attempt.providerOrderId || attempt.status === "completed") {
       return toCheckoutResponse(attempt, config.keyId, config.mode);
     }
@@ -287,7 +286,10 @@ class PaymentService {
     const gateway = createRazorpayGateway(config);
     let providerOrder: RazorpayOrderSnapshot;
     try {
-      providerOrder = await gateway.createOrder({
+      const recovered = claim.recoverBeforeCreate
+        ? await gateway.findOrderByReceipt(buildPaymentReceipt(claim.attempt))
+        : null;
+      providerOrder = recovered ?? await gateway.createOrder({
         amountPaise: claim.attempt.amountPaise,
         currency: claim.attempt.currency,
         receipt: buildPaymentReceipt(claim.attempt),
@@ -326,7 +328,8 @@ class PaymentService {
     if (
       providerOrder.amountPaise !== claim.attempt.amountPaise ||
       providerOrder.currency !== claim.attempt.currency ||
-      providerOrder.status !== "created"
+      (providerOrder.status !== "created" && !claim.recoverBeforeCreate) ||
+      (claim.recoverBeforeCreate && providerOrder.receipt !== buildPaymentReceipt(claim.attempt))
     ) {
       await this.markProviderCreationFailed(
         claim.attempt,
@@ -351,6 +354,7 @@ class PaymentService {
 
     try {
       const saved = await db.transaction(async (tx) => {
+        const orderStatus = await paymentRepository.lockLifecycleOwner(claim.attempt.localOrderId, tx);
         const [lockedPayment] = await tx
           .select()
           .from(paymentsTable)
@@ -358,6 +362,9 @@ class PaymentService {
           .for("update")
           .limit(1);
         if (!lockedPayment) throw new AppError("Payment not found", 404);
+        if (orderStatus !== "awaiting_payment" || lockedPayment.status === "completed" || lockedPayment.status === "refunded") {
+          return { ...claim.attempt, orderStatus, ...paymentRepository.paymentFields(lockedPayment) };
+        }
         if (
           lockedPayment.providerOrderId &&
           lockedPayment.providerOrderId !== providerOrder.id
@@ -418,6 +425,7 @@ class PaymentService {
 
   private async claimProviderOrderCreation(attempt: LocalRazorpayAttempt) {
     return await db.transaction(async (tx) => {
+      const orderStatus = await paymentRepository.lockLifecycleOwner(attempt.localOrderId, tx);
       const [payment] = await tx
         .select()
         .from(paymentsTable)
@@ -426,7 +434,8 @@ class PaymentService {
         .limit(1);
       if (!payment) throw new AppError("Payment not found", 404);
 
-      const current = { ...attempt, ...paymentRepository.paymentFields(payment) };
+      const current = { ...attempt, orderStatus, ...paymentRepository.paymentFields(payment) };
+      if (orderStatus !== "awaiting_payment") throw new AppError("Order is no longer payable", 409, "PAYMENT_ORDER_NOT_PAYABLE");
       if (
         payment.providerOrderId ||
         payment.status === "processing" ||
@@ -435,12 +444,11 @@ class PaymentService {
       ) {
         return { claimed: false as const, attempt: current };
       }
-      if (payment.status === "failed" && attempt.couponId) {
-        await checkoutService.restoreCouponReservation(
-          { couponId: attempt.couponId, orderId: attempt.localOrderId },
-          tx
-        );
+      if (payment.status === "failed") {
+        await inventoryService.restoreReservationsForOrder(attempt.localOrderId, tx);
+        await promotionApplicationService.restore(attempt.localOrderId, tx);
       }
+      const recoverBeforeCreate = payment.status === "failed";
       await this.updatePayment(
         {
           status: "processing",
@@ -451,8 +459,12 @@ class PaymentService {
         payment.id,
         tx
       );
+      await tx.update(paymentAttemptsTable).set({ status: "processing", failureCode: null, failureDescription: null, failedAt: null,
+        expiresAt: recoverBeforeCreate ? new Date(Date.now() + INVENTORY_RESERVATION_DURATION_MS) : undefined })
+        .where(and(eq(paymentAttemptsTable.orderId, attempt.localOrderId), eq(paymentAttemptsTable.provider, "razorpay")));
       return {
         claimed: true as const,
+        recoverBeforeCreate,
         attempt: {
           ...current,
           status: "processing" as const,
@@ -469,6 +481,10 @@ class PaymentService {
     failureDescription: string
   ) {
     await db.transaction(async (tx) => {
+      await paymentRepository.lockLifecycleOwner(attempt.localOrderId, tx);
+      const [payment] = await tx.select().from(paymentsTable)
+        .where(eq(paymentsTable.id, attempt.localPaymentId)).for("update").limit(1);
+      if (!payment || payment.status === "completed" || payment.status === "refunded" || payment.providerOrderId) return;
       await this.updatePayment(
         {
           status: "failed",
@@ -493,13 +509,14 @@ class PaymentService {
             eq(paymentAttemptsTable.provider, "razorpay")
           )
         );
-      await checkoutService.releaseCouponReservation(attempt.localOrderId, tx);
       await inventoryService.releaseReservations(attempt.localOrderId, tx);
+      await promotionApplicationService.release(attempt.localOrderId, tx);
     });
   }
 
   private async reactivateProviderOrder(attempt: LocalRazorpayAttempt) {
     return await db.transaction(async (tx) => {
+      const orderStatus = await paymentRepository.lockLifecycleOwner(attempt.localOrderId, tx);
       const [payment] = await tx
         .select()
         .from(paymentsTable)
@@ -508,16 +525,13 @@ class PaymentService {
         .limit(1);
       if (!payment) throw new AppError("Payment not found", 404);
 
-      const current = { ...attempt, ...paymentRepository.paymentFields(payment) };
+      const current = { ...attempt, orderStatus, ...paymentRepository.paymentFields(payment) };
+      if (orderStatus !== "awaiting_payment") throw new AppError("Order is no longer payable", 409, "PAYMENT_ORDER_NOT_PAYABLE");
       if (payment.status !== "failed" || !payment.providerOrderId) {
         return current;
       }
-      if (attempt.couponId) {
-        await checkoutService.restoreCouponReservation(
-          { couponId: attempt.couponId, orderId: attempt.localOrderId },
-          tx
-        );
-      }
+      await inventoryService.restoreReservationsForOrder(attempt.localOrderId, tx);
+      await promotionApplicationService.restore(attempt.localOrderId, tx);
       await this.updatePayment(
         {
           status: "processing",
@@ -532,6 +546,7 @@ class PaymentService {
         .update(paymentAttemptsTable)
         .set({
           status: "processing",
+          expiresAt: new Date(Date.now() + INVENTORY_RESERVATION_DURATION_MS),
           failureCode: null,
           failureDescription: null,
           failedAt: null,

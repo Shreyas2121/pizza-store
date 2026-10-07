@@ -7,7 +7,7 @@ import {
   PromotionApplicationService,
 } from "../promotions/applications";
 import { isStoreOpen, formatStoreTime } from "../stores/store-hours";
-import { CodCheckoutRepository } from "./checkout-cod.repository";
+import { CheckoutSnapshotRepository } from "./checkout-snapshot.repository";
 import { loadCheckoutPricingItems } from "./checkout-catalogue";
 interface CreateOrderSnapshotInput {
   userId: number;
@@ -16,9 +16,9 @@ interface CreateOrderSnapshotInput {
   paymentType: "cash" | "razorpay";
   status: "pending" | "awaiting_payment";
 }
-export class CodCheckoutService {
+export class CheckoutSnapshotService {
   constructor(
-    private readonly repository = new CodCheckoutRepository(),
+    private readonly repository = new CheckoutSnapshotRepository(),
     private readonly pricing = pricingService,
     private readonly inventory = inventoryService,
     private readonly applications: PromotionApplicationService = promotionApplicationService,
@@ -82,6 +82,7 @@ export class CodCheckoutService {
     );
     return {
       cart,
+      store,
       address,
       now,
       pricingQuote,
@@ -90,7 +91,7 @@ export class CodCheckoutService {
     };
   }
   async createOrderSnapshot(
-    quote: Awaited<ReturnType<CodCheckoutService["buildQuote"]>>,
+    quote: Awaited<ReturnType<CheckoutSnapshotService["buildQuote"]>>,
     data: CreateOrderSnapshotInput,
     tx: TransactionType,
   ) {
@@ -195,4 +196,4 @@ export class CodCheckoutService {
     return order;
   }
 }
-export default new CodCheckoutService();
+export default new CheckoutSnapshotService();
