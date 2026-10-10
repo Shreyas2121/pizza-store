@@ -27,6 +27,7 @@ Pre-built combos, item promotions, coupons, and free delivery all advertise cust
 5. `grandTotalPaise = itemsSubtotalPaise - itemDiscountPaise + chargedDeliveryFeePaise + roundingAdjustmentPaise`. Delivery savings and bundle markdown are not subtracted again.
 6. Inclusive item tax is recalculated independently on every post-discount order-item line. Delivery tax is calculated only on the charged delivery fee. Taxable components plus included tax reconcile exactly to their charged inclusive amounts under ADR-004.
 7. Pricing policy v4 does not independently apply the legacy delivery-pricing free-delivery threshold. A new quote waives a positive standard fee only through an eligible `free_delivery` offer, ensuring every non-zero `deliveryDiscountPaise` has one promotion allocation and budget owner.
+8. Amendment 2026-10-10, pricing policy v5: the configured store free-delivery threshold applies to the pre-discount item subtotal, including customizations. When met, the ordinary `standardDeliveryFeePaise` is zero before promotion resolution. This supersedes point 7 for new quotes; ordinary free delivery has no promotion allocation or budget spend. Existing v4 order snapshots remain unchanged.
 
 ### Ledger and refund treatment
 

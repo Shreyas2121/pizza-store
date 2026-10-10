@@ -1,6 +1,6 @@
-import { Alert, Badge, Button, Card, Group, Loader, SimpleGrid, Stack, Table, Text, Tooltip, UnstyledButton } from "@mantine/core";
+import { Alert, Badge, Button, Card, Group, SimpleGrid, Stack, Table, Text, Tooltip, UnstyledButton } from "@mantine/core";
 import { ArrowRight, Info, RefreshCw } from "lucide-react";
-import { EmptyState } from "@/shared/ui";
+import { EmptyState, ReportSkeleton, CardGridSkeleton } from "@/shared/ui";
 import { formatAggregatePaise } from "../model/finance.helpers";
 import { useFinanceMargins, useFinanceOverview, useFinanceProfitAndLoss, useFinanceSales } from "../api/finance.queries";
 import type { FinanceReportGroup, FinanceReportPolicy, FinanceReportTotals, JournalFilters } from "../model/finance.types";
@@ -61,7 +61,7 @@ const ReportStatus = ({ policy, isFetching, isStale, partial }: { policy: Financ
 </Stack>;
 
 const LoadState = ({ loading, error, retry, label }: { loading: boolean; error: boolean; retry: () => void; label: string }) => {
-  if (loading) return <Group><Loader size="sm" /><Text>Loading {label}…</Text></Group>;
+  if (loading) return <ReportSkeleton label={`Loading ${label}`} />;
   if (error) return <Alert color="red" title={`${label} unavailable`}>The report could not be loaded. <Button ml="sm" size="compact-xs" variant="light" leftSection={<RefreshCw size={13} />} onClick={retry}>Retry</Button></Alert>;
   return null;
 };
@@ -143,7 +143,7 @@ export const FinanceSalesMarginsPanel = (props: ReportProps) => {
 
 export const PaymentsSummary = ({ storeId, from, to, onDrillDown }: Omit<ReportProps, "groupBy">) => {
   const query = useFinanceOverview(storeId, from, to);
-  if (query.isLoading) return <Loader size="sm" aria-label="Loading payment summary" />;
+  if (query.isLoading) return <CardGridSkeleton count={3} height={110} className="grid gap-3 sm:grid-cols-3" label="Loading payment summary" />;
   if (query.isError || !query.data) return <Alert color="red">Payment summary unavailable. Refund workflow remains available below.</Alert>;
   return <SimpleGrid cols={{ base: 1, sm: 3 }}><Card withBorder><Text size="xs" c="dimmed"><MetricLabel metric="collectionsPaise" label="Collections" /></Text><AmountLink label="collections" value={query.data.kpis.collectionsPaise} onClick={() => onDrillDown(KPI_FILTERS.collectionsPaise)} /></Card><Card withBorder><Text size="xs" c="dimmed"><MetricLabel metric="refundsPaise" label="Refund contra revenue" /></Text><AmountLink label="refunds" value={query.data.kpis.refundsPaise} onClick={() => onDrillDown(KPI_FILTERS.refundsPaise)} /></Card><Card withBorder><Text size="xs" c="dimmed"><MetricLabel metric="unsettledRazorpayPaise" label="Unsettled Razorpay" /></Text><AmountLink label="unsettled Razorpay" value={query.data.kpis.unsettledRazorpayPaise} onClick={() => onDrillDown(KPI_FILTERS.unsettledRazorpayPaise)} /></Card></SimpleGrid>;
 };

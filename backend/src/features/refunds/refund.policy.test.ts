@@ -15,6 +15,19 @@ const item = {
 };
 
 describe("refund policy", () => {
+  it("accepts a full ₹289 refund with item and charged delivery separately allocated", () => {
+    const result = buildRefundAllocations({
+      input: { reasonCode: "customer_request", amountPaise: 28900, allocations: [
+        { orderItemId: 12, quantity: 1, allocatedPaise: 24900 },
+        { type: "delivery_fee", allocatedPaise: 4000 },
+      ] },
+      orderItems: [{ ...item, quantity: 1, lineTotalPaise: 24900, discountAllocationPaise: 0, taxPaise: 1186 }],
+      deliveryFeePaise: 4000, deliveryTaxPaise: 190, existing: [],
+    });
+    expect(result.map((row) => [row.kind, row.amountPaise])).toEqual([["item", 24900], ["delivery_fee", 4000]]);
+    expect(result.reduce((sum, row) => sum + row.taxPaise, 0)).toBe(1376);
+    assertRefundCapacity(28900, 0, 28900);
+  });
   it("builds immutable item and delivery tax allocations in paise", () => {
     const result = buildRefundAllocations({
       input: {

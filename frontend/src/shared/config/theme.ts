@@ -58,6 +58,9 @@ export const theme = createTheme({
     fontFamily: "Inter, sans-serif",
   },
   components: {
+    Loader: {
+      defaultProps: { type: "dots" },
+    },
     Button: {
       defaultProps: {
         color: "brand",

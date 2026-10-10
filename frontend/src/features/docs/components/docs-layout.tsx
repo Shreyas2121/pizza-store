@@ -5,6 +5,7 @@ import { Link, Outlet, useLocation } from "react-router";
 import { Menu, ArrowUpRight } from "lucide-react";
 import { DocsNav } from "./docs-nav";
 import { DocsContentBoundary } from "./docs-content-boundary";
+import { PanelSkeleton } from "@/shared/ui";
 import "../docs.css";
 
 export default function DocsLayout() {
@@ -31,7 +32,7 @@ export default function DocsLayout() {
         <main id="docs-main" tabIndex={-1} className="min-w-0 px-5 py-10 focus:outline-none sm:px-10 lg:px-16 lg:py-14">
           <div className="mx-auto max-w-[900px]">
             <DocsContentBoundary key={pathname}>
-              <Suspense fallback={<div role="status" className="py-16 text-ink-muted">Loading documentation…</div>}><Outlet /></Suspense>
+              <Suspense fallback={<PanelSkeleton rows={8} label="Loading documentation" />}><Outlet /></Suspense>
             </DocsContentBoundary>
             <footer className="docs-footer mt-16 flex flex-wrap justify-between gap-3 border-t border-border pt-6 text-xs text-ink-muted"><span>PizzaStore / Engineering notebook</span><span>Decisions, evidence, and room to improve.</span></footer>
           </div>

@@ -11,6 +11,7 @@ export const storeKeys = {
   products: (id: number) => ["stores", id, "products"] as const,
   productCatalog: (id: number) => ["stores", id, "products", "catalog"] as const,
   zones: (id: number) => ["stores", id, "delivery-zones"] as const,
+  checkoutPricing: (id: number) => ["stores", id, "checkout-pricing"] as const,
 };
 
 export const useAdminStores = () => useQuery({
@@ -35,6 +36,30 @@ export const useCreateStore = () => {
   return useMutation({
     mutationFn: async (payload: StorePayload) => (await API.post<{ data: Store; message: string }>("/stores", payload)).data,
     onSuccess: () => client.invalidateQueries({ queryKey: storeKeys.all }),
+  });
+};
+
+export interface CheckoutPricingStatus {
+  businessDate: string;
+  timezone: string;
+  ready: boolean;
+  defaults: { deliveryFeePaise: number; freeDeliveryThresholdPaise: number; itemTaxRateBps: number; deliveryTaxRateBps: number };
+  deliveryRules: Array<{ id: number; version: number; deliveryFeePaise: number; freeDeliveryThresholdPaise: number | null; effectiveFrom: string; effectiveTo: string | null }>;
+  itemTaxRules: Array<{ id: number; version: number; rateBps: number; effectiveFrom: string; effectiveTo: string | null }>;
+  deliveryTaxRules: Array<{ id: number; version: number; rateBps: number; effectiveFrom: string; effectiveTo: string | null }>;
+}
+
+export const useCheckoutPricing = (storeId: number) => useQuery({
+  queryKey: storeKeys.checkoutPricing(storeId),
+  queryFn: async ({ signal }) => (await API.get<{ data: CheckoutPricingStatus }>(`/stores/${storeId}/checkout-pricing`, { signal })).data.data,
+  enabled: storeId > 0,
+});
+
+export const useInitializeCheckoutPricing = (storeId: number) => {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async () => (await API.post<{ data: CheckoutPricingStatus }>(`/stores/${storeId}/checkout-pricing/initialize`)).data.data,
+    onSuccess: (data) => client.setQueryData(storeKeys.checkoutPricing(storeId), data),
   });
 };
 

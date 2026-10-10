@@ -35,8 +35,8 @@ export {
   type PricingRepository,
 } from "./pricing.repository";
 
-export const QUOTE_VERSION = "2026-09-12-03" as const;
-export const PRICING_POLICY_VERSION = 4 as const;
+export const QUOTE_VERSION = "2026-10-10-01" as const;
+export const PRICING_POLICY_VERSION = 5 as const;
 export const TAX_CALCULATION_POLICY_VERSION = 1 as const;
 type TaxRuleRecord = typeof taxRulesTable.$inferSelect;
 interface TaxRuleSnapshot {
@@ -226,8 +226,15 @@ export class PricingService {
         now,
         options,
       );
+      const freeDeliveryThresholdPaise =
+        context.deliveryPricingRule.freeDeliveryThresholdPaise;
+      // Store delivery pricing applies before promotions. Meeting the threshold
+      // makes delivery ordinarily free, not a promotional saving to allocate.
       const standardDeliveryFeePaise =
-        context.deliveryPricingRule.deliveryFeePaise;
+        freeDeliveryThresholdPaise !== null &&
+        itemsSubtotalPaise >= freeDeliveryThresholdPaise
+          ? 0
+          : context.deliveryPricingRule.deliveryFeePaise;
       const result = resolvePromotionSet({
         promotions: data.promotions,
         couponCode: code,

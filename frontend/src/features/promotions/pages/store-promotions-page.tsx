@@ -1,3 +1,4 @@
+import { TableSkeleton } from "@/shared/ui";
 import { useState } from "react";
 import {
   Alert,
@@ -5,7 +6,6 @@ import {
   Button,
   Card,
   Group,
-  Loader,
   Modal,
   Stack,
   Text,
@@ -82,7 +82,7 @@ const StorePromotionWorkspace = ({ storeId }: { storeId: number }) => {
           </Button>
         </Alert>
       )}
-      {query.isPending && <Loader aria-label="Loading store promotions" />}
+      {query.isPending && <TableSkeleton toolbar={false} label="Loading store promotions" />}
       {query.isError && (
         <Alert color="red" role="alert">
           {promotionErrorMessage(query.error)}{" "}

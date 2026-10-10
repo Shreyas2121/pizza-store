@@ -324,3 +324,12 @@
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .mantine-Skeleton-root::after,
+  .mantine-Loader-root *,
+  [aria-busy="true"] .animate-pulse,
+  [role="status"] .animate-pulse {
+    animation: none !important;
+  }
+}
+

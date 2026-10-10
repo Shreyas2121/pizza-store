@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router";
 import { ActionIcon, Alert, Badge, Button, NumberInput, Paper, Select, Switch, Text } from "@mantine/core";
 import { Plus, Trash } from "lucide-react";
 import { useAdminStores } from "@/features/store";
-import { PageHeader, TableSkeleton } from "@/shared/ui";
+import { PageHeader, PanelSkeleton } from "@/shared/ui";
 import { error, formatPaise, parseRupeesToPaise, success } from "@/shared/lib";
 import { useGetProductsA } from "../api/product.queries";
 import { useAdminBundle, usePublicBundle, useSaveBundle, type BundleDefinition } from "../api/bundle.queries";
@@ -62,7 +62,7 @@ function BundleEditor({ id, definition, products, stores }: {
     {definition && <Paper withBorder radius="lg" p="lg">
       <Text fw={700} size="lg">Saved bundle preview</Text><Text c="dimmed" size="sm" mb="md">Check saved pricing and current component availability for a store.</Text>
       <Select label="Preview store" value={previewStore} onChange={setPreviewStore} data={definition.storePrices.map((price) => ({ value: String(price.storeId), label: stores.find((store) => store.id === price.storeId)?.name ?? `Store #${price.storeId}` }))} />
-      {preview.isFetching ? <Text mt="sm">Loading preview…</Text> : preview.isError ? <Text c="red" mt="sm">Preview could not be loaded.</Text> : preview.data && <div className="mt-4"><Badge color={preview.data.isAvailable ? "basil" : "gray"}>{preview.data.isAvailable ? "Available" : "Unavailable"}</Badge><Text fw={700} mt="sm">{formatPaise(preview.data.sellingPricePaise ?? 0)}</Text><Text c="dimmed" td="line-through">{formatPaise(preview.data.compareAtPricePaise ?? 0)}</Text><BundleContents components={preview.data.components ?? []} /></div>}
+      {preview.isLoading ? <PanelSkeleton rows={2} label="Loading bundle preview" /> : preview.isError ? <Text c="red" mt="sm">Preview could not be loaded.</Text> : preview.data && <div className="mt-4"><Badge color={preview.data.isAvailable ? "basil" : "gray"}>{preview.data.isAvailable ? "Available" : "Unavailable"}</Badge><Text fw={700} mt="sm">{formatPaise(preview.data.sellingPricePaise ?? 0)}</Text><Text c="dimmed" td="line-through">{formatPaise(preview.data.compareAtPricePaise ?? 0)}</Text><BundleContents components={preview.data.components ?? []} /></div>}
     </Paper>}
   </div>;
 }
@@ -74,7 +74,7 @@ export default function AdminBundlePage() {
   const stores = useAdminStores();
   const product = products.data?.find((item) => item.id === id);
   if (!Number.isInteger(id) || id <= 0) return <Alert color="red">Invalid bundle product.</Alert>;
-  if (definition.isLoading || products.isLoading || stores.isLoading) return <TableSkeleton />;
+  if (definition.isLoading || products.isLoading || stores.isLoading) return <><PageHeader title="Bundle" /><PanelSkeleton form rows={5} label="Loading bundle editor" /></>;
   if (definition.isError || products.isError || stores.isError) return <Alert color="red">Bundle editor could not be loaded.<Button ml="sm" variant="default" onClick={() => { definition.refetch(); products.refetch(); stores.refetch(); }}>Retry</Button></Alert>;
   if (product?.productType !== "bundle") return <Alert color="red">Bundle product not found.</Alert>;
   return <div className="mx-auto max-w-5xl"><PageHeader eyebrow="Catalogue" title={product.name} description="Manage bundle contents, store prices, and availability." /><BundleEditor key={id} id={id} definition={definition.data ?? null} products={products.data ?? []} stores={stores.data ?? []} /></div>;

@@ -3,7 +3,7 @@ import { showNotification } from "@mantine/notifications";
 import { useMediaQuery } from "@mantine/hooks";
 import { useLocation } from "react-router";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import * as z from "zod";
 import { Button, Textarea } from "@mantine/core";
 import { useChatRequest } from "../api/chat.queries";
@@ -39,7 +39,7 @@ export const ChatRequestForm = () => {
     formState: { errors },
     reset,
   } = useForm<ChatRequestFormValues>({
-    resolver: zodResolver(chatRequestSchema),
+    resolver: standardSchemaResolver(chatRequestSchema),
   });
 
   const onSubmit = (data: ChatRequestFormValues) => {

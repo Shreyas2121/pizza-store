@@ -245,13 +245,14 @@ describe("StoreService — Authorization & Scoping", () => {
       const { storeService } = createTestHarness();
 
       vi.spyOn(storeService, "getStoreBySlug").mockResolvedValue(undefined as any);
-      vi.spyOn(db, "insert").mockReturnValue({
-        values: vi.fn().mockReturnValue({
-          returning: vi.fn().mockResolvedValue([
-            { id: 10, name: "New Store", slug: "new-store" },
-          ]),
-        }),
-      } as any);
+      const values = vi.fn().mockReturnValue({ returning: vi.fn().mockResolvedValue([
+        { id: 10, name: "New Store", slug: "new-store", timezone: "Asia/Kolkata" },
+      ]) });
+      const tx = {
+        insert: vi.fn(() => ({ values })),
+        select: vi.fn(() => ({ from: vi.fn(() => ({ where: vi.fn().mockResolvedValue([]) })) })),
+      };
+      vi.spyOn(db, "transaction").mockImplementation(async (callback) => callback(tx as unknown as TransactionType));
 
       const result = await storeService.createStore(
         {
@@ -268,6 +269,10 @@ describe("StoreService — Authorization & Scoping", () => {
       );
 
       expect(result).toMatchObject({ id: 10, slug: "new-store" });
+      expect(tx.insert).toHaveBeenCalledTimes(4);
+      expect(values).toHaveBeenCalledWith(expect.objectContaining({ storeId: 10, deliveryFeePaise: 4000 }));
+      expect(values).toHaveBeenCalledWith(expect.objectContaining({ storeId: 10, component: "item", rateBps: 500 }));
+      expect(values).toHaveBeenCalledWith(expect.objectContaining({ storeId: 10, component: "delivery", rateBps: 500 }));
     });
 
     it("denies non-admin staff from creating a store", async () => {

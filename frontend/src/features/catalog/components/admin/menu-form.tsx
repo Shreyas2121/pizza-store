@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { Button, FileInput, Loader, MultiSelect, NumberInput, Paper, Select, Text, TextInput } from "@mantine/core";
 import { ImagePlus, Save } from "lucide-react";
 import { useGetCategoriesSelect } from "../../api/category.queries";
@@ -19,7 +19,7 @@ export const MenuForm = () => {
   const createMapping = useCreateMenuMapping();
   const closeModal = useAuthModalStore((state) => state.closeModal);
   const { control, handleSubmit, formState: { errors } } = useForm<TMenu>({
-    resolver: zodResolver(menuSchema),
+    resolver: standardSchemaResolver(menuSchema),
     defaultValues: { name: "", image: undefined, position: 1, productIds: [] },
   });
 
@@ -58,7 +58,7 @@ export const MenuForm = () => {
         <Text fw={700}>Section image</Text>
         <Text size="sm" c="dimmed" mb="md">Use a square or landscape food image, up to 5 MB.</Text>
         <div className="grid gap-4 sm:grid-cols-[1fr_160px]">
-          <Controller name="image" control={control} render={({ field }) => <FileInput label="Upload image" placeholder="Choose an image" leftSection={<ImagePlus size={16} />} accept="image/png,image/jpeg,image/gif" withAsterisk error={errors.image?.message} value={field.value as File | null} onChange={(file) => { field.onChange(file); setImagePreview(file ? URL.createObjectURL(file) : null); }} />} />
+          <Controller name="image" control={control} render={({ field }) => <FileInput label="Upload image" placeholder="Choose an image" leftSection={<ImagePlus size={16} />} accept="image/png,image/jpeg,image/gif,image/webp,image/avif" withAsterisk error={errors.image?.message} value={field.value as File | null} onChange={(file) => { field.onChange(file); setImagePreview(file ? URL.createObjectURL(file) : null); }} />} />
           <div className="aspect-square overflow-hidden rounded-xl border border-dashed border-border bg-surface-muted">
             {imagePreview ? <img src={imagePreview} alt="Menu section preview" className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-xs text-ink-muted">Preview</div>}
           </div>

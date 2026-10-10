@@ -29,6 +29,12 @@ apiClient.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+
+  // Let Axios set the correct boundary for FormData uploads
+  if (config.data instanceof FormData) {
+    config.headers.setContentType("multipart/form-data");
+  }
+
   return config;
 });
 

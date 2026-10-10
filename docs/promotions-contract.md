@@ -13,7 +13,7 @@
 4. Request objects are strict. Unknown keys, unsafe integers, invalid discriminants, and inconsistent cross-fields are rejected.
 5. Success responses use `{ "data": ... }`. List responses put pagination beside the collection inside `data`. Errors use `{ "message": string, "code": string, "data"?: object }`.
 6. `null` means unlimited or absent where declared. The new contract never accepts or returns `-1` as an unlimited sentinel.
-7. `quoteVersion` is `2026-09-12-03`, `pricingPolicyVersion` is `4`, and a new promotion starts at `definitionVersion = 1`. These values have named constants in their authoritative backend modules.
+7. `quoteVersion` is `2026-10-10-01`, `pricingPolicyVersion` is `5`, and a new promotion starts at `definitionVersion = 1`. These values have named constants in their authoritative backend modules.
 8. This is the only target promotion/coupon contract. There are no legacy response adapters, redirects, or dual read/write requirements.
 
 Named contract limits are frozen for matching backend and frontend validation:
@@ -292,9 +292,9 @@ interface QuotePromotionDto {
 
 ```ts
 interface PricingQuoteDto {
-  quoteVersion: "2026-09-12-03";
+  quoteVersion: "2026-10-10-01";
   currency: "INR";
-  pricingPolicyVersion: 4;
+  pricingPolicyVersion: 5;
   discountMode: DiscountMode;
   itemsSubtotalPaise: number;
   itemDiscountPaise: number;
@@ -591,7 +591,7 @@ Discovery lists describe currently active, effectively enabled offers for the se
 
 C05 discovery returns at most `PROMOTION_LIST_MAX_PAGE_SIZE` offers or `HOMEPAGE_FEATURED_OFFER_LIMIT` featured offers. It uses global active dates and occupied capacity/budget, selected-store participation, and stable priority/ID ordering. Store-local day/time and cart/user conditions are advertised in `eligibilitySummary`; discovery does not evaluate a submitted cart. Coupon validation and promotion-aware pricing are integrated in C06/C07.
 
-Pricing policy v4 does not apply the legacy delivery-rule free-delivery threshold to new quotes. A positive standard fee becomes zero only through an applied `free_delivery` offer, so `deliveryDiscountPaise` always reconciles to a promotion allocation and budget. A zero standard fee produces no saving and therefore no promotion application.
+Pricing policy v5 applies the store delivery-rule free-delivery threshold to the pre-discount item subtotal, including customizations. At or above a non-null threshold, the ordinary standard fee is zero before promotion resolution. A null threshold disables ordinary free delivery; zero enables it for every valid cart. Delivery offers can waive only a remaining positive standard fee, so `deliveryDiscountPaise` always reconciles to a promotion allocation and budget. A zero standard fee produces no saving and therefore no promotion application. Existing v4 saved order snapshots are preserved. Examples showing a positive standard delivery fee assume a store threshold that is null or greater than the example subtotal.
 
 Static customer paths (`/offers`, `/featured`, `/validate`) are registered before `/:id`.
 
@@ -938,9 +938,9 @@ This automatic-deal quote has a 5,000 paise item offer, a 4,000 paise free-deliv
 ```json
 {
   "data": {
-    "quoteVersion": "2026-09-12-03",
+    "quoteVersion": "2026-10-10-01",
     "currency": "INR",
-    "pricingPolicyVersion": 4,
+    "pricingPolicyVersion": 5,
     "discountMode": "automatic_deals",
     "itemsSubtotalPaise": 75000,
     "itemDiscountPaise": 5000,

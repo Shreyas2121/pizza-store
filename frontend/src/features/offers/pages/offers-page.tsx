@@ -5,6 +5,7 @@ import { useOfferProducts } from "../api/offers.queries";
 import { isOfferTarget } from "../model/offers.helpers";
 import type { PublicOffer } from "../model/offers.types";
 import { ProductCard } from "@/features/catalog";
+import { ProductGridSkeleton } from "@/shared/ui";
 
 function OfferProducts({ offer, storeId }: { offer: PublicOffer; storeId: number }) {
   const query = useOfferProducts(storeId, offer.id, true);
@@ -12,7 +13,7 @@ function OfferProducts({ offer, storeId }: { offer: PublicOffer; storeId: number
   return <div>
     <h2 className="text-section-title-scale">Products for {offer.name}</h2>
     <p className="my-4">Browse the offer’s product and category targets. Checkout confirms eligibility and the best available saving.</p>
-    {query.isPending && <p role="status">Loading products…</p>}
+    {query.isPending && <ProductGridSkeleton count={6} />}
     {query.isError ? <div role="alert"><p>Products could not be loaded.</p><button className="secondary-button" onClick={() => void (query.isFetchNextPageError ? query.fetchNextPage() : query.refetch())}>Retry products</button></div> : <>
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{products.map((p) => <ProductCard key={p.id} product={p} />)}</div>
       {!query.isPending && !products.length && <p>No matching products on the menu pages loaded so far.</p>}

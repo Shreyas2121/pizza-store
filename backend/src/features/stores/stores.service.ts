@@ -35,6 +35,7 @@ import defaultAuthorizationService, {
 } from "../access/access.service";
 import defaultAuditService, { AuditService } from "../audit/audit.service";
 import type { AuditWriter } from "../audit/audit.types";
+import { initializeCheckoutPricing, readCheckoutPricing } from "./store-pricing-setup";
 
 export class StoreService {
   constructor(
@@ -62,15 +63,35 @@ export class StoreService {
       throw new AppError(`Store with slug '${slug}' already exists`, 409);
     }
 
-    const [newStore] = await db
-      .insert(storesTable)
-      .values({
-        ...data,
-        slug,
-      })
-      .returning();
+    return db.transaction(async (tx) => {
+      const [newStore] = await tx.insert(storesTable).values({ ...data, slug }).returning();
+      await initializeCheckoutPricing(tx, newStore);
+      return newStore;
+    });
+  }
 
-    return newStore;
+  async getCheckoutPricing(storeId: number, actor?: AuthPrincipal) {
+    this.authorizationService.requirePlatformAdmin(actor, "platform.stores.create");
+    return db.transaction(async (tx) => {
+      const [store] = await tx.select().from(storesTable).where(eq(storesTable.id, storeId)).for("update");
+      if (!store) throw new AppError("Store not found", 404, "RESOURCE_NOT_FOUND");
+      return readCheckoutPricing(tx, store);
+    });
+  }
+
+  async initializeCheckoutPricing(storeId: number, actor?: AuthPrincipal) {
+    this.authorizationService.requirePlatformAdmin(actor, "platform.stores.create");
+    return db.transaction(async (tx) => {
+      const [store] = await tx.select().from(storesTable).where(eq(storesTable.id, storeId)).for("update");
+      if (!store) throw new AppError("Store not found", 404, "RESOURCE_NOT_FOUND");
+      const now = new Date();
+      const result = await initializeCheckoutPricing(tx, store, now);
+      if (Object.values(result.initialized).some(Boolean)) await this.auditService.write({
+        tx, actor, storeId, action: "store.checkout_pricing.initialized", resourceType: "store", resourceId: storeId,
+        after: result,
+      });
+      return readCheckoutPricing(tx, store, now);
+    });
   }
 
   async getStores({

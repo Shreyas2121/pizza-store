@@ -1,6 +1,7 @@
+import { PanelSkeleton } from "@/shared/ui";
 import axios from "axios";
 import { useParams } from "react-router";
-import { Alert, Badge, Button, Card, Loader, Stack, Text, Title } from "@mantine/core";
+import { Alert, Badge, Button, Card, Stack, Text, Title } from "@mantine/core";
 import { formatStoreHours } from "@/shared/lib";
 import { useStoreBySlug } from "../api/store.queries";
 import { useStoreStore } from "../model/store.store";
@@ -10,7 +11,7 @@ export default function StoreDetailsPage() {
   const { slug = "" } = useParams();
   const query = useStoreBySlug(slug);
   const openPincodeModal = useStoreStore((state) => state.openPincodeModal);
-  if (query.isLoading) return <div className="mx-auto max-w-3xl p-6"><Loader aria-label="Loading store" /></div>;
+  if (query.isLoading) return <div className="mx-auto max-w-3xl p-6"><PanelSkeleton label="Loading store" /></div>;
   if (query.isError || !query.data) {
     const missing = axios.isAxiosError(query.error) && query.error.response?.status === 404;
     return <div className="mx-auto max-w-3xl p-6"><Alert color="red" title={missing ? "Store not found" : "Store details unavailable"}>{missing ? "This store link could not be found." : "Please try again."}{!missing && <Button variant="subtle" onClick={() => query.refetch()}>Retry</Button>}</Alert></div>;

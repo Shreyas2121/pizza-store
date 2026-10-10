@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Alert, Button, Card, Checkbox, Group, Loader, Modal, NumberInput, Select, Stack, Table, Text, Textarea } from "@mantine/core";
-import { EmptyState } from "@/shared/ui";
+import { Alert, Button, Card, Checkbox, Group, Modal, NumberInput, Select, Stack, Table, Text, Textarea } from "@mantine/core";
+import { EmptyState, TableSkeleton, PanelSkeleton } from "@/shared/ui";
 import { formatDateTime, formatPaise } from "@/shared/lib/regional";
 import { error, success } from "@/shared/lib/notifications";
 import { apiMessage, humanizeStatus } from "../model/finance.helpers";
@@ -39,7 +39,7 @@ export const CashSessionsPanel = ({ storeId, canReview }: { storeId: number; can
     catch (cause) { error(apiMessage(cause)); }
   };
 
-  if (sessions.isLoading) return <Loader aria-label="Loading cash sessions" />;
+  if (sessions.isLoading) return <TableSkeleton toolbar={false} label="Loading cash sessions" />;
   if (sessions.isError) return <Alert color="red" title="Cash sessions unavailable">The cash-session history could not be loaded. Try again.</Alert>;
 
   const detailData = detail.data;
@@ -55,7 +55,7 @@ export const CashSessionsPanel = ({ storeId, canReview }: { storeId: number; can
 
     {!!sessions.data?.data.length && <Select label="Cash session" value={selectedId?.toString() ?? null} onChange={(value) => setSelectedId(value ? Number(value) : null)} data={sessions.data.data.map((item) => ({ value: String(item.id), label: `${item.businessDate} · ${humanizeStatus(item.status)} · ${formatPaise(item.expectedCashPaise)}` }))} />}
 
-    {detail.isLoading ? <Loader aria-label="Loading cash session detail" /> : detail.isError ? <Alert color="red">Cash-session detail could not be loaded.</Alert> : selected && <>
+    {detail.isLoading ? <PanelSkeleton label="Loading cash session detail" /> : detail.isError ? <Alert color="red">Cash-session detail could not be loaded.</Alert> : selected && <>
       <Card withBorder>
         <Group justify="space-between" align="start"><div><Group gap="xs"><Text fw={700}>Session #{selected.id}</Text><StatusBadge value={selected.status} /></Group><Text size="sm" c="dimmed">Business date {selected.businessDate} · Opened {formatDateTime(selected.openedAt)}</Text></div><div className="text-right"><Text size="xs" c="dimmed">Expected cash</Text><Text fw={800} className="tabular-nums">{formatPaise(selected.expectedCashPaise)}</Text></div></Group>
         {selected.status === "closed" && <Alert mt="md" color={selected.variancePaise ? "yellow" : "green"} title="Counted close"><Text>Counted {formatPaise(selected.countedCashPaise ?? 0)} · Variance {formatPaise(selected.variancePaise ?? 0)}</Text><Text size="xs">Closed {selected.closedAt ? formatDateTime(selected.closedAt) : "—"} by user #{selected.closedBy ?? "—"}</Text></Alert>}

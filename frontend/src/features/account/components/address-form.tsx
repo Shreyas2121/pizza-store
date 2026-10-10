@@ -1,5 +1,5 @@
 import { Controller, useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { Button, Select, TextInput } from "@mantine/core";
 import { Home, MapPin, Phone } from "lucide-react";
 import { useCreateAddress, useUpdateAddress } from "../api/address.queries";
@@ -14,7 +14,7 @@ export const AddressForm = ({ addressId, defaultValues, onSubmit: afterSubmit }:
   const setPincode = useStoreStore((state) => state.setPincode);
   const openPincodeModal = useStoreStore((state) => state.openPincodeModal);
   const { control, register, handleSubmit, formState: { errors } } = useForm<TAddress>({
-    resolver: zodResolver(addressSchema),
+    resolver: standardSchemaResolver(addressSchema),
     defaultValues: defaultValues ?? { type: "Home", street: "", city: "", state: "", pincode: "", phone: "" },
   });
 

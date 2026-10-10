@@ -9,6 +9,7 @@ import { error, formatStoreHours, success } from "@/shared/lib";
 import { StoreForm } from "../components/admin/store-form";
 import { useAdminStores, useDeactivateStore, useUpdateStore } from "../api/store.queries";
 import type { Store } from "../model/store.types";
+import { CheckoutPricingSetup } from "../components/admin/checkout-pricing-setup";
 
 export function AdminStoresPage() {
   const { data: stores, isLoading, isError } = useAdminStores();
@@ -18,6 +19,7 @@ export function AdminStoresPage() {
   const platformAdmin = isPlatformAdmin(access);
   const [drawerOpened, setDrawerOpened] = useState(false);
   const [editing, setEditing] = useState<Store | null>(null);
+  const [pricingStore, setPricingStore] = useState<Store | null>(null);
 
   const openForm = (store?: Store) => {
     setEditing(store ?? null);
@@ -75,6 +77,7 @@ export function AdminStoresPage() {
                 <Button component={Link} to={`/stores/${encodeURIComponent(store.slug)}`} variant="subtle" size="sm">Public details</Button>
                 {canReadProducts && <Button component={Link} to={`/admin/stores/${store.id}/products`} variant="light" size="sm" leftSection={<Boxes size={15} />}>Products</Button>}
                 {canReadDeliveryZones && <Button component={Link} to={`/admin/stores/${store.id}/delivery-zones`} variant="light" size="sm" leftSection={<MapPinned size={15} />}>Delivery zones</Button>}
+                {platformAdmin && <Button variant="light" size="sm" onClick={() => setPricingStore(store)}>Checkout pricing</Button>}
                 {canUpdateProfile && <Button variant="default" size="sm" leftSection={<Pencil size={15} />} onClick={() => openForm(store)}>Edit</Button>}
                 {platformAdmin && <Button variant="subtle" color={store.isActive ? "red" : "basil"} size="sm" leftSection={<Power size={15} />} loading={(deactivateStore.isPending && deactivateStore.variables === store.id) || (updateStore.isPending && updateStore.variables?.id === store.id)} onClick={() => toggleActive(store)}>{store.isActive ? "Deactivate" : "Activate"}</Button>}
               </div>
@@ -85,6 +88,9 @@ export function AdminStoresPage() {
 
       <Drawer opened={drawerOpened} onClose={closeForm} position="right" size="100%" padding="lg" title={editing ? "Edit store" : "Create store"} overlayProps={{ backgroundOpacity: 0.4, blur: 2 }} classNames={{ content: "md:max-w-[680px]" }}>
         <StoreForm key={editing?.id ?? "new"} store={editing} platformAdmin={platformAdmin} onSaved={closeForm} />
+      </Drawer>
+      <Drawer opened={pricingStore !== null} onClose={() => setPricingStore(null)} position="right" size="lg" title={`Checkout pricing — ${pricingStore?.name ?? ""}`}>
+        {pricingStore && <CheckoutPricingSetup key={pricingStore.id} storeId={pricingStore.id} />}
       </Drawer>
     </section>
   );

@@ -1,10 +1,10 @@
+import { PanelSkeleton, TableSkeleton } from "@/shared/ui";
 import { useState } from "react";
 import {
   Alert,
   Button,
   Card,
   Group,
-  Loader,
   Modal,
   Stack,
   Table,
@@ -57,7 +57,7 @@ const PromotionDialog = ({
   if (detail.isPending)
     return (
       <Stack>
-        <Loader aria-label="Loading promotion definition" />
+        <PanelSkeleton label="Loading promotion definition" />
         <Button onClick={onClose}>Close</Button>
       </Stack>
     );
@@ -154,7 +154,7 @@ const AdminPromotionsWorkspace = ({ storeId }: { storeId?: number }) => {
           {error}
         </Alert>
       )}
-      {query.isPending && <Loader aria-label="Loading promotions" />}
+      {query.isPending && <TableSkeleton toolbar={false} label="Loading promotions" />}
       {query.isError && (
         <Alert color="red" role="alert">
           {promotionErrorMessage(query.error)}{" "}

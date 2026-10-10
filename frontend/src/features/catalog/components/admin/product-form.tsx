@@ -1,5 +1,5 @@
 import { useForm, Controller } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { TextInput, Textarea, NumberInput, Switch, Select, FileInput, Button, Loader, Paper, Text } from "@mantine/core";
 import { ImagePlus, Save, X } from "lucide-react";
 import { useState } from "react";
@@ -15,7 +15,7 @@ export const ProductForm = () => {
   const createProduct = useCreateProduct();
   const navigate = useNavigate();
   const { control, handleSubmit, formState: { errors } } = useForm<TProduct>({
-    resolver: zodResolver(productSchema),
+    resolver: standardSchemaResolver(productSchema),
     defaultValues: { name: "", description: "", price: undefined, isVeg: false, productType: "single", categoryId: undefined, image: undefined },
   });
 
@@ -80,7 +80,7 @@ export const ProductForm = () => {
         <Text size="sm" c="dimmed" mb="lg">Use a bright landscape image. JPEG or PNG, up to 5 MB; 4:3 works best.</Text>
         <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_240px]">
           <Controller name="image" control={control} render={({ field }) => (
-            <FileInput label="Upload image" placeholder="Choose an image" leftSection={<ImagePlus size={16} />} withAsterisk accept="image/png,image/jpeg,image/gif" error={errors.image?.message} value={field.value as File | null} onChange={(file) => field.onChange(handleImageChange(file))} clearable />
+            <FileInput label="Upload image" placeholder="Choose an image" leftSection={<ImagePlus size={16} />} withAsterisk accept="image/png,image/jpeg,image/gif,image/webp,image/avif" error={errors.image?.message} value={field.value as File | null} onChange={(file) => field.onChange(handleImageChange(file))} clearable />
           )} />
           <div className="aspect-[4/3] overflow-hidden rounded-xl border border-dashed border-border bg-surface-muted">
             {imagePreview ? <img src={imagePreview} alt="New product preview" className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-sm text-ink-muted">Image preview</div>}

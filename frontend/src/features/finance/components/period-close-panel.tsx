@@ -1,6 +1,6 @@
-import { Alert, Button, Card, Group, Loader, Modal, Stack, Table, Text, TextInput, Textarea } from "@mantine/core";
+import { Alert, Button, Card, Group, Modal, Stack, Table, Text, TextInput, Textarea } from "@mantine/core";
 import { useState } from "react";
-import { EmptyState } from "@/shared/ui";
+import { EmptyState, TableSkeleton } from "@/shared/ui";
 import { apiMessage, humanizeStatus } from "../model/finance.helpers";
 import { error, success } from "@/shared/lib/notifications";
 import { useFiscalPeriods, useOpenFiscalPeriod, usePeriodCommand } from "../api/finance.queries";
@@ -18,7 +18,7 @@ export const PeriodClosePanel = ({ storeId, isOwner }: { storeId: number; isOwne
   const [target, setTarget] = useState<{ period: FiscalPeriod; action: "soft-close" | "close" | "reopen" } | null>(null);
   const act = async (work: () => Promise<unknown>, message: string) => { try { await work(); success(message); } catch (cause) { error(apiMessage(cause)); } };
 
-  if (periods.isLoading) return <Group><Loader size="sm" /><Text>Loading fiscal periods…</Text></Group>;
+  if (periods.isLoading) return <TableSkeleton toolbar={false} label="Loading fiscal periods" />;
   if (periods.isError) return <Alert color="red" title="Fiscal periods unavailable">Period controls could not be loaded. <Button ml="sm" size="compact-xs" onClick={() => void periods.refetch()}>Retry</Button></Alert>;
 
   return <Stack gap="md">

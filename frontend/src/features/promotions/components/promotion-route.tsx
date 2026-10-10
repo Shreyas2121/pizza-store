@@ -1,5 +1,6 @@
+import { RouteSkeleton } from "@/shared/ui";
 import type { ReactNode } from "react";
-import { Alert, Button, Loader } from "@mantine/core";
+import { Alert, Button } from "@mantine/core";
 import { usePromotionAccess } from "../api/promotion.queries";
 
 export const PromotionRoute = ({
@@ -11,7 +12,7 @@ export const PromotionRoute = ({
 }) => {
   const permissions = usePromotionAccess();
   if (permissions.access.isPending)
-    return <Loader aria-label="Loading promotion permissions" />;
+    return <RouteSkeleton admin />;
   if (permissions.access.isError)
     return (
       <Alert color="red">

@@ -1,10 +1,10 @@
+import { CardGridSkeleton } from "@/shared/ui";
 import { useState } from "react";
 import {
   Alert,
   Button,
   Card,
   Group,
-  Loader,
   Stack,
   Table,
   Text,
@@ -93,7 +93,7 @@ export const PromotionAnalyticsCard = ({
           {error}
         </Alert>
       )}
-      {query.isPending && <Loader aria-label="Loading promotion analytics" />}
+      {query.isPending && <CardGridSkeleton count={3} height={110} className="grid gap-3 sm:grid-cols-3" label="Loading promotion analytics" />}
       {query.isError && (
         <Alert color="red" role="alert">
           {promotionErrorMessage(query.error)}{" "}

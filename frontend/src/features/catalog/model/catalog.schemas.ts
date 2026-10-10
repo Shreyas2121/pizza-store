@@ -10,7 +10,7 @@ export const productSchema = z.object({
   image: z.custom<File>(
     (file) => {
       if (!(file instanceof File)) return false;
-      const allowedTypes = ["image/jpeg", "image/png", "image/gif"];
+      const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/avif"];
       if (!allowedTypes.includes(file.type)) return false;
       const MAX_SIZE = 5 * 1024 * 1024; // 5MB
       if (file.size > MAX_SIZE) return false;
@@ -28,7 +28,7 @@ export const menuSchema = z.object({
   image: z.custom<File>(
     (file) => {
       if (!(file instanceof File)) return false;
-      const allowedTypes = ["image/jpeg", "image/png", "image/gif"];
+      const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/avif"];
       if (!allowedTypes.includes(file.type)) return false;
       const MAX_SIZE = 5 * 1024 * 1024; // 5MB
       if (file.size > MAX_SIZE) return false;

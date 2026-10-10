@@ -1,5 +1,9 @@
 # Setup Guide
 
+## Manual store setup without seeds
+
+Stores created through the app include initial demo delivery and tax rules. For an existing store whose cart returns `DELIVERY_PRICING_RULE_NOT_FOUND` or a missing demo tax rule, a platform admin can open **Admin → Stores → Checkout pricing → Initialize missing demo rules**. Existing applicable rules are preserved. See [Store checkout pricing setup](store-checkout-pricing.md) for defaults, effective-date behavior and the remaining product/stock/delivery-zone prerequisites. A seed or reset is not required for this repair.
+
 ## Prerequisites
 
 - **Node.js** 22.13.0+ and **pnpm** package manager

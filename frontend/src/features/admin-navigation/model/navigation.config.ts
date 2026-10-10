@@ -1,108 +1,190 @@
 import {
+  BadgePercent,
+  Banknote,
   Box,
-  Home,
-  LucideIcon,
-  MessageCircleQuestionIcon,
-  PackageSearch,
-  ShoppingCart,
-  ShieldAlert,
-  Sliders,
-  Store,
-  ScrollText,
-  Users,
+  CreditCard,
   Landmark,
-  WalletCards,
+  Layers,
+  LayoutDashboard,
+  LucideIcon,
+  MessageCircleQuestion,
+  PackageSearch,
+  ScrollText,
+  ShieldAlert,
+  ShoppingCart,
+  SlidersHorizontal,
+  Store,
   Tags,
+  Users,
+  UtensilsCrossed,
 } from "lucide-react";
 
 export interface SidebarLinkConfig {
   label: string;
   to: string;
   icon: LucideIcon;
+  section: string;
   platformOnly?: boolean;
   managerOnly?: boolean;
   requiredPermission?: string;
 }
 
-export const sidebarLinks: SidebarLinkConfig[] = [
-  { label: "Payments", to: "/admin/payments", icon: WalletCards, platformOnly: true },
-  { label: "Categories", to: "/admin/categories", icon: Tags, platformOnly: true },
-  { label: "Promotions", to: "/admin/promotions", icon: Tags, platformOnly: true },
-  { label: "Store promotions", to: "/admin/store-promotions", icon: Tags, managerOnly: true, requiredPermission: "store.promotions.toggle" },
+export interface SidebarSectionConfig {
+  title: string;
+  links: SidebarLinkConfig[];
+}
+
+export const sidebarSections: SidebarSectionConfig[] = [
   {
-    label: "Dashboard",
-    to: "/admin",
-    icon: Home,
+    title: "Overview",
+    links: [
+      {
+        label: "Dashboard",
+        to: "/admin",
+        icon: LayoutDashboard,
+        section: "Overview",
+      },
+    ],
   },
   {
-    label: "Customization",
-    to: "/admin/customization",
-    icon: Sliders,
-    platformOnly: true,
+    title: "Operations",
+    links: [
+      {
+        label: "Orders",
+        to: "/admin/orders",
+        icon: ShoppingCart,
+        section: "Operations",
+        requiredPermission: "orders.read",
+      },
+      {
+        label: "Inventory",
+        to: "/admin/inventory",
+        icon: PackageSearch,
+        section: "Operations",
+        requiredPermission: "inventory.read",
+      },
+      {
+        label: "Stores",
+        to: "/admin/stores",
+        icon: Store,
+        section: "Operations",
+      },
+    ],
   },
   {
-    label: "Products",
-    to: "/admin/products",
-    icon: Box,
-    platformOnly: true,
+    title: "Catalog & Menu",
+    links: [
+      {
+        label: "Products",
+        to: "/admin/products",
+        icon: Box,
+        section: "Catalog & Menu",
+        platformOnly: true,
+      },
+      {
+        label: "Categories",
+        to: "/admin/categories",
+        icon: Layers,
+        section: "Catalog & Menu",
+        platformOnly: true,
+      },
+      {
+        label: "Customization",
+        to: "/admin/customization",
+        icon: SlidersHorizontal,
+        section: "Catalog & Menu",
+        platformOnly: true,
+      },
+      {
+        label: "Menu",
+        to: "/admin/menu",
+        icon: UtensilsCrossed,
+        section: "Catalog & Menu",
+        platformOnly: true,
+      },
+    ],
   },
   {
-    label: "Stores",
-    to: "/admin/stores",
-    icon: Store,
+    title: "Marketing",
+    links: [
+      {
+        label: "Promotions",
+        to: "/admin/promotions",
+        icon: BadgePercent,
+        section: "Marketing",
+        platformOnly: true,
+      },
+      {
+        label: "Store promotions",
+        to: "/admin/store-promotions",
+        icon: Tags,
+        section: "Marketing",
+        managerOnly: true,
+        requiredPermission: "store.promotions.toggle",
+      },
+    ],
   },
   {
-    label: "Inventory",
-    to: "/admin/inventory",
-    icon: PackageSearch,
-    requiredPermission: "inventory.read",
+    title: "Finance",
+    links: [
+      {
+        label: "Payments",
+        to: "/admin/payments",
+        icon: CreditCard,
+        section: "Finance",
+        platformOnly: true,
+      },
+      {
+        label: "Finance",
+        to: "/admin/finance",
+        icon: Landmark,
+        section: "Finance",
+        requiredPermission: "finance.refunds.create",
+      },
+      {
+        label: "Payroll",
+        to: "/admin/payroll",
+        icon: Banknote,
+        section: "Finance",
+        requiredPermission: "payroll.read",
+      },
+    ],
   },
   {
-    label: "Orders",
-    to: "/admin/orders",
-    icon: ShoppingCart,
-    requiredPermission: "orders.read",
-  },
-  {
-    label: "Finance",
-    to: "/admin/finance",
-    icon: Landmark,
-    requiredPermission: "finance.refunds.create",
-  },
-  {
-    label: "Payroll",
-    to: "/admin/payroll",
-    icon: WalletCards,
-    requiredPermission: "payroll.read",
-  },
-  {
-    label: "Staff",
-    to: "/admin/staff",
-    icon: Users,
-    requiredPermission: "store.staff.read",
-  },
-  {
-    label: "Audit",
-    to: "/admin/audit",
-    icon: ScrollText,
-    requiredPermission: "store.audit.read",
-  },
-  {
-    label: "Menu",
-    to: "/admin/menu",
-    icon: Sliders,
-    platformOnly: true,
-  },
-  {
-    label: "Support",
-    to: "/admin/support",
-    icon: MessageCircleQuestionIcon,
-    platformOnly: true,
-  },
-  {
-    label: "System",
-    to: "/admin/system",
-    icon: ShieldAlert,
-    platformOnly: true,
+    title: "Administration",
+    links: [
+      {
+        label: "Staff",
+        to: "/admin/staff",
+        icon: Users,
+        section: "Administration",
+        requiredPermission: "store.staff.read",
+      },
+      {
+        label: "Support",
+        to: "/admin/support",
+        icon: MessageCircleQuestion,
+        section: "Administration",
+        platformOnly: true,
+      },
+      {
+        label: "Audit",
+        to: "/admin/audit",
+        icon: ScrollText,
+        section: "Administration",
+        requiredPermission: "store.audit.read",
+      },
+      {
+        label: "System",
+        to: "/admin/system",
+        icon: ShieldAlert,
+        section: "Administration",
+        platformOnly: true,
+      },
+    ],
   },
 ];
+
+export const sidebarLinks: SidebarLinkConfig[] = sidebarSections.flatMap(
+  (section) => section.links,
+);

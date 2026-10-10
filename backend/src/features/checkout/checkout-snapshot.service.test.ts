@@ -248,7 +248,7 @@ describe("COD final checkout", () => {
         discountPaise: 200,
         deliveryFeePaise: 0,
         grandTotalPaise: 1800,
-        pricingPolicyVersion: 4,
+        pricingPolicyVersion: 5,
         taxPaise: 86,
         pricingTimezone: "UTC",
         status: "pending",
@@ -291,7 +291,7 @@ describe("COD final checkout", () => {
     }, h.tx);
     expect(h.writes[0]).toMatchObject({ table: ordersTable, value: {
       discountMode: "automatic_deals", discountPaise: 200, deliveryFeePaise: 0,
-      grandTotalPaise: 1800, pricingPolicyVersion: 4, status: "awaiting_payment", paymentType: "razorpay",
+      grandTotalPaise: 1800, pricingPolicyVersion: 5, status: "awaiting_payment", paymentType: "razorpay",
     } });
     expect(h.applications.record).toHaveBeenCalledWith(42, h.quote, new Map([[101, 501]]), "reserved", h.tx, now);
   });

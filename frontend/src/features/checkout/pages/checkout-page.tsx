@@ -22,7 +22,7 @@ import { openRazorpayCheckout } from "../lib/razorpay";
 import AddressStep from "../components/address-step";
 import PaymentStep from "../components/payment-step";
 import CheckoutSummary from "../components/checkout-summary";
-import { DetailsPageSkeleton } from "@/shared/ui";
+import { CheckoutSkeleton } from "@/shared/ui";
 import { isStoreOpen, useStoreStore } from "@/features/store";
 import axios from "axios";
 
@@ -271,7 +271,7 @@ export const CheckoutPage = () => {
     verifyRazorpayM.isPending ||
     paymentStatusMessage !== null;
 
-  if (loading) return <div className="page-shell"><DetailsPageSkeleton /></div>;
+  if (loading) return <div className="page-shell"><CheckoutSkeleton /></div>;
 
   if (!resolvedStore || !userPincode) {
     return <div className="page-shell"><div className="empty-state"><MapPin size={36} className="text-brand" /><h1 className="mt-3 text-section-title-scale">Choose your delivery area</h1><p className="mt-2 text-supporting-scale">Enter your pincode before reviewing checkout.</p><Button mt="lg" onClick={openPincodeModal} leftSection={<MapPin size={17} />}>Enter pincode</Button></div></div>;

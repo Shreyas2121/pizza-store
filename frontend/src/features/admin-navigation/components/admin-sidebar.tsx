@@ -1,7 +1,10 @@
 import { Avatar, Drawer, Tooltip } from "@mantine/core";
 import { ChevronLeft, ChevronRight, LogOut, Pizza } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router";
-import { sidebarLinks } from "../model/navigation.config";
+import {
+  sidebarSections,
+  type SidebarLinkConfig,
+} from "../model/navigation.config";
 import { useUser } from "@/features/auth";
 import {
   getActiveMembershipRole,
@@ -44,13 +47,23 @@ export const AdminSidebar = ({
   const activeRole = getActiveMembershipRole(access, activeStoreId) ?? (user?.role === "admin" ? "admin" : null);
   const roleLabel = activeRole ? roleDisplayNames[activeRole] ?? "Staff" : "Staff";
 
-  const activeFor = (to: string) =>
-    to === "/admin"
-      ? location.pathname === "/admin"
-      : location.pathname.startsWith(to) ||
-        (to === "/admin/products" && location.pathname.startsWith("/admin/product"));
+  const activeFor = (to: string) => {
+    if (to === "/admin") {
+      return location.pathname === "/admin";
+    }
+    if (to === "/admin/orders") {
+      return location.pathname.startsWith("/admin/order");
+    }
+    if (to === "/admin/products") {
+      return (
+        location.pathname.startsWith("/admin/product") ||
+        location.pathname.startsWith("/admin/bundles")
+      );
+    }
+    return location.pathname.startsWith(to);
+  };
 
-  const visibleLinks = sidebarLinks.filter((link) => {
+  const isLinkVisible = (link: SidebarLinkConfig) => {
     if (link.managerOnly && getActiveMembershipRole(access, activeStoreId) !== "manager") return false;
     if (link.platformOnly) {
       return isPlatformAdmin(access);
@@ -68,7 +81,14 @@ export const AdminSidebar = ({
       );
     }
     return true;
-  });
+  };
+
+  const visibleSections = sidebarSections
+    .map((section) => ({
+      title: section.title,
+      links: section.links.filter(isLinkVisible),
+    }))
+    .filter((section) => section.links.length > 0);
 
   const content = (compact: boolean) => (
     <div className="flex h-full flex-col">
@@ -90,46 +110,55 @@ export const AdminSidebar = ({
         )}
       </div>
 
-      <nav className="flex-1 overflow-y-auto p-3" aria-label="Admin navigation">
-        {!compact && (
-          <p className="px-3 pb-2 pt-2 text-[11px] font-bold uppercase tracking-[0.15em] text-ink-muted">
-            Workspace
-          </p>
-        )}
-        <ul className="space-y-1">
-          {visibleLinks.map(({ label, to, icon: Icon }) => {
-            const active = activeFor(to);
-            const link = (
-              <NavLink
-                to={to}
-                end={to === "/admin"}
-                onClick={onMobileClose}
-                aria-label={compact ? label : undefined}
-                className={`flex min-h-11 items-center rounded-control text-sm font-semibold transition-colors ${
-                  compact ? "justify-center px-2" : "gap-3 px-3"
-                } ${
-                  active
-                    ? "bg-brand text-white shadow-subtle"
-                    : "text-ink-muted hover:bg-surface-muted hover:text-ink"
-                }`}
-              >
-                <Icon size={19} className="shrink-0" aria-hidden="true" />
-                {!compact && <span>{label}</span>}
-              </NavLink>
-            );
-            return (
-              <li key={to}>
-                {compact ? (
-                  <Tooltip label={label} position="right" withArrow>
-                    {link}
-                  </Tooltip>
-                ) : (
-                  link
-                )}
-              </li>
-            );
-          })}
-        </ul>
+      <nav className="flex-1 overflow-y-auto px-3 py-2" aria-label="Admin navigation">
+        <div className="space-y-4">
+          {visibleSections.map((section, sectionIdx) => (
+            <div key={section.title} className="space-y-1">
+              {!compact && (
+                <p className="px-3 pb-1 pt-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-ink-muted">
+                  {section.title}
+                </p>
+              )}
+              {compact && sectionIdx > 0 && (
+                <div className="my-2 border-t border-border/70" aria-hidden="true" />
+              )}
+              <ul className="space-y-1">
+                {section.links.map(({ label, to, icon: Icon }) => {
+                  const active = activeFor(to);
+                  const link = (
+                    <NavLink
+                      to={to}
+                      end={to === "/admin"}
+                      onClick={onMobileClose}
+                      aria-label={compact ? label : undefined}
+                      className={`flex min-h-10 items-center rounded-control text-sm font-semibold transition-colors ${
+                        compact ? "justify-center px-2" : "gap-3 px-3"
+                      } ${
+                        active
+                          ? "bg-brand text-white shadow-subtle"
+                          : "text-ink-muted hover:bg-surface-muted hover:text-ink"
+                      }`}
+                    >
+                      <Icon size={19} className="shrink-0" aria-hidden="true" />
+                      {!compact && <span>{label}</span>}
+                    </NavLink>
+                  );
+                  return (
+                    <li key={to}>
+                      {compact ? (
+                        <Tooltip label={label} position="right" withArrow>
+                          {link}
+                        </Tooltip>
+                      ) : (
+                        link
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
+        </div>
       </nav>
 
       <div className="border-t border-border p-3">

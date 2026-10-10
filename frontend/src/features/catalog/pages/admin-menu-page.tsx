@@ -4,7 +4,7 @@ import MenuForm from "../components/admin/menu-form";
 import { useGetMenuItems } from "../api/menu.queries";
 import { BASE_URL } from "@/shared/config";
 import { useAuthModalStore } from "@/shared/model";
-import { CardGridSkeleton, PageHeader } from "@/shared/ui";
+import { ListSkeleton, PageHeader } from "@/shared/ui";
 
 
 export const AdminMenuPage = () => {
@@ -21,7 +21,7 @@ export const AdminMenuPage = () => {
       />
 
       {isLoading ? (
-        <CardGridSkeleton count={4} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" label="Loading menu sections" />
+        <ListSkeleton rows={4} rowHeight={90} label="Loading menu sections" />
       ) : isError ? (
         <div className="surface-card p-8 text-center text-danger">Menu sections could not be loaded.</div>
       ) : menuItems?.length ? (

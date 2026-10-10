@@ -1,4 +1,4 @@
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { Button, Modal, NumberInput, Text, Textarea } from "@mantine/core";
 import axios from "axios";
 import { PackagePlus, Trash2 } from "lucide-react";
@@ -30,7 +30,7 @@ export function BulkRestockModal({
     handleSubmit,
     formState: { errors },
   } = useForm<BulkRestockValues>({
-    resolver: zodResolver(bulkRestockSchema),
+    resolver: standardSchemaResolver(bulkRestockSchema),
     defaultValues: {
       items: selectedItems.map((item) => ({
         productId: item.productId,

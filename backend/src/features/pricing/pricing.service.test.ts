@@ -63,7 +63,7 @@ export const pricingHarness = (
     storeId: 1,
     version: 3,
     deliveryFeePaise: 4_000,
-    freeDeliveryThresholdPaise: 1,
+    freeDeliveryThresholdPaise: 50_000 as number | null,
     effectiveFrom: "2026-01-01",
     effectiveTo: null,
     createdAt: now,
@@ -157,8 +157,8 @@ const reconcile = (q: Awaited<ReturnType<typeof quote>>) => {
     expect(item.taxableAmountPaise + item.taxPaise).toBe(item.lineTotalPaise);
   }
 };
-describe("promotion pricing v4", () => {
-  it("returns the frozen shape and ignores legacy free delivery thresholds", async () => {
+describe("promotion pricing v5", () => {
+  it("returns the frozen shape and charges delivery below the store threshold", async () => {
     const q = await quote(pricingHarness());
     expect(q).toMatchObject({
       quoteVersion: QUOTE_VERSION,
@@ -171,6 +171,38 @@ describe("promotion pricing v4", () => {
     expect(q).not.toHaveProperty("coupon");
     expect(q).not.toHaveProperty("discountPaise");
     expect(q).not.toHaveProperty("deliveryFeePaise");
+    reconcile(q);
+  });
+  it.each([[49_999, 4_000], [50_000, 0], [74_700, 0]] as const)(
+    "applies the store free-delivery threshold to subtotal %i",
+    async (subtotal, expectedFee) => {
+      const q = await quote(pricingHarness(), [pricingItem({ baseUnitPricePaise: subtotal, customizations: [] })]);
+      expect(q.standardDeliveryFeePaise).toBe(expectedFee);
+      expect(q.chargedDeliveryFeePaise).toBe(expectedFee);
+      expect(q.grandTotalPaise).toBe(subtotal + expectedFee);
+      expect(q.deliveryDiscountPaise).toBe(0);
+      if (expectedFee === 0) expect(q.tax.deliveryRule.taxPaise).toBe(0);
+      reconcile(q);
+    },
+  );
+  it.each([[null, 4_000], [0, 0]] as const)(
+    "handles a %s free-delivery threshold explicitly",
+    async (threshold, fee) => {
+      const h = pricingHarness(); h.delivery.freeDeliveryThresholdPaise = threshold;
+      expect((await quote(h)).chargedDeliveryFeePaise).toBe(fee);
+    },
+  );
+  it("uses the pre-discount subtotal and avoids inventing delivery promotion savings when delivery is already free", async () => {
+    const h = pricingHarness([
+      promotion({ discount: { type: "percentage", rateBps: 1000, maxDiscountPaise: null } }),
+      promotion({ id: 2, discount: { type: "free_delivery" }, scope: "delivery" }),
+    ]);
+    const q = await quote(h, [pricingItem({ baseUnitPricePaise: 50_000, customizations: [] })]);
+    expect(q.itemDiscountPaise).toBe(5000);
+    expect(q.grandTotalPaise).toBe(45_000);
+    expect(q.chargedDeliveryFeePaise).toBe(0);
+    expect(q.deliveryDiscountPaise).toBe(0);
+    expect(q.promotions.find((p) => p.id === 2)).toBeUndefined();
     reconcile(q);
   });
   it.each([

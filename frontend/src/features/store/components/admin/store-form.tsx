@@ -1,5 +1,5 @@
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Button, NumberInput, Switch, Textarea, TextInput } from "@mantine/core";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
+import { Alert, Button, NumberInput, Switch, Textarea, TextInput } from "@mantine/core";
 import { Controller, useForm } from "react-hook-form";
 import { Save } from "lucide-react";
 import { error, success } from "@/shared/lib";
@@ -28,7 +28,7 @@ export function StoreForm({ store, platformAdmin, onSaved }: { store?: Store | n
   const updateStore = useUpdateStore();
   const isPending = createStore.isPending || updateStore.isPending;
   const { control, register, handleSubmit, formState: { errors } } = useForm<StoreFormValues>({
-    resolver: zodResolver(storeSchema),
+    resolver: standardSchemaResolver(storeSchema),
     defaultValues: store ? {
       name: store.name,
       slug: store.slug,
@@ -70,6 +70,7 @@ export function StoreForm({ store, platformAdmin, onSaved }: { store?: Store | n
 
   return (
     <form onSubmit={handleSubmit(submit)} className="space-y-5" noValidate>
+      {!store && <Alert title="Initial checkout pricing" color="blue">New stores include demo delivery pricing of ₹40, free delivery from ₹500, and 5% inclusive demo tax for items and delivery, effective from the store's current business date. These are portfolio defaults, not statutory tax configuration. Products, stock and delivery zones still need to be configured.</Alert>}
       <div className="grid gap-4 sm:grid-cols-2">
         <TextInput {...register("name")} label="Store name" placeholder="PizzaStore - Koramangala" withAsterisk error={errors.name?.message} disabled={isPending} />
         {platformAdmin && <TextInput {...register("slug")} label="Slug" placeholder="Generated from name when blank" error={errors.slug?.message} disabled={isPending} />}

@@ -1,2 +1,7 @@
 export { AdminSidebar } from "./components/admin-sidebar";
-export { sidebarLinks } from "./model/navigation.config";
+export {
+  sidebarLinks,
+  sidebarSections,
+  type SidebarLinkConfig,
+  type SidebarSectionConfig,
+} from "./model/navigation.config";

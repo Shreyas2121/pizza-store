@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { renderDocsDiagram } from "../lib/mermaid-renderer";
+import { PanelSkeleton } from "@/shared/ui";
 
 type RenderState =
   | { source: string; status: "ready"; svg: string }
@@ -27,7 +28,7 @@ export function MermaidDiagram({ source, title, wide = false }: {
   }, [source, attempt]);
 
   if (!result || result.source !== source) {
-    return <p role="status" className="px-5 py-12 text-sm text-ink-muted">Drawing diagram… The explanation below is already available.</p>;
+    return <div className="p-5"><PanelSkeleton rows={3} label={`Drawing diagram: ${title}`} /><p className="text-sm text-ink-muted">The explanation below is already available.</p></div>;
   }
   if (result.status === "error") {
     return <div className="space-y-3 p-6">

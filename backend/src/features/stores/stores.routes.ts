@@ -19,6 +19,20 @@ import productService from "../products/product.service";
 
 export const storeRoutes = Router();
 
+storeRoutes.get("/:id/checkout-pricing", authenticateUser,
+  asyncHandler(async (req: AuthenticatedRequest, res) => {
+    const storeId = parseIntegerParam(req.params.id, "Store ID");
+    res.json({ data: await storeService.getCheckoutPricing(storeId, req.principal) });
+  })
+);
+
+storeRoutes.post("/:id/checkout-pricing/initialize", authenticateUser,
+  asyncHandler(async (req: AuthenticatedRequest, res) => {
+    const storeId = parseIntegerParam(req.params.id, "Store ID");
+    res.json({ data: await storeService.initializeCheckoutPricing(storeId, req.principal), message: "Checkout pricing is ready" });
+  })
+);
+
 // ──────────────────────────────────────────────
 // Store Management Endpoints
 // ──────────────────────────────────────────────

@@ -1,4 +1,4 @@
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useForm } from "react-hook-form";
 import { Button, PasswordInput, Stack, TextInput } from "@mantine/core";
 import { Lock, Mail } from "lucide-react";
@@ -22,7 +22,7 @@ export const LoginForm = ({ onModeChange }: LoginFormProps = {}) => {
   const { openModal, closeModal } = useAuthModalStore();
   const { login } = useUser();
   const { register, handleSubmit, formState: { errors } } = useForm<TLogin>({
-    resolver: zodResolver(loginSchema),
+    resolver: standardSchemaResolver(loginSchema),
     defaultValues: { email: "", password: "" },
   });
 

@@ -1,5 +1,6 @@
+import { PanelSkeleton } from "@/shared/ui";
 import axios from "axios";
-import { Alert, Badge, Button, Card, Drawer, Group, Loader, Stack, Text } from "@mantine/core";
+import { Alert, Badge, Button, Card, Drawer, Group, Stack, Text } from "@mantine/core";
 import { formatDateTime, formatPaise } from "@/shared/lib";
 import { useProductInventory } from "../api/inventory.queries";
 import type { InventoryItem } from "../model/inventory.types";
@@ -12,7 +13,7 @@ type DetailProps = {
 
 export function InventoryDetailContent({ storeId, productId, onHistory }: DetailProps) {
   const inventory = useProductInventory(storeId, productId);
-  if (inventory.isLoading) return <Loader aria-label="Loading product inventory" />;
+  if (inventory.isLoading) return <PanelSkeleton label="Loading product inventory" />;
   if (inventory.isError || !inventory.data) {
     const missing = axios.isAxiosError(inventory.error) && inventory.error.response?.status === 404;
     return <Alert color="red" title={missing ? "Product inventory not found" : "Inventory unavailable"}>

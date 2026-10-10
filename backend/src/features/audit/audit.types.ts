@@ -10,6 +10,7 @@ export type StaffAuditAction =
   | "staff.invitation.accepted";
 
 export type StoreAuditAction =
+  | "store.checkout_pricing.initialized"
   | "store.profile.updated"
   | "store.products.mapped"
   | "store.product.updated"

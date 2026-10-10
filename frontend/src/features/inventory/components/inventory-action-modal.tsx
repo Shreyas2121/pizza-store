@@ -1,4 +1,4 @@
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { Button, Modal, NumberInput, Text, Textarea } from "@mantine/core";
 import axios from "axios";
 import { Controller, useForm } from "react-hook-form";
@@ -56,7 +56,7 @@ function RestockForm({
     handleSubmit,
     formState: { errors },
   } = useForm<RestockValues>({
-    resolver: zodResolver(restockSchema),
+    resolver: standardSchemaResolver(restockSchema),
     defaultValues: { quantityAdded: 1, reason: "" },
   });
 
@@ -131,7 +131,7 @@ function AdjustmentForm({
     handleSubmit,
     formState: { errors },
   } = useForm<AdjustmentValues>({
-    resolver: zodResolver(adjustmentSchema),
+    resolver: standardSchemaResolver(adjustmentSchema),
     defaultValues: { targetQuantity: target.onHandQuantity ?? 0, reason: "" },
   });
 
@@ -208,7 +208,7 @@ function ThresholdForm({
     handleSubmit,
     formState: { errors },
   } = useForm<ThresholdValues>({
-    resolver: zodResolver(thresholdSchema),
+    resolver: standardSchemaResolver(thresholdSchema),
     defaultValues: { threshold: target.lowStockThreshold },
   });
 

@@ -1,4 +1,4 @@
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useForm } from "react-hook-form";
 import { Button, PasswordInput, Stack, TextInput } from "@mantine/core";
 import { Lock, Mail } from "lucide-react";
@@ -22,7 +22,7 @@ export const RegisterForm = ({ onModeChange }: RegisterFormProps = {}) => {
   const { login } = useUser();
   const { closeModal, openModal } = useAuthModalStore();
   const { register, handleSubmit, formState: { errors } } = useForm<TRegister>({
-    resolver: zodResolver(registerSchema),
+    resolver: standardSchemaResolver(registerSchema),
     defaultValues: { cpassword: "", fname: "", lname: "", email: "", password: "" },
   });
 

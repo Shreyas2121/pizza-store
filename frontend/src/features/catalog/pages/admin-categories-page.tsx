@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Badge, Button, Paper, Text, TextInput } from "@mantine/core";
 import { Plus } from "lucide-react";
 import { useCreateCategory, useGetCategories } from "../api/category.queries";
-import { PageHeader, TableSkeleton } from "@/shared/ui";
+import { PageHeader, CardGridSkeleton } from "@/shared/ui";
 import { error, success } from "@/shared/lib";
 
 export default function AdminCategoriesPage() {
@@ -22,7 +22,7 @@ export default function AdminCategoriesPage() {
         <Button type="submit" leftSection={<Plus size={16} />} loading={create.isPending} disabled={!name.trim() || duplicate || !categories.data}>Create category</Button>
       </form>
     </Paper>
-    {categories.isLoading ? <TableSkeleton /> : categories.isError ? <Paper withBorder p="lg"><Text c="red">Categories could not be loaded.</Text><Button mt="sm" variant="default" onClick={() => categories.refetch()}>Retry</Button></Paper> : <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    {categories.isLoading ? <CardGridSkeleton count={6} height={110} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" label="Loading categories" /> : categories.isError ? <Paper withBorder p="lg"><Text c="red">Categories could not be loaded.</Text><Button mt="sm" variant="default" onClick={() => categories.refetch()}>Retry</Button></Paper> : <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {categories.data?.map((category) => <Paper key={category.id} withBorder radius="lg" p="lg"><Text fw={700}>{category.name}</Text><Badge mt="sm" color={category.isActive ? "basil" : "gray"}>{category.isActive ? "Active" : "Inactive"}</Badge></Paper>)}
       {!categories.data?.length && <Text c="dimmed">No categories yet. Create your first category above.</Text>}
     </div>}

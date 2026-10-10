@@ -1,3 +1,4 @@
+import { PanelSkeleton } from "@/shared/ui";
 import { useQuery } from "@tanstack/react-query";
 import {
   Alert,
@@ -97,8 +98,8 @@ export const PromotionRulesEditor = ({
   return (
     <Stack gap="sm">
       <Text fw={700}>Targets and rules</Text>
-      {needsTargets && options.isPending && (
-        <Text role="status">Loading catalogue targets…</Text>
+      {needsTargets && options.isLoading && (
+        <PanelSkeleton form rows={2} label="Loading catalogue targets" />
       )}
       {needsTargets && options.isError && (
         <Alert color="red">
