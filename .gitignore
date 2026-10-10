@@ -16,6 +16,7 @@ logs/
 
 # Environment
 .env*
+!.env.example
 
 # Editor
 .vscode/*

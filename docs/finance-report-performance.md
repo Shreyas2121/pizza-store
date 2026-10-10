@@ -6,9 +6,9 @@ The management-report latency budget is 500 ms at the HTTP service boundary and 
 
 ## Bottleneck and index decision
 
-All four reports and their CSV exports use `FinanceReportRepository.movements`. Store-scoped reads already have `journal_entries_store_date_idx`, while the consolidated query has no store equality predicate. Before P5.6 its only date-capable index was store-leading, leaving PostgreSQL without a date-leading access path for a bounded consolidated period.
+All four reports and their CSV exports use `FinanceReportRepository.movements`. Store-scoped reads already have `journal_entries_store_date_idx`, while the consolidated query has no store equality predicate. Before migration 0024 its only date-capable index was store-leading, leaving PostgreSQL without a date-leading access path for a bounded consolidated period.
 
-P5.6 adds one partial index:
+Migration 0024 adds one partial index:
 
 ```sql
 CREATE INDEX journal_entries_finance_report_idx

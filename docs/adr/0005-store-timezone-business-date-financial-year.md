@@ -4,6 +4,8 @@
 - Date: 2026-08-31
 - Decision owners: PizzaStore project owner and maintainers
 
+Implementation review (2026-10-10): Implemented behavior and current evidence are described by the linked contracts; the dated decision context is retained as history. See [architecture](../architecture.md), [lifecycle contracts](../finance-lifecycle-contracts.md) and [verification](../case-study-verification.md).
+
 ## Context
 
 Database timestamps alone do not answer which store day owns a delivery, cash movement, tax rule, or report row. UTC midnight is 05:30 in India, and grouping by server or browser timezone can move the same event between dates. Finance also needs a predictable Indian financial-year preset while preserving arbitrary reporting ranges.

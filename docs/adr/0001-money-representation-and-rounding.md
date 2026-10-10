@@ -4,6 +4,8 @@
 - Date: 2026-08-31
 - Decision owners: PizzaStore project owner and maintainers
 
+Implementation review (2026-10-10): Integer-paise helpers and named per-domain caps are implemented in backend/src/utils/money.ts. The context below records the pre-overhaul situation. See [architecture](../architecture.md), [lifecycle contracts](../finance-lifecycle-contracts.md) and [verification](../case-study-verification.md).
+
 ## Context
 
 PizzaStore currently mixes floating-point rupees and integer paise. Binary floating point cannot represent many decimal currency values exactly, and converting an exact checkout quote back to rupees before persistence loses the strongest existing guarantee. Finance work also introduces totals that can exceed the limit of one transaction even when each row is safely bounded.

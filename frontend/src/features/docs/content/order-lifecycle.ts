@@ -8,7 +8,7 @@ export const cancellationRows = [
     recovery: "Compare any later provider capture with the cancelled local order; resolve outside automatic finalization.",
   },
   {
-    trigger: "Authorized cancellation: pending or preparing COD",
+    trigger: "Authorized cancellation: pending, preparing or out-for-delivery COD",
     reservations: "No online reservation in normal COD flow.",
     stock: "Recorded sales restored once while stock remains tracked; cancellation movement appended.",
     promotions: "Consumed applications remain consumed; counts derive from application states.",
@@ -16,7 +16,7 @@ export const cancellationRows = [
     recovery: "No online refund operation applies; review retained payment and promotion applications as needed.",
   },
   {
-    trigger: "Authorized cancellation: pending or preparing paid online order",
+    trigger: "Authorized cancellation: pending, preparing or out-for-delivery paid online order",
     reservations: "Consumed reservations remain consumed.",
     stock: "Recorded sales restored once while stock remains tracked.",
     promotions: "Consumed applications remain consumed; counts derive from application states.",
@@ -37,7 +37,7 @@ export const recoveryScenarios = [
   {
     title: "The provider call times out",
     behavior: "The creation error path marks the local payment failed and releases stock/promotion reservations. The cart was already cleared. A timeout alone cannot establish whether the provider created an order.",
-    limit: "Stale-payment reconciliation can search by receipt for an unattached order. That does not recreate released inventory or undo an external success.",
+    limit: "Stale-payment reconciliation can recover provider identity by receipt. Customer retry and verified capture restore saved holds when policy permits; SQL cannot undo an external success.",
   },
   {
     title: "Provider creation succeeds; attachment fails",

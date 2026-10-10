@@ -4,16 +4,9 @@ This runbook covers optional Test Mode validation, monitoring, and rollback.
 Live payment processing is unsupported; the deterministic simulator is the
 default and Cash on Delivery (COD) remains available.
 
-## Audit status (reviewed after branch integration on 2026-09-08)
+## Current implementation status (2026-10-10)
 
-This runbook includes rollout requirements, not proof of a deployed release.
-The historical `15362b5` audit found missing method-discovery and retry routes.
-After integrating the financial-overhaul branch, both routes are registered in
-`payment.routes.ts`. The retry service still does not recreate inventory
-reservations that an earlier terminal failure released, so that recovery gap and
-the checklist's deployment-dependent steps must not be claimed complete. See
-[case-study evidence](case-study-evidence.md) for the dated baseline,
-cancellation matrix, and known limitations.
+Method discovery and retry are registered. Retry restores saved inventory and promotion holds transactionally without repricing; shortages can reject recovery. Verified capture can restore a released still-payable order when inventory is available; a cancelled order remains non-payable. Current automated checks pass. The provider/browser checklist below remains runtime verification, not proof of deployment. See [engineering evidence](case-study-evidence.md) and [reservation recovery](payment-inventory-retry.md).
 
 ## Release controls
 
@@ -95,19 +88,18 @@ and test limitations are recorded in the evidence document.
      promotion applications. Paid-order cancellation restores recorded tracked stock
      while leaving the completed payment unchanged.
 
-4. **Expiry Reconciliation (`pnpm run inventory:reconcile-reservations`)**:
-   - Scans expired active reservations (`status = 'reserved' AND expires_at < now()`).
+4. **Expiry Reconciliation (`pnpm --filter backend inventory:reconcile-reservations` from the repository root)**:
+   - Discovers expired active inventory reservations and expired awaiting-payment attempts, including all-untracked-stock orders.
    - Verifies the provider payment status with Razorpay outside database transactions.
    - Preserves reservations on provider/configuration errors, ambiguous paid or
      authorized states, and processing payments without an attached provider order.
    - When provider state permits expiry and the local order is still awaiting
-     payment, cancels that order and releases stock/coupon reservations.
+     payment, cancels that order and releases inventory/promotion reservations.
    - Confirmed captured/paid state follows normal finalization and exact amount
      checks. A deadline alone does not prevent consumption of still-reserved rows.
-   - Capture after release/cancellation conflicts; it does not automatically
-     reallocate stock or refund payment. Escalate for operational resolution.
+   - Verified capture after release can restore saved stock/promotion holds while the order remains payable. Insufficient stock or an already cancelled order conflicts and requires operational resolution; capture does not automatically refund.
 
-`pnpm run payments:reconcile` is a different one-shot command: it scans stale
+`pnpm --filter backend payments:reconcile` is a different one-shot command: it scans stale
 processing/failed payments and can recover unattached provider orders by receipt.
 It does not run the inventory expiry scan. Neither command is scheduled by
 `backend/src/index.ts`, and no hosting scheduler was established by this audit.
@@ -168,8 +160,7 @@ metadata. Winston writes console output and dated local `error.log` and
 retain their complete output and inspect reservation `conflicts` as well as
 `errors`.
 
-The reviewed source has no generated request correlation ID, centralized log
-sink, retention policy, or trace spanning browser, API, Razorpay, and Socket.IO.
+Request context retains a valid caller UUID or generates X-Request-ID for safe audit correlation. The repository supplies no centralized log sink, retention policy or complete trace spanning browser, API, Razorpay and Socket.IO.
 Local log-file durability and aggregation depend on the hosting arrangement,
 which is not included in this repository.
 

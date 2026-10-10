@@ -1,4 +1,4 @@
-# `/admin/finance` in simple English
+# Finance workspace guide
 
 This page helps you answer three questions: **How much did we earn? Where is our money? What needs checking?**
 
@@ -364,6 +364,6 @@ The page is for management reporting. Its results are not a statutory financial 
 
 ## Code checked for this explanation
 
-- Frontend: [finance page](frontend/src/features/finance/pages/finance-workspace-page.tsx), [tab components](frontend/src/features/finance/components/), and [API queries](frontend/src/features/finance/api/finance.queries.ts).
-- Backend: [report calculations](backend/src/features/finance-reports/finance-report.policy.ts), [report data queries](backend/src/features/finance-reports/finance-report.repository.ts), and the refund, expense, settlement, cash, cost, and ledger services.
-- Database definitions: [money-related schemas](backend/src/db/schema/), including payments, refunds, expenses, cash, settlements, product costs, and ledger records.
+- Frontend: [finance page](../frontend/src/features/finance/pages/finance-workspace-page.tsx), [tab components](../frontend/src/features/finance/components/), and [API queries](../frontend/src/features/finance/api/finance.queries.ts).
+- Backend: [report calculations](../backend/src/features/finance-reports/finance-report.policy.ts), [report data queries](../backend/src/features/finance-reports/finance-report.repository.ts), and the refund, expense, settlement, cash, cost, and ledger services.
+- Database definitions: [money-related schemas](../backend/src/db/schema/), including payments, refunds, expenses, cash, settlements, product costs, and ledger records.

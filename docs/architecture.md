@@ -1,238 +1,97 @@
 # Architecture
 
-The complete promotion path is public discovery → authoritative quote → locked final checkout → COD consumption or online reservation/payment → immutable order/application snapshots → delivered-order event → store journal → platform consolidation. The same [accessible diagram](../frontend/src/features/docs/content/diagrams/promotions.ts) is rendered in `/docs/architecture`. [C14 fixtures/evidence](promotions-c14-handoff.md) documents deterministic seeds, offline reconciliation, governance and the pending database/browser release gates.
+Reviewed against the working tree on 10 October 2026. Start with [the high-level diagram](high-level-design.md); this reference explains the boundaries behind it.
 
-## Overview
+## Runtime and module boundaries
 
-PizzaStore is a client-server web application with a React single-page frontend and a Node.js/Express REST API backend. The frontend owns presentation, routing, and client-side state. The backend owns business logic, data access, authentication, file uploads, and real-time event delivery. PostgreSQL is the single source of truth for all persistent data. Socket.IO provides a bidirectional event channel between the server and all connected clients.
+PizzaStore is a modular monolith: one React SPA, one Express process hosting HTTP and Socket.IO, and PostgreSQL through Drizzle. The financial posting worker is invoked separately as a bounded command using the same backend modules. It is not an automatic loop inside the HTTP server.
+
+[index.ts](../backend/src/index.ts) installs request context, protected metrics, the raw-body Razorpay webhook, normal body parsing/CORS, static uploads, HTTP logging, the main API router and error handling. [routes.ts](../backend/src/routes.ts) mounts domain routers under `/api/v1`. External provider calls and filesystem writes cannot be rolled back by a PostgreSQL transaction.
+
+| Module group | Responsibility |
+| --- | --- |
+| users, auth, access, staff, audit | Identity, current principals, memberships, invitations and safe lifecycle evidence |
+| products, category, menu, customization, stores, bundles | Global catalogue, store prices/serviceability, component-backed combos and pricing defaults |
+| cart, pricing, checkout, promotions | Owned cart, exact quotes, locked snapshot writing, eligibility and promotion lifecycle |
+| order, inventory, payments | Fulfillment, stock/reservations, provider adapters, verification and recovery |
+| refunds, settlements, cash-management | Customer money return, provider matching, cash collection/variance |
+| costs, vendors, expenses, payroll | Effective costs, supplier expenses, private receipts and restricted pay runs |
+| finance-events, ledger, finance-reports | Financial outbox, balanced posting, reversals, periods, reports and CSV |
+| realtime, chat, observability, system-maintenance | Authorized event audiences, support, metrics and explicit demo maintenance |
+
+Routes authenticate/validate and delegate to workflows. Complex domains split services into repositories, pure policies, DTO mappers and injected collaborators. A single two-file service pattern does not describe every module.
+
+## Pricing and checkout
+
+[PricingService](../backend/src/features/pricing/pricing.service.ts) produces quote version `2026-10-10-01`, pricing policy v5, using current store prices, valid customization choices, effective delivery/tax rules, store-local time and promotion usage.
+
+- Money stays integer paise; rates use integer basis points and checked rounding/allocation helpers.
+- Menu prices and charged delivery are tax-inclusive. Included tax is disclosed and accounted for, not added again.
+- The ordinary store free-delivery threshold applies to the pre-discount item subtotal, including customizations. Offer resolution runs against any remaining ordinary delivery fee.
+- An applied automatic offer or deal bundle blocks manual coupon use. Non-overlapping winning unit allocations can apply different offers; winners use savings, priority and stable IDs.
+- Bundle selling price is authoritative. Compare-at markdown is display-only and never creates discount budget, contra-revenue or refundable money. Inventory demand expands to saved components.
+
+The final [checkout snapshot writer](../backend/src/features/checkout/checkout-snapshot.service.ts) is shared by COD and online initiation. It locks/revalidates the owned cart, eligibility, store, catalogue/stock and applicable promotions; it saves order/items/customizations, bundle components and promotion applications/allocations in the caller's transaction. Preview is informational; checkout rebuilds authoritative inputs.
+
+COD creates a pending order/payment, deducts tracked stock, consumes promotions and clears the cart together. Online initiation creates an awaiting-payment order and immutable payable snapshot, reserves tracked stock and promotion capacity, and clears the cart before calling the provider outside SQL. Provider identity is attached in a later transaction.
+
+## Inventory and recovery
+
+[InventoryService](../backend/src/features/inventory/inventory.service.ts) implements:
 
 ```text
-React/TypeScript SPA
-    | Axios HTTP requests (REST)
-    | Socket.IO events (WebSocket)
-    |
-Express API server
-    |-- Feature routers (REST endpoints)
-    |-- Feature services (business logic + data access)
-    |-- Middleware (auth, validation, error handling)
-    |
-Drizzle ORM
-    |
-PostgreSQL
+available = null, when on-hand quantity is null (untracked)
+available = max(0, on-hand - active reserved), otherwise
 ```
 
-Route handlers generally call services, which access the database through Drizzle. Larger domains also have repositories, policy helpers, schemas, and injected collaborators. See [case-study evidence](case-study-evidence.md) for the reviewed source revision, transaction boundaries, and current limitations; this overview does not establish production deployment or concurrency guarantees.
+Manual product/store availability remains a separate gate. Customized variants share base-product demand; bundle demand includes components. Several stock helpers acquire store-product locks in ascending ID order. Do not infer global deadlock freedom from these helpers: checkout, existing-order lifecycle, membership, reservation release and cancellation have different prefixes and dependencies.
 
-## Backend architecture
+Online holds default to 30 minutes and persist after transaction locks are released. Passing the timestamp does not release them; reconciliation must change their status. Expiry discovery includes persisted payment-attempt deadlines, so it can also find orders without tracked-stock rows. Provider/configuration uncertainty preserves holds.
 
-### Feature modules
+Failure releases inventory and promotion reservations together. Customer retry restores saved demand and current capacity in one transaction, without repricing. Verified capture can restore released promotions without current capacity limits because the customer already paid; inventory must still be available. Capture of a cancelled order is rejected. Order cancellation restores recorded tracked sales once but does not issue a refund or reverse consumed promotion applications. See [reservation recovery](payment-inventory-retry.md).
 
-Backend domains live under `backend/src/features/<name>/`. Routes stay thin; services are common entry points rather than a fixed two-file rule, and complex domains split business policy, persistence, provider adapters, and workflows into focused collaborators:
+Inventory movements carry arithmetic/nonnegative checks and sale/cancellation idempotency keys. They are operational history; the explicit system-maintenance reset can truncate them. Posted financial journals have stronger immutability controls.
 
-| File | Responsibility |
-| --- | --- |
-| `<name>.routes.ts` | Express router. Binds HTTP methods to handlers. Applies middleware (auth guards, validation). Transforms request/response shapes. |
-| `<name>.service.ts` and collaborators | Typed business workflows and domain logic. Complex services may delegate to repositories, policies, or focused workflow services. Never touches `req` or `res`. |
+## Payment boundaries
 
-Selected business modules (supporting domains also include `auth`, `access`, `staff`, `audit`, `realtime`, `checkout`, `stores`, and `system-maintenance`):
+[Payment routes](../backend/src/features/payments/payment.routes.ts) mount method discovery, initiation, owned status/retry, verification, admin stale reconciliation and simulator events. The simulator is credential-free and in-process; optional Razorpay Test Mode uses the external adapter. Live mode/key IDs are rejected by startup configuration.
 
-| Module | Domain |
-| --- | --- |
-| `users` | Registration, login, JWT issuance, profile, address CRUD |
-| `products` | Product CRUD, menu-based listing, category filtering, sorting, pagination |
-| `category` | Category CRUD with select-friendly projections |
-| `customization` | Customization groups and options, product-to-group mapping |
-| `menu` | Menu item CRUD with position ordering and product assignment |
-| `cart` | Add, update quantity, remove items; cart totals; transactional price updates |
-| `order` | Order creation from cart, order listing with status filtering, admin views |
-| `payments` | Cash and Razorpay payment processing, lifecycle, and reconciliation |
-| `inventory` | Store-level stock management, reservations, atomic movements, and threshold alerts |
-| `promotions` | Platform governance, store participation, manual coupon validation, automatic offers and immutable applications/allocations |
-| `bundles` | Catalogue component definitions, availability and saved order components |
-| `dashboard` | Revenue, order count, active users, average order value, low-stock items; time-series charts |
-| `chat` | Support session lifecycle, message persistence, Socket.IO integration |
+Finalization verifies ownership where applicable, provider/local identity, exact amount/currency and captured/paid state. The locked [finalizer](../backend/src/features/payments/payment-finalization.service.ts) consumes saved inventory/promotions, updates payment/attempt/order and writes the captured financial event atomically. Repeated completion with the same provider payment identity returns without a second effect. Webhook claims, finalization, event acknowledgment and notifications remain separate boundaries.
 
-Payment reconciliation retains one public facade for route and webhook compatibility. It delegates signature/provider-state verification, transactional capture/failure finalization, stale and expired-reservation recovery, provider-order recovery, and observation-only updates to separate collaborators. This keeps all existing errors and transaction boundaries stable while allowing attempts, refunds, and settlement matching to evolve independently.
+The simulator's provider state is memory-only. A restart does not reconstruct persisted historic provider IDs. Use fresh checkout for payment/refund demonstrations. The fixed and recruiter seeds contain prepared history, not live provider objects.
 
-### Inventory and concurrency model
+## Accounting and reports
 
-The inventory system tracks physical on-hand stock and active reservations at the `store_products` level:
+Business operations write financial events with source identity/version in their SQL transaction. [PostingWorker](../backend/src/features/finance-events/posting-worker.ts) claims supported events using leases; repositories use `FOR UPDATE SKIP LOCKED`, retry/backoff and dead-letter policy. [CommercePostingService](../backend/src/features/ledger/commerce-posting.service.ts) dispatches posting policies; some lifecycle events are deliberately acknowledged without a journal.
 
-- **Source-of-Truth Invariants**:
-  ```text
-  available_quantity = NULL when on_hand_quantity IS NULL
-  otherwise available_quantity = max(0, on_hand_quantity - active_reserved_quantity)
+The [ledger kernel](../backend/src/features/ledger/ledger.service.ts) inserts a draft journal, inserts lines and posts only when valid. Migration 0023 adds database balance and posted-history immutability triggers. Source uniqueness makes repeated posting idempotent, including retry after a journal commits before event acknowledgment. Corrections create linked reversal entries.
 
-  sellable = products.is_available
-          && store_products.is_available
-          && (on_hand_quantity IS NULL || available_quantity > 0)
-  ```
-- **Customization aggregation**: Customized cart lines share the same base product availability (demand is aggregated across variants by `productId`).
-- **Allocation/consumption lock ordering**: COD and online checkout share the v4 snapshot writer and the cart/user/store/catalogue/promotion lock order in ADR-006. Existing-order payment finalization uses:
-  ```text
-  1. Existing order, user eligibility, store, then payment rows
-  2. store_products rows, ordered by ascending store_products.id
-  3. inventory_reservations rows, ordered by ascending inventory_reservations.id
-  4. inventory_movements append
-  5. Sorted promotion definitions/settings, then application collection transitions
-  ```
-- **Limits to the ordering claim**: Release performs a bulk inventory reservation update; cancellation releases reservations before locking stock for restoration. Staff membership locks add other dependencies. Query/unit tests do not establish a universal lock order or deadlock freedom; PostgreSQL concurrency evidence remains deferred.
-- **Reservation deadlines**: Active totals include all rows still marked `reserved`, even after their deadline. The default 30-minute deadline requires explicit reconciliation; it does not release stock by itself.
-- **Promotion payment recovery**: Online initiation reserves immutable application/allocation and bundle snapshots at the saved provider amount. Failure releases the complete collection; retry restores original inventory quantities and promotion capacity together. Verified capture can restore released promotion capacity under its saved contract, then consume once; physical inventory shortages still require operational resolution. Expiry also finds inactive online holds without tracked stock and rechecks identity/activity before release. Receipt attachment preserves failed and terminal states without restoring capacity. See [promotion operations](./promotions-operations.md).
-- **Movement audit ledger**: Normal inventory writes append movement records. Schema/migration checks enforce `new_quantity = previous_quantity + quantity_change` and nonnegative balances, with unique sale/cancellation idempotency keys. The system-maintenance clear operation can truncate these records, so the ledger is not globally immutable.
-- **Manual availability independence**: Manual toggles (`is_available`) are managed solely by admins and are never overwritten by inventory logic.
+Collection, recognition and settlement are distinct. Capture credits customer advances; delivery recognizes tax-exclusive revenue, actual item discount and standard COGS; settlement clears provider funds into bank with fees. Refunds use paid snapshots and do not imply stock return. Free-delivery savings and bundle markdown do not create item contra-revenue.
 
-### Middleware layer
+Open periods allow posting. Soft-closed periods allow source postings but require an authorized explicit override for manual posting. Closed periods reject all new postings until an audited owner reopen. Reports/CSV read posted/reversed journal populations with saved business dates and shared projection policy. Unauthorized viewers receive masked payroll-sensitive aggregates. See [finance contracts](finance-lifecycle-contracts.md), [operations](finance-operations-runbook.md) and [ADRs](adr/README.md).
 
-| Middleware | Purpose |
-| --- | --- |
-| `authenticateUser` | Verifies bearer JWT claims and reloads the active user/token version; attaches `req.principal`. |
-| `authenticateAdmin` | Authentication plus `req.principal.platformRole === "admin"`. |
-| `requireStorePermission` | Checks current active membership/store and a named store permission; platform admins bypass membership checks. Some routes invoke the authorization service directly. |
-| `validateBody` | Accepts a Zod schema and validates `req.body` before the route handler executes. Returns 400 with structured errors on failure. |
-| `asyncHandler` | Wraps async route handlers to forward thrown errors to Express error middleware. |
-| `handleError` | Formats application/unexpected errors from the final Express error middleware. |
+## Authorization and realtime
 
-Middleware ordering is route-specific. Customer COD creation uses normal body parsing, CORS, HTTP logging, authentication, and body validation before the transactional quote checks. Razorpay webhooks are mounted before normal body parsers and use raw bytes for signature verification.
+JWTs identify the principal; each authenticated request reloads active user/token version. Current store memberships and resource-derived scope determine authority. Platform admins normally bypass membership checks; manager-only promotion participation deliberately rejects an admin override.
 
-### Database layer
+Socket handshakes authenticate and derive personal/platform/store rooms on the server. Clients cannot choose arbitrary audiences. Membership changes disconnect affected sockets visible to the local process; a new handshake reloads memberships. Shared multi-instance revocation is not established.
 
-The database client is initialized in `src/db/index.ts` using `drizzle-orm/node-postgres`. The schema is defined across domain files in `src/db/schema/` with central relations in `_relations.ts`.
+The [typed event contract](../backend/src/features/realtime/realtime.types.ts) includes `orderPlaced`, `orderStatusChanged`, `lowStock`, `inventoryChanged`, `refundStatusChanged`, `expenseStatusChanged`, `chatRequest`, `chatStatusChange`, `newMessage` and `membershipChanged`.
 
-Migrations are managed by `drizzle-kit`. Configuration lives in `drizzle.config.ts` at the backend root.
+Notifications are sent after commit and are best-effort. The financial outbox supports accounting, not universal socket replay. Some payment finalization results still omit audience context expected by HTTP/webhook callers; CLI reconciliation sends no socket events. Refresh authoritative API state after a missed notification.
 
-### Real-time events
+## Frontend organization
 
-Socket.IO shares the HTTP server. Handshake authentication derives personal, platform, and store rooms from the current principal and memberships; clients do not select arbitrary rooms through a `joinRoom` event. See [staff authorization](store-staff-authorization.md) for audience definitions.
+[AppRoutes](../frontend/src/app/router/routes.tsx) defines lazy feature pages and four shells: MainLayout, nested ProfileLayout, guarded AdminLayout and public DocsLayout. `/docs` content is local; [App](../frontend/src/app/app.tsx) isolates business effects while reading it. See [public docs authoring](public-docs.md).
 
-| Event | Direction | Payload | Purpose |
-| --- | --- | --- | --- |
-| `orderPlaced` | Server → Client | `{ orderId, total, status }` | Notifies admin dashboard of new/finalized orders |
-| `lowStock` | Server → Client | `LowStockAlert` object | Notifies admin panel of downward stock threshold crossings post-commit |
-| `chatRequest` | Server → Client | `{ userId }` | Notifies admin of new support requests |
-| `newMessage` | Server → Client | `Message` object | Delivers chat messages to the other party |
+TanStack Query owns server data; Zustand owns auth and transient UI/socket state. The Axios token getter keeps shared transport independent of feature stores. Private query keys include principal identity; staff queries use store scope and cancellation signals. Cache root prefixes support reliable invalidation after stock/checkout changes. See [cache isolation](client-cache-isolation.md).
 
-These are delivery notifications, not a durable event log. COD emits after transaction commit; no outbox was found. Payment route audience selection currently has missing store/user context in some reconciliation return values, and CLI reconciliation does not emit socket events. See claim RT-02 in the evidence document before claiming complete customer/store notification coverage.
+The offers API can return eight featured candidates; the homepage displays at most five and optional rotation is seven seconds, initially paused. Hover, focus, hidden-page and reduced-motion behavior constrain rotation. Forms validate client shape while the server owns pricing/eligibility. Shared skeletons preserve layout for initial loading and leave cached content visible during refresh.
 
-### Static file serving
+## Files, diagnostics and deployment limits
 
-Product images uploaded via Multer are stored in `backend/uploads/` and served statically by Express at the `/uploads` path.
+Catalogue/promotion images use public `uploads`; expense receipts use private `.private/expense-receipts` with authorized downloads and content/type/size validation. Promotion uploads decode/re-encode JPEG/PNG/WebP with Sharp; replacement crosses filesystem/database boundaries and orphan cleanup handles unreferenced managed files after 24 hours.
 
-### Environment and configuration
+Request middleware retains or generates a UUID `X-Request-ID`. Safe high-risk audit evidence uses request/resource identities. Winston writes console and dated local files; protected `/metrics` exposes financial operational observations. This is not a supplied centralized log/trace/retention system.
 
-All environment variables are validated at startup using a Zod schema in `src/utils/zodSchema.ts`. The validated values are exported from `src/constants.ts`. The server will not start if any required variable is missing or malformed.
-
-### Private expense receipts
-
-Expense receipts use the `ExpenseReceiptStorage` abstraction and demo-local storage under `.private/expense-receipts`, outside both public `/uploads` mounts. The API accepts only PDF, JPEG, PNG, or WebP files up to 5 MiB, verifies filename, declared type, extension, and content signature, stores a SHA-256 metadata record, and authorizes every list/download request. Generated UUID keys are resolved beneath the configured storage root and are never returned by the API.
-
-Production hardening should replace local disk with private object storage, server-side encryption, malware scanning/quarantine, retention policies, and short-lived signed delivery after the same application authorization check. Receipts must never be moved into the public uploads directory.
-
-## Frontend architecture
-
-### Rendering and routing
-
-The app uses React Router with a `BrowserRouter`. Routes are defined in `frontend/src/app/router/routes.tsx` and organized into three current layout shells:
-
-| Layout | Routes | Purpose |
-| --- | --- | --- |
-| `MainLayout` | `/`, `/cart`, `/checkout`, `/staff-invitations/accept`, profile routes | Storefront shell; customer account/cart/checkout routes have their own auth guards |
-| `ProfileLayout` | `/profile`, `/address`, `/orders`, `/order/:id` | Nested within MainLayout, adds profile sidebar |
-| `AdminLayout` | `/admin/*` | Staff workspace guarded by `StaffProtectedRoute`; platform-only pages have additional guards |
-
-Feature pages are lazy-loaded with `React.lazy()` and rendered under Suspense. The C03 public `DocsLayout` serves `/docs` independently of storefront/admin layouts and guards, with a nested loading/error boundary and docs-specific not-found page. The C02 app boundary excludes `/docs` and its descendants from `BusinessRuntime`, which owns authenticated chat/socket effects and the global app modal. Unmount disconnects and clears the owned socket, closes the modal, and permits in-flight chat sync cancellation. Browser lifecycle checks were not performed and further runtime checks were waived by the owner during C03. See [public docs authoring](public-docs.md) and the implementation guide handoffs.
-
-### State management
-
-Access capabilities are cached by authenticated user ID under `accessKeys.principal(userId)`. The `accessKeys.me()` prefix still invalidates every capability query after membership changes or forbidden responses. Requests consume TanStack Query's cancellation signal, so an obsolete account request cannot populate another account's cache. An account switch starts without the previous user's capabilities; backend authorization remains authoritative.
-
-The frontend separates server state from client state:
-
-| Concern | Tool | What it manages |
-| --- | --- | --- |
-| Server state | TanStack Query | All API data: products, cart, orders, users, dashboard, chat |
-| Auth state | Zustand (persisted) | Current user, JWT token, login/logout |
-| UI state | Zustand (ephemeral) | Modal open/close, socket instance, chat session, date filters |
-
-The Axios instance (`frontend/src/shared/api/api-client.ts`) attaches the JWT through a token getter configured by `frontend/src/app/providers/app-providers.tsx`. This keeps the shared API layer independent of feature stores.
-
-### Hooks architecture
-
-API interactions live in feature-level `api/` modules with query/mutation hooks. Some use shared factories; others call TanStack Query directly.
-
-Three factory functions in `frontend/src/shared/api/query-helpers.ts` reduce boilerplate:
-
-| Factory | Wraps | Purpose |
-| --- | --- | --- |
-| `createQuery` | `useQuery` | Standard data fetching with optional data key extraction |
-| `createSuspenseQuery` | `useSuspenseQuery` | Suspense-compatible data fetching |
-| `createMutation` | `useMutation` | Mutations with automatic query invalidation |
-
-### Component organization
-
-Components are organized by domain:
-
-```text
-frontend/src/
-  app/         Router, layouts, providers, application integration
-  features/    Domain pages, components, API hooks, models
-  shared/      Reusable UI, API client/helpers, config, utilities
-```
-
-### Form validation
-
-Client-side validation uses React Hook Form with Zod resolvers in several features and controlled Zod-validated forms in promotion administration. Schemas live in feature `model/` modules. Promotion drafts retain the captured definition version until explicit confirmed reload; automatic refresh does not replace edits. Money/rate fields use integer paise/basis points, and the browser validates form shape while the server owns eligibility/pricing. Dependency versions should be read from package manifests/lockfiles; the C01 evidence record notes an installed frontend Zod mismatch.
-
-### Promotion governance UI
-
-C11 exposes separate platform definition/media/analytics and same-store manager participation routes and sidebar entries. Governance query keys include principal, store and filters, consume cancellation signals and avoid cross-store placeholder data. Managers see server effective status and read-only global definitions; a reason-backed confirmation changes only their selected store. Platform admins never override a manager choice. Media editing is separate from definition drafts; homepage placement follows save → desktop upload/alt text → versioned edit. Analytics preserve aggregate strings/BigInt and distinguish application attribution from ledger recognition. See the [C11 handoff](promotions-c11-handoff.md) for coverage and remaining manual checks.
-
-C12's `offers` feature reads only `/promotions/offers` and `/promotions/featured`, with store/placement-scoped keys, cancellable requests, explicit refresh and focus refetch. Store resolution changes hide the previous store's content; refresh errors hide stale offer cards. `/offers/:id/products` uses public product/category target IDs to select matching products from store-priced menu pages loaded on demand. This does not evaluate cart eligibility or compute promotional prices. The homepage slider orders priority descending then ID ascending, displays at most five offers, and starts paused. Optional seven-second rotation pauses on pointer hover, focus and page hiding; reduced motion prevents rotation. Responsive uploaded artwork includes alt text and a textual fallback. Bundle cards and cart lines render backend selling/compare-at/savings/component metadata, with one cart add action and native expandable contents. Feature barrels expose only the presentation/types needed across catalogue, cart and offers. See the [C12 handoff](promotions-c12-handoff.md); checkout and historical order UX remain C13.
-
-Checkout quotes and private order, cart, address and profile reads include principal identity in their cache keys. Public anonymous quotes use a separate null-principal key; private reads require authentication. Order pagination avoids placeholder data across account/store changes. Shared query transport consumes cancellation signals, and cache mutations preserve account isolation. See [checkout/order account isolation](checkout-order-account-isolation.md) for the six failing-before/passing-after regressions found during C13 review.
-
-C13 keeps coupon input in an observable session per account/store/cart revision/address. Context changes create an empty session and cancel obsolete validation; a late response cannot apply a coupon to the new context. Only explicit manual validation can set an applied code. Owned-cart quotes preserve cart line identities, refresh on focus and every 30 seconds while visible, and use revision-scoped cancellable queries with bounded transient retries. Refreshing, failed or mismatched quotes hide old totals and disable ordering; mismatched lines trigger a cart refresh. The quote supplies automatic-offer/coupon exclusivity, eligibility reasons and conflict links. A shared pricing breakdown formats supplied monetary fields and separates displayed delivery/bundle savings from payable. Both customer and admin order details render captured names, component counts, promotion allocations and savings, and payment retry describes the saved total. Cart/catalogue keys now share their documented invalidation prefixes; see [cache invalidation regressions](cart-catalog-invalidation.md) and the [C13 handoff](promotions-c13-handoff.md).
-
-## Cross-cutting concerns
-
-### Financial write and reporting architecture
-
-Checkout pricing is server-authoritative and immutable after order creation. Domain services persist source state and a versioned financial-outbox event in the same PostgreSQL transaction. The posting worker claims eligible events with leases and `SKIP LOCKED`, derives typed debit/credit commands, and posts through the ledger kernel. Source identity plus version makes retries idempotent; failed work backs off and eventually dead-letters without leaking raw sensitive errors.
-
-Posted journals are immutable. Every journal has at least two positive one-sided lines and equal debit/credit totals, enforced by service policy and database triggers. Reversal creates a linked counter-entry. Fiscal periods provide open, soft-closed, and closed posting policy with recent-owner authentication and audited reasons for sensitive transitions.
-
-Management reports read posted/reversed journal lines through one repository and one projection policy. Store and platform-owner consolidated scopes share the same date, INR, delivery-recognition, comparison, and included-status metadata. The React Finance workspace and CSV exports call those same service methods; aggregate drill-down filters resolve back to journals and source identities.
-
-```text
-quote/order/payment/refund/expense/cash/settlement
-                    |
-             source transaction
-                    +-- financial_outbox (same commit)
-                                  |
-                           posting worker
-                                  |
-                    balanced journal entries/lines
-                         |                    |
-                 reports + CSV          drill-down/audit
-```
-
-Operational recovery and limitations are in [finance-operations-runbook.md](finance-operations-runbook.md). The deterministic browser narrative is in [finance-demo-walkthrough.md](finance-demo-walkthrough.md).
-
-### Authentication flow
-
-1. User submits credentials via login/register form.
-2. Backend validates, hashes password (register) or compares hash (login), and returns a JWT + user object.
-3. Frontend stores both in Zustand's persisted user store (localStorage).
-4. Every subsequent Axios request attaches `Authorization: Bearer <token>` via interceptor.
-5. Backend middleware verifies JWT claims, loads the active user and token version, and attaches `req.principal`. Store authorization loads current membership where required; memberships are not embedded in JWTs.
-
-### Error handling
-
-- **Backend**: `asyncHandler` catches thrown errors. `AppError` class carries a status code and message. The global error handler formats and returns the response.
-- **Frontend**: TanStack Query's global `MutationCache.onError` catches mutation errors and shows a Mantine notification. Individual `onSuccess` callbacks show success notifications.
-
-### Image handling
-
-Product and menu images are uploaded as `multipart/form-data` via Multer. Files are stored on disk in `backend/uploads/` with generated filenames. The frontend constructs image URLs as `${BASE_URL}${product.image}`.
-
-Order reads share a bounded snapshot query and explicit public projection. Saved promotion/item/customization/bundle names survive catalogue edits; only current product images decorate historical lines. Customer credentials, cost snapshots and provider internals are excluded. The retired coupon module has no persistence or HTTP adapter. See [C10 handoff](promotions-c10-handoff.md).
+No Docker, CI-provider configuration, deployment pipeline or automatic scheduler is supplied. Multi-instance serving would require coordinated storage, socket audiences and provider simulation strategy. PostgreSQL race tests, actual-host SPA fallback, browser/provider flows and measured report latency remain separate verification work; see [the current record](case-study-verification.md).

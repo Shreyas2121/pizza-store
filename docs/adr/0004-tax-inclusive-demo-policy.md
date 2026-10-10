@@ -4,6 +4,8 @@
 - Date: 2026-08-31
 - Decision owners: PizzaStore project owner and maintainers
 
+Implementation review (2026-10-10): Implemented behavior and current evidence are described by the linked contracts; the dated decision context is retained as history. See [architecture](../architecture.md), [lifecycle contracts](../finance-lifecycle-contracts.md) and [verification](../case-study-verification.md).
+
 ## Context
 
 PizzaStore is a consumer food-ordering portfolio application. Customers should see menu prices as the amounts they expect to pay, while the project should still demonstrate exact tax extraction, effective-dated rules, immutable snapshots, and auditable reporting.

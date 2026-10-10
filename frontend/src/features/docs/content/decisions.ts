@@ -49,10 +49,10 @@ export const decisionRecords: readonly DecisionRecord[] = [
       "Historical financial values must not be recomputed from the current catalogue.",
       "The existing schema continues to reference products, customizations, and the delivery address.",
     ],
-    chosenApproach: "Copy item quantity and price, customization price, order total, discount, and payment amount into order/payment records while retaining entity references.",
+    chosenApproach: "Save item/customization names and prices, tax/rule versions, promotion applications/allocations and bundle components while retaining appropriate entity references.",
     alternative: "Render the entire order from mutable catalogue/address rows, or copy every descriptive field into a fully denormalized receipt snapshot.",
-    cost: "The current record preserves money but not every historical label or address field. It is a price snapshot rather than a complete immutable receipt.",
-    revisit: "Expand the snapshot when legal, customer-service, or reporting requirements demand an immutable record of names, options, tax details, or delivery address text.",
+    cost: "Financial and item/promotion/bundle labels are saved, while product images and delivery-address text remain references. A complete immutable receipt would need additional fields.",
+    revisit: "Expand descriptive snapshots when customer-service or reporting requirements demand immutable images or delivery-address text.",
     evidence: ["ORDER-03"],
   },
   {
@@ -66,7 +66,7 @@ export const decisionRecords: readonly DecisionRecord[] = [
     chosenApproach: "Create the local attempt first, verify callbacks and signed webhooks, funnel capture through a locked finalizer, and provide one-shot stale-payment and reservation reconciliation commands.",
     alternative: "Trust the browser's success callback as final, or depend only on provider webhook delivery without a local recovery scan.",
     cost: "Intermediate states, conflict handling, external scheduling, and operational review remain necessary. Reconciliation and realtime delivery are separate concerns.",
-    revisit: "Before relying on online payments in production, complete route/retry recovery, define refund handling, schedule both commands, and add alerts. Consider durable jobs when backlog or missed-event evidence appears.",
+    revisit: "Before claiming the external Test Mode flow is validated, exercise the implemented retry/refund paths, schedule recovery and add alerts. Consider durable jobs when backlog or missed-event evidence appears.",
     evidence: ["PAY-03", "PAY-05", "REC-02", "REC-03", "RT-02"],
   },
   {

@@ -65,7 +65,7 @@ export default function DocsIndexPage() {
           <li>Payments and financial behavior are under rework. Cancellation, retry, and notification handling must be reviewed again before making stronger claims.</li>
           <li>No production traffic, availability figures, or performance benchmarks are claimed here.</li>
         </ul>
-        <p className="mt-6 border-t border-border pt-5 text-sm leading-6 text-ink-muted">Evidence refers to revision <code className="font-mono">{reviewedRevision.slice(0, 7)}</code>, reviewed {reviewedDate}. The detailed audit lives in <code className="break-words">docs/case-study-evidence.md</code> in the repository. Source paths above remain readable when a public repository link is not configured.</p>
+        <p className="mt-6 border-t border-border pt-5 text-sm leading-6 text-ink-muted">Evidence covers the working tree based on <code className="font-mono">{reviewedRevision.slice(0, 7)}</code>, reviewed {reviewedDate}, including uncommitted changes. Published source links resolve repository HEAD. The detailed audit lives in <code className="break-words">docs/case-study-evidence.md</code> in the repository. Source paths above remain readable when a public repository link is not configured.</p>
       </div>
     </DocsSection>
   </DocsPage>;

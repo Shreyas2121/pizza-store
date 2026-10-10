@@ -1,10 +1,10 @@
 # Finance operations runbook
 
-This runbook covers the management-accounting and payroll-lite features shipped through Phase 6. Amounts are integer paise, currency is INR, and business dates use each store's configured timezone. These reports are operational management reports, not statutory accounts or tax filings.
+This runbook covers the management-accounting and payroll-lite features implemented in the current application. Amounts are integer paise, currency is INR, and business dates use each store's configured timezone. These reports are operational management reports, not statutory accounts or tax filings.
 
 ## Routine checks
 
-For promotion operations, also follow [promotion governance/media/recovery](promotions-operations.md). Only consumed item savings feed store account `4100`; application analytics and delivery ledger revenue use different populations/business dates. Waived delivery and bundle compare-at savings never create `4100` entries or refund capacity. Platform reports consolidate store journals once. The offline [C14 fixture reconciliation](promotions-c14-handoff.md) checks these policies without verifying production data.
+For promotion operations, also follow [promotion governance/media/recovery](promotions-operations.md). Only consumed item savings feed store account `4100`; application analytics and delivery ledger revenue use different populations/business dates. Waived delivery and bundle compare-at savings never create `4100` entries or refund capacity. Platform reports consolidate store journals once. The offline [fixture reconciliation](two-store-financial-fixtures.md) checks these policies without verifying production data.
 
 Run these checks per store and then consolidated:
 
@@ -19,7 +19,7 @@ Never repair a posted journal with SQL. Correct source state through its support
 ## Payment and settlement reconciliation
 
 - The local simulator is the default and requires no provider credentials. Razorpay Test Mode is optional; live mode is rejected at startup.
-- Run `pnpm --filter backend payments:reconcile` for stale attempts. A non-zero exit means at least one candidate needs investigation.
+- Run `pnpm --filter backend payments:reconcile` for stale attempts. A non-zero exit means at least one reported error; inspect failed/unchanged outcomes separately even after a zero exit.
 - Import a settlement from Finance > Settlements, then run deterministic matching. Re-importing identical content is idempotent; changed content under the same provider settlement ID is a conflict.
 - Investigate amount, currency, duplicate, missing-local, missing-provider, unexpected-status, and stale-pending issues against the payment attempt/refund and provider evidence.
 - Resolving an issue acknowledges evidence; it does not mutate payment, refund, settlement, or ledger amounts.
@@ -50,7 +50,7 @@ Writers store domain state and the outbox event in one transaction. Workers clai
 
 Only a recently authenticated platform owner can open, soft-close, close, or reopen periods.
 
-Before soft close: drain the outbox, reconcile payments/refunds/settlements, resolve or document open issues, post approved expenses, and verify the trial balance. Soft close blocks ordinary source postings; an owner may use an explicit audited override. Close only after review. Closed periods reject every posting. Reopen only with a documented correction reason, post the reversal/replacement, rerun reports, and close again.
+Before soft close: drain the outbox, reconcile payments/refunds/settlements, resolve or document open issues, post approved expenses, and verify the trial balance. Soft close permits automated source postings but blocks manual postings without the supported explicit audited owner override. Close only after review. Closed periods reject every posting. Reopen only with a documented correction reason, post the reversal/replacement, rerun reports, and close again.
 
 ## Correct a voided or posted expense
 
@@ -140,7 +140,7 @@ Database gauges are rebuilt on every scrape. Process counters and report observa
 3. Run `pnpm --filter backend db:migrate` once from a controlled release job.
 4. Run backend tests/smoke checks, the posting worker, trial balance, and report/export reconciliation.
 
-Drizzle migrations are forward-only. If a migration fails, stop application writes, retain the exact error and migration table state, restore the pre-migration backup when partial DDL cannot be safely completed, fix the migration in a new reviewed change, and rehearse against a restored copy. Do not delete migration journal rows or hand-edit an already-applied migration. The P5.6 index is non-semantic: if it causes unacceptable write cost, remove it in a new migration after capturing query plans.
+Drizzle migrations are forward-only. If a migration fails, stop application writes, retain the exact error and migration table state, restore the pre-migration backup when partial DDL cannot be safely completed, fix the migration in a new reviewed change, and rehearse against a restored copy. Do not delete migration journal rows or hand-edit an already-applied migration. The report index in migration 0024 is non-semantic: if it causes unacceptable write cost, remove it in a new migration after capturing query plans.
 
 ## Backup and restore acceptance
 
@@ -152,7 +152,7 @@ A restore is acceptable only when migrations reach repository head, seeded/admin
 - Tax rules and HSN/SAC labels follow the explicitly non-statutory [demo tax policy](adr/0004-tax-inclusive-demo-policy.md).
 - Payment/refund behavior is limited to the local simulator or Razorpay Test Mode. Live processing is rejected; see the [provider modes and limitations](razorpay-runbook.md).
 - Standard product cost is not recipe/BOM costing. There is no purchase-order, accounts-payable, bank-feed, or inventory valuation subledger.
-- Payroll-lite is a separate restricted workspace with demo-only compensation, pay-run statements, and reversible ledger posting; its [statutory and privacy boundaries](payroll-demo-scope.md) exclude tax/contribution calculation, filing, and remittance. Invoice endpoints remain future optional Phase 7 work.
+- Payroll-lite is a separate restricted workspace with demo-only compensation, pay-run statements, and reversible ledger posting; its [statutory and privacy boundaries](payroll-demo-scope.md) exclude tax/contribution calculation, filing, and remittance. No invoice endpoint is mounted.
 - CSV is a tall, machine-reconcilable export; values identify paise, basis points, or counts explicitly.
 - Report freshness depends on draining the asynchronous financial outbox.
 - The representative 12-month database benchmark remains a release gate. See the [report performance verification requirement](finance-report-performance.md); no production-scale latency claim is made until its plans and results are retained.

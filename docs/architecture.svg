@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1100" viewBox="0 0 1600 1100" role="img" aria-labelledby="title description">
+  <title id="title">PizzaStore — high-level architecture</title>
+  <desc id="description">Customers, store staff and admins use a React application. An Express modular monolith handles REST requests and Socket.IO notifications, stores data in PostgreSQL through Drizzle, and uses local file storage. Payments use an in-process simulator or optional Razorpay test mode. A separately invoked financial posting command reads the transactional outbox and writes balanced, immutable posted journals.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#52647c"/></marker>
+    <style>
+      text { font-family: 'Segoe UI', Arial, sans-serif; fill: #18283d; }
+      .title { font-size: 40px; font-weight: 700; }
+      .subtitle { font-size: 20px; fill: #52647c; }
+      .heading { font-size: 24px; font-weight: 700; }
+      .body { font-size: 19px; }
+      .small { font-size: 17px; fill: #52647c; }
+      .tag { font-size: 14px; font-weight: 700; letter-spacing: 1.6px; }
+      .edge { fill: none; stroke: #52647c; stroke-width: 2.5; marker-end: url(#arrow); }
+      .optional { stroke-dasharray: 7 6; }
+      .label { font-size: 16px; fill: #52647c; paint-order: stroke; stroke: #f8fafc; stroke-width: 8px; stroke-linejoin: round; }
+    </style>
+  </defs>
+  <rect width="1600" height="1100" fill="#f8fafc"/>
+  <rect x="80" y="54" width="7" height="54" rx="3" fill="#d7462c"/>
+  <text x="108" y="89" class="title">PizzaStore</text>
+  <text x="108" y="122" class="subtitle">High-level architecture · One frontend, one modular backend, one database</text>
+  <text x="1120" y="91" class="tag">PORTFOLIO / SYSTEM DESIGN</text>
+  <text x="1120" y="122" class="small">Logical architecture · October 2026</text>
+
+  <rect x="80" y="170" width="960" height="140" rx="18" fill="#edf4ff" stroke="#b7ccef"/>
+  <text x="108" y="204" class="tag" fill="#315e9b">BROWSER APPLICATION</text>
+  <text x="108" y="240" class="heading">Customers · Store staff · Platform admins</text>
+  <text x="108" y="275" class="body">React + TypeScript · React Router · TanStack Query · Zustand</text>
+  <text x="1120" y="203" class="small">Solid arrows: application / data calls</text>
+  <text x="1120" y="233" class="small">Dashed arrows: realtime / provider events</text>
+
+  <path d="M 315 310 V 380" class="edge"/>
+  <text x="330" y="350" class="label">REST / HTTPS</text>
+  <path d="M 850 380 V 310" class="edge optional"/>
+  <text x="865" y="350" class="label">Socket.IO events</text>
+
+  <rect x="80" y="380" width="960" height="310" rx="18" fill="#fff5ef" stroke="#e8bb9d"/>
+  <text x="108" y="416" class="tag">EXPRESS BACKEND · MODULAR MONOLITH</text>
+  <text x="108" y="453" class="heading">REST API + Socket.IO on the same HTTP server</text>
+  <text x="108" y="486" class="body">JWT / current user · Zod validation · Role and store permissions</text>
+  <line x1="108" y1="506" x2="1012" y2="506" stroke="#e8bb9d"/>
+  <text x="108" y="539" class="body">Catalogue · Checkout · Promotions · Inventory · Orders · Support</text>
+  <text x="108" y="570" class="body">Staff · Cash · Refunds · Expenses · Payroll · Finance reporting</text>
+  <rect x="108" y="598" width="904" height="62" rx="10" fill="#ffffff" stroke="#e8bb9d"/>
+  <text x="130" y="624" class="body">Payment adapter: in-process simulator OR Razorpay test mode</text>
+  <text x="130" y="647" class="small">Server-owned pricing · Local transactions · Order price snapshots</text>
+
+  <rect x="1120" y="380" width="400" height="230" rx="18" fill="#f4f0ff" stroke="#c8b9e6"/>
+  <text x="1148" y="416" class="tag">OPTIONAL EXTERNAL PROVIDER</text>
+  <text x="1148" y="453" class="heading">Razorpay · Test mode</text>
+  <text x="1148" y="489" class="body">Create / verify provider payments</text>
+  <text x="1148" y="522" class="body">Signed webhooks → raw-body handler</text>
+  <text x="1148" y="559" class="small">Browser opens Razorpay Checkout.</text>
+  <text x="1148" y="584" class="small">Simulator stays inside the backend.</text>
+  <path d="M 1040 460 H 1120" class="edge"/>
+  <path d="M 1120 554 H 1040" class="edge optional"/>
+
+  <path d="M 370 690 V 775" class="edge"/>
+  <text x="388" y="739" class="label">SQL / transactions via Drizzle</text>
+  <path d="M 880 690 V 775" class="edge"/>
+  <text x="894" y="739" class="label">File access</text>
+
+  <rect x="80" y="775" width="600" height="200" rx="18" fill="#eaf7f0" stroke="#a8d5bc"/>
+  <text x="108" y="811" class="tag">PERSISTENT DATA</text>
+  <text x="108" y="847" class="heading">PostgreSQL</text>
+  <text x="108" y="882" class="body">Orders · Users · Inventory · Promotions · Audit</text>
+  <text x="108" y="914" class="body">Financial outbox · Journals · Reporting data</text>
+  <text x="108" y="949" class="small">Business changes + financial event commit together.</text>
+
+  <rect x="720" y="775" width="320" height="200" rx="18" fill="#eef2f6" stroke="#c4cfda"/>
+  <text x="748" y="811" class="tag">LOCAL FILE STORAGE</text>
+  <text x="748" y="847" class="heading">Images &amp; receipts</text>
+  <text x="748" y="882" class="body">Public product / promo images</text>
+  <text x="748" y="914" class="body">Private expense receipts</text>
+  <text x="748" y="949" class="small">Authorized receipt downloads</text>
+
+  <rect x="1120" y="735" width="400" height="240" rx="18" fill="#fff8e7" stroke="#e1c98b"/>
+  <text x="1148" y="771" class="tag">SEPARATELY INVOKED COMMAND</text>
+  <text x="1148" y="807" class="heading">Financial posting</text>
+  <text x="1148" y="842" class="body">Claim outbox events · Retry failures</text>
+  <text x="1148" y="874" class="body">Draft → Lines → Balanced posting</text>
+  <text x="1148" y="906" class="body">Immutable posted journals</text>
+  <text x="1148" y="943" class="small">Same backend code; separate invocation.</text>
+  <path d="M 1120 925 H 1080 V 1006 H 600 V 975" class="edge"/>
+  <text x="755" y="1008" class="label">Claim outbox / write journals</text>
+  <line x1="80" y1="1038" x2="1520" y2="1038" stroke="#d9e1e9"/>
+  <text x="80" y="1072" class="small">Transactional business state · Retriable financial posting · Realtime notifications</text>
+  <text x="1120" y="1072" class="small">Current implementation, not hosting topology</text>
+</svg>

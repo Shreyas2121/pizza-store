@@ -4,6 +4,8 @@
 - Date: 2026-09-12
 - Decision owners: PizzaStore project owner and maintainers
 
+Implementation review (2026-10-10): Implemented behavior and current evidence are described by the linked contracts; the dated decision context is retained as history. See [architecture](../architecture.md), [lifecycle contracts](../finance-lifecycle-contracts.md) and [verification](../case-study-verification.md).
+
 ## Context
 
 Offers may use desktop/mobile images and selected offers may appear in the homepage slider. Database updates and local filesystem operations are not one atomic transaction, so upload validation, replacement order, URL exposure, and orphan cleanup need one explicit policy.

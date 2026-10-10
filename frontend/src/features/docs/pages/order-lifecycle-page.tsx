@@ -14,7 +14,7 @@ const paymentStages = [
   ["Verified online capture", "completed", "Finalization sets the order pending and consumes reservations."],
   ["COD delivered", "completed", "Status update completes the linked COD payment in its transaction."],
   ["Provider failure / safe expiry", "failed", "Provider failure leaves awaiting_payment; safe expiry cancels it."],
-  ["Refund-related guards", "refunded", "Recognized by existing types/guards; no provider refund workflow is established."],
+  ["Refund-related guards", "refunded", "Separate authorized refund workflows use saved paid allocations; completed money is not automatically refunded by order cancellation."],
 ] as const;
 
 export default function OrderLifecyclePage() {
@@ -25,8 +25,8 @@ export default function OrderLifecyclePage() {
       <h1 className="max-w-3xl font-display text-4xl font-normal leading-tight tracking-tight sm:text-5xl">An order has a lifecycle.<br /><span className="text-brand">So does its payment.</span></h1>
       <p className="mt-6 max-w-2xl text-lg leading-8 text-ink-muted">Checkout connects a cart, stock, promotion applications, fulfillment, and payment. This page follows what commits together and what needs a separate recovery path.</p>
       <div className="mt-7 rounded-control border border-border bg-surface-muted p-5 text-sm leading-6 text-ink-muted">
-        <p>Earlier source review: <code>{reviewedRevision.slice(0, 7)}</code>, {reviewedDate}. Promotion, snapshot and state sections updated 2026-10-07 after C13. Offline unit/static verification is available; database concurrency and browser/provider walkthroughs remain unrun.</p>
-        <p className="mt-2">These are historical findings. The current promotion overhaul registers method-discovery/retry routes, restores saved stock and promotion holds together, and uses immutable promotion and bundle snapshots. Current evidence is recorded in the repository promotion handoffs; live database/provider checks remain pending.</p>
+        <p>Working tree based on <code>{reviewedRevision.slice(0, 7)}</code>, reviewed {reviewedDate}, including uncommitted changes. Tests and production builds pass; coordinated database races and current browser/provider walkthroughs remain unrun.</p>
+        <p className="mt-2">Method-discovery/retry routes are registered, saved stock and promotion holds restore together, and order history uses immutable promotion and bundle snapshots. The repository verification record describes current automated evidence and remaining runtime checks.</p>
       </div>
     </header>
 
@@ -90,7 +90,7 @@ export default function OrderLifecyclePage() {
 
     <DocsSection section={recovery}>
       <div className="space-y-5">{recoveryScenarios.map((scenario) => <div key={scenario.title} className="rounded-card border border-border bg-surface p-6"><h3 className="font-semibold">{scenario.title}</h3><p className="mt-3 text-sm leading-7 text-ink-muted">{scenario.behavior}</p><p className="mt-4 border-l-2 border-basil pl-4 text-sm leading-7 text-ink-muted">{scenario.limit}</p></div>)}</div>
-      <div className="mt-7 rounded-card bg-surface-muted p-6"><h3 className="mb-3 font-semibold">Recovery is an operation, not a clock label</h3><p className="text-sm leading-7 text-ink-muted"><code>payments:reconcile</code> scans stale payments and can recover provider attachments. <code>inventory:reconcile-reservations</code> handles expired tracked reservations. They are separate one-shot backend commands; no deployed schedule was established. All-untracked orders are not discovered by the reservation-row scan.</p><p className="mt-3 text-sm leading-7 text-ink-muted">CLI reconciliation does not emit socket events. Some HTTP/webhook paths lack the store/user context required for full notification routing. Successful reconciliation is not proof that every audience received an event.</p></div>
+      <div className="mt-7 rounded-card bg-surface-muted p-6"><h3 className="mb-3 font-semibold">Recovery is an operation, not a clock label</h3><p className="text-sm leading-7 text-ink-muted"><code>payments:reconcile</code> scans stale payments and can recover provider attachments. <code>inventory:reconcile-reservations</code> handles expired inventory and payment-attempt holds. They are separate one-shot backend commands; no deployed schedule was established. Payment-attempt deadlines also discover orders without tracked inventory rows.</p><p className="mt-3 text-sm leading-7 text-ink-muted">CLI reconciliation does not emit socket events. Some HTTP/webhook paths lack the store/user context required for full notification routing. Successful reconciliation is not proof that every audience received an event.</p></div>
       <EvidenceLinks id="PAY-06" /><EvidenceLinks id="REC-01" /><EvidenceLinks id="REC-02" /><EvidenceLinks id="RT-02" />
     </DocsSection>
     <div className="flex flex-wrap gap-3"><Link to="/docs/inventory" className="docs-button">Continue to inventory consistency</Link><Link to="/docs/architecture" className="docs-button-secondary"><ArrowLeft size={16} aria-hidden="true" />Back to architecture</Link></div>

@@ -26,13 +26,15 @@ export const docsOverview: DocsEntry = {
 export const docsArchitecture: DocsEntry = {
   path: "/docs/architecture",
   title: "Architecture",
-  description: "PizzaStore's system boundaries, COD request lifecycle, state ownership, and architectural tradeoffs.",
+  description: "PizzaStore's high-level design, checkout flow, financial outbox, state ownership, and architectural tradeoffs.",
   sections: [
+    { id: "high-level-design", title: "High-level design" },
     { id: "system-context", title: "System context" },
     { id: "application-boundaries", title: "Application boundaries" },
     { id: "cod-request", title: "A COD request" },
     { id: "state-ownership", title: "State ownership" },
     { id: "architectural-tradeoffs", title: "Tradeoffs" },
+    { id: "financial-posting", title: "Financial posting" },
     { id: "promotions-and-revenue", title: "Promotions & revenue" },
   ],
 };

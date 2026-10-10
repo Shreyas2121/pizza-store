@@ -20,6 +20,7 @@
     "db:seed":     "pnpm --filter backend seed",
     "demo:reset":  "pnpm --filter backend demo:reset",
     "finance:reconcile-fixture": "pnpm --filter backend finance:reconcile-fixture",
+    "docs:check": "node scripts/check-docs.cjs",
 
     "preflight":   "pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run build"
   }

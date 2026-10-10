@@ -15,14 +15,14 @@ export const testCategories = [
   },
   {
     category: "Disposable database integration",
-    status: "Missing",
-    establishes: "Database verification was skipped at the owner's request in the promotion release. Offline schema/query/service tests do not establish real PostgreSQL behavior.",
-    limit: "Empty-database migrations, deterministic seed/reset and coordinated lock races remain required release evidence.",
+    status: "Present",
+    establishes: "The recruiter-seed PGlite test derives current tables and applies the real posting-kernel triggers, checking constraints, rollback, balances, attachments and repeat-run safety.",
+    limit: "It does not apply the full migration chain or coordinate independent server PostgreSQL connections. Checkout/capture/cancellation races remain unverified.",
   },
   {
     category: "Browser flows",
     status: "Missing",
-    establishes: "No browser harness or completed manual session was recorded for the audited baseline or documentation routes.",
+    establishes: "This audit did not run a browser or provider session for the current working tree.",
     limit: "Routing, focus, responsive behavior, provider Checkout, sockets, and hosted refresh behavior remain unverified at runtime.",
   },
 ] as const;
@@ -89,7 +89,7 @@ export const improvementPriorities = [
   {
     priority: "P0",
     title: "Verify online-payment recovery in the target environment",
-    trigger: "Before enabling Razorpay for real customers or claiming the browser flow is complete.",
+    trigger: "Before publishing a validated external Test Mode walkthrough or claiming the browser flow is complete.",
     change: "Execute the implemented method discovery, inventory/promotion retry, late capture and refund paths against an isolated database and provider/browser setup, recording results.",
   },
   {
@@ -100,7 +100,7 @@ export const improvementPriorities = [
   },
   {
     priority: "P1",
-    title: "Add disposable-database transaction tests",
+    title: "Add coordinated PostgreSQL transaction tests",
     trigger: "Before strengthening concurrency claims or changing checkout, capture, cancellation, or staff lock paths.",
     change: "Coordinate independent connections without sleeps and assert final stock, reservation, movement, and order state.",
   },
@@ -118,8 +118,8 @@ export const improvementPriorities = [
   },
   {
     priority: "P2",
-    title: "Make release builds reproducible",
+    title: "Repeat checks on a clean release checkout",
     trigger: "Before the final release verification or CI publication gate.",
-    change: "Synchronize installed frontend dependencies with the committed lockfile and require lint, typecheck, tests, and production build in a clean environment.",
+    change: "The current workspace checks pass. Reinstall with the frozen lockfile and rerun lint, typecheck, tests and build on a clean release checkout.",
   },
 ] as const;

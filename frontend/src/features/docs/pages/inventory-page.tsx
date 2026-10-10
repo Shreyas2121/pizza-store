@@ -24,7 +24,7 @@ export default function InventoryPage() {
       <h1 className="max-w-3xl font-display text-4xl font-normal leading-tight tracking-tight sm:text-5xl">The lock is temporary.<br /><span className="text-brand">The reservation persists.</span></h1>
       <p className="mt-6 max-w-2xl text-lg leading-8 text-ink-muted">Inventory is store-specific state coordinated across checkout, payment, cancellation, expiry, and staff operations. The core rule is simple; transaction boundaries keep the related local changes together.</p>
       <div className="mt-7 rounded-control border border-border bg-surface-muted p-5 text-sm leading-6 text-ink-muted">
-        <p>Source snapshot: <code>{reviewedRevision.slice(0, 7)}</code>, reviewed {reviewedDate}. The tests cited here cover pure arithmetic and mocked query orchestration. No live PostgreSQL contention test is claimed.</p>
+        <p>Working-tree baseline: <code>{reviewedRevision.slice(0, 7)}</code>, reviewed {reviewedDate}. The tests cited here cover pure arithmetic and mocked query orchestration. No live PostgreSQL contention test is claimed.</p>
       </div>
     </header>
 
@@ -34,7 +34,7 @@ export default function InventoryPage() {
         <div className="rounded-card border border-border bg-surface p-6"><h3 className="mb-3 font-semibold">Customization does not create another stock item</h3><p className="text-sm leading-7 text-ink-muted">Two cart lines can choose different toppings while consuming the same base pizza. Checkout sums their quantities by product before it checks the store's stock.</p></div>
       </div>
       <DiagramCard diagram={inventoryStateModel} />
-      <p className="mt-5 text-sm leading-7 text-ink-muted">Manual product and store availability are checked before the stock locks. Stock deductions and restocks do not automatically toggle those flags, so “can this be sold?” and “how many are numerically available?” remain separate controls.</p>
+      <p className="mt-5 text-sm leading-7 text-ink-muted">Final checkout stabilizes catalogue and store-product state under its lock/revalidation policy. Stock deductions and restocks do not automatically toggle those flags, so “can this be sold?” and “how many are numerically available?” remain separate controls.</p>
       <EvidenceLinks id="INV-01" />
     </DocsSection>
 

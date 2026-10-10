@@ -1,5 +1,7 @@
 # Razorpay Test Mode Credentials Guide
 
+Reviewed against backend configuration and Razorpay's official key/webhook/capture documentation on 10 October 2026. The simulator remains the default; configuring credentials alone does not select the external adapter.
+
 This application needs three Razorpay values. The Test API key pair is generated
 by Razorpay; the webhook secret is a separate value that you create yourself.
 Test Mode never moves real money.
@@ -70,6 +72,7 @@ Official reference: [Set up Razorpay webhooks](https://razorpay.com/docs/payment
 Create or update `backend/.env`:
 
 ```env
+PAYMENT_PROVIDER_MODE=razorpay_test
 RAZORPAY_ENABLED=true
 RAZORPAY_KEY_ID=rzp_test_replace_with_your_key_id
 RAZORPAY_KEY_SECRET=replace_with_your_test_key_secret
@@ -85,8 +88,7 @@ into issues/chat, or use the API Key Secret as the webhook secret.
 
 ## 5. Enable automatic capture
 
-In Test Mode, open **Account & Settings**, find **Payments Capture**, and select
-automatic capture. This application intentionally does not move an order to the
+In Test Mode, configure automatic capture under **Account & Settings → Payments and refunds → Payment capture**. Follow the current [official capture settings](https://razorpay.com/docs/payments/payments/capture-settings/) if Dashboard labels change. This application intentionally does not move an order to the
 kitchen until Razorpay reports the payment as `captured` and the provider order
 as `paid`.
 
@@ -105,7 +107,8 @@ as `paid`.
    {
      "data": {
        "cash": true,
-       "razorpay": true
+       "razorpay": true,
+       "providerMode": "razorpay_test"
      }
    }
    ```

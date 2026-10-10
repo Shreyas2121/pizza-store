@@ -11,7 +11,7 @@ checkout data together, allocating the final tracked item, and keeping staff
 authority scoped to a store. Each claim links to its evidence and limitation.
 
 **0:20–0:45 — Establish the boundaries.** Open `/docs/architecture`. The browser,
-Express application, PostgreSQL, and Razorpay have distinct responsibilities.
+Express application, PostgreSQL, and the simulator/optional Razorpay Test Mode adapter have distinct responsibilities.
 Follow the COD request from middleware through one local transaction, then note
 that Socket.IO notification happens after commit and is not durable delivery.
 
@@ -46,15 +46,6 @@ and proposed improvements are separated from measured or deployed evidence.
    triggers to discuss when a modular monolith, local logging, in-process realtime
    delivery, or the current store-permission model would stop being sufficient.
 
-## Remaining publication inputs
+## Publication inputs
 
-- **Current screenshot:** not captured because application and browser execution
-  were waived for this implementation phase. Add only an image captured from the
-  actual case-study route, with meaningful alternative text and its tested revision.
-- **Public repository URL:** unavailable; this checkout has no configured Git
-  remote. Set `VITE_DOCS_REPOSITORY_URL` only after confirming the public HTTPS URL.
-- **Deployed demo and SPA fallback:** no hosting manifest or verified deployed URL
-  exists in the inspected repository. Configure and test direct-route fallbacks on
-  the selected host before publishing a demo link.
-- **Personal contribution:** no ownership or team-history facts were supplied.
-  Add first-person contribution copy only from confirmed information.
+Before sharing a published project, confirm its actual live/source URLs and hosted SPA fallback, capture a real screenshot, and supply your own contribution/team context. The current [verification record](case-study-verification.md) establishes automated checks on this workspace; it does not establish deployment or browser/provider behavior.

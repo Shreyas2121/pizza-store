@@ -1,12 +1,83 @@
 import type { DiagramDefinition } from "../../components/diagram-card";
 
+export const highLevelDesign: DiagramDefinition = {
+  title: "PizzaStore / High-level design",
+  caption: "One React application, one modular Express backend, and one PostgreSQL database. The financial posting command runs separately using the same backend code.",
+  explanation: [
+    "Customers, store staff, and admins use the React application. React Router handles navigation, TanStack Query owns server data, and Zustand owns shared client state.",
+    "Express authenticates the current user, validates input with Zod, and checks platform or store permissions. Domain services handle catalogue, checkout, promotions, inventory, support, and finance.",
+    "Drizzle reads and writes PostgreSQL. Checkout stores authoritative prices and coordinates local order, payment, promotion, and stock changes within a transaction.",
+    "Online payments use a configurable provider adapter: the credential-free simulator runs in the backend; Razorpay test mode calls an external provider and verifies signed webhooks.",
+    "Financial events are saved in the same transaction as their business changes. A separately invoked posting command claims those events and creates balanced journals. Socket.IO supplies a separate channel for order, stock, and support notifications.",
+    "Product and promotion images are served from public local uploads. Expense receipts live in private local storage and are downloaded through an authorized API route.",
+  ],
+  source: `flowchart TB
+    accTitle: PizzaStore high-level architecture
+    accDescr: Customers, staff and admins use React. A modular Express API uses PostgreSQL, local files, Socket.IO and a configurable payment provider. A separate posting command reads the financial outbox and writes journals.
+    people["Customers / store staff / platform admins"]
+    browser["React + TypeScript\nReact Router / TanStack Query / Zustand"]
+    people --> browser
+    subgraph backend["Express backend — modular monolith"]
+      api["REST API\nJWT / current user / Zod / store permissions"]
+      domains["Domain services\nCatalogue / checkout / promotions / inventory\nSupport / staff / cash / refunds / expenses / payroll"]
+      adapter["Payment provider adapter\nIn-process simulator OR Razorpay test mode"]
+      socket["Socket.IO\nSame HTTP server / authorized rooms"]
+      api --> domains
+      domains --> adapter
+      domains -.->|"Notifications"| socket
+    end
+    postgres[("PostgreSQL via Drizzle\nBusiness records / audit logs\nFinancial outbox / journals / reporting")]
+    files["Local file storage\nPublic images / private expense receipts"]
+    worker["Financial posting command\nClaim events / retry failures / post journals"]
+    razorpay["Razorpay test API\nExternal provider, when configured"]
+    browser -->|"REST requests"| api
+    socket -.->|"Realtime events"| browser
+    domains -->|"SQL and transactions"| postgres
+    domains -->|"Upload / authorized download"| files
+    worker -->|"Claim outbox rows; write journals"| postgres
+    adapter -.->|"Provider API calls"| razorpay
+    browser -.->|"Razorpay Checkout, in test mode"| razorpay
+    razorpay -.->|"Signed webhook to raw-body handler"| api`,
+};
+
+export const financialPosting: DiagramDefinition = {
+  title: "Business transaction → financial journal",
+  caption: "The database outbox bridges business changes and accounting. Socket notifications do not drive financial posting.",
+  explanation: [
+    "Order delivery, refunds, cash operations, expenses, and payroll write financial events alongside their business records in a local database transaction.",
+    "The posting command claims supported events with a lease. A posting policy translates each event into debit and credit lines; source identities make repeated posting requests idempotent.",
+    "The journal starts as a draft. Its lines are inserted before the status changes to posted. PostgreSQL triggers require a balanced journal and prevent changes to posted entries and lines.",
+    "A successfully handled event is marked processed. Failed events record their error and become eligible for retry according to the outbox policy. If posting commits before acknowledgment, a retry reuses the existing journal.",
+    "Reports read posted journal data. The HTTP server does not automatically run this batch command; an operator or external scheduler must invoke it.",
+  ],
+  source: `flowchart TB
+    accTitle: Transactional financial outbox and journal posting
+    accDescr: Business records and an outbox event commit together. A separately invoked worker claims the event, creates a draft journal with balanced lines, posts it and acknowledges the event. Failures can retry.
+    action["Business operation\nDelivery / refund / cash / expense / payroll"]
+    subgraph transaction["One PostgreSQL transaction"]
+      records["Write business records"]
+      outbox["Write financial outbox event"]
+      records --> outbox
+    end
+    action --> records
+    outbox -->|"After commit"| claim["Posting command claims event with lease"]
+    claim --> policy["Posting policy\nValidate source and amounts"]
+    policy --> draft["Create draft journal"]
+    draft --> lines["Insert debit and credit lines"]
+    lines --> post["Post journal\nDatabase verifies balance and protects posted data"]
+    post --> ack["Mark event processed"]
+    post --> reports["Finance reports / CSV / journal drill-down"]
+    policy -.->|"Failure"| retry["Record error and retry\nRepeated source reuses existing journal"]
+    retry -.-> claim`,
+};
+
 export const systemContext: DiagramDefinition = {
   title: "01 / PizzaStore in its environment",
   caption: "A context view describes people and external systems. Internal storage belongs in the next level of detail.",
   explanation: [
     "Customers browse, customize, and place orders through PizzaStore.",
     "Store staff use assigned-store operations; platform admins manage platform-wide capabilities.",
-    "PizzaStore initiates online payments with Razorpay and receives provider notifications. Razorpay is outside PizzaStore's database transaction boundary.",
+    "Online payments can use the backend's simulator or external Razorpay test mode. External provider calls are outside PizzaStore's database transaction boundary.",
   ],
   source: `flowchart TB
     accTitle: PizzaStore system context
@@ -14,7 +85,7 @@ export const systemContext: DiagramDefinition = {
     customer["Customer"] -->|"Browse and order"| system["PizzaStore ordering system"]
     staff["Store staff"] -->|"Assigned-store operations"| system
     admin["Platform admin"] -->|"Platform administration"| system
-    system -->|"Create and verify payments"| provider["Razorpay - external system"]
+    system -->|"Create and verify payments, when configured"| provider["Razorpay test mode - external system"]
     provider -->|"Signed payment notifications"| system`,
 };
 
@@ -24,7 +95,7 @@ export const containers: DiagramDefinition = {
   explanation: [
     "The React application owns presentation and sends HTTP requests to Express. Socket.IO client and server supply a separate event channel.",
     "Express owns business operations and uses Drizzle to read and write PostgreSQL. Database transactions coordinate local persistent changes.",
-    "The server creates and verifies provider orders with Razorpay; the browser opens provider Checkout. Signed webhooks return to the server.",
+    "The configured payment adapter either simulates online payment in the API process or creates and verifies Razorpay test orders. In Razorpay mode, the browser opens provider Checkout and signed webhooks return to the server.",
   ],
   source: `flowchart TB
     accTitle: PizzaStore application containers
@@ -33,11 +104,13 @@ export const containers: DiagramDefinition = {
       browser["Browser application - React and Socket.IO client"]
       api["API application - Express, services, Socket.IO server"]
       database[("PostgreSQL")]
+      simulator["In-process payment simulator"]
       browser -->|"REST over HTTP"| api
       api -->|"Socket.IO events"| browser
       api -->|"SQL through Drizzle"| database
+      api -->|"Simulator mode"| simulator
     end
-    provider["Razorpay - external"]
+    provider["Razorpay test mode - optional external provider"]
     browser -->|"Provider Checkout"| provider
     api -->|"Create and fetch provider state"| provider
     provider -->|"Signed HTTP webhooks"| api`,

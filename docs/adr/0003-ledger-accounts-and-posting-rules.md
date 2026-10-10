@@ -4,9 +4,11 @@
 - Date: 2026-08-31
 - Decision owners: PizzaStore project owner and maintainers
 
+Implementation review (2026-10-10): Current ledger tables, dispatcher and posting-kernel triggers are implemented. Soft-closed permits source posting and restricts manual posting; see the linked current contracts. The stock-return event is declared but not dispatched by the current commerce worker. See [architecture](../architecture.md), [lifecycle contracts](../finance-lifecycle-contracts.md) and [verification](../case-study-verification.md).
+
 ## Context
 
-PizzaStore needs an auditable subledger that separates collections, delivery-based recognition, refunds, settlement, cash, expenses, and payroll. The current application has no ledger tables. The examples in `plan.md` intentionally left the clearing-account policy unresolved, and the minimum account list omitted some accounts needed to balance customer advances, rounding, opening balances, and provider-fee tax without claiming input tax credit.
+PizzaStore needs an auditable subledger that separates collections, delivery-based recognition, refunds, settlement, cash, expenses, and payroll. The current application has no ledger tables. The original planning examples intentionally left the clearing-account policy unresolved, and the minimum account list omitted some accounts needed to balance customer advances, rounding, opening balances, and provider-fee tax without claiming input tax credit.
 
 This portfolio project should demonstrate correct double-entry mechanics without presenting itself as statutory accounting software or a complete restaurant ERP.
 

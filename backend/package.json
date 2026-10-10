@@ -9,7 +9,6 @@
     "dev": "nodemon src/index.ts",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit",
-    "generate:types": "ts-node src/generate-types.ts",
     "seed:users": "ts-node src/scripts/user.ts",
     "seed:addresses": "ts-node src/scripts/address.ts",
     "seed:orders": "ts-node src/scripts/order.ts",
@@ -17,6 +16,7 @@
     "seed:promotions": "ts-node src/scripts/promotions.ts",
     "seed:default-store": "ts-node src/scripts/default-store.ts",
     "seed:staff": "ts-node src/scripts/staff.ts",
+    "seed:recruiter": "ts-node src/scripts/recruiter-demo.ts",
     "payments:reconcile": "ts-node src/scripts/reconcile-payments.ts",
     "inventory:reconcile-reservations": "ts-node src/scripts/reconcile-inventory-reservations.ts",
     "promotions:cleanup-media": "ts-node src/scripts/cleanup-promotion-media.ts",
@@ -53,6 +53,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@eslint/js": "^9.39.5",
     "@faker-js/faker": "^10.6.0",
     "@types/cors": "^2.8.19",

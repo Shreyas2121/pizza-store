@@ -4,6 +4,8 @@
 - Date: 2026-09-12
 - Decision owners: PizzaStore project owner and maintainers
 
+Implementation review (2026-10-10): Implemented behavior and current evidence are described by the linked contracts; the dated decision context is retained as history. See [architecture](../architecture.md), [lifecycle contracts](../finance-lifecycle-contracts.md) and [verification](../case-study-verification.md).
+
 ## Context
 
 PizzaStore is replacing the legacy coupon-only model with automatic offers and manually entered coupons. Pricing must remain deterministic across preview and checkout, promotions must not leak across store or role boundaries, and global redemption/budget limits must remain correct across all participating stores and online-payment reservations.
@@ -51,13 +53,13 @@ PizzaStore is replacing the legacy coupon-only model with automatic offers and m
 8. Definition changes affect new quotes/orders only. Every material definition or media edit increments `definitionVersion`; immutable order applications retain the version and values they captured.
 9. Exhaustion is derived from reserved-plus-consumed application rows. It blocks new applications but does not silently change the administrative `isActive` flag; a released reservation can therefore restore capacity without an admin reactivation.
 
-#### C07 catalogue lock refinement
+#### Catalogue lock refinement
 
 Within the catalogue stage, checkout locks all parent/component product rows by ascending product ID with `FOR NO KEY UPDATE`, then the complete required store-product set by ascending store-product ID. Referenced customization options use the same non-key lock in ascending ID, followed by product/group mappings in product/group order. Non-key locks stabilize prices, names, availability and bundle definitions without blocking foreign-key key-share reads from promotion-rule writers already holding promotion locks. Bundle writers lock affected stores ascending before products ascending and store-product writes. Checkout reads component identities before product locks and verifies them after acquisition; a changed component set fails with `CHECKOUT_CATALOGUE_CHANGED` instead of acquiring additional lower-ID locks.
 
 Cart mutations lock their parent cart before reading quantities or modifying children. Cancellation locks the order, then its user/store before restoring inventory and handling applications. Re-acquiring an already-held user/store/product/promotion lock in a caller transaction adds no new lock dependency. PostgreSQL race/deadlock integration evidence remains required; query-construction tests do not prove these properties.
 
-C08 shares the v4 checkout snapshot writer between COD and online initiation. Existing-order payment lifecycle locks the order, user eligibility row, store and payment before sorted inventory stock/reservation rows, sorted promotion definitions/settings and applications. Receipt attachment follows the same owner/payment prefix. Retry restores inventory and all applications in the caller transaction. First-order queries ignore failed payments on awaiting-payment orders; fulfilment statuses still disqualify. Expiry rechecks payment identity and activity under the locks before releasing collections.
+The shared checkout snapshot writer (originally v4; new quotes are v5) between COD and online initiation. Existing-order payment lifecycle locks the order, user eligibility row, store and payment before sorted inventory stock/reservation rows, sorted promotion definitions/settings and applications. Receipt attachment follows the same owner/payment prefix. Retry restores inventory and all applications in the caller transaction. First-order queries ignore failed payments on awaiting-payment orders; fulfilment statuses still disqualify. Expiry rechecks payment identity and activity under the locks before releasing collections.
 
 ## Alternatives considered
 

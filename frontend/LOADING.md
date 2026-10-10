@@ -45,4 +45,4 @@ All routed feature pages and their loading subcomponents were reviewed.
 | New product, payment reconciliation, system maintenance, staff invitation | Static forms; route skeleton while code loads, dots while submitting |
 | Not-found pages | Static content; no data loader |
 
-Browser verification exercised representative routes covering every shared layout at 320px, 390px and 1440px, with no horizontal overflow, and verified reduced-motion animation behavior. This checks shared loading layouts, not every authenticated page end to end. Unit coverage verifies route fallbacks, status accessibility, background refresh behavior and the global dots default.
+Unit coverage verifies route fallbacks, status accessibility, background refresh behavior and the global dots default. The current audit ran the frontend suite and build, but did not rerun browser viewport/reduced-motion checks. Rehearse representative loading states at 320px, 390px and 1440px before publication; shared-layout coverage does not establish every authenticated page end to end.

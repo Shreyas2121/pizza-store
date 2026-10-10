@@ -13,12 +13,12 @@ export default function DecisionsPage() {
       <p className="docs-eyebrow mb-5">05 / Engineering decisions</p>
       <h1 className="max-w-3xl font-display text-4xl font-normal leading-tight tracking-tight sm:text-5xl">The implementation chose.<br /><span className="text-brand">The costs came with it.</span></h1>
       <p className="mt-6 max-w-2xl text-lg leading-8 text-ink-muted">These records connect the current design to its constraints, alternatives, tradeoffs, and concrete signals for changing course.</p>
-      <p className="mt-5 text-xs leading-6 text-ink-muted">Source snapshot: <code>{reviewedRevision.slice(0, 7)}</code>, reviewed {reviewedDate}. Historical design notes were not found, so every record is labelled as a present-day assessment rather than an invented account of original intent.</p>
+      <p className="mt-5 text-xs leading-6 text-ink-muted">Working-tree baseline: <code>{reviewedRevision.slice(0, 7)}</code>, reviewed {reviewedDate}. These records assess the current design. The repository also contains accepted financial and promotion ADRs; this page does not invent the author's historical motives.</p>
     </header>
 
     <DocsSection section={assessment}>
       <div className="grid gap-5 sm:grid-cols-2">
-        <div className="rounded-card border border-border bg-surface p-6"><h3 className="mb-3 font-semibold">How to read these records</h3><p className="text-sm leading-7 text-ink-muted">“Chosen” describes source that exists at the reviewed revision. “Alternative” is a useful comparison, not proof that the original author rejected it at the time.</p></div>
+        <div className="rounded-card border border-border bg-surface p-6"><h3 className="mb-3 font-semibold">How to read these records</h3><p className="text-sm leading-7 text-ink-muted">“Chosen” describes source in the reviewed working tree. “Alternative” is a useful comparison, not proof that the original author rejected it at the time.</p></div>
         <div className="rounded-card border border-border bg-surface p-6"><h3 className="mb-3 font-semibold">A decision remains conditional</h3><p className="text-sm leading-7 text-ink-muted">Each record names a cost and an observable trigger for reconsideration. No production scale, historical motive, or measured performance benefit is inferred.</p></div>
       </div>
     </DocsSection>

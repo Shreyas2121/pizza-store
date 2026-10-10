@@ -1,286 +1,81 @@
 # Finance lifecycle and event contracts
 
-- Status: Target contract accepted for phased implementation
-- Date: 2026-08-31
-- Related decisions: [ADR-001](adr/0001-money-representation-and-rounding.md), [ADR-002](adr/0002-revenue-cogs-recognition-and-refunds.md), [ADR-003](adr/0003-ledger-accounts-and-posting-rules.md), [ADR-004](adr/0004-tax-inclusive-demo-policy.md), [ADR-005](adr/0005-store-timezone-business-date-financial-year.md), [API rollout map](finance-api-compatibility-rollout.md)
+Reviewed on 10 October 2026 against the [domain status types](../backend/src/utils/types.ts), services, [financial event envelope](../backend/src/features/finance-events/financial-event.types.ts) and [posting dispatcher](../backend/src/features/ledger/commerce-posting.service.ts). These are current boundaries, rather than a phased target implementation.
 
-## Scope and current-reality boundary
+## State and business boundaries
 
-The following P0.2 reality description is historical. Current orders use canonical `delivered` with `out_for_delivery`; refund, settlement, cash, expense, payroll, outbox and journal aggregates are implemented. C00-C14 add promotion applications, immutable bundle/discount snapshots and offline release evidence. Use [promotion operations](promotions-operations.md), [database schema](database-schema.md) and [C14 handoff](promotions-c14-handoff.md) for current behavior and unrun release checks.
+| Aggregate | Implemented workflow / correction |
+| --- | --- |
+| Order | Online begins awaiting payment; COD begins pending. `pending → preparing → out_for_delivery → delivered`. Pre-delivery states can cancel; delivered/cancelled are terminal. Same-state status requests are no-ops. |
+| Payment | Local summary uses pending/processing/completed/failed/refunded; normalized attempts have pending/processing/authorized/captured/failed/expired/cancelled/voided identifiers. Provider observations are separate. Retry can reactivate the existing saved attempt/provider order; it does not invariably append a new attempt. |
+| Refund | Request/approve/reject and submission/reconciliation manage requested/approved/rejected/cancelled/submitted/processing/processed/failed records. Supported failed retry retains the refund identity. A status identifier alone does not establish a public endpoint for every theoretical transition. |
+| Settlement | Import and match produce imported/reconciling/needs_review/reconciled. An identical provider identity/payload import is idempotent; a changed payload conflicts. Issue resolution records evidence and does not rewrite source money. |
+| Cash session | Open daily drawer, append supported movements, counted close, authorized reopen retaining closure evidence. COD delivery requires the applicable collection/session policy. |
+| Expense | Draft → submitted → approved → paid → posted; rejection is editable back to draft. Eligible pre-posting states can void; paid void requires payment-reversal evidence. Posted correction uses a linked reversal and a separately created replacement. |
+| Pay run | Draft → calculated → approved → paid → posted. Draft/calculated/approved can void; paid cannot void. Posted correction reverses on an authorized open effective business date. There is one run snapshot per store/month; replacement accounting uses the documented aggregate corrective journal. |
+| Journal / period | Insert draft and lines before posting. Posted lines/entries are protected by database triggers; reverse with opposite lines. Open → soft-closed → closed; owner-controlled reopen. Soft-closed allows source posting and restricts manual posting. |
 
-This document defines target contracts for P1-P6. It does not claim they are implemented in P0.2.
+Services add ownership, capacity, cash evidence, actor separation, recent-authentication, version and fiscal-period guards. Do not infer permitted commands solely from enum values. See [finance operations](finance-operations-runbook.md), [refund UI](refund-request-walkthrough.md) and [payroll scope](payroll-demo-scope.md).
 
-Today, orders use `awaiting_payment`, `pending`, `preparing`, misspelled `delievered`, and `cancelled`; `preparing` goes directly to `delievered`. Payments are one-per-order with `pending`, `processing`, `completed`, `failed`, and `refunded`. Refund, settlement, cash-session, expense, pay-run, outbox, fiscal-period, and journal aggregates do not exist yet.
+## Payment and reservation recovery
 
-Later commits must use reviewed schema migrations and the fresh-database reset/seed policy described in `guide.md`. They must not make documentation true by pretending the planned schema already exists. Existing API response adapters may remain where explicitly required, but no stored rows need conversion or compatibility handling.
+The order transition map is in [order.logic.ts](../backend/src/features/order/order.logic.ts). Capture finalization additionally requires an awaiting-payment order and verified exact provider/local identity. It restores/consumes saved inventory and promotions atomically, completes payment and moves the order to pending. Duplicate completion with the same provider payment identity produces no second local effect; a different identity conflicts.
 
-## State-machine rules
+Confirmed failure releases holds while leaving the order awaiting payment. Customer retry restores original quantities and checks current promotion capacity, without recalculating eligibility/prices. Verified captured funds may bypass current promotion capacity, but never physical stock availability. Safe expiry cancels the order; cancellation does not resurrect on later capture and does not itself refund completed money.
 
-- A repeated command to the current state is a no-op only when its immutable identity and payload agree with the original command.
-- Every other unlisted transition is rejected with a stable conflict error.
-- Terminal financial history is corrected through reversal or a new aggregate, never by reopening or editing it unless a controlled transition is shown.
-- Provider observations cannot skip local validation. Duplicate and out-of-order observations are retained but have at most one state/financial effect.
-- State mutation, audit record, and required outbox events share one database transaction.
-
-### Order
-
-```mermaid
-stateDiagram-v2
-    [*] --> awaiting_payment: online order
-    [*] --> pending: COD order
-    awaiting_payment --> pending: payment captured
-    awaiting_payment --> cancelled: cancel / expire
-    pending --> preparing
-    pending --> cancelled
-    preparing --> out_for_delivery
-    preparing --> cancelled
-    out_for_delivery --> delivered
-    out_for_delivery --> cancelled: fulfilment policy permits
-    delivered --> [*]
-    cancelled --> [*]
-```
-
-Only canonical `delivered` emits recognition. P1.9 removes the legacy `delievered` spelling directly and recreates the disposable database; it is neither accepted nor normalized afterward. A post-delivery monetary correction uses a refund or recognition-reversal event; it does not change the order back to `cancelled`.
-
-### Payment attempt
-
-```mermaid
-stateDiagram-v2
-    [*] --> pending
-    pending --> processing: provider creation/claim
-    pending --> captured: COD collected at delivery
-    pending --> cancelled
-    processing --> authorized
-    processing --> captured
-    processing --> failed
-    processing --> expired
-    authorized --> captured
-    authorized --> voided
-    authorized --> expired
-    captured --> [*]
-    failed --> [*]
-    expired --> [*]
-    cancelled --> [*]
-    voided --> [*]
-```
-
-A retry after a terminal failure creates a new attempt under the same order. Refund state never overwrites a captured attempt; refunds are separate aggregates. Provider status remains a separate observation field from the normalized local status.
-
-### Refund
-
-```mermaid
-stateDiagram-v2
-    [*] --> requested
-    requested --> approved
-    requested --> rejected
-    requested --> cancelled
-    approved --> submitted
-    approved --> cancelled
-    submitted --> processing
-    submitted --> processed
-    submitted --> failed
-    processing --> processed
-    processing --> failed
-    failed --> submitted: explicit retry
-    processed --> [*]
-    rejected --> [*]
-    cancelled --> [*]
-```
-
-Only verified provider/reconciliation evidence or an authorized COD cash action can enter `processed`. An explicit retry retains history and increments the source version. Processed allocations are immutable, and their sum equals the refund total.
-
-### Settlement batch
-
-```mermaid
-stateDiagram-v2
-    [*] --> imported
-    imported --> reconciling
-    reconciling --> reconciled
-    reconciling --> needs_review
-    needs_review --> reconciling: retry after issue resolution
-    reconciled --> [*]
-```
-
-An invalid file fails before a batch is accepted. A reconciled provider batch is immutable; later provider corrections arrive as a new adjustment/batch linked to the original. Reconciliation issues have their own open/resolved audit lifecycle and do not silently change source truth.
-
-### Cash session
-
-```mermaid
-stateDiagram-v2
-    [*] --> open
-    open --> closed: counted close
-    closed --> open: controlled reopen
-```
-
-There is at most one open session per `(storeId, businessDate)`. Reopen requires owner/manager authority, recent authentication, reason, and audit. Closing or reopening never deletes movements; a changed count or correction is represented by new movement/reversal records.
-
-### Expense
-
-```mermaid
-stateDiagram-v2
-    [*] --> draft
-    draft --> submitted
-    draft --> voided
-    submitted --> approved
-    submitted --> rejected
-    submitted --> voided
-    rejected --> draft: revise
-    rejected --> voided
-    approved --> paid
-    approved --> voided
-    paid --> posted
-    paid --> voided: payment reversed before posting
-    posted --> reversed
-    voided --> [*]
-    reversed --> [*]
-```
-
-Approval and payment enforce actor-level segregation in addition to permissions. A posted expense is immutable; correction creates a reversal and, if required, a new expense.
-
-### Pay run
-
-```mermaid
-stateDiagram-v2
-    [*] --> draft
-    draft --> calculated
-    draft --> voided
-    calculated --> draft: reopen for recalculation
-    calculated --> approved
-    calculated --> voided
-    approved --> paid
-    approved --> voided
-    paid --> posted
-    paid --> voided: payment reversed before posting
-    posted --> reversed
-    voided --> [*]
-    reversed --> [*]
-```
-
-Only draft data can be recalculated. Approval, payment, and posting require separate permissions and actor policies. Posted snapshots cannot be recalculated; correction is reversal plus a new run.
-
-### Journal
-
-```mermaid
-stateDiagram-v2
-    [*] --> draft: manual journal only
-    [*] --> posted: system posting
-    draft --> posted: balanced kernel
-    posted --> reversed: linked reversal journal posted
-    reversed --> [*]
-```
-
-`reversed` describes the original after one linked reversal posts. The reversal is itself a posted journal. Drafts have no reporting effect; posted lines are immutable.
+Expiry discovery includes payment-attempt deadlines as well as tracked inventory reservations. Provider uncertainty or changed activity/identity preserves a hold. The default 30-minute deadline requires an explicit reconciliation run. See [payment recovery](payment-inventory-retry.md) and [promotion operations](promotions-operations.md).
 
 ## Financial event envelope
 
-Every transactional outbox event uses this logical envelope:
+```ts
+interface WriteFinancialEventInput {
+  eventType: FinancialEventType;
+  schemaVersion: number;
+  sourceType: string;
+  sourceId: number | string;
+  sourceVersion: number;
+  storeId: number;
+  currency: "INR";
+  occurredAt: Date;
+  businessDate: string;
+  timezone: string;
+  actorId?: number | null;
+  correlationId?: string | null;
+  causationId?: string | null;
+  payload: Record<string, unknown>;
+}
+```
 
-| Field | Contract |
+The writer validates/canonicalizes the event, stores a payload hash and source identity/version, and prevents changed payloads under the same source identity. Event type and schemaVersion are separate fields; `order.delivered.v1` in prose means `eventType: "order.delivered", schemaVersion: 1`, not a dotted eventType wire value. Consumers use saved payloads rather than current catalogue/tax/compensation.
+
+## Posting dispatch
+
+| Event type | Current commerce-worker effect |
 | --- | --- |
-| `eventId` | Globally unique immutable event identifier |
-| `eventType` | Stable dotted semantic name, for example `order.delivered` |
-| `schemaVersion` | Positive integer payload schema version; the wire name is `eventType.vN` |
-| `sourceType` / `sourceId` | Aggregate type and immutable identifier |
-| `sourceVersion` | Positive monotonic aggregate mutation version; retries reuse it |
-| `storeId` | Required store scope; no implicit current-store lookup |
-| `currency` | `INR` for monetary events |
-| `occurredAt` | Immutable UTC source-transition time |
-| `businessDate` / `timezone` | Snapshots derived under ADR-005 |
-| `actorId` | User/service actor when applicable; no sensitive actor data |
-| `correlationId` / `causationId` | Trace across request, provider observation, and derived events |
-| `payload` | Versioned immutable posting inputs; no secrets or full provider payload |
+| `payment_attempt.captured` | Online collection into provider clearing/customer advances; COD capture uses cash on hand/customer advances |
+| `order.delivered` | Delivery-based revenue, demo tax, discount and standard COGS |
+| `order.recognition_reversed` | Exact linked recognition reversal |
+| `refund.processed` | Before-delivery advances reversal or after-delivery contra-revenue/tax; credit refunds payable |
+| `refund.disbursed` | Clear refunds payable against provider clearing or cash |
+| `settlement.reconciled` | Clear provider gross into bank/fees/tax and mapped adjustments |
+| `cash.movement_recorded` | Supported cash collection/deposit/adjustment policies; some movements have no separate journal |
+| `cash.session_closed` | Non-zero counted variance posting |
+| `cash.session_reopened` | Reverse the prior closure effect when present |
+| `expense.posted` / `expense.reversed` | Paid expense posting / exact linked reversal |
+| `pay_run.posted` / `pay_run.reversed` | Aggregate payroll posting / exact linked reversal |
+| `refund.failed`, `expense.paid`, `expense.voided` | Acknowledged lifecycle evidence with no journal |
+| `payment_attempt.failed`, `inventory.return_accepted` | Declared event types but absent from the current commerce worker's supported-event list; do not claim an implemented stock-return posting workflow |
 
-The idempotency key for journals is `(sourceType, sourceId, eventType, sourceVersion)`. `schemaVersion` describes payload shape and is not the same as `sourceVersion`. A schema upgrade changes the wire suffix; a retry does neither.
+Policy builders validate event type/version and source totals before posting. The current [dispatcher](../backend/src/features/ledger/commerce-posting.service.ts) is authoritative for worker support; declared event types alone do not establish execution.
 
-Consumers use snapshotted payload values and identifiers. They must not recalculate history from current catalogue prices, tax rules, costs, compensation, provider data, or browser input.
+## Outbox and journal recovery
 
-## Event catalogue and minimum payloads
+Source mutation and its required financial event share a transaction. The worker claims only supported event types with a five-minute lease and bounded batches, processes each, then acknowledges separately. Ten failed claims reach dead-letter policy; retry availability uses backoff. If a journal commits before acknowledgment, source uniqueness lets the retry reuse it. Financial-event IDs, source keys, payload hashes and journal source uniqueness serve different roles.
 
-All names below are version 1 wire names. Common envelope fields are omitted from the payload column.
+The posting kernel verifies accounts, currency, store, date/period, line sides and balance; draft/lines/post sequencing satisfies [migration 0023](../backend/migrations/0023_balanced_posting_kernel.sql). Journal balance is enforced in SQL as well as policy. A source reversal retains the original and posts opposite lines. Effective correction-date rules vary by domain: payroll explicitly accepts an open effective date; expense reversal uses its existing source-date policy. Follow each operation's runbook.
 
-| Event | Source | Minimum payload beyond envelope | Financial/reversal behavior |
-| --- | --- | --- | --- |
-| `payment_attempt.captured.v1` | Payment attempt | `paymentAttemptId`, `orderId`, `provider`, `method`, `capturedPaise`, `capturedAt`, immutable provider reference or COD session ID | Dr collection asset, Cr Customer Advances; never revenue. Correct by an explicit refund/charge reversal, not status edit. |
-| `payment_attempt.failed.v1` | Payment attempt | `paymentAttemptId`, `orderId`, safe failure code, `failedAt` | Observation only; no journal. Retry creates a new attempt. |
-| `order.delivered.v1` | Order | `orderId`, pricing policy version, `discountMode`, customer total, pre-discount taxable food, tax-exclusive discount contra component, taxable delivery, included item/delivery tax, rounding adjustment, `foodSubtotalPaise`, inclusive `itemDiscountPaise`, `chargedDeliveryFeePaise`, line cost snapshots, `deliveredAt` | Validates immutable paid snapshots and recognizes store revenue/tax/COGS once. Free delivery has zero delivery revenue; compare-at markdown has no journal. Correct with `order.recognition_reversed` and any separate inventory return. |
-| `order.recognition_reversed.v1` | Order | `orderId`, original recognition source key, explicit erroneous-fulfilment correction ID, reason, authorized actor, effective business date | Exact opposite of the referenced recognition journal; only evidence that delivery recognition itself was wrong can emit it. A monetary refund cannot. |
-| `inventory.return_accepted.v1` | Inventory return | `returnId`, `orderId`, returned line IDs/quantities/cost snapshots, reason | Reverses only supported COGS allocations. A refund alone cannot emit it. |
-| `refund.processed.v1` | Refund | `refundId`, `orderId`, `paymentAttemptId`, total, item/delivery/tax/discount allocations, provider/COD reference, `processedAt`, fulfilment state | Before delivery clears Customer Advances; after delivery posts contra revenue/tax to Refunds Payable. Never implies inventory return. Reverse only through a linked refund correction. |
-| `refund.failed.v1` | Refund | `refundId`, `paymentAttemptId`, safe failure code, `failedAt` | Observation only; no journal. Explicit retry increments source version. |
-| `refund.disbursed.v1` | Refund | `refundId`, `method`, disbursed total, clearing/cash reference, `disbursedAt` | Dr Refunds Payable, Cr Razorpay Clearing or Cash. Reverse from exact original lines if external evidence is corrected. |
-| `settlement.reconciled.v1` | Settlement batch | `batchId`, provider settlement ID, gross, net, fee, fee tax, typed adjustments, UTR/reference, line match IDs, `settledAt` | Clears Razorpay Clearing to bank and explicit fee/adjustment accounts. A provider correction is a new linked batch, not mutation. |
-| `cash.movement_recorded.v1` | Cash movement | `movementId`, `sessionId`, type, amount, order/refund/source reference, reason when manual | Manual cash-in/out, deposit, and adjustment types post through explicit mappings. COD/refund movements already represented by payment/refund events are evidence only and never post twice. Correction is an opposite linked movement. |
-| `cash.session_closed.v1` | Cash session | `sessionId`, opening float, movement totals, expected, counted, variance, `closedAt` | Posts Cash Over/Short only for non-zero variance. Reopen emits a reversal event before new close. |
-| `cash.session_reopened.v1` | Cash session | `sessionId`, prior close source key, reason, authorized actor, `reopenedAt` | Reverses the prior close-variance journal exactly; movements remain. |
-| `expense.paid.v1` | Expense | `expenseId`, exact allocations/account mappings, inclusive total, payment method/reference, `paidAt` | Payment evidence only; the expense journal is created from `expense.posted`. |
-| `expense.posted.v1` | Expense | `expenseId`, vendor/category IDs, exact allocations/account mappings, inclusive total, payment method/reference, paid/posted times | Dr explicit expense accounts, Cr Bank/Cash. Correction uses `expense.reversed`. |
-| `expense.voided.v1` | Expense | `expenseId`, prior status, exact allocations, reason, and payment-reversal evidence when previously paid | Lifecycle evidence only; a posted expense must use `expense.reversed` instead. |
-| `expense.reversed.v1` | Expense | `expenseId`, original posting source key, reason, authorized actor, effective business date | Exact opposite of original journal; original source remains immutable. |
-| `pay_run.posted.v1` | Pay run | `payRunId`, period, aggregate earning/net/deduction/employer-cost totals, payment-reference-present evidence, and posted time | Posts explicit payroll expense, payable/liability, and bank lines. Employee detail and the payment reference stay outside the event. Correction uses `pay_run.reversed`. |
-| `pay_run.reversed.v1` | Pay run | `payRunId`, original posting source key, reason, authorized actor, effective business date | Exact opposite of original journal; sensitive employee detail stays outside event/log metadata. |
+## Lock ordering and evidence limits
 
-Manual journals enter the posting kernel as commands with a caller-supplied idempotency key, actor, reason, store, business date, and balanced lines. They do not masquerade as domain events.
+Checkout stabilizes cart/user/store/catalogue/stock/promotions; existing-order payment lifecycle locks order/user/store/payment before saved inventory and promotion collections. Relevant catalogue/stock/promotion collections use stable ascending IDs. Staff membership and cancellation/release paths add their own dependencies. [ADR-006](adr/0006-promotion-resolution-eligibility-and-governance.md) documents the intended compatible ordering and catalogue refinement.
 
-## Reversal contract
-
-1. A reversal command identifies exactly one posted source journal and supplies reason, authorized actor, correlation ID, and effective open business date.
-2. The posting kernel copies the original lines and exchanges debit with credit. It never recalculates the original using current rules.
-3. A unique original-journal reference permits at most one active reversal. Duplicate identical commands return the existing result; conflicting duplicates fail.
-4. A correction that replaces business meaning is two operations: reverse the old journal, then post a new source/version. The two remain independently traceable.
-5. Reversal does not mutate an operational aggregate unless that aggregate's state machine explicitly transitions to `reversed` or emits a corresponding correction event.
-6. Closed-period history remains closed. The reversal posts in an authorized open period and preserves the original period reference.
-
-## Global database lock order
-
-The current repository already locks an order before its payment/inventory work and locks multiple store-product rows by ascending ID. Finance workflows extend that convention.
-
-When one transaction must lock more than one existing row, acquire only the required classes in this order:
-
-| Rank | Lock class |
-| --- | --- |
-| 1 | Store membership/configuration rows needed for transactional authorization, ordered by store then row ID |
-| 2 | Settlement batch and settlement lines, ordered by batch then line ID |
-| 3 | Cart |
-| 4 | Order |
-| 5 | Payment attempts, ascending ID |
-| 6 | Refunds, ascending ID |
-| 7 | Cash session, then cash movements ascending ID |
-| 8 | Expense, then allocations ascending ID |
-| 9 | Pay run, then employee/line rows ascending ID |
-| 10 | Store-product rows, ascending ID |
-| 11 | Inventory reservations, ascending ID |
-| 12 | Sorted promotion definitions/store settings, then application collections |
-| 13 | Fiscal period |
-| 14 | Existing journal entry when reversing; journal lines ascending ID |
-
-Rules:
-
-- The promotion overhaul extends checkout/existing-order paths with user
-  eligibility and store serialization before inventory/application transitions.
-  Follow ADR-006 and the current [promotion operations](promotions-operations.md)
-  for those paths. The table above describes finance lock classes; unit/query
-  tests do not establish a universal deadlock-free order.
-
-- Resolve IDs and authorize store scope before the write transaction where possible; high-risk operations re-authorize inside the transaction and lock membership first.
-- A workflow reached from a child ID still resolves its parent IDs first, then starts a transaction and locks in the table above. For example, a refund action locks order, payment attempt, then refund.
-- Lock multiple stores and multiple rows in ascending `(storeId, id)` order.
-- Inserts into audit, outbox, movement, allocation, and journal-line tables do not require locking a nonexistent row; uniqueness constraints remain mandatory.
-- Claim webhook-inbox or outbox work in a short transaction, commit the claim, then run the domain/posting transaction. Never hold a queue claim row while waiting on domain locks.
-- Never hold a database transaction open across Razorpay, file storage, email, or any other network call. Persist intent, commit, perform the external call, then reconcile the result in a new transaction.
-- Posting locks the applicable fiscal period before inserting a journal. Period close locks only the period/control rows and never walks backward into source aggregates.
-- If a new workflow cannot obey this order, document and test a revised global order before implementation; do not add a local exception.
-- Use PostgreSQL-backed concurrency tests for refund limits, cash close versus late COD, period close versus posting, event replay, and two posting workers. Mocks cannot prove lock behavior.
-
-## Contract invariants
-
-- Every accepted transition appears in exactly one diagram; every unlisted transition fails.
-- One source mutation version emits at most one event of a given type and creates at most one journal.
-- State mutation, audit, and required outbox writes commit or roll back together.
-- Duplicate/out-of-order provider events have at most one financial effect and remain observable.
-- Posted and processed records are corrected through linked reversal, never overwrite or deletion.
-- Every reversal neutralizes its referenced journal exactly.
-- Every posted journal balances in integer paise.
-- Processed refunds never exceed captured or collected funds under concurrency.
-- A refund does not create an inventory return or COGS reversal.
-- `out_for_delivery`, failed payment, failed refund, and imported-but-unreconciled settlement states post nothing.
-- All multi-row locks follow the global class order and ascending IDs within a class.
+This is not a demonstrated global deadlock-free order. Mocked query/orchestration tests and a PGlite seed test do not replace coordinated multi-connection PostgreSQL checkout/capture/cancellation races. Realtime emits occur after commit and are outside the accounting outbox's replay guarantee. Current executed evidence is in [verification](case-study-verification.md).

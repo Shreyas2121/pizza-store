@@ -1,6 +1,7 @@
-export const reviewedRevision = "15362b5a3500d4ea596e66bd2e9e519a418ed650";
-export const reviewedDate = "2026-09-05";
+export const reviewedRevision = "379ae802767eb8507407bb5c999855de361a59f6";
+export const reviewedDate = "2026-10-10";
 
+// The review includes working-tree changes; published source links resolve repository HEAD.
 // Public subset of docs/case-study-evidence.md. Update both when behavior changes.
 export const evidence = {
   "ARCH-01": {
@@ -13,7 +14,7 @@ export const evidence = {
     title: "Frontend routing and state",
     source: "frontend/src/app/router/routes.tsx",
     symbol: "AppRoutes; feature lazy imports",
-    scope: "Reviewed source organization, not browser or bundle verification. Docs routes were added after this evidence revision.",
+    scope: "Current routing and source organization; frontend tests and build pass. Direct browser and hosted refresh behavior were not checked in this audit.",
   },
   "ORDER-01": {
     title: "Transactional COD checkout",
@@ -34,15 +35,15 @@ export const evidence = {
     source: "backend/src/features/order/order.mapper.ts",
     symbol: "toOrderResponse / ORDER_SNAPSHOT_RELATIONS",
     test: "backend/src/features/order/order.mapper.test.ts",
-    revision: "245e748",
-    scope: "C10 source and database-free regression tests: historical product, customization, promotion and bundle names/prices come from saved snapshots. Allocations and released applications remain visible. Product images and the delivery address remain references. No live database or browser evidence is claimed.",
+
+    scope: "Source and regression tests: saved product, customization, promotion and bundle names/prices preserve history. Images and the delivery address remain references. No live browser/database race is claimed.",
   },
   "PAY-01": {
     title: "Online initiation boundaries",
     source: "backend/src/features/payments/payment.service.ts",
     symbol: "findOrCreateLocalAttempt / claimProviderOrderCreation / ensureProviderOrder",
     test: "backend/src/features/payments/payment.service.inventory.test.ts",
-    scope: "Source evidence for separate local/provider steps. The initiation test failed before assertions in C01 due to an unmocked database lookup.",
+    scope: "Source and passing mocked initiation tests establish separate local/provider steps. They do not exercise an external provider or coordinated SQL race.",
   },
   "PAY-02": {
     title: "Local request and provider identity",
@@ -52,16 +53,16 @@ export const evidence = {
   },
   "PAY-03": {
     title: "Verification before finalization",
-    source: "backend/src/features/payments/payment-reconciliation.service.ts",
-    symbol: "verifyRazorpayPayment / reconcileProviderPayment / assertProviderStateMatches",
+    source: "backend/src/features/payments/payment-verification.service.ts",
+    symbol: "verifyRazorpayPayment / reconcileProviderPayment; provider/local state validation",
     scope: "Source review of ownership, checkout signature, and provider identity/amount/state checks. No end-to-end provider test established.",
   },
   "PAY-04": {
     title: "Capture and repeated completion",
-    source: "backend/src/features/payments/payment-reconciliation.service.ts",
+    source: "backend/src/features/payments/payment-finalization.service.ts",
     symbol: "finalizeCapturedPayment",
     test: "backend/src/features/payments/payment.service.inventory.test.ts",
-    scope: "Mocked transaction tests inspect capture, same-payment replay, and released-reservation rejection; not a live callback/webhook race test.",
+    scope: "Passing mocked finalization tests inspect capture and same-payment replay. Saved stock and promotion holds restore before consumption; shortages/cancelled orders conflict. No live callback/webhook race test.",
   },
   "PAY-05": {
     title: "Webhook claims and duplicate events",
@@ -70,29 +71,30 @@ export const evidence = {
     scope: "Source review: raw-body signature, unique event claims, stale processing window, and separate processed marking. No webhook lifecycle integration test established.",
   },
   "PAY-06": {
-    title: "Retry and route limitations",
+    title: "Mounted retry and saved-price recovery",
     source: "backend/src/features/payments/payment.service.ts",
     symbol: "retryRazorpayOrder / reactivateProviderOrder",
-    scope: "Service retry does not recreate released stock reservations. Method-discovery and retry routes are absent in the audited router; financial rework requires re-review.",
+    scope: "Method discovery and owned retry routes are mounted. Retry restores saved inventory demand and promotion capacity together without repricing; stock/capacity shortages reject recovery. No current browser/provider retry session.",
+      test: "backend/src/features/payments/payment-promotions.service.test.ts",
   },
   "REC-01": {
     title: "Reservation expiry policy",
     source: "backend/src/features/payments/payment-reconciliation.service.ts",
     symbol: "reconcileExpiredReservations",
     test: "backend/src/features/payments/payment.service.inventory.test.ts",
-    scope: "Mocked tests cover release and preservation on provider/configuration uncertainty. No deployed schedule or live expiry/capture race test established.",
+    scope: "Passing mocked tests cover release and preservation on uncertainty. Expiry includes payment-attempt deadlines for orders without tracked stock. No deployed schedule or live expiry/capture race.",
   },
   "REC-02": {
     title: "Stale payment recovery",
-    source: "backend/src/features/payments/payment-reconciliation.service.ts",
-    symbol: "reconcileStalePayments / attachRecoveredProviderOrder",
-    scope: "Source review of receipt-based recovery and provider re-fetch; not proof that stock was re-reserved or every provider failure recovers automatically.",
+    source: "backend/src/features/payments/payment-stale-recovery.service.ts",
+    symbol: "reconcileStalePayments; provider-order receipt recovery",
+    scope: "Receipt recovery verifies saved identity/amount and preserves payment state. Retry/capture restoration is separate; provider-side exactly-once creation is not established.",
   },
   "REC-03": {
     title: "Reconciliation execution and scheduling",
     source: "backend/package.json",
     symbol: "payments:reconcile / inventory:reconcile-reservations scripts",
-    scope: "Two bounded one-shot commands exist and exit non-zero only on reported errors. No scheduler/hosting manifest or startup scheduling was found; neither command was executed by the audit.",
+    scope: "Bounded one-shot payment/reservation commands exit non-zero on reported errors; inspect conflicts separately. No scheduler is supplied and this audit did not invoke operational commands against the configured database.",
   },
   "RT-02": {
     title: "Post-commit delivery limits",
@@ -118,8 +120,8 @@ export const evidence = {
     title: "Reservation lifecycle",
     source: "backend/src/features/inventory/inventory.service.ts",
     symbol: "reserveStockForOrder / consumeReservationsForOrder / releaseReservations",
-    test: "backend/src/features/payments/payment.service.inventory.test.ts",
-    scope: "Source and mocked service tests cover reservation creation, consumption, release, and repeated completion. A deadline does not itself change reservation status, and no live race is established.",
+    test: "backend/src/features/inventory/inventory-retry.service.test.ts",
+    scope: "Passing pure/mocked tests cover saved-demand reservation restoration, consumption and released holds. Verified late capture can restore a still-payable order when stock remains available; cancelled orders cannot revive. No live race.",
   },
   "INV-04": {
     title: "Cross-path lock-order limits",
@@ -132,7 +134,7 @@ export const evidence = {
     source: "backend/src/db/schema/inventory.schema.ts",
     symbol: "inventoryMovementsTable checks and unique idempotency key",
     test: "backend/src/features/inventory/inventory.service.test.ts",
-    scope: "Schema and mocked service review; constraints were not applied to a disposable database in this audit. Maintenance clearing can truncate the movement history.",
+    scope: "Schema and mocked service tests verify movement policy; the isolated recruiter seed also checks inventory history totals. Maintenance clearing can truncate history. No coordinated stock-write race test.",
   },
   "INV-06": {
     title: "Staff restock and adjustment",
@@ -170,16 +172,16 @@ export const evidence = {
   },
   "TEST-01": {
     title: "Audited check baseline and test categories",
-    source: "docs/case-study-evidence.md",
-    revision: "fe1f273d62e86da08490d71e8bb8365282c2b176",
-    symbol: "Test baseline / Test classification and missing proof",
-    scope: "Dated C01 execution: frontend lint and backend typecheck/build passed; frontend build and one backend test failed for recorded environment/isolation reasons. C07 did not rerun these checks.",
+    source: "docs/case-study-verification.md",
+
+    symbol: "Executed checks / Evidence limits",
+    scope: "2026-10-10 working-tree audit: 951 backend and 245 frontend tests passed; both typechecks and production builds passed. Lint has zero errors and existing warnings. Isolated PGlite evidence does not establish full migration-chain or concurrency behavior.",
   },
   "OPS-01": {
     title: "Operational diagnostic identifiers",
-    source: "backend/src/utils/logger.ts",
-    symbol: "Winston transports; payment/webhook structured metadata; reconciliation JSON",
-    scope: "Source review finds local/provider/payment/event identifiers and dated local log files. No generated request correlation ID, centralized sink, retention policy, or end-to-end trace was established.",
+    source: "backend/src/utils/request-context.ts",
+    symbol: "requestContextMiddleware / currentRequestId; safe audits, local Winston logs and protected metrics",
+    scope: "A valid caller UUID is retained or X-Request-ID is generated. Safe mutation/attempt audits and protected finance metrics are implemented; centralized log/trace/retention infrastructure is not supplied.",
   },
 } as const;
 
@@ -192,6 +194,6 @@ export const repositoryUrl = configuredRepository &&
   ? configuredRepository.replace(/\/$/, "").replace(/\.git$/, "")
   : null;
 
-export const sourceUrl = (path: string, revision = reviewedRevision) => repositoryUrl
+export const sourceUrl = (path: string, revision = "HEAD") => repositoryUrl
   ? `${repositoryUrl}/blob/${revision}/${path}`
   : null;

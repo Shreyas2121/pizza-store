@@ -1,8 +1,7 @@
 # Promotions and offers API contract
 
-- Status: Frozen for C02-C14 implementation
+- Status: Implemented contract; reviewed against code on 2026-10-10
 - Contract date: 2026-09-12
-- Branch: `feature/promotions-overhaul`
 - Related decisions: [ADR-006](adr/0006-promotion-resolution-eligibility-and-governance.md), [ADR-007](adr/0007-bundle-pricing-promotion-accounting-and-snapshots.md), [ADR-008](adr/0008-promotion-media-storage-and-cleanup.md), [ADR-001](adr/0001-money-representation-and-rounding.md), [ADR-004](adr/0004-tax-inclusive-demo-policy.md)
 
 ## 1. Contract rules
@@ -14,7 +13,7 @@
 5. Success responses use `{ "data": ... }`. List responses put pagination beside the collection inside `data`. Errors use `{ "message": string, "code": string, "data"?: object }`.
 6. `null` means unlimited or absent where declared. The new contract never accepts or returns `-1` as an unlimited sentinel.
 7. `quoteVersion` is `2026-10-10-01`, `pricingPolicyVersion` is `5`, and a new promotion starts at `definitionVersion = 1`. These values have named constants in their authoritative backend modules.
-8. This is the only target promotion/coupon contract. There are no legacy response adapters, redirects, or dual read/write requirements.
+8. This is the current promotion/coupon contract. There are no legacy response adapters, redirects, or dual read/write requirements.
 
 Named contract limits are frozen for matching backend and frontend validation:
 
@@ -35,6 +34,8 @@ Named contract limits are frozen for matching backend and frontend validation:
 | `HOMEPAGE_FEATURED_OFFER_LIMIT` | 8 |
 | `HOMEPAGE_SLIDE_INTERVAL_MS` | 6,000 ms when timed rotation is enabled |
 | `PROMOTION_MEDIA_ORPHAN_MIN_AGE_MS` | 86,400,000 ms (24 hours) |
+
+The API featured limit is eight. The current homepage consumes at most five offers and uses an optional seven-second rotation, initially paused; those frontend constants differ from the backend's unused six-second slide constant.
 
 Allowed decoded media formats are JPEG, PNG, and WebP, with canonical MIME/extension pairs. SVG, GIF, animated content, and format/header mismatches are rejected. Promotion applications use the existing online order/inventory reservation expiry; they do not introduce a separate promotion TTL.
 
@@ -553,7 +554,7 @@ interface PromotionAnalyticsDto {
 
 `netRevenueReductionPaise` is the positive tax-exclusive item contra-revenue magnitude attributable to consumed applications. It excludes delivery savings and bundle markdown. Reserved applications are reported separately and are not revenue.
 
-Analytics query fields are `fromBusinessDate`, `toBusinessDate`, and optional `storeId`. Dates are inclusive and use the order's immutable `pricingBusinessDate`. Omitted dates cover `0001-01-01` through `9999-12-31`. Application counts reflect current lifecycle status; unique users, savings and influenced payable order value include consumed applications only. Global unique users are counted directly, not added across stores. Tax-exclusive line reductions are proportionally attributed across all applications on the line with largest remainders and application-ID tie-breaking before filtering to this promotion. This is application attribution, not a delivered-ledger recognition report; C09 integrates financial reporting.
+Analytics query fields are `fromBusinessDate`, `toBusinessDate`, and optional `storeId`. Dates are inclusive and use the order's immutable `pricingBusinessDate`. Omitted dates cover `0001-01-01` through `9999-12-31`. Application counts reflect current lifecycle status; unique users, savings and influenced payable order value include consumed applications only. Global unique users are counted directly, not added across stores. Tax-exclusive line reductions are proportionally attributed across all applications on the line with largest remainders and application-ID tie-breaking before filtering to this promotion. This is application attribution; delivered-ledger reporting uses recognition business dates and the delivered population.
 
 Admin list filters are `kind`, derived `status`, optional `storeId`, `page`, and `pageSize`. Defaults and maxima are named constants. Response pagination is:
 
@@ -589,7 +590,7 @@ The setting write is strict. `reason` is trimmed, length-bounded, optional when 
 
 Discovery lists describe currently active, effectively enabled offers for the selected store but do not promise cart/user eligibility. The quote is authoritative. `/promotions/validate` loads the authenticated user's active cart and store; it does not accept item prices, an offer ID, a promotion ID, or a store override.
 
-C05 discovery returns at most `PROMOTION_LIST_MAX_PAGE_SIZE` offers or `HOMEPAGE_FEATURED_OFFER_LIMIT` featured offers. It uses global active dates and occupied capacity/budget, selected-store participation, and stable priority/ID ordering. Store-local day/time and cart/user conditions are advertised in `eligibilitySummary`; discovery does not evaluate a submitted cart. Coupon validation and promotion-aware pricing are integrated in C06/C07.
+Discovery returns at most `PROMOTION_LIST_MAX_PAGE_SIZE` offers or `HOMEPAGE_FEATURED_OFFER_LIMIT` featured offers. It uses global active dates and occupied capacity/budget, selected-store participation, and stable priority/ID ordering. Store-local day/time and cart/user conditions are advertised in `eligibilitySummary`; discovery does not evaluate a submitted cart. Coupon validation and authoritative pricing share the promotion resolution engine.
 
 Pricing policy v5 applies the store delivery-rule free-delivery threshold to the pre-discount item subtotal, including customizations. At or above a non-null threshold, the ordinary standard fee is zero before promotion resolution. A null threshold disables ordinary free delivery; zero enables it for every valid cart. Delivery offers can waive only a remaining positive standard fee, so `deliveryDiscountPaise` always reconciles to a promotion allocation and budget. A zero standard fee produces no saving and therefore no promotion application. Existing v4 saved order snapshots are preserved. Examples showing a positive standard delivery fee assume a store threshold that is null or greater than the example subtotal.
 
@@ -1124,4 +1125,4 @@ If a coupon code accompanies this cart, the request fails with `COUPON_NOT_COMBI
 - Upload responses expose URLs, not storage paths, and follow ADR-008 replacement semantics.
 - Error codes cover exclusivity, eligibility, store disablement, capacity, budget, version, rules, media, and authorization.
 - Permission checks distinguish platform definition ownership from same-store manager opt-out.
-- C03, C05, C06, C11, C12, and C13 implement against this document without inventing alternate response shapes.
+- Backend/frontend schemas and mappers share these response shapes; update both sides when changing the contract.

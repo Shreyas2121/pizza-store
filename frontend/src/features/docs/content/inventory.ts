@@ -44,7 +44,7 @@ export const lockPaths = [
   },
   {
     operation: "Payment capture",
-    sequence: "Joined order/payment rows -> existing reservation read -> store-product rows by ascending ID -> reserved rows by ascending ID",
+    sequence: "Order -> user eligibility -> store -> payment -> store-product/reservation rows by ascending ID -> promotion collections",
     result: "The transaction consumes reservations, deducts on-hand stock, appends sale movements, and completes local payment/order state.",
   },
   {
@@ -73,7 +73,7 @@ export const operationalInteractions = [
   {
     title: "Payment failure",
     behavior: "A confirmed provider failure releases active stock and promotion reservations. On-hand quantity was never deducted for the online hold, so release changes displayed availability without adding stock.",
-    limit: "The order remains awaiting_payment. Retry code does not recreate released stock reservations in the audited revision.",
+    limit: "The order remains awaiting_payment. Retry restores saved inventory demand and promotion capacity atomically when current availability permits.",
   },
   {
     title: "Reservation deadline",
@@ -82,8 +82,8 @@ export const operationalInteractions = [
   },
   {
     title: "Late capture",
-    behavior: "Finalization rejects an awaiting-payment order whose reservations were released. If expiry already cancelled the order, the payable-state check rejects it earlier.",
-    limit: "There is no automatic stock reacquisition or provider refund. The mismatch needs operational resolution.",
+    behavior: "Verified capture can restore released holds on a still-payable order. Inventory availability remains enforced; expiry-cancelled orders are rejected by the payable-state check.",
+    limit: "Stock shortages or an already cancelled order require operational resolution; a capture mismatch does not automatically issue a refund.",
   },
   {
     title: "Restock and adjustment",

@@ -7,9 +7,8 @@
 ```
 backend/    Express 5 + Drizzle ORM + PostgreSQL + Zod 4 + Vitest
 frontend/   React 19 + Vite + Mantine + Tailwind + TanStack Query + Zustand
-docs/       Architecture docs and rollout plans
-guide.md    Financial overhaul execution guide (agent-facing)
-plan.md     Product decision document (business-facing)
+docs/       Architecture, API/schema references, ADRs and runbooks
+readme.md   Project overview and local quick start
 ```
 
 ## How to Run Things
@@ -28,6 +27,9 @@ All commands run from repo root via pnpm workspace orchestration:
 | Frontend only dev | `pnpm dev:fe` |
 | DB push schema | `pnpm db:push` |
 | DB seed | `pnpm db:seed` |
+| Apply committed migrations | `pnpm db:migrate` |
+| Check documentation coverage and links | `pnpm docs:check` |
+| Offline financial fixture checks | `pnpm finance:reconcile-fixture` |
 
 ## Commit Convention
 
@@ -47,7 +49,7 @@ One commit = one coherent, reviewable behavior. Never mix unrelated changes.
 ## Testing Policy
 
 - **Backend**: Vitest unit tests required for all services and business logic
-- **Frontend**: Lint + TypeScript + Vite build only. No frontend test framework unless the user changes this decision.
+- **Frontend**: Vitest tests are present for pure models, cache/transport behavior and UI contracts. Run tests, lint, TypeScript and the Vite build for applicable changes. Browser checks remain separate.
 
 ## Data Policy
 
@@ -58,5 +60,4 @@ One commit = one coherent, reviewable behavior. Never mix unrelated changes.
 
 Money is always **integer paise** in domain/persistence logic. Never use floats for money. Convert to formatted INR only at presentation boundaries. Never trust a browser-calculated price.
 
-See `guide.md` for the full financial overhaul execution sequence.
-See `plan.md` for product decisions and business definitions.
+See `docs/README.md` for the documentation index, `docs/finance-lifecycle-contracts.md` for current workflows, and `docs/adr/README.md` for accepted decisions.

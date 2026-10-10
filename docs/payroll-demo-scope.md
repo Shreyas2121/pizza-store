@@ -25,7 +25,7 @@ Posting a paid run enqueues `pay_run.posted.v1` in the same transaction as the `
 
 ## Retention and deletion
 
-This demo intentionally has no per-employee payroll deletion endpoint. Finance profiles, compensation versions, pay-run snapshots, lifecycle command evidence, audit records, outbox events, and journals are retained for the lifetime of the demo database so historical statements and ledger totals remain reproducible. The development-only full demo reset is the only supplied purge mechanism and is not selective.
+This demo intentionally has no per-employee payroll deletion endpoint. Normal payroll workflows retain finance profiles, compensation versions, pay-run snapshots, lifecycle command evidence, audit records, outbox events, and journals so historical statements and ledger totals remain reproducible. The development-only demo reset and platform-admin system clear can purge application-wide data, including payroll and financial history; neither is selective. The system-clear endpoint preserves admins and records a new clear audit event. It is not a payroll retention workflow.
 
 A production deployment must define a jurisdiction- and employer-specific retention schedule, legal holds, subject-request handling, encryption-key rotation, secure archival, and verified erasure process before collecting real employee data. This repository makes no claim that its demo retention model satisfies those requirements.
 

@@ -1,18 +1,20 @@
 # Deterministic two-store financial fixtures
 
-C14 adds a separate promotion benchmark without changing the historical July/August expected totals. [`promotion-reconciliation.fixtures.ts`](../backend/src/fixtures/promotion-reconciliation.fixtures.ts) passes production recognition, posting validation and report projection across two stores for automatic offers/free delivery, manual coupons, and bundle markdown/free delivery. Expected platform tax-exclusive recognized revenue is respectively 27,000, 37,000 and 30,000 paise; item contra-revenue is 3,000, 3,000 and zero. The platform equals the sum of store reports, with no second discount. The offline `finance:reconcile-fixture` command executes both benchmarks. This is fixture evidence, not live ledger reconciliation; see [C14 handoff](promotions-c14-handoff.md).
+A separate promotion benchmark without changing the historical July/August expected totals. [`promotion-reconciliation.fixtures.ts`](../backend/src/fixtures/promotion-reconciliation.fixtures.ts) passes production recognition, posting validation and report projection across two stores for automatic offers/free delivery, manual coupons, and bundle markdown/free delivery. Expected platform tax-exclusive recognized revenue is respectively 27,000, 37,000 and 30,000 paise; item contra-revenue is 3,000, 3,000 and zero. The platform equals the sum of store reports, with no second discount. The offline `finance:reconcile-fixture` command executes both benchmarks. This is fixture evidence, not live ledger reconciliation; see [current verification](case-study-verification.md).
 
 - Status: Reference benchmark accepted for verification and seeding
 - Date: 2026-08-31
 - Target branch: `feature/financial-overhaul`
 - Source code fixtures: [`backend/src/fixtures/financial-scenario.fixtures.ts`](../backend/src/fixtures/financial-scenario.fixtures.ts)
-- Related documents: [Overhaul plan](../plan.md), [Implementation guide](../guide.md), [ADR-001](adr/0001-money-representation-and-rounding.md), [ADR-002](adr/0002-revenue-cogs-recognition-and-refunds.md), [ADR-003](adr/0003-ledger-accounts-and-posting-rules.md), [ADR-005](adr/0005-store-timezone-business-date-financial-year.md)
+- Related documents: [ADR-001](adr/0001-money-representation-and-rounding.md), [ADR-002](adr/0002-revenue-cogs-recognition-and-refunds.md), [ADR-003](adr/0003-ledger-accounts-and-posting-rules.md), [ADR-005](adr/0005-store-timezone-business-date-financial-year.md)
 
 ---
 
 ## 1. Overview and scenario structure
 
 This benchmark provides a **hand-checkable, deterministic financial scenario** spanning two stores and two monthly fiscal periods (July 2026 and August 2026). It contains zero pseudorandom/Faker values and models the owner-operated multi-branch business in India (`Asia/Kolkata`, `INR`).
+
+Fixture IDs/names are logical reference identities. The reset script resolves them to actual database stores/products, including its Mumbai/Bengaluru names; do not assume these IDs/names are the runtime demo rows.
 
 ### 1.1 Stores
 1. **Store 1 (ID: 1)**: Indiranagar Store, Bengaluru.
@@ -110,51 +112,21 @@ Razorpay gateway terms: **2.00% fee + 18% GST on fee**.
 
 ---
 
-## 6. Hand-checkable Profit & Loss (P&L) statements
+## 6. Source headlines and ledger report benchmarks
 
-### 6.1 Store 1 & Store 2 Monthly Statements
+The source scenario retains tax-inclusive customer headlines for order/payment reconciliation. Those are not tax-exclusive P&L values. Customer headline net after refunds is 325,000 paise; ledger-recognized revenue is 309,524 paise after extracting included demo tax. Gateway fees, fee tax and cash variance also belong in report operating expenses.
 
-```text
-========================================================================================
-P&L LINE ITEM              STORE 1 (2026-07)  STORE 2 (2026-07)  STORE 1 (2026-08)  STORE 2 (2026-08)
-========================================================================================
-Gross Sales                    160,000 p           35,000 p           45,000 p          125,000 p
-Less: Customer Discounts        (5,000 p)               0 p                0 p                0 p
-Plus: Delivery Fees             15,000 p            5,000 p            5,000 p           10,000 p
-Less: Customer Refunds         (40,000 p)               0 p                0 p                0 p
-----------------------------------------------------------------------------------------
-NET RECOGNIZED REVENUE         120,000 p           35,000 p           45,000 p          125,000 p
-Cost of Goods Sold (COGS)      (56,500 p)         (10,000 p)         (16,000 p)         (45,500 p)
-----------------------------------------------------------------------------------------
-GROSS PROFIT                    63,500 p           25,000 p           29,000 p           79,500 p
-Gross Margin %                    52.92%             71.43%             64.44%             63.60%
-----------------------------------------------------------------------------------------
-Operating Expenses:
-  - Rent                     1,500,000 p        1,800,000 p        1,500,000 p        1,800,000 p
-  - Utilities                  300,000 p          350,000 p          320,000 p          380,000 p
-  - Cleaning / Packaging       150,000 p                0 p          200,000 p                0 p
-Total Operating Expenses     1,950,000 p        2,150,000 p        2,020,000 p        2,180,000 p
-----------------------------------------------------------------------------------------
-Payroll Cost                 4,000,000 p        3,600,000 p        4,300,000 p        3,600,000 p
-----------------------------------------------------------------------------------------
-NET OPERATING PROFIT / (LOSS) -5,886,500 p       -5,725,000 p       -6,291,000 p       -5,700,500 p
-========================================================================================
-```
+The following are the exact `EXPECTED_LEDGER_REPORT_STORE_MONTH_SUMMARIES` and consolidated benchmark values in the fixture source, all in **integer paise**. General finance viewers may have payroll-sensitive totals suppressed; the full benchmark assumes authorized detailed visibility.
 
-### 6.2 Consolidated 2-Month Business Total
+| Store/month | Recognized revenue | COGS | Gross profit | Operating expenses | Payroll | Operating result |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| S1 / 2026-07 | 114,286 | 56,500 | 57,786 | 1,953,242 | 4,000,000 | -5,895,456 |
+| S2 / 2026-07 | 33,333 | 10,000 | 23,333 | 2,150,000 | 3,600,000 | -5,726,667 |
+| S1 / 2026-08 | 42,857 | 16,000 | 26,857 | 2,020,000 | 4,300,000 | -6,293,143 |
+| S2 / 2026-08 | 119,048 | 45,500 | 73,548 | 2,181,652 | 3,600,000 | -5,708,104 |
+| Consolidated July/August | 309,524 | 128,000 | 181,524 | 8,304,894 | 15,500,000 | -23,623,370 |
 
-| Line Item | Amount in Paise | Amount in INR | % of Net Revenue |
-| :--- | :---: | :---: | :---: |
-| **Gross Order Sales** | 365,000 p | ₹3,650.00 | 112.31% |
-| **Less: Customer Refunds** | -40,000 p | -₹400.00 | -12.31% |
-| **NET RECOGNIZED REVENUE** | **325,000 p** | **₹3,250.00** | **100.00%** |
-| **Cost of Goods Sold (COGS)** | **-128,000 p** | **-₹1,280.00** | **-39.38%** |
-| **GROSS PROFIT** | **197,000 p** | **₹1,970.00** | **60.62%** |
-| **Total Operating Expenses** | **-8,300,000 p** | **-₹83,000.00** | - |
-| **Total Payroll Cost** | **-15,500,000 p** | **-₹155,000.00** | - |
-| **NET OPERATING RESULT** | **-23,603,000 p** | **-₹236,030.00** | - |
-
----
+Run `pnpm finance:reconcile-fixture` for the offline report/CSV checks. It does not verify runtime demo IDs or database journal totals.
 
 ## 7. Trial balance verification rule
 
@@ -162,4 +134,4 @@ Across every store and month, double-entry journal entries generated from these 
 
 $$\sum \text{Debits} - \sum \text{Credits} = 0$$
 
-All automated tests in [`backend/src/fixtures/financial-scenario.fixtures.test.ts`](../backend/src/fixtures/financial-scenario.fixtures.test.ts) verify this invariant.
+Arithmetic/source benchmark tests are in [`backend/src/fixtures/financial-scenario.fixtures.test.ts`](../backend/src/fixtures/financial-scenario.fixtures.test.ts) The offline posting/report fixtures additionally verify balanced posting commands; neither is a live database trial-balance check.

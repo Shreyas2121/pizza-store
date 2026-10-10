@@ -4,6 +4,8 @@
 - Date: 2026-09-12
 - Decision owners: PizzaStore project owner and maintainers
 
+Implementation review (2026-10-10): New quotes use pricing policy v5, including the 2026-10-10 delivery-threshold amendment below. Saved earlier snapshots retain their own version. See [architecture](../architecture.md), [lifecycle contracts](../finance-lifecycle-contracts.md) and [verification](../case-study-verification.md).
+
 ## Context
 
 Pre-built combos, item promotions, coupons, and free delivery all advertise customer savings, but they do not share the same taxable or accounting treatment. Online payments also need a stable amount after a promotion is edited, deactivated, exhausted, or disabled for a store.

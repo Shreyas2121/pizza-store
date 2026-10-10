@@ -4,6 +4,8 @@
 - Date: 2026-08-31
 - Decision owners: PizzaStore project owner and maintainers
 
+Implementation review (2026-10-10): Delivery recognition and refunds are implemented. Delivered orders cannot transition to cancelled, and no exposed accepted-inventory-return posting workflow is established. Refunds remain separate from stock return. See [architecture](../architecture.md), [lifecycle contracts](../finance-lifecycle-contracts.md) and [verification](../case-study-verification.md).
+
 ## Context
 
 An order, its collection, its fulfilment, and a later refund are different events. Treating payment capture as revenue overstates performance for paid-but-undelivered orders. Treating every refund as a stock return also invents an operational fact: prepared food is commonly refunded without becoming reusable inventory.

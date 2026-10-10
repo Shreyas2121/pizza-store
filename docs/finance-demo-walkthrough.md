@@ -1,6 +1,6 @@
 # Finance demo walkthrough
 
-This is the repeatable recruiter/engineering walkthrough for the Phase 5 public cut. It demonstrates source truth, asynchronous posting, balanced journals, P&L drill-down, store isolation, consolidated reporting, and CSV reconciliation without live credentials.
+This is the repeatable recruiter/engineering walkthrough for the fixed July/August 2026 scenario. It demonstrates source truth, asynchronous posting, balanced journals, P&L drill-down, store isolation, consolidated reporting, and CSV reconciliation without live credentials.
 
 ## Reset and start
 
@@ -23,14 +23,16 @@ The reset refuses production and remote database URLs. It truncates local applic
 
 The reset seeds the complete checked-in two-store, two-month scenario. Its output lists the store IDs, reporting periods, order mapping, partial refund, settlements, COD session, pay runs, journal count, tax-inclusive customer headlines, and tax-separated ledger report/CSV totals. You can inspect reports and drill-down immediately. Run `pnpm demo:reset` again at any point to discard later walkthrough actions and replay the exact same seeded source data and totals.
 
-The C09 seed writes `PIZZA50` as a global promotion with a consumed application and immutable item allocation; it no longer inserts a legacy coupon. Delivered fixture events use the production recognition builder and saved tax rates. Existing two-month report totals are preserved. Separate database-free promotion finance fixtures cover one global offer/coupon at two stores, free delivery, bundle markdown and paid refunds. C09 did not run reset or database reconciliation; those checks remain deferred at the owner's request.
+The seed writes `PIZZA50` as a global promotion with a consumed application and immutable item allocation; it no longer inserts a legacy coupon. Delivered fixture events use the production recognition builder and saved tax rates. Existing two-month report totals are preserved. Separate database-free promotion finance fixtures cover one global offer/coupon at two stores, free delivery, bundle markdown and paid refunds. The current audit ran offline fixture reconciliation, but did not run reset or reconcile the configured database.
+
+Historical seeded provider IDs have no corresponding process-local simulator state. Use fresh checkout orders for new capture/retry/provider-refund demonstrations; do not submit a new provider refund against prepared historical online evidence. The reset creates finance managers but no payroll-manager/operator/inventory-staff login; use the admin or deliberately assign appropriate staff for those exercises.
 
 ## Simulated online path
 
 1. Log in as the customer and deliver to pincode `400001`.
 2. Add a product, note the server quote, and choose Pay online. The safe default simulator completes the capture without network credentials.
 3. Log in as the owner, advance the order through preparing, out for delivery, and delivered.
-4. From a backend shell run `pnpm finance:post-events` until `claimed` is zero.
+4. From a backend shell run `pnpm --filter backend finance:post-events` until `claimed` is zero.
 5. Open Finance > Overview for the order's business date. Open recognized revenue, then inspect the journal source, exact debit/credit lines, business date, and source version.
 6. Open Sales & margin and P&L. The delivered order contributes revenue and snapshotted COGS; an unpaid, failed, or cancelled order would contribute neither.
 
@@ -38,7 +40,7 @@ The C09 seed writes `PIZZA50` as a global promotion with a consumed application 
 
 1. Open a COD cash session for the selected store with an opening float.
 2. As the customer, place a COD order and deliver it through the same lifecycle.
-3. Run `pnpm finance:post-events` until drained.
+3. Run `pnpm --filter backend finance:post-events` until drained.
 4. Close the cash session with a deliberately different counted amount and acknowledge the material variance.
 5. Run the posting worker again. Drill from cash variance to the closure journal; status text identifies the variance without relying on color.
 
@@ -53,7 +55,7 @@ The C09 seed writes `PIZZA50` as a global promotion with a consumed application 
 ## Period close and correction
 
 1. Reauthenticate as owner, open a period containing the demo business date, and soft-close it.
-2. Show that ordinary backdated posting is blocked and owner override requires a reason.
+2. Show that manual posting is blocked without the supported audited owner override; automated source posting remains allowed while soft-closed.
 3. Close the period, then reopen with a correction reason. Post a balanced reversal/replacement rather than editing a posted journal.
 4. Show the immutable original, linked reversal, audit trail, and balanced trial balance.
 
@@ -64,7 +66,7 @@ The C09 seed writes `PIZZA50` as a global promotion with a consumed application 
 3. Compare a current-total CSV metric to the screen and its journal drill-down.
 4. Log in as the finance manager. They can see only stores with active membership and cannot request an unscoped consolidated report.
 
-For a deterministic all-report check, run `pnpm finance:reconcile-fixture`. It calculates overview, P&L, sales, margins, period series, and all four CSV exports for both stores and consolidated scope from the checked-in financial scenario, then fails on the first mismatch with `financial-scenario.fixtures.ts`.
+For a deterministic all-report check, run `pnpm finance:reconcile-fixture`. It checks 12 reports and 12 CSV exports against the tax-separated ledger benchmarks in `financial-scenario.fixtures.ts`, plus six promotion journals across three two-store scenarios. It is offline and does not read the running demo ledger.
 
 ## What to explain
 
