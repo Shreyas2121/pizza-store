@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ImageOff, Settings2, ShoppingCart } from "lucide-react";
 import { Product } from "../../model/catalog.types";
 import { catalogKeys } from "../../model/catalog.keys";
-import { BASE_URL } from "@/shared/config";
+import { imageUrl } from "@/shared/config";
 import { formatPaise, handleStockApiError, success, warning } from "@/shared/lib";
 import { cartKeys, useAddToCart } from "@/features/cart";
 import { useAuthModalStore } from "@/shared/model";
@@ -88,7 +88,7 @@ export const ProductCard = ({ product }: { product: Product }) => {
         <div className="relative aspect-[4/3] overflow-hidden bg-surface-muted">
           {!imageFailed ? (
             <img
-              src={`${BASE_URL}${product.image}`}
+              src={imageUrl(product.image)}
               alt={product.name}
               loading="lazy"
               onError={() => setImageFailed(true)}

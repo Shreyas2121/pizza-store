@@ -2,7 +2,7 @@ import type { DataTableColumnDef } from "@/shared/ui";
 import { Badge, Button } from "@mantine/core";
 import { Link } from "react-router";
 import { ProductWithCategory } from "../../model/catalog.types";
-import { BASE_URL } from "@/shared/config";
+import { imageUrl } from "@/shared/config";
 import { cap, formatPaise } from "@/shared/lib";
 
 export const ProductsCol: DataTableColumnDef<ProductWithCategory>[] = [
@@ -16,7 +16,7 @@ export const ProductsCol: DataTableColumnDef<ProductWithCategory>[] = [
     accessorKey: "name",
     cell: ({ row }) => (
       <div className="flex min-w-60 items-center gap-3">
-        <img src={`${BASE_URL}${row.original.image}`} alt="" className="h-11 w-11 rounded-lg border border-border object-cover" />
+        <img src={imageUrl(row.original.image)} alt="" className="h-11 w-11 rounded-lg border border-border object-cover" />
         <div><p className="font-semibold text-ink">{row.original.name}</p><p className="text-xs text-ink-muted">#{row.original.id}</p></div>
       </div>
     ),

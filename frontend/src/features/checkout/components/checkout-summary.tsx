@@ -1,7 +1,7 @@
 import { Badge, Button } from "@mantine/core";
 import { ChevronRight, LockKeyhole } from "lucide-react";
 import type { CartRes } from "@/features/cart";
-import { BASE_URL } from "@/shared/config";
+import { imageUrl } from "@/shared/config";
 import { formatPaise } from "@/shared/lib";
 import type { PaymentType, PricingQuote } from "../model/checkout.types";
 import { PromotionField } from "./promotion-field";
@@ -31,7 +31,7 @@ export function CheckoutSummary(props: CheckoutSummaryProps) {
         const line = quote?.items.find((line) => line.lineId === item.id);
         return <li id={`checkout-line-${item.id}`} key={item.id} className="scroll-mt-32">
           <div className="flex gap-3">
-            <img src={`${BASE_URL}${item.product.image}`} alt="" className="h-12 w-12 rounded-lg object-cover" />
+            <img src={imageUrl(item.product.image)} alt="" className="h-12 w-12 rounded-lg object-cover" />
             <div className="min-w-0 flex-1"><p className="text-sm font-semibold text-ink">{line?.productName ?? item.product.name}</p><p className="text-xs text-ink-muted">Qty {item.quantity}</p></div>
             <p className="text-sm font-semibold tabular-nums">{line ? formatPaise(line.lineTotalPaise) : "Calculating…"}</p>
           </div>

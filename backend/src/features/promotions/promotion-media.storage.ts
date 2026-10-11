@@ -20,6 +20,8 @@ import {
 } from "./promotion.constants";
 import type { PromotionMediaVariant } from "./promotion.types";
 import { currentRequestId } from "../../utils/request-context";
+import { dataDirectory } from "../../utils/storage-paths";
+import { usesCloudinary, uploadPromotionImage, removePromotionImage, cleanupPromotionImages, promotionPublicId } from "../../utils/cloudinary-storage";
 
 export interface PromotionMediaFile {
   buffer: Buffer;
@@ -124,7 +126,8 @@ export const validatePromotionMedia = async (
 
 export class PromotionMediaStorage {
   constructor(
-    private readonly root = path.resolve(PROMOTION_MEDIA_DIRECTORY),
+    private readonly root = path.resolve(dataDirectory(), PROMOTION_MEDIA_DIRECTORY),
+    private readonly remote?: boolean,
   ) {}
   private async ensureRoot() {
     await mkdir(this.root, { recursive: true });
@@ -139,12 +142,14 @@ export class PromotionMediaStorage {
     return resolved;
   }
   keyFromUrl(url: string) {
+    if (url.startsWith("https://")) return promotionPublicId(url);
     if (!url.startsWith(PROMOTION_MEDIA_URL_PREFIX)) throw invalidMedia();
     const key = url.slice(PROMOTION_MEDIA_URL_PREFIX.length);
     this.filePath(key);
     return key;
   }
   async put(buffer: Buffer, extension: string) {
+    if (this.remote ?? usesCloudinary()) return uploadPromotionImage(buffer, extension);
     const key = `${randomUUID()}${extension}`;
     const filePath = this.filePath(key);
     try {
@@ -156,6 +161,7 @@ export class PromotionMediaStorage {
     return `${PROMOTION_MEDIA_URL_PREFIX}${key}`;
   }
   async remove(url: string) {
+    if ((this.remote ?? usesCloudinary()) || url.startsWith("https://")) return removePromotionImage(url);
     const filePath = this.filePath(this.keyFromUrl(url));
     try {
       await this.ensureRoot();
@@ -174,6 +180,7 @@ export class PromotionMediaStorage {
     }
   }
   async cleanup(references: ReadonlySet<string>, now: Date) {
+    if (this.remote ?? usesCloudinary()) return cleanupPromotionImages(references, new Date(now.getTime() - PROMOTION_MEDIA_ORPHAN_MIN_AGE_MS));
     await this.ensureRoot();
     const removed: string[] = [];
     for (const file of await readdir(this.root, { withFileTypes: true })) {

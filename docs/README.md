@@ -35,6 +35,7 @@ Reviewed against the current working tree on 10 October 2026. Start with the ove
 | [Finance API](finance-api-compatibility-rollout.md) | Canonical money/date/permission contracts and client compatibility |
 | [Finance demo](finance-demo-walkthrough.md) / [Expected fixtures](two-store-financial-fixtures.md) | Fixed two-store scenario and hand-checkable totals |
 | [Finance operations](finance-operations-runbook.md) | Outbox, reconciliation, corrections, periods, metrics and recovery |
+| [Deployment](deployment.md) | Render, Vercel, Neon, persistent files and scheduled recovery |
 | [Report performance](finance-report-performance.md) | Index rationale and unmeasured benchmark targets |
 | [Staff authorization](store-staff-authorization.md) | Role matrix, invitations, lifecycle and security checks |
 | [Store pricing setup](store-checkout-pricing.md) | Defaults, missing-rule initialization and pricing policy v5 |

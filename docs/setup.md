@@ -96,7 +96,7 @@ These commands use the configured database and mutate operational state. Run the
 | `pnpm --filter backend inventory:reconcile-reservations` | Expired inventory/payment holds; default 25 candidates, maximum 100 |
 | `pnpm --filter backend promotions:cleanup-media` | Unreferenced managed promotion media older than 24 hours |
 
-No scheduler is included. Payment/reservation commands exit non-zero on reported errors; inspect conflicts and per-item outcomes separately. See [finance operations](finance-operations-runbook.md) and [promotion operations](promotions-operations.md).
+The Render Free configuration enables in-process maintenance with `MAINTENANCE_ENABLED=true`: financial posting every minute, reservation recovery every five minutes, and payment recovery every five minutes in Razorpay test mode. It runs immediately at startup and pauses while the host sleeps. One-shot commands remain available; inspect conflicts and per-item outcomes separately. See [deployment](deployment.md), [finance operations](finance-operations-runbook.md) and [promotion operations](promotions-operations.md).
 
 ## Files and hosting
 

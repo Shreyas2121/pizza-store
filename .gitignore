@@ -8,6 +8,8 @@ dist-ssr/
 # Generated
 drizzle/
 uploads/
+!backend/assets/uploads/
+!backend/assets/uploads/**
 .private/
 
 # Logs

@@ -10,7 +10,7 @@ import {
   Text,
   TextInput,
 } from "@mantine/core";
-import { BASE_URL } from "@/shared/config";
+import { imageUrl } from "@/shared/config";
 import { usePromotionMutations } from "../api/promotion.mutations";
 import {
   PROMOTION_IMAGE_ALT_MAX_LENGTH,
@@ -60,7 +60,7 @@ export const PromotionImageUpload = ({
     !current && variant === "mobile" ? promotion.display.imageUrl : null;
   const src =
     preview ??
-    (current || fallback ? `${BASE_URL}${current ?? fallback}` : undefined);
+    (current || fallback ? imageUrl(current ?? fallback) : undefined);
   return (
     <Stack>
       <Text>

@@ -94,7 +94,7 @@ export const evidence = {
     title: "Reconciliation execution and scheduling",
     source: "backend/package.json",
     symbol: "payments:reconcile / inventory:reconcile-reservations scripts",
-    scope: "Bounded one-shot payment/reservation commands exit non-zero on reported errors; inspect conflicts separately. No scheduler is supplied and this audit did not invoke operational commands against the configured database.",
+    scope: "Bounded one-shot payment/reservation commands exit non-zero on reported errors; inspect conflicts separately. Optional maintenance timers run while the backend is awake; this audit did not invoke operational commands against the configured database.",
   },
   "RT-02": {
     title: "Post-commit delivery limits",

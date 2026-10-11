@@ -2,6 +2,8 @@ import { mkdir, readFile, unlink, writeFile } from "fs/promises";
 import path from "path";
 import { randomUUID } from "crypto";
 import { AppError } from "../../utils/error";
+import { receiptsDirectory } from "../../utils/storage-paths";
+import { usesCloudinary, uploadPrivateReceipt, readPrivateReceipt, deletePrivateReceipt } from "../../utils/cloudinary-storage";
 
 export interface ExpenseReceiptStorage {
   put(buffer: Buffer, extension: string): Promise<string>;
@@ -11,7 +13,7 @@ export interface ExpenseReceiptStorage {
 
 export class LocalExpenseReceiptStorage implements ExpenseReceiptStorage {
   private readonly root: string;
-  constructor(root = path.resolve(process.cwd(), ".private", "expense-receipts")) { this.root = path.resolve(root); }
+  constructor(root = receiptsDirectory()) { this.root = path.resolve(root); }
 
   async put(buffer: Buffer, extension: string) {
     const storageKey = `${randomUUID()}${extension}`;
@@ -35,4 +37,24 @@ export class LocalExpenseReceiptStorage implements ExpenseReceiptStorage {
   }
 }
 
-export default new LocalExpenseReceiptStorage();
+export class CloudinaryExpenseReceiptStorage implements ExpenseReceiptStorage {
+  private readonly legacy = new LocalExpenseReceiptStorage();
+  put(buffer: Buffer, extension: string) { return uploadPrivateReceipt(buffer, extension); }
+  async read(key: string) {
+    try { return await readPrivateReceipt(key); }
+    catch (error) {
+      if (error instanceof AppError && error.code === "RECEIPT_FILE_NOT_FOUND") return this.legacy.read(key);
+      throw error;
+    }
+  }
+  delete(key: string) { return deletePrivateReceipt(key); }
+}
+
+const localStorage = new LocalExpenseReceiptStorage();
+const cloudStorage = new CloudinaryExpenseReceiptStorage();
+const currentStorage = () => usesCloudinary() ? cloudStorage : localStorage;
+export default {
+  put: (buffer: Buffer, extension: string) => currentStorage().put(buffer, extension),
+  read: (key: string) => currentStorage().read(key),
+  delete: (key: string) => currentStorage().delete(key),
+} satisfies ExpenseReceiptStorage;

@@ -3,11 +3,12 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
+    "start": "node dist/index.js",
     "lint": "eslint src/",
     "test": "vitest run src --pool=threads",
     "test:watch": "vitest src --pool=threads",
     "dev": "nodemon src/index.ts",
-    "build": "tsc -p tsconfig.json",
+    "build": "node scripts/clean-build.cjs && tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit",
     "seed:users": "ts-node src/scripts/user.ts",
     "seed:addresses": "ts-node src/scripts/address.ts",
@@ -36,6 +37,7 @@
     "node": ">=22.13.0"
   },
   "dependencies": {
+    "cloudinary": "^2.10.0",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "date-fns": "^4.4.0",

@@ -1,8 +1,10 @@
 import { GroupT } from "./types";
 import { APP_CURRENCY, APP_LOCALE, APP_TIME_ZONE } from "../constants";
+import { uploadPublicImage, usesCloudinary } from "./cloudinary-storage";
 
-export const filterImage = (file: Express.Multer.File) => {
-  return `/api/v1/${file.path.replace(/\\/g, "/")}`;
+export const filterImage = async (file: Express.Multer.File) => {
+  if (usesCloudinary()) return uploadPublicImage(file.buffer, "catalog");
+  return `/api/v1/uploads/${file.filename}`;
 };
 
 export const generateSlug = (text: string) => {

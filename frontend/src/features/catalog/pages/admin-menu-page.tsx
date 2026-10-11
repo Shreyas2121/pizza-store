@@ -2,7 +2,7 @@ import { Badge, Button } from "@mantine/core";
 import { ImageOff, Plus } from "lucide-react";
 import MenuForm from "../components/admin/menu-form";
 import { useGetMenuItems } from "../api/menu.queries";
-import { BASE_URL } from "@/shared/config";
+import { imageUrl } from "@/shared/config";
 import { useAuthModalStore } from "@/shared/model";
 import { ListSkeleton, PageHeader } from "@/shared/ui";
 
@@ -33,7 +33,7 @@ export const AdminMenuPage = () => {
             {menuItems.map((item) => (
               <div key={item.id} className="grid grid-cols-[64px_minmax(0,1fr)] items-center gap-4 p-4 sm:grid-cols-[72px_minmax(0,1fr)_120px_120px] sm:px-5">
                 <div className="h-14 w-14 overflow-hidden rounded-xl bg-surface-muted">
-                  {item.image ? <img src={`${BASE_URL}${item.image}`} alt="" className="h-full w-full object-cover" /> : <ImageOff className="m-auto mt-4 text-ink-muted" size={22} />}
+                  {item.image ? <img src={imageUrl(item.image)} alt="" className="h-full w-full object-cover" /> : <ImageOff className="m-auto mt-4 text-ink-muted" size={22} />}
                 </div>
                 <div><p className="font-semibold text-ink">{item.name}</p><p className="text-sm text-ink-muted">/{item.slug}</p></div>
                 <div className="col-start-2 text-sm tabular-nums sm:col-auto"><span className="sm:hidden text-ink-muted">Position: </span>{item.position}</div>

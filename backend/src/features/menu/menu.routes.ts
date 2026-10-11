@@ -19,7 +19,7 @@ menuRoutes.post(
       throw new AppError("Image is required", 400);
     }
 
-    const filteredImage = filterImage(image);
+    const filteredImage = await filterImage(image);
     const [menu] = await menuService.createMenuItem({
       ...data,
       position: Number(data.position),

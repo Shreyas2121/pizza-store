@@ -7,6 +7,7 @@ import { promotionDefinitionWriteSchema, type PromotionDefinitionWriteInput } fr
 import { definitionToValues, rulesToValues } from "../features/promotions/promotion.mapper";
 import { PROMOTION_DESKTOP_MIN_HEIGHT, PROMOTION_DESKTOP_MIN_WIDTH, PROMOTION_MOBILE_MIN_HEIGHT, PROMOTION_MOBILE_MIN_WIDTH, PROMOTION_MEDIA_DIRECTORY, PROMOTION_MEDIA_URL_PREFIX } from "../features/promotions/promotion.constants";
 import path from "node:path";
+import { dataDirectory, initializeStorage, uploadsDirectory } from "../utils/storage-paths";
 import { access, mkdir, writeFile, unlink } from "node:fs/promises";
 import { is, getTableName, sql } from "drizzle-orm";
 import { PgTable } from "drizzle-orm/pg-core";
@@ -982,7 +983,7 @@ async function seedFinance(tx: TransactionType, input: DemoScenarioInput, plan: 
     return { reportingPeriods: [moveDate("2026-07"), moveDate("2026-08")], orderIds, paymentAttemptIds, refundId: refund.id, settlementIds, cashSessionId: varianceCashSessionId, expenseIds, payRunIds, journalCount };
 }
 
-export async function seedShowcase(tx: TransactionType, plan: RecruiterPlan, newFiles: string[], adminEmail?: string, assetRoot = BACKEND_ROOT) {
+export async function seedShowcase(tx: TransactionType, plan: RecruiterPlan, newFiles: string[], adminEmail?: string, assetRoot = process.env.DATA_DIRECTORY ? dataDirectory() : BACKEND_ROOT) {
   const admins = await tx.select().from(schema.usersTable).where(eq(schema.usersTable.role, "admin"));
   const admin = adminEmail ? admins.find(user => user.email.toLowerCase() === adminEmail.toLowerCase()) : admins.length === 1 ? admins[0] : undefined;
   if (!admin?.isActive) throw new Error("An active existing admin is required. If several exist, pass --admin=your-email.");
@@ -1230,7 +1231,8 @@ export async function main(args = process.argv.slice(2)) {
     console.log(JSON.stringify({ mode: "plan — no database or files changed", asOf: plan.asOf, stores: plan.stores, customers: plan.customers + 1, staff: 7, products: productData.length + 1, historyOrders: plan.orders.length, operationalOrders: 4, schemaTables: Object.values(schema).filter(value => is(value, PgTable)).map(getTableName), run: "pnpm --filter backend seed:recruiter --apply" }, null, 2));
     return;
   }
-  for (const image of new Set(productData.map(product => product.image))) await access(path.join(BACKEND_ROOT, image));
+  await initializeStorage();
+  for (const image of new Set(productData.map(product => product.image))) await access(path.join(uploadsDirectory(), path.basename(image)));
   const loadRuntime = createRequire(__filename);
   const { db, closeDatabase }: typeof import("../db/index") = loadRuntime("../db/index");
   const newFiles: string[] = [];

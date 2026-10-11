@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Button, NumberInput, Switch } from "@mantine/core";
 import { modals } from "@mantine/modals";
 import { Save, Trash2 } from "lucide-react";
-import { BASE_URL } from "@/shared/config";
+import { imageUrl } from "@/shared/config";
 import { APP_CURRENCY_SYMBOL, error, formatPaise, parseRupeesToPaise, success } from "@/shared/lib";
 import { useRemoveStoreProduct, useUpdateStoreProduct } from "../../api/store.queries";
 import type { StoreProduct } from "../../model/store.types";
@@ -53,7 +53,7 @@ export function StoreProductRow({ mapping, canUpdatePrice, canUpdateAvailability
   return (
     <div className="grid gap-4 border-b border-border p-4 last:border-b-0 md:grid-cols-[minmax(240px,1fr)_150px_150px_auto] md:items-center">
       <div className="flex min-w-0 items-center gap-3">
-        <img src={`${BASE_URL}${mapping.product.image}`} alt="" className="h-12 w-12 rounded-lg border border-border object-cover" />
+        <img src={imageUrl(mapping.product.image)} alt="" className="h-12 w-12 rounded-lg border border-border object-cover" />
         <div className="min-w-0"><p className="truncate font-semibold text-ink">{mapping.product.name}</p><p className="text-xs text-ink-muted">Global price {formatPaise(mapping.product.pricePaise)}</p></div>
       </div>
       <NumberInput label="Store price" hideControls prefix={`${APP_CURRENCY_SYMBOL} `} min={0} decimalScale={2} value={price} onChange={setPrice} disabled={!canUpdatePrice} />

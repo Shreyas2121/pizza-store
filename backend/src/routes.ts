@@ -3,7 +3,8 @@ import { userRoutes } from "./features/users/user.routes";
 import { categoryRoutes } from "./features/category/category.routes";
 import { productRoutes } from "./features/products/product.routes";
 
-import path from "path";
+import { uploadsDirectory } from "./utils/storage-paths";
+import { redirectPromotionImage } from "./utils/cloudinary-storage";
 import { customizationRoutes } from "./features/customization/customize.routes";
 import { menuRoutes } from "./features/menu/menu.routes";
 import { cartRoutes } from "./features/cart/cart.routes";
@@ -66,4 +67,5 @@ mainRoutes.use("/admin/system", systemMaintenanceRoutes);
 mainRoutes.use("/audit", globalAuditRoutes);
 mainRoutes.use("/staff-invitations", staffInvitationRoutes);
 
-mainRoutes.use("/uploads", static_(path.resolve(__dirname, "../uploads")));
+mainRoutes.use("/uploads", static_(uploadsDirectory()));
+mainRoutes.get("/uploads/promotions/:key", redirectPromotionImage);

@@ -8,8 +8,14 @@ import * as msgpackParser from "socket.io-msgpack-parser";
 import http from "http";
 import { env } from "./utils/zodSchema";
 import { paymentWebhookRoutes } from "./features/payments/payment.webhook.routes";
-import { checkDatabaseConnection, closeDatabase } from "./db";
-import path from "path";
+import { checkDatabaseConnection, closeDatabase, pool } from "./db";
+import { initializeStorage, uploadsDirectory } from "./utils/storage-paths";
+import { createHealthRoutes } from "./health.routes";
+import { startMaintenance } from "./utils/maintenance";
+import { commercePostingWorker } from "./features/finance-events/commerce-posting.runtime";
+import paymentService from "./features/payments/payment.service";
+import { randomUUID } from "node:crypto";
+import { redirectPromotionImage } from "./utils/cloudinary-storage";
 import { requestContextMiddleware } from "./utils/request-context";
 import { financeMetricsRoutes } from "./features/observability/finance-metrics.routes";
 
@@ -68,6 +74,10 @@ io.on("connection", (socket) => {
 });
 
 app.use(requestContextMiddleware);
+app.use(createHealthRoutes(async () => {
+  const query = { text: "SELECT 1", query_timeout: 5000 };
+  await pool.query(query);
+}));
 app.use(financeMetricsRoutes);
 
 // Razorpay signatures cover the exact request bytes. This route must remain
@@ -76,7 +86,8 @@ app.use("/api/v1/payments/razorpay/webhook", paymentWebhookRoutes);
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cors({ origin: env.FE_URL, credentials: true }));
-app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+app.use("/uploads", express.static(uploadsDirectory()));
+app.get("/uploads/promotions/:key", redirectPromotionImage);
 
 // HTTP Request logging with duration and status code
 app.use((req, res, next) => {
@@ -108,13 +119,37 @@ const port = Number(process.env.PORT || env.PORT || 3000);
 
 app.set("io", io);
 
-httpServer.listen(port, async () => {
-  logger.info(`✨ [Server] HTTP server is live and listening on http://localhost:${port}`);
-  logger.info(`📡 [API] REST endpoints ready at http://localhost:${port}/api/v1`);
-  logger.info(`🔌 [Socket.io] Realtime WebSocket gateway ready`);
+async function start() {
+  await initializeStorage();
+  if (!await checkDatabaseConnection()) {
+    throw new Error("Database unavailable; refusing to start");
+  }
+  httpServer.listen(port, "0.0.0.0", () => {
+    if (env.MAINTENANCE_ENABLED) {
+      const workerId = `web-ledger-${randomUUID()}`;
+      stopMaintenance = startMaintenance([
+        { name: "financial-posting", intervalMs: 60_000, run: () => commercePostingWorker.runOnce(workerId, 25) },
+        { name: "reservation-recovery", intervalMs: 300_000, run: () => paymentService.reconcileExpiredReservations(25) },
+        ...(env.PAYMENT_PROVIDER_MODE === "razorpay_test" ? [
+          { name: "payment-recovery", intervalMs: 300_000, run: () => paymentService.reconcileStalePayments(15, 25) },
+        ] : []),
+      ]);
+    }
+    logger.info(`✨ [Server] HTTP server is live and listening on http://localhost:${port}`);
+    logger.info(`📡 [API] REST endpoints ready at http://localhost:${port}/api/v1`);
+    logger.info(`🔌 [Socket.io] Realtime WebSocket gateway ready`);
+  });
+}
 
-  // Explicitly test and log database connectivity and latency on startup
-  await checkDatabaseConnection();
+let stopMaintenance = async () => {};
+httpServer.on("error", (error) => {
+  logger.error("HTTP server failed", { message: error.message });
+  process.exit(1);
+});
+void start().catch(async (error: unknown) => {
+  logger.error("Backend startup failed", { message: error instanceof Error ? error.message : "Unknown startup error" });
+  await closeDatabase().catch(() => undefined);
+  process.exit(1);
 });
 
 // Process-level error and shutdown monitoring
@@ -134,12 +169,14 @@ process.on("uncaughtException", (error: Error) => {
 });
 
 process.on("SIGINT", async () => {
+  await stopMaintenance();
   logger.info("🛑 [Process] SIGINT received. Shutting down gracefully...");
   await closeDatabase().catch(() => {});
   process.exit(0);
 });
 
 process.on("SIGTERM", async () => {
+  await stopMaintenance();
   logger.info("🛑 [Process] SIGTERM received. Shutting down gracefully...");
   await closeDatabase().catch(() => {});
   process.exit(0);

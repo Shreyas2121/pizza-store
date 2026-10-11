@@ -1,0 +1,37 @@
+services:
+  - type: web
+    name: pizzastore-api
+    runtime: node
+    plan: free
+    buildCommand: npx --yes pnpm@12.9.1 install --frozen-lockfile --prod=false && npx --yes pnpm@12.9.1 --filter backend build
+    startCommand: cd backend && node dist/index.js
+    healthCheckPath: /health/ready
+    envVars:
+      - key: NODE_VERSION
+        value: 22.23.2
+      - key: NODE_ENV
+        value: production
+      - key: IMAGE_STORAGE
+        value: cloudinary
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: FE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: METRICS_BEARER_TOKEN
+        generateValue: true
+      - key: PAYROLL_ENCRYPTION_KEY
+        sync: false
+      - key: PAYMENT_PROVIDER_MODE
+        value: simulator
+      - key: RAZORPAY_ENABLED
+        value: "false"
+      - key: MAINTENANCE_ENABLED
+        value: "true"

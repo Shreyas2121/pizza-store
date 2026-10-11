@@ -1,5 +1,6 @@
 import { lstat, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { dataDirectory } from "../utils/storage-paths";
 import { and, eq } from "drizzle-orm";
 import { checkDatabaseConnection, closeDatabase, db } from "../db";
 import { bundleComponentsTable, menuItemsMappingTable, menuItemsTable, productsTable, promotionsTable,
@@ -58,12 +59,12 @@ export async function seedPromotions() {
       const media = definition.display.showOnHomepage;
       const primaryArtwork = definition.name === PROMOTION_FIXTURE_OPT_OUT_NAME;
       if (media) {
-        await mkdir(path.resolve(PROMOTION_MEDIA_DIRECTORY), { recursive: true });
+        await mkdir(path.resolve(dataDirectory(), PROMOTION_MEDIA_DIRECTORY), { recursive: true });
         const variants: ("desktop" | "mobile")[] = primaryArtwork ? ["desktop", "mobile"] : ["desktop"];
         for (const variant of variants) {
           const bytes = await promotionFixtureArtwork(variant, primaryArtwork ? "percentage" : "fixed_amount");
           const filename = primaryArtwork ? PROMOTION_FIXTURE_MEDIA[variant] : PROMOTION_FIXTURE_MEDIA.fallbackDesktop;
-          const target = path.resolve(PROMOTION_MEDIA_DIRECTORY, filename);
+          const target = path.resolve(dataDirectory(), PROMOTION_MEDIA_DIRECTORY, filename);
           try { await writeFile(target, bytes, { flag: "wx" }); }
           catch (cause) {
             if (!(cause instanceof Error && "code" in cause && cause.code === "EEXIST")) throw cause;

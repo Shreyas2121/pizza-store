@@ -3,7 +3,7 @@ import { Plus } from "lucide-react";
 import { Link } from "react-router";
 import { ProductsCol } from "../components/admin/product-columns";
 import { useGetProductsA } from "../api/product.queries";
-import { BASE_URL } from "@/shared/config";
+import { imageUrl } from "@/shared/config";
 import { formatPaise } from "@/shared/lib";
 import { PageHeader, TableSkeleton } from "@/shared/ui";
 
@@ -29,7 +29,7 @@ export const AdminProductsPage = () => {
           emptyTitle="No matching products"
           renderMobileCard={(product) => (
             <div className="flex gap-3">
-              <img src={`${BASE_URL}${product.image}`} alt="" className="h-16 w-16 rounded-xl border border-border object-cover" />
+              <img src={imageUrl(product.image)} alt="" className="h-16 w-16 rounded-xl border border-border object-cover" />
               <div className="min-w-0 flex-1">
                 <div className="flex items-start justify-between gap-3"><p className="font-semibold text-ink">{product.name}</p><p className="shrink-0 font-semibold tabular-nums">{formatPaise(product.pricePaise)}</p></div>
                 <p className="mt-0.5 text-sm text-ink-muted">{product.category.name} · {product.veg ? "Veg" : "Non-veg"}</p>

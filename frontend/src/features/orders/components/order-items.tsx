@@ -1,4 +1,4 @@
-import { BASE_URL } from "@/shared/config";
+import { imageUrl } from "@/shared/config";
 import { formatPaise } from "@/shared/lib";
 
 import { OrderItemRes } from "../model/order.types";
@@ -15,7 +15,7 @@ export const OrderItems = ({ items }: { items: OrderItemRes[] }) => (
       <ul className="divide-y divide-border">
         {items.map((item) => (
           <li id={`order-line-${item.id}`} key={item.id} className="flex scroll-mt-32 gap-4 px-5 py-5 sm:px-6">
-            {item.product.image && <img src={`${BASE_URL}${item.product.image}`} alt="" className="h-16 w-16 shrink-0 rounded-control bg-surface-muted object-cover sm:h-20 sm:w-20" />}
+            {item.product.image && <img src={imageUrl(item.product.image)} alt="" className="h-16 w-16 shrink-0 rounded-control bg-surface-muted object-cover sm:h-20 sm:w-20" />}
             <div className="min-w-0 flex-1">
               <div className="flex items-start justify-between gap-3">
                 <div>

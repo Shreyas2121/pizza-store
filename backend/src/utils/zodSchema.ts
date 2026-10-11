@@ -1,11 +1,18 @@
 import { z } from "zod";
-import { promotionCodeSchema, PROMOTION_MAX_EXPANDED_UNITS } from "../features/promotions";
+import { promotionCodeSchema } from "../features/promotions/promotion.schemas";
+import { PROMOTION_MAX_EXPANDED_UNITS } from "../features/promotions/promotion.constants";
 import dotenv from "dotenv";
 dotenv.config({ quiet: true });
 
 export const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
-  PORT: z.string().min(4).max(4),
+  PORT: z.string().regex(/^\d+$/).refine((value) => Number(value) >= 1 && Number(value) <= 65535, "PORT must be between 1 and 65535").default("3000"),
+  DATA_DIRECTORY: z.string().min(1).optional(),
+  IMAGE_STORAGE: z.enum(["local", "cloudinary"]).default("local"),
+  CLOUDINARY_CLOUD_NAME: z.string().min(1).optional(),
+  CLOUDINARY_API_KEY: z.string().min(1).optional(),
+  CLOUDINARY_API_SECRET: z.string().min(1).optional(),
+  MAINTENANCE_ENABLED: z.enum(["true", "false"]).default("false").transform(value => value === "true"),
   DATABASE_URL: z.string().optional(),
   DB_HOST: z.string().optional(),
   DB_PORT: z.string().optional(),
@@ -36,6 +43,15 @@ export const envSchema = z.object({
     .int().positive().max(50_000_000).default(500_000),
   PAYROLL_ENCRYPTION_KEY: z.string().min(32).optional(),
 }).superRefine((value, ctx) => {
+  if (value.IMAGE_STORAGE === "cloudinary" && (!value.CLOUDINARY_CLOUD_NAME || !value.CLOUDINARY_API_KEY || !value.CLOUDINARY_API_SECRET)) {
+    ctx.addIssue({ code: "custom", message: "Cloudinary storage requires CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET", path: ["IMAGE_STORAGE"] });
+  }
+  if (value.NODE_ENV === "production" && value.JWT_SECRET.length < 32) {
+    ctx.addIssue({ code: "custom", message: "JWT_SECRET must be at least 32 characters in production", path: ["JWT_SECRET"] });
+  }
+  if (value.NODE_ENV === "production" && !value.DATABASE_URL) {
+    ctx.addIssue({ code: "custom", message: "DATABASE_URL is required in production", path: ["DATABASE_URL"] });
+  }
   if (value.NODE_ENV === "production" && !value.METRICS_BEARER_TOKEN) {
     ctx.addIssue({
       code: "custom",

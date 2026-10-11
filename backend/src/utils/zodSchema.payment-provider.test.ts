@@ -47,11 +47,33 @@ describe("operational metrics environment", () => {
     expect(envSchema.safeParse({
       ...base,
       NODE_ENV: "production",
+      JWT_SECRET: "production-signing-secret-of-at-least-32-characters",
+      DATABASE_URL: "postgresql://user:password@db.example.test/pizzastore?sslmode=require",
       METRICS_BEARER_TOKEN: "metrics-only-secret-that-is-at-least-32-characters",
     }).success).toBe(true);
   });
 
   it("rejects short metrics tokens", () => {
     expect(envSchema.safeParse({ ...base, METRICS_BEARER_TOKEN: "too-short" }).success).toBe(false);
+  });
+});
+
+describe("deployment environment", () => {
+  it("requires complete Cloudinary credentials when remote storage is selected", () => {
+    expect(envSchema.safeParse({ ...base, IMAGE_STORAGE: "cloudinary" }).success).toBe(false);
+    expect(envSchema.safeParse({ ...base, IMAGE_STORAGE: "cloudinary", CLOUDINARY_CLOUD_NAME: "demo", CLOUDINARY_API_KEY: "key", CLOUDINARY_API_SECRET: "secret" }).success).toBe(true);
+  });
+  it("accepts Render's default port and rejects invalid TCP ports", () => {
+    expect(envSchema.parse({ ...base, PORT: "10000" }).PORT).toBe("10000");
+    for (const PORT of ["0", "65536", "abcd", "3000x", "-1"]) {
+      expect(envSchema.safeParse({ ...base, PORT }).success).toBe(false);
+    }
+  });
+
+  it("rejects a production deployment without a database or strong signing secret", () => {
+    const production = { ...base, NODE_ENV: "production", METRICS_BEARER_TOKEN: "m".repeat(32) };
+    expect(envSchema.safeParse(production).success).toBe(false);
+    expect(envSchema.safeParse({ ...production, JWT_SECRET: "s".repeat(32) }).success).toBe(false);
+    expect(envSchema.safeParse({ ...production, DATABASE_URL: "postgresql://db.example.test/app" }).success).toBe(false);
   });
 });

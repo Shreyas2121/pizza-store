@@ -7,11 +7,11 @@ import { failureRows, improvementPriorities, testCategories } from "../content/r
 import { docsReliability } from "../content/navigation";
 
 const deploymentLimits = [
-  ["Runtime shape", "Each Node/Express application process hosts HTTP and Socket.IO and uses PostgreSQL. No deployed topology, public URL, or hosting manifest was found."],
+  ["Runtime shape", "The Render Free manifest runs one Node/Express process for HTTP and Socket.IO with PostgreSQL. Hosting configuration is supplied; actual deployed behavior remains unverified."],
   ["Runtime requirements", "The backend manifest requires Node.js 22.13.0 or newer. pnpm lockfiles define dependencies; migrations must match the connected PostgreSQL database."],
   ["Optional provider", "Razorpay starts disabled. Enabling new attempts requires the key ID, key secret, and webhook secret; in-flight verification/reconciliation still needs credentials after rollback."],
-  ["Process filesystem", "Uploads and dated Winston log files use local paths. Persistence, aggregation, rotation, and sharing across instances depend on hosting that is not present here."],
-  ["Frontend delivery", "The app uses BrowserRouter. A host must rewrite direct documentation paths to the SPA entry; no hosted refresh check has been performed."],
+  ["File storage", "Existing public images are bundled at their original upload paths. Cloudinary stores new images and authenticated private receipts on the free deployment. Local logs and simulator state remain ephemeral."],
+  ["Frontend delivery", "The app uses BrowserRouter. The Vercel configuration rewrites deep links to the SPA entry; no hosted refresh check has been performed."],
   ["Verification baseline", "Both package typechecks and production builds pass in the current workspace. A clean-clone install and actual-host browser checks remain separate release evidence."],
 ] as const;
 
@@ -58,7 +58,7 @@ export default function ReliabilityPage() {
         <div className="rounded-card border border-border bg-surface p-6"><p className="docs-eyebrow mb-3">Stale payments</p><h3 className="break-all font-mono text-sm">pnpm.cmd --dir backend run payments:reconcile</h3><p className="mt-4 text-sm leading-7 text-ink-muted">Scans processing/failed Razorpay attempts. It can attach an order found by deterministic receipt, fetch provider state, and finalize or record failure. Defaults: older than 15 minutes, limit 25; maximum limit 50.</p></div>
         <div className="rounded-card border border-border bg-surface p-6"><p className="docs-eyebrow mb-3">Expired reservations</p><h3 className="break-all font-mono text-sm">pnpm.cmd --dir backend run inventory:reconcile-reservations</h3><p className="mt-4 text-sm leading-7 text-ink-muted">Scans expired reserved rows, checks provider state, and finalizes, preserves, or safely releases. Default limit 25; maximum 100. Persisted payment-attempt deadlines also discover awaiting-payment orders without tracked-stock rows.</p></div>
       </div>
-      <div className="mt-6 rounded-card bg-surface-muted p-6"><h3 className="mb-3 font-semibold">One-shot commands, no established schedule</h3><p className="text-sm leading-7 text-ink-muted">Both commands print summary and per-item JSON and close the database connection. They exit non-zero when <code>errors &gt; 0</code>. A failed payment outcome, unchanged result, or reservation conflict is not included in that exit test, so operators must inspect the full result.</p><p className="mt-3 text-sm leading-7 text-ink-muted">No scheduler or hosting manifest was found, and server startup does not invoke either command. The five-minute cadence in the runbook is a proposed starting point. Never run reconciliation against an unidentified database merely to verify documentation.</p></div>
+      <div className="mt-6 rounded-card bg-surface-muted p-6"><h3 className="mb-3 font-semibold">Recovery while the backend is awake</h3><p className="text-sm leading-7 text-ink-muted">One-shot commands print summary and per-item JSON and close the database connection. They exit non-zero when <code>errors &gt; 0</code>. A failed payment outcome, unchanged result, or reservation conflict is not included in that exit test, so operators must inspect the full result.</p><p className="mt-3 text-sm leading-7 text-ink-muted">The Render Free manifest enables maintenance at startup: posting every minute, reservation recovery every five minutes, and payment recovery every five minutes in Razorpay test mode. Timers pause when Render sleeps. Actual hosted schedules remain unverified.</p></div>
       <EvidenceLinks id="REC-01" /><EvidenceLinks id="REC-02" /><EvidenceLinks id="REC-03" />
     </DocsSection>
 

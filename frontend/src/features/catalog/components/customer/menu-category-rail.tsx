@@ -1,6 +1,6 @@
 import { Skeleton } from "@mantine/core";
 import { Pizza, RotateCcw } from "lucide-react";
-import { BASE_URL } from "@/shared/config";
+import { imageUrl } from "@/shared/config";
 import { useSearchParams } from "react-router";
 import ProductGrid from "./product-grid";
 import { useGetMenuItems } from "../../api/menu.queries";
@@ -114,7 +114,7 @@ export const MenuCategoryRail = () => {
                 className={`inline-flex min-h-12 shrink-0 items-center gap-2 rounded-pill border py-1.5 pl-1.5 pr-4 text-sm font-semibold transition-colors ${active ? "border-brand bg-brand text-white shadow-subtle" : "border-border bg-surface text-ink hover:border-brand hover:bg-brand-soft"}`}
               >
                 <img
-                  src={`${BASE_URL}${item.image}`}
+                  src={imageUrl(item.image)}
                   alt=""
                   loading="lazy"
                   className="h-9 w-9 rounded-full object-cover"

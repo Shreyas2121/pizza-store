@@ -15,7 +15,7 @@ import {
   Pencil,
   SlidersHorizontal,
 } from "lucide-react";
-import { BASE_URL } from "@/shared/config";
+import { imageUrl } from "@/shared/config";
 import { formatDateTime } from "@/shared/lib";
 import { RefreshIndicator } from "@/shared/ui";
 import type {
@@ -138,7 +138,7 @@ export function InventoryTable({
                   }
                 />
                 <img
-                  src={`${BASE_URL}${item.productImage}`}
+                  src={imageUrl(item.productImage)}
                   alt=""
                   className="h-12 w-12 rounded-lg border border-border object-cover"
                 />
@@ -250,7 +250,7 @@ export function InventoryTable({
                   <Table.Td>
                     <div className="flex min-w-52 items-center gap-3">
                       <img
-                        src={`${BASE_URL}${item.productImage}`}
+                        src={imageUrl(item.productImage)}
                         alt=""
                         className="h-10 w-10 rounded-lg border border-border object-cover"
                       />

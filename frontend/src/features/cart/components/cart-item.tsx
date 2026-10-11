@@ -1,7 +1,7 @@
 import { Settings2, Trash2 } from "lucide-react";
 import { ItemRes } from "../model/cart.types";
 import QuantityStepper from "./quantity-stepper";
-import { BASE_URL } from "@/shared/config";
+import { imageUrl } from "@/shared/config";
 import { formatPaise } from "@/shared/lib";
 import { BundleContents } from "@/features/catalog";
 
@@ -25,7 +25,7 @@ export const CartItemCard = ({
       <div className="flex gap-4">
         <img
           className="h-20 w-20 shrink-0 rounded-control bg-surface-muted object-cover sm:h-24 sm:w-24"
-          src={`${BASE_URL}${item.product.image}`}
+          src={imageUrl(item.product.image)}
           alt={item.product.name}
         />
         <div className="min-w-0 flex-1">

@@ -82,6 +82,8 @@ The documentation check validates relative file links, mounted API handlers, sch
 
 ## Documentation
 
+For Render, Vercel and Neon deployment settings, persistent storage and scheduled recovery jobs, see the [deployment guide](docs/deployment.md).
+
 See the [documentation index](docs/README.md) for API and schema references, decision records, demo guides and operational runbooks. The [frontend README](frontend/README.md) covers feature organization and UI conventions.
 
 ```text
@@ -99,6 +101,6 @@ docs/                    Maintainer and recruiter documentation
 
 This is an INR portfolio application for company-operated stores. Its tax rules, receipts and payroll calculations are demo data; it has no statutory filing or invoice service. Standard product costs are a reporting proxy, not recipe-level inventory valuation.
 
-Uploads, private receipts, logs, simulator state and Socket.IO audiences depend on the serving process. Reconciliation and financial posting require an operator or external scheduler; startup does not schedule them. The financial outbox makes accounting recoverable, while realtime notifications remain best-effort. Production invitation delivery, multi-instance storage/socket coordination, full PostgreSQL race testing and hosted browser verification remain explicit limitations.
+The free Render deployment uses Cloudinary for new images and authenticated private receipts, while existing public images are bundled at their original upload paths. Logs, simulator state and Socket.IO audiences depend on the serving process. Optional maintenance timers post financial events and reconcile reservations while the backend is awake; they pause when the free service sleeps. The financial outbox makes accounting recoverable, while realtime notifications remain best-effort. Production invitation delivery, multi-instance socket coordination, full PostgreSQL race testing and hosted browser verification remain explicit limitations.
 
 No repository-wide license file is present; the backend package's ISC metadata does not establish a license for the whole project.
